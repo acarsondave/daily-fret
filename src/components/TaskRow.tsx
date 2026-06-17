@@ -1,4 +1,4 @@
-import { useStore, getTodayString } from '../store';
+import { useStore, useUserData, getTodayString } from '../store';
 import { Check, Circle } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
@@ -14,7 +14,8 @@ interface TaskRowProps {
 export function TaskRow({ taskId, title, description, duration }: TaskRowProps) {
   const today = getTodayString();
   const toggleTaskCompletion = useStore((state) => state.toggleTaskCompletion);
-  const log = useStore((state) => state.dailyLogs[today]);
+  const userData = useUserData();
+  const log = userData.dailyLogs[today];
   
   const isCompleted = log?.completedTaskIds.includes(taskId) || false;
 

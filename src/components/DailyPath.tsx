@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useStore, getTodayString } from '../store';
+import { useStore, useUserData, getTodayString } from '../store';
 import { TaskRow } from './TaskRow';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lightning, DotsThreeCircle, Plus } from '@phosphor-icons/react';
@@ -7,10 +7,10 @@ import './DailyPath.css';
 
 export function DailyPath() {
   const today = getTodayString();
-  const routines = useStore(state => state.routines);
-  const activeRoutineId = useStore(state => state.activeRoutineId);
+  const userData = useUserData();
+  const { routines, activeRoutineId, dailyLogs } = userData;
   const setActiveRoutine = useStore(state => state.setActiveRoutine);
-  const log = useStore(state => state.dailyLogs[today]);
+  const log = dailyLogs[today];
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
@@ -18,7 +18,7 @@ export function DailyPath() {
     return routines.find(r => r.id === activeRoutineId) || routines[0];
   }, [routines, activeRoutineId]);
 
-  const allCompleted = activeRoutine.tasks.length > 0 && 
+  const allCompleted = activeRoutine && activeRoutine.tasks.length > 0 && 
     activeRoutine.tasks.every(t => log?.completedTaskIds.includes(t.id));
 
   const displayDate = new Date().toLocaleDateString('en-US', {
@@ -26,6 +26,8 @@ export function DailyPath() {
     month: 'long',
     day: 'numeric'
   });
+
+  if (!activeRoutine) return null;
 
   return (
     <div className="daily-path">
