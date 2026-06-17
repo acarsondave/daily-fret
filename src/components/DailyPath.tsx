@@ -33,7 +33,7 @@ export function DailyPath() {
   const tasks = activeRoutine?.tasks || [];
   const isEmpty = tasks.length === 0;
 
-  const allCompleted = !isEmpty && tasks.every(t => log?.completedTaskIds.includes(t.id));
+  const allCompleted = !isEmpty && tasks.every(t => log?.completedTaskIds?.includes(t.id));
 
   // Automatically open jotter when all completed (only once per session ideally, but for now just open it)
   useEffect(() => {

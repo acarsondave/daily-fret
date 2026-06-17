@@ -15,9 +15,9 @@ export function TaskRow({ taskId, title, description, duration }: TaskRowProps) 
   const today = getTodayString();
   const toggleTaskCompletion = useStore((state) => state.toggleTaskCompletion);
   const userData = useUserData();
-  const log = userData.dailyLogs[today];
+  const log = userData?.dailyLogs?.[today];
   
-  const isCompleted = log?.completedTaskIds.includes(taskId) || false;
+  const isCompleted = log?.completedTaskIds?.includes(taskId) || false;
 
   return (
     <motion.div 
