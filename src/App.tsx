@@ -64,18 +64,6 @@ function App() {
                 )}
               </div>
             </header>
-            
-            {/* Minimalist Left Art */}
-            <div className="left-art pointer-events-none">
-               <svg width="100%" height="100%" viewBox="0 0 100 800" preserveAspectRatio="none">
-                 <line x1="20" y1="0" x2="20" y2="800" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-                 <line x1="30" y1="0" x2="30" y2="800" stroke="rgba(255,255,255,0.02)" strokeWidth="1" />
-                 <line x1="40" y1="0" x2="40" y2="800" stroke="rgba(255,255,255,0.01)" strokeWidth="1" />
-                 <circle cx="20" cy="150" r="4" fill="rgba(255,255,255,0.1)" />
-                 <circle cx="30" cy="450" r="3" fill="rgba(255,255,255,0.05)" />
-                 <circle cx="40" cy="650" r="2" fill="rgba(255,255,255,0.03)" />
-               </svg>
-            </div>
 
             <div className="center-content">
               <DailyPath />

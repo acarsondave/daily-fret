@@ -34,7 +34,12 @@
   align-items: flex-start;
   justify-content: flex-end;
   padding-top: 80px; /* Below header */
-  padding-right: var(--space-8);
+  padding-right: var(--space-4);
+}
+
+.position-top-right .modal-content {
+  max-width: 320px;
+  padding: var(--space-4);
 }
 
 .modal-content {
