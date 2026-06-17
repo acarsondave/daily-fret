@@ -68,7 +68,12 @@ export const useStore = create<AppState>()(
       syncFromRemote: (uid, data) => set((state) => ({
         accounts: {
           ...state.accounts,
-          [uid]: data
+          [uid]: {
+            ...defaultUserData,
+            ...data,
+            routines: data.routines?.length ? data.routines : defaultUserData.routines,
+            dailyLogs: data.dailyLogs || {}
+          }
         }
       })),
 

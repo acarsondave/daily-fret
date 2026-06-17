@@ -81,7 +81,34 @@ export function DailyPath() {
     setInlineDraft({ title: '', duration: '' });
   };
 
-  if (!activeRoutine) return null;
+  if (!activeRoutine) {
+    return (
+      <div className="daily-path">
+        <div className="task-container-wrapper">
+          <div className="task-container glass-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px' }}>
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              className="empty-state-placeholder"
+              onClick={() => {
+                const newId = crypto.randomUUID();
+                useStore.getState().addRoutine({
+                  id: newId,
+                  name: 'My First Routine',
+                  description: '',
+                  isDefault: true,
+                  tasks: []
+                });
+                setActiveRoutine(newId);
+              }}
+            >
+              <span className="placeholder-text">Click to create your first routine...</span>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="daily-path">
