@@ -4,28 +4,11 @@ import type { Routine, DailyLog } from '../types';
 
 const defaultRoutines: Routine[] = [
   {
-    id: 'muscle-10',
-    name: '10-Min Muscle',
-    description: 'Low energy day. 100% focused on physical mechanics.',
+    id: 'r_empty_1',
+    name: 'My Routine',
+    description: '',
     isDefault: true,
-    tasks: [
-      { id: 't1', title: 'Spider Exercises', description: '1st fret start. Low E to high E.', duration: '5 mins' },
-      { id: 't2', title: 'Lauren Bateman Pushups', description: '20 reps per finger on the G string.', duration: '2-3 mins' },
-      { id: 't3', title: 'Chord Speed Training', description: 'A, D, E transitions. Goal: 65+ cpm.', duration: '3 mins' }
-    ]
-  },
-  {
-    id: 'concept-30',
-    name: '30-Min Concept',
-    description: 'High energy day. Focus on JustinGuitar module concepts.',
-    isDefault: true,
-    tasks: [
-      { id: 'c1', title: 'Spider Exercises', description: '1st fret start. Low E to high E.', duration: '5 mins' },
-      { id: 'c2', title: 'Lauren Bateman Pushups', description: '20 reps per finger on the G string.', duration: '2-3 mins' },
-      { id: 'c3', title: 'Chord Speed Training', description: 'A, D, E transitions. Goal: 65+ cpm.', duration: '3 mins' },
-      { id: 'c4', title: 'JustinGuitar Lesson', description: 'Watch and grasp new concepts from Module 2.', duration: '10 mins' },
-      { id: 'c5', title: 'Song Integration', description: '"Wild Thing" by The Troggs practice.', duration: '10 mins' }
-    ]
+    tasks: []
   }
 ];
 
@@ -43,7 +26,7 @@ interface UserData {
 const defaultUserData: UserData = {
   routines: defaultRoutines,
   dailyLogs: {},
-  activeRoutineId: 'muscle-10'
+  activeRoutineId: 'r_empty_1'
 };
 
 interface AppState {

@@ -6,20 +6,84 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Daily Fret | Your Guitar Journey</title>
     
-    <!-- SEO Meta Tags -->
     <meta name="description" content="A premium, low-friction daily routine tracker for your guitar learning journey. Build speed, master chords, and track your daily progress elegantly." />
-    <meta name="keywords" content="guitar, practice, tracker, routine, daily fret, music, learning" />
-    <meta property="og:title" content="Daily Fret | Your Guitar Journey" />
-    <meta property="og:description" content="A premium, low-friction daily routine tracker for your guitar learning journey." />
-    <meta property="og:type" content="website" />
     <meta name="theme-color" content="#0F0F11" />
 
-    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+      /* Initial Loader Styles */
+      #initial-loader {
+        position: fixed;
+        inset: 0;
+        background-color: #0F0F11;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.6s;
+      }
+      
+      .strings-container {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 120px;
+      }
+
+      .string {
+        height: 2px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Each string gets thicker like real guitar strings (E A D G B e) */
+      .string:nth-child(1) { height: 3px; }
+      .string:nth-child(2) { height: 2.5px; }
+      .string:nth-child(3) { height: 2px; }
+      .string:nth-child(4) { height: 1.5px; }
+      .string:nth-child(5) { height: 1.2px; }
+      .string:nth-child(6) { height: 1px; }
+
+      .string::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.8), transparent);
+        animation: strum 1.5s infinite ease-in-out;
+      }
+
+      .string:nth-child(1)::after { animation-delay: 0.0s; }
+      .string:nth-child(2)::after { animation-delay: 0.1s; }
+      .string:nth-child(3)::after { animation-delay: 0.2s; }
+      .string:nth-child(4)::after { animation-delay: 0.3s; }
+      .string:nth-child(5)::after { animation-delay: 0.4s; }
+      .string:nth-child(6)::after { animation-delay: 0.5s; }
+
+      @keyframes strum {
+        0% { left: -100%; }
+        100% { left: 100%; }
+      }
+    </style>
   </head>
   <body>
+    <div id="initial-loader">
+      <div class="strings-container">
+        <div class="string"></div>
+        <div class="string"></div>
+        <div class="string"></div>
+        <div class="string"></div>
+        <div class="string"></div>
+        <div class="string"></div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

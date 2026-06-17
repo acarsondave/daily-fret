@@ -1,18 +1,16 @@
 .daily-path {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: var(--space-8) var(--space-4);
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
 }
 
-.path-header {
-  margin-bottom: var(--space-8);
-}
-
-.today-title {
-  font-size: 2.2rem;
-  color: var(--text-primary);
-  margin-bottom: var(--space-2);
+.path-header-center {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  z-index: 30;
 }
 
 .routine-selector-container {
@@ -20,40 +18,49 @@
 }
 
 .routine-selector {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  background: rgba(56, 189, 248, 0.1);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
   border-radius: var(--radius-full);
+  background: rgba(20, 20, 22, 0.4);
   color: var(--text-primary);
   font-weight: 500;
-  transition: background 0.2s;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.2s;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
 .routine-selector:hover {
-  background: rgba(56, 189, 248, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .routine-dropdown {
   position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: var(--space-2);
-  width: 200px;
-  z-index: 100;
+  top: calc(100% + var(--space-2));
+  left: 50%;
+  transform: translateX(-50%) !important;
+  width: 240px;
+  border-radius: var(--radius-xl);
+  padding: var(--space-2);
   display: flex;
   flex-direction: column;
-  padding: var(--space-2);
+  gap: var(--space-1);
+  z-index: 50;
+  background: rgba(20, 20, 22, 0.8);
 }
 
 .dropdown-item {
-  padding: var(--space-2) var(--space-3);
+  width: 100%;
   text-align: left;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
   color: var(--text-secondary);
-  border-radius: var(--radius-md);
   transition: all 0.2s;
-  font-size: 0.95rem;
+  background: transparent;
+  border: none;
 }
 
 .dropdown-item:hover {
@@ -62,66 +69,176 @@
 }
 
 .dropdown-item.active {
-  color: var(--accent-primary);
   background: rgba(56, 189, 248, 0.1);
+  color: var(--text-primary);
 }
 
-.task-list {
+.task-container-wrapper {
+  width: 100%;
+  max-width: 600px;
+  padding: 0 var(--space-4);
+}
+
+.task-container {
+  width: 100%;
+  max-height: 60vh;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+  background: rgba(20, 20, 22, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.task-list-scrollable {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.task-list-scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.task-list-scrollable::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.task-container-footer {
+  padding: var(--space-4);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  justify-content: flex-start;
 }
 
 .add-task-btn {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-3);
   color: var(--text-secondary);
-  border: 1px dashed rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-lg);
-  justify-content: center;
-  margin-top: var(--space-2);
-  transition: all 0.2s;
+  background: transparent;
+  border: none;
+  font-size: 0.95rem;
+  transition: color 0.2s;
 }
 
 .add-task-btn:hover {
   color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.02);
 }
 
-.jotter-container {
-  margin-top: var(--space-8);
-  padding: var(--space-6);
-  background: rgba(52, 211, 153, 0.05);
-  border-color: rgba(52, 211, 153, 0.1);
+/* Empty State / Inline Creation */
+.empty-state-placeholder {
+  padding: var(--space-4) var(--space-4);
+  cursor: text;
+  border-radius: var(--radius-lg);
+  transition: background 0.2s;
+  opacity: 0.6;
+}
+
+.empty-state-placeholder:hover {
+  background: rgba(255, 255, 255, 0.03);
+  opacity: 1;
+}
+
+.placeholder-text {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.inline-task-creator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.inline-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+}
+
+.inline-input {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  width: 100%;
+  outline: none;
+}
+
+.inline-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  white-space: nowrap;
+}
+
+/* Jotter Modal Overrides */
+.jotter-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 .jotter-title {
-  color: var(--success-color);
-  font-size: 1.2rem;
-  margin-bottom: var(--space-1);
+  font-family: var(--font-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .jotter-subtitle {
   color: var(--text-secondary);
-  font-size: 0.9rem;
-  margin-bottom: var(--space-4);
 }
 
 .jotter-input {
   width: 100%;
-  min-height: 100px;
+  min-height: 120px;
   background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4);
   color: var(--text-primary);
-  resize: vertical;
-  transition: border-color 0.3s;
+  font-size: 1rem;
+  resize: none;
 }
 
 .jotter-input:focus {
-  border-color: var(--success-color);
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.jotter-done-btn {
+  align-self: flex-end;
+  background: var(--text-primary);
+  color: var(--bg-color);
+  padding: var(--space-2) var(--space-6);
+  border-radius: var(--radius-full);
+  font-weight: 500;
+  border: none;
+  transition: transform 0.2s, opacity 0.2s;
+}
+
+.jotter-done-btn:hover {
+  opacity: 0.9;
+}
+.jotter-done-btn:active {
+  transform: scale(0.95);
 }
