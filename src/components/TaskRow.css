@@ -1,0 +1,114 @@
+.task-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--surface-color);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, border-color 0.2s ease;
+  user-select: none;
+  margin-bottom: var(--space-3);
+  position: relative;
+  overflow: hidden;
+}
+
+.task-row:hover {
+  background: var(--surface-hover);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.task-row:active {
+  transform: scale(0.98);
+}
+
+.task-checkbox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.check-bg {
+  position: absolute;
+  inset: 0;
+  background-color: var(--success-color);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-success);
+}
+
+.uncheck-icon {
+  transition: color 0.2s ease;
+}
+
+.task-row:hover .uncheck-icon {
+  color: var(--text-primary);
+}
+
+.task-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.task-title {
+  font-family: var(--font-primary);
+  font-weight: 500;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+  transition: color 0.3s ease;
+}
+
+.task-duration {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  background: var(--accent-glow);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.task-desc {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  transition: color 0.3s ease;
+}
+
+/* Completed State */
+.task-row.completed {
+  background: rgba(24, 24, 27, 0.4);
+  border-color: transparent;
+}
+
+.task-row.completed .task-title {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+  text-decoration-color: rgba(161, 161, 170, 0.5);
+}
+
+.task-row.completed .task-desc {
+  color: rgba(161, 161, 170, 0.6);
+}
+
+.task-row.completed .task-duration {
+  opacity: 0.5;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+}
