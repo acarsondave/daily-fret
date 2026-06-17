@@ -75,6 +75,10 @@ export const useStore = create<AppState>()(
       addRoutine: (routine) => set((state) => {
         const accId = state.currentAccountId;
         const acc = state.accounts[accId];
+        if (acc.routines.length >= 10) {
+          alert("Maximum limit of 10 routines reached.");
+          return state;
+        }
         return {
           accounts: {
             ...state.accounts,
