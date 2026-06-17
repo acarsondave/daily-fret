@@ -10,7 +10,11 @@ import './DailyPath.css';
 export function DailyPath() {
   const today = getTodayString();
   const userData = useUserData();
-  const { routines, activeRoutineId, dailyLogs } = userData;
+  
+  const routines = userData?.routines || [];
+  const activeRoutineId = userData?.activeRoutineId;
+  const dailyLogs = userData?.dailyLogs || {};
+  
   const setActiveRoutine = useStore(state => state.setActiveRoutine);
   const log = dailyLogs[today];
 
@@ -54,6 +58,10 @@ export function DailyPath() {
 
   const submitInlineTask = () => {
     if (!inlineDraft.title.trim()) return;
+    if (tasks.length >= 100) {
+      alert("Maximum limit of 100 tasks per routine reached.");
+      return;
+    }
     const newTask = {
       id: crypto.randomUUID(),
       title: inlineDraft.title.trim(),

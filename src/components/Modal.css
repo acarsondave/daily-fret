@@ -45,7 +45,9 @@
   border-radius: var(--radius-2xl);
   padding: var(--space-6);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  background: rgba(20, 20, 22, 0.7); /* Slightly darker glass for contrast */
+  background: rgba(24, 24, 27, 0.95); /* var(--surface-color) with slight transparency */
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .position-bottom .modal-content {

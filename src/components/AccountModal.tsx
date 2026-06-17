@@ -84,13 +84,16 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
       <div className="account-modal-content">
         {!user ? (
           <form onSubmit={handleAuth} className="auth-form">
-            <h3 className="auth-title">{isLogin ? 'Welcome Back' : 'Start Journey'}</h3>
+            <h3 className="auth-title">{isLogin ? 'Sign into your account' : 'Create an account'}</h3>
+            <p className="auth-subtitle">
+              {isLogin ? 'Welcome back to your guitar journey.' : 'Save your progress securely to the cloud.'}
+            </p>
             {error && <div className="auth-error">{error}</div>}
             
             <input 
               type="email" 
               className="auth-input" 
-              placeholder="Email" 
+              placeholder="Email address" 
               value={email}
               onChange={e => setEmail(e.target.value)}
               required 
@@ -105,12 +108,12 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
             />
             
             <button type="submit" className="auth-submit">
-              <span>{isLogin ? 'Log In' : 'Sign Up'}</span>
+              <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
               <ArrowRight size={16} />
             </button>
 
             <button type="button" className="auth-switch" onClick={() => setIsLogin(!isLogin)}>
-              {isLogin ? "Need an account? Sign up" : "Already have an account? Log in"}
+              {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
             </button>
           </form>
         ) : (
