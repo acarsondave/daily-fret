@@ -1,14 +1,31 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Routine, DailyLog } from '../types';
+import type { Routine, DailyLog, Task } from '../types';
 
 const defaultRoutines: Routine[] = [
   {
-    id: 'r_empty_1',
-    name: 'My Routine',
-    description: '',
+    id: 'r_10min',
+    name: '10-Min Muscle Memory',
+    description: 'Low energy day. 100% focused on physical mechanics.',
     isDefault: true,
-    tasks: []
+    tasks: [
+      { id: 't1', title: 'Spider Exercises', description: '1st fret start. Low E to high E.', duration: '5 mins' },
+      { id: 't2', title: 'Lauren Bateman Pushups', description: '20 reps per finger on the G string.', duration: '2-3 mins' },
+      { id: 't3', title: 'Chord Speed Training', description: 'A, D, E transitions. Goal: 65+ cpm.', duration: '3 mins' }
+    ]
+  },
+  {
+    id: 'r_30min',
+    name: '30-Min Concept Mastery',
+    description: 'High energy day. Focus on JustinGuitar module concepts.',
+    isDefault: true,
+    tasks: [
+      { id: 'c1', title: 'Spider Exercises', description: '1st fret start. Low E to high E.', duration: '5 mins' },
+      { id: 'c2', title: 'Lauren Bateman Pushups', description: '20 reps per finger on the G string.', duration: '2-3 mins' },
+      { id: 'c3', title: 'Chord Speed Training', description: 'A, D, E transitions. Goal: 65+ cpm.', duration: '3 mins' },
+      { id: 'c4', title: 'JustinGuitar Lesson', description: 'Watch and grasp new concepts from Module 2.', duration: '10 mins' },
+      { id: 'c5', title: 'Song Integration', description: '"Wild Thing" by The Troggs practice.', duration: '10 mins' }
+    ]
   }
 ];
 
@@ -26,7 +43,7 @@ interface UserData {
 const defaultUserData: UserData = {
   routines: defaultRoutines,
   dailyLogs: {},
-  activeRoutineId: 'r_empty_1'
+  activeRoutineId: 'r_10min'
 };
 
 interface AppState {
@@ -38,6 +55,12 @@ interface AppState {
   syncFromRemote: (uid: string, data: UserData) => void;
   
   addRoutine: (routine: Routine) => void;
+  updateRoutine: (routineId: string, updates: Partial<Routine>) => void;
+  deleteRoutine: (routineId: string) => void;
+  addTask: (routineId: string, task: Task) => void;
+  updateTask: (routineId: string, taskId: string, updates: Partial<Task>) => void;
+  deleteTask: (routineId: string, taskId: string) => void;
+  
   toggleTaskCompletion: (date: string, taskId: string) => void;
   saveFeedback: (date: string, feedback: string) => void;
   setActiveRoutine: (routineId: string) => void;
@@ -89,7 +112,97 @@ export const useStore = create<AppState>()(
             ...state.accounts,
             [accId]: {
               ...acc,
-              routines: [...acc.routines, routine]
+              routines: [...acc.routines, routine],
+              activeRoutineId: acc.routines.length === 0 ? routine.id : acc.activeRoutineId
+            }
+          }
+        };
+      }),
+
+      updateRoutine: (routineId, updates) => set((state) => {
+        const accId = state.currentAccountId;
+        const acc = state.accounts[accId];
+        return {
+          accounts: {
+            ...state.accounts,
+            [accId]: {
+              ...acc,
+              routines: acc.routines.map(r => r.id === routineId ? { ...r, ...updates } : r)
+            }
+          }
+        };
+      }),
+
+      deleteRoutine: (routineId) => set((state) => {
+        const accId = state.currentAccountId;
+        const acc = state.accounts[accId];
+        if (acc.routines.length <= 1) {
+          alert("You must have at least one routine.");
+          return state;
+        }
+        const updatedRoutines = acc.routines.filter(r => r.id !== routineId);
+        const newActiveId = acc.activeRoutineId === routineId ? updatedRoutines[0].id : acc.activeRoutineId;
+        return {
+          accounts: {
+            ...state.accounts,
+            [accId]: {
+              ...acc,
+              routines: updatedRoutines,
+              activeRoutineId: newActiveId
+            }
+          }
+        };
+      }),
+
+      addTask: (routineId, task) => set((state) => {
+        const accId = state.currentAccountId;
+        const acc = state.accounts[accId];
+        return {
+          accounts: {
+            ...state.accounts,
+            [accId]: {
+              ...acc,
+              routines: acc.routines.map(r => r.id === routineId ? { ...r, tasks: [...r.tasks, task] } : r)
+            }
+          }
+        };
+      }),
+
+      updateTask: (routineId, taskId, updates) => set((state) => {
+        const accId = state.currentAccountId;
+        const acc = state.accounts[accId];
+        return {
+          accounts: {
+            ...state.accounts,
+            [accId]: {
+              ...acc,
+              routines: acc.routines.map(r => {
+                if (r.id !== routineId) return r;
+                return {
+                  ...r,
+                  tasks: r.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t)
+                };
+              })
+            }
+          }
+        };
+      }),
+
+      deleteTask: (routineId, taskId) => set((state) => {
+        const accId = state.currentAccountId;
+        const acc = state.accounts[accId];
+        return {
+          accounts: {
+            ...state.accounts,
+            [accId]: {
+              ...acc,
+              routines: acc.routines.map(r => {
+                if (r.id !== routineId) return r;
+                return {
+                  ...r,
+                  tasks: r.tasks.filter(t => t.id !== taskId)
+                };
+              })
             }
           }
         };

@@ -58,6 +58,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .task-header {
@@ -73,6 +74,9 @@
   font-size: 1.05rem;
   color: var(--text-primary);
   transition: color 0.3s ease;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .task-duration {
@@ -89,6 +93,9 @@
   color: var(--text-secondary);
   line-height: 1.4;
   transition: color 0.3s ease;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 /* Completed State */
@@ -98,17 +105,62 @@
 }
 
 .task-row.completed .task-title {
-  color: var(--text-secondary);
   text-decoration: line-through;
-  text-decoration-color: rgba(161, 161, 170, 0.5);
+  color: var(--text-secondary);
+  opacity: 0.7;
 }
 
 .task-row.completed .task-desc {
-  color: rgba(161, 161, 170, 0.6);
+  text-decoration: line-through;
+  opacity: 0.5;
 }
 
 .task-row.completed .task-duration {
   opacity: 0.5;
-  background: rgba(255, 255, 255, 0.05);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Editing State */
+.task-row.editing {
+  background: var(--surface-hover);
+  border-color: var(--accent-primary);
+  cursor: default;
+}
+
+.task-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.task-edit-input, .task-edit-textarea {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  outline: none;
+  font-family: var(--font-primary);
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+  width: 100%;
+}
+
+.task-edit-input:focus, .task-edit-textarea:focus {
+  border-color: var(--accent-primary);
+}
+
+.task-edit-textarea {
+  resize: none;
+  font-size: 0.85rem;
   color: var(--text-secondary);
+}
+
+.task-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
 }

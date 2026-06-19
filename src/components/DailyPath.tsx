@@ -1,9 +1,11 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useStore, useUserData, getTodayString } from '../store';
 import { TaskRow } from './TaskRow';
 import { Modal } from './Modal';
+import { TaskCreatorModal } from './TaskCreatorModal';
+import { RoutineManagerModal } from './RoutineManagerModal';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lightning, Plus, CaretDown, TextAa } from '@phosphor-icons/react';
+import { Lightning, Plus, CaretDown, Gear } from '@phosphor-icons/react';
 import clsx from 'clsx';
 import './DailyPath.css';
 
@@ -20,10 +22,16 @@ export function DailyPath() {
 
   const [isRoutineDropdownOpen, setIsRoutineDropdownOpen] = useState(false);
   const [isJotterOpen, setIsJotterOpen] = useState(false);
-  const [inlineDraft, setInlineDraft] = useState({ title: '', duration: '' });
-  const [inlineStep, setInlineStep] = useState<'title'|'duration'|null>(null);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [isRoutineModalOpen, setIsRoutineModalOpen] = useState(false);
+
+  const routineDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [inlineDraft, setInlineDraft] = useState({ title: '', description: '', duration: '' });
+  const [inlineStep, setInlineStep] = useState<'title'|'description'|'duration'|null>(null);
 
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const descInputRef = useRef<HTMLInputElement>(null);
   const durationInputRef = useRef<HTMLInputElement>(null);
 
   const activeRoutine = useMemo(() => {
@@ -42,9 +50,24 @@ export function DailyPath() {
     }
   }, [allCompleted, log?.feedback]);
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (routineDropdownRef.current && !routineDropdownRef.current.contains(e.target as Node)) {
+        setIsRoutineDropdownOpen(false);
+      }
+    };
+    if (isRoutineDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isRoutineDropdownOpen]);
+
   const handleInlineKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       if (inlineStep === 'title' && inlineDraft.title.trim()) {
+        setInlineStep('description');
+        setTimeout(() => descInputRef.current?.focus(), 50);
+      } else if (inlineStep === 'description') {
         setInlineStep('duration');
         setTimeout(() => durationInputRef.current?.focus(), 50);
       } else if (inlineStep === 'duration') {
@@ -52,7 +75,7 @@ export function DailyPath() {
       }
     } else if (e.key === 'Escape') {
       setInlineStep(null);
-      setInlineDraft({ title: '', duration: '' });
+      setInlineDraft({ title: '', description: '', duration: '' });
     }
   };
 
@@ -65,20 +88,12 @@ export function DailyPath() {
     const newTask = {
       id: crypto.randomUUID(),
       title: inlineDraft.title.trim(),
+      description: inlineDraft.description.trim() || undefined,
       duration: inlineDraft.duration.trim() || undefined
     };
-    // Update store (we need an action to add task to routine)
-    // For now we'll do it via a quick patch to the store state.
-    useStore.setState(state => {
-      const acc = state.accounts[state.currentAccountId];
-      const rIdx = acc.routines.findIndex(r => r.id === activeRoutineId);
-      if (rIdx >= 0) {
-        acc.routines[rIdx].tasks.push(newTask);
-      }
-      return { accounts: { ...state.accounts, [state.currentAccountId]: acc } };
-    });
+    useStore.getState().addTask(activeRoutineId, newTask);
     setInlineStep(null);
-    setInlineDraft({ title: '', duration: '' });
+    setInlineDraft({ title: '', description: '', duration: '' });
   };
 
   if (!activeRoutine) {
@@ -113,14 +128,14 @@ export function DailyPath() {
   return (
     <div className="daily-path">
       <div className="path-header-center">
-        <div className="routine-selector-container">
+        <div className="routine-selector-container" ref={routineDropdownRef}>
           <button 
-            className="routine-selector glass-panel"
-            onClick={() => setIsRoutineDropdownOpen(!isRoutineDropdownOpen)}
+            className="routine-selector"
+            onClick={() => setIsRoutineDropdownOpen(prev => !prev)}
           >
-            <Lightning weight="fill" color="var(--accent-primary)" />
-            <span>{activeRoutine.name}</span>
-            <CaretDown size={16} color="var(--text-secondary)" />
+            <Lightning weight="duotone" className="routine-icon" />
+            <span className="routine-name">{activeRoutine.name}</span>
+            <CaretDown weight="bold" className="routine-caret" />
           </button>
           
           <AnimatePresence>
@@ -143,6 +158,16 @@ export function DailyPath() {
                     {r.name}
                   </button>
                 ))}
+                <div className="dropdown-divider" />
+                <button 
+                  className="dropdown-item manage-action"
+                  onClick={() => {
+                    setIsRoutineDropdownOpen(false);
+                    setIsRoutineModalOpen(true);
+                  }}
+                >
+                  <Gear size={16} /> Manage Routines
+                </button>
               </motion.div>
             )}
           </AnimatePresence>
@@ -161,7 +186,7 @@ export function DailyPath() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.03 }}
                 >
-                  <TaskRow taskId={task.id} title={task.title} description={task.description} duration={task.duration} />
+                  <TaskRow routineId={activeRoutineId} taskId={task.id} title={task.title} description={task.description} duration={task.duration} />
                 </motion.div>
               ))}
 
@@ -182,33 +207,57 @@ export function DailyPath() {
                   animate={{ opacity: 1, y: 0 }}
                   className="inline-task-creator"
                 >
-                  {inlineStep === 'title' ? (
-                    <div className="inline-input-wrapper">
-                      <TextAa size={20} color="var(--text-secondary)" />
-                      <input 
-                        ref={titleInputRef}
-                        autoFocus
-                        placeholder="What's the task? (e.g. Spider Walk)"
-                        value={inlineDraft.title}
-                        onChange={e => setInlineDraft(d => ({ ...d, title: e.target.value }))}
-                        onKeyDown={handleInlineKeyDown}
-                        className="inline-input"
-                      />
-                    </div>
-                  ) : (
-                    <div className="inline-input-wrapper">
-                      <Lightning size={20} color="var(--text-secondary)" />
-                      <input 
-                        ref={durationInputRef}
-                        placeholder="Duration? (e.g. 5m) - Optional"
-                        value={inlineDraft.duration}
-                        onChange={e => setInlineDraft(d => ({ ...d, duration: e.target.value }))}
-                        onKeyDown={handleInlineKeyDown}
-                        className="inline-input"
-                      />
-                    </div>
+                  {inlineStep === 'title' && (
+                    <>
+                      <span className="inline-tooltip">Name your task & press Enter</span>
+                      <div className="inline-input-wrapper">
+                        <input 
+                          ref={titleInputRef}
+                          autoFocus
+                          placeholder="e.g. Spider Walk"
+                          value={inlineDraft.title}
+                          onChange={e => setInlineDraft(d => ({ ...d, title: e.target.value }))}
+                          onKeyDown={handleInlineKeyDown}
+                          className="inline-input fluid-input"
+                          maxLength={60}
+                        />
+                      </div>
+                    </>
                   )}
-                  <span className="hint">Press Enter ⏎</span>
+                  {inlineStep === 'description' && (
+                    <>
+                      <span className="inline-tooltip">What is this task for? (Optional)</span>
+                      <div className="inline-input-wrapper">
+                        <input 
+                          ref={descInputRef}
+                          autoFocus
+                          placeholder="e.g. Start at 1st fret, alternate picking."
+                          value={inlineDraft.description}
+                          onChange={e => setInlineDraft(d => ({ ...d, description: e.target.value }))}
+                          onKeyDown={handleInlineKeyDown}
+                          className="inline-input fluid-input"
+                          maxLength={300}
+                        />
+                      </div>
+                    </>
+                  )}
+                  {inlineStep === 'duration' && (
+                    <>
+                      <span className="inline-tooltip">How long? (Optional)</span>
+                      <div className="inline-input-wrapper">
+                        <input 
+                          ref={durationInputRef}
+                          autoFocus
+                          placeholder="e.g. 5m"
+                          value={inlineDraft.duration}
+                          onChange={e => setInlineDraft(d => ({ ...d, duration: e.target.value }))}
+                          onKeyDown={handleInlineKeyDown}
+                          className="inline-input fluid-input"
+                          maxLength={30}
+                        />
+                      </div>
+                    </>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -218,7 +267,7 @@ export function DailyPath() {
             <div className="task-container-footer">
                <button 
                 className="add-task-btn"
-                onClick={() => setInlineStep('title')}
+                onClick={() => setIsTaskModalOpen(true)}
                >
                  <Plus size={16} />
                  <span>Add quick task</span>
@@ -230,24 +279,41 @@ export function DailyPath() {
 
       <Modal 
         isOpen={isJotterOpen} 
-        onClose={() => setIsJotterOpen(false)}
+        onClose={() => {
+          setIsJotterOpen(false);
+        }}
         position="bottom"
       >
         <div className="jotter-content">
-          <h3 className="jotter-title">Routine Complete.</h3>
-          <p className="jotter-subtitle">Thoughts on today's session?</p>
+          <h2 className="jotter-title">You've completed today's rounds.</h2>
+          <p className="jotter-subtitle">Well done.</p>
           <textarea 
             className="jotter-input"
-            autoFocus
-            placeholder="Felt great on the transitions..."
+            placeholder="Have any thoughts or notes about today's experience?"
             value={log?.feedback || ''}
             onChange={(e) => useStore.getState().saveFeedback(today, e.target.value)}
+            rows={4}
+            maxLength={1000}
           />
-          <button className="jotter-done-btn" onClick={() => setIsJotterOpen(false)}>
+          <button 
+            className="jotter-done-btn" 
+            onClick={() => setIsJotterOpen(false)}
+          >
             Done
           </button>
         </div>
       </Modal>
+
+      <TaskCreatorModal 
+        isOpen={isTaskModalOpen}
+        onClose={() => setIsTaskModalOpen(false)}
+        routineId={activeRoutine.id}
+      />
+      
+      <RoutineManagerModal 
+        isOpen={isRoutineModalOpen}
+        onClose={() => setIsRoutineModalOpen(false)}
+      />
     </div>
   );
 }

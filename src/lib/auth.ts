@@ -18,9 +18,22 @@ export const useAuthStore = create<AuthState>((set) => ({
   setLoading: (loading) => set({ loading })
 }));
 
+let firestoreUnsubscribe: (() => void) | null = null;
+let storeUnsubscribe: (() => void) | null = null;
+
 export const initAuthListener = () => {
   onAuthStateChanged(auth, async (user) => {
     useAuthStore.getState().setUser(user);
+    
+    // Clean up previous listeners
+    if (firestoreUnsubscribe) {
+      firestoreUnsubscribe();
+      firestoreUnsubscribe = null;
+    }
+    if (storeUnsubscribe) {
+      storeUnsubscribe();
+      storeUnsubscribe = null;
+    }
     
     if (user) {
       useStore.getState().switchAccount(user.uid);
@@ -31,35 +44,73 @@ export const initAuthListener = () => {
       // Initial fetch to see if data exists remotely
       const docSnap = await getDoc(userRef);
       if (docSnap.exists()) {
-        useStore.getState().syncFromRemote(user.uid, docSnap.data() as any);
+        const cloudData = docSnap.data() as any;
+        const anonData = useStore.getState().accounts['anonymous'];
+        
+        // Merge anonymous local data into existing cloud data
+        const mergedData = { ...cloudData };
+        if (anonData) {
+          const newRoutines = (anonData.routines || []).filter(r => !cloudData.routines?.some((cr: any) => cr.id === r.id));
+          mergedData.routines = [...(cloudData.routines || []), ...newRoutines];
+          mergedData.dailyLogs = { ...(cloudData.dailyLogs || {}), ...(anonData.dailyLogs || {}) };
+          
+          // Push the merged result up immediately
+          await setDoc(userRef, mergedData);
+        }
+        
+        useStore.getState().syncFromRemote(user.uid, mergedData);
       } else {
-        // If no remote data, upload the local default data for this user
-        const localData = useStore.getState().accounts[user.uid];
-        if (localData) {
-          await setDoc(userRef, localData);
+        // New account! Push the anonymous data so they don't lose their local progress
+        const anonData = useStore.getState().accounts['anonymous'];
+        if (anonData) {
+          useStore.getState().syncFromRemote(user.uid, JSON.parse(JSON.stringify(anonData)));
+          await setDoc(userRef, anonData);
         }
       }
 
+      let isSyncing = false;
+      let uploadTimeout: ReturnType<typeof setTimeout> | null = null;
+
       // Listen for remote changes
-      onSnapshot(userRef, (snapshot) => {
+      firestoreUnsubscribe = onSnapshot(userRef, (snapshot) => {
         if (snapshot.exists() && !snapshot.metadata.hasPendingWrites) {
+           isSyncing = true;
            useStore.getState().syncFromRemote(user.uid, snapshot.data() as any);
+           setTimeout(() => { isSyncing = false; }, 50);
         }
       });
       
       // Setup a subscriber to sync local changes up to Firestore
-      useStore.subscribe((state, prevState) => {
+      storeUnsubscribe = useStore.subscribe((state, prevState) => {
+        if (isSyncing) return;
+
         const currentData = state.accounts[user.uid];
         const prevData = prevState.accounts[user.uid];
         
         if (currentData && currentData !== prevData) {
-          setDoc(userRef, currentData, { merge: true }).catch(err => {
-            console.error("Firestore sync error", err);
-          });
+          // Debounce the network request to prevent memory spikes and high write volume
+          if (uploadTimeout) clearTimeout(uploadTimeout);
+          
+          uploadTimeout = setTimeout(() => {
+            setDoc(userRef, currentData, { merge: true }).catch(err => {
+              console.error("Firestore sync error", err);
+            });
+          }, 1500);
         }
       });
 
     } else {
+      const state = useStore.getState();
+      const currentId = state.currentAccountId;
+      
+      // If logging out, copy the last known cloud state to anonymous so they don't lose local progress
+      if (currentId !== 'anonymous') {
+        const lastData = state.accounts[currentId];
+        if (lastData) {
+          state.syncFromRemote('anonymous', JSON.parse(JSON.stringify(lastData)));
+        }
+      }
+      
       useStore.getState().switchAccount('anonymous');
     }
     

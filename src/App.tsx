@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { DailyPath } from './components/DailyPath';
 import { Footer } from './components/Footer';
 import { AccountModal } from './components/AccountModal';
+import { StreakGraph } from './components/StreakGraph';
 import { initAuthListener, useAuthStore } from './lib/auth';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UserCircle } from '@phosphor-icons/react';
+import './App.css';
 
 function App() {
   const { loading, user } = useAuthStore();
@@ -50,18 +51,19 @@ function App() {
             {/* Top Navigation */}
             <header className="app-header">
               <div className="header-date">{displayDate}</div>
-              <div className="header-account">
-                {!user ? (
-                  <button className="account-btn local-mode" onClick={() => setIsAccountModalOpen(true)}>
-                    <UserCircle size={24} weight="light" />
-                    <span>Local Mode</span>
-                  </button>
-                ) : (
-                  <button className="account-btn active-mode" onClick={() => setIsAccountModalOpen(true)}>
-                    <UserCircle size={24} weight="fill" color="var(--accent-primary)" />
-                    <span>{user.email?.split('@')[0]}</span>
-                  </button>
-                )}
+              <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                <StreakGraph />
+                <div className="header-account">
+                  {!user ? (
+                    <button className="account-btn local-mode" onClick={() => setIsAccountModalOpen(true)}>
+                      <span>Local Mode</span>
+                    </button>
+                  ) : (
+                    <button className="account-btn active-mode" onClick={() => setIsAccountModalOpen(true)}>
+                      <span>Cloud Mode</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </header>
 

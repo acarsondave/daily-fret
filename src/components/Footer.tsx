@@ -5,14 +5,12 @@ export function Footer() {
   return (
     <footer className="app-footer">
       <div className="footer-content">
-        <p className="footer-quote">
+        <span className="footer-quote">
           "Consistency is the heartbeat of progress."
-        </p>
-        <div className="footer-links">
-          <a href="https://github.com/acarsondave" target="_blank" rel="noopener noreferrer" className="footer-link">
-            <GithubLogo size={20} weight="light" />
-          </a>
-        </div>
+        </span>
+        <a href="https://github.com/acarsondave" target="_blank" rel="noopener noreferrer" className="footer-link">
+          <GithubLogo size={16} weight="light" />
+        </a>
       </div>
     </footer>
   );

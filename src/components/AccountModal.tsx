@@ -4,7 +4,7 @@ import { auth } from '../lib/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { useAuthStore } from '../lib/auth';
 import { useStore } from '../store';
-import { SignOut, ArrowRight, Guitar } from '@phosphor-icons/react';
+import { SignOut, ArrowRight, Guitar, Spinner, DownloadSimple } from '@phosphor-icons/react';
 import './AccountModal.css';
 
 interface AccountModalProps {
@@ -18,10 +18,12 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
     try {
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
@@ -31,12 +33,18 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
       onClose();
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleLogout = async () => {
-    await signOut(auth);
+  const handleLogout = () => {
+    setIsLoading(true);
     onClose();
+    setTimeout(async () => {
+      await signOut(auth);
+      setIsLoading(false);
+    }, 250); // wait for modal exit animation to prevent login form flash
   };
 
   const restoreDefaults = () => {
@@ -79,6 +87,22 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
     onClose();
   };
 
+  const exportData = () => {
+    const state = useStore.getState();
+    const data = state.accounts[state.currentAccountId];
+    if (!data) return;
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `daily-fret-export-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} position="top-right">
       <div className="account-modal-content">
@@ -97,6 +121,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required 
+              maxLength={100}
             />
             <input 
               type="password" 
@@ -105,11 +130,18 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required 
+              maxLength={100}
             />
             
-            <button type="submit" className="auth-submit">
-              <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
-              <ArrowRight size={16} />
+            <button type="submit" className="auth-submit" disabled={isLoading}>
+              {isLoading ? (
+                <Spinner size={16} className="spinner-icon" weight="bold" />
+              ) : (
+                <>
+                  <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
+                  <ArrowRight size={16} />
+                </>
+              )}
             </button>
 
             <button type="button" className="auth-switch" onClick={() => setIsLogin(!isLogin)}>
@@ -122,14 +154,19 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
             <div className="user-email">{user.email}</div>
             
             <div className="settings-actions">
+              <button className="settings-action-btn" onClick={exportData}>
+                <DownloadSimple size={18} />
+                <span>Export My Data (JSON)</span>
+              </button>
+
               <button className="settings-action-btn" onClick={restoreDefaults}>
                 <Guitar size={18} />
                 <span>Restore Starter Routines</span>
               </button>
               
-              <button className="settings-action-btn logout" onClick={handleLogout}>
-                <SignOut size={18} />
-                <span>Log Out</span>
+              <button className="settings-action-btn logout" onClick={handleLogout} disabled={isLoading}>
+                {isLoading ? <Spinner size={18} className="spinner-icon" /> : <SignOut size={18} />}
+                <span>{isLoading ? 'Logging Out...' : 'Log Out'}</span>
               </button>
             </div>
           </div>

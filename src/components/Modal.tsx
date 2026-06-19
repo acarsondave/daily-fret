@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from '@phosphor-icons/react';
@@ -39,7 +40,7 @@ export function Modal({ isOpen, onClose, children, title, position = 'center' }:
     }
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -60,12 +61,12 @@ export function Modal({ isOpen, onClose, children, title, position = 'center' }:
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
             >
-              {true && (
+              <button className="modal-close" onClick={onClose}>
+                <X size={20} />
+              </button>
+              {title && (
                 <div className="modal-header">
-                  {title && <h3 className="modal-title">{title}</h3>}
-                  <button className="modal-close" onClick={onClose}>
-                    <X size={20} />
-                  </button>
+                  <h3 className="modal-title">{title}</h3>
                 </div>
               )}
               <div className="modal-body">
@@ -75,6 +76,7 @@ export function Modal({ isOpen, onClose, children, title, position = 'center' }:
           </div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
