@@ -59,6 +59,8 @@ export const initAuthListener = () => {
         }
         
         useStore.getState().syncFromRemote(user.uid, mergedData);
+        // Sync downwards to local anonymous so they stay in perfect sync
+        useStore.getState().syncFromRemote('anonymous', mergedData);
       } else {
         // New account! Push the anonymous data so they don't lose their local progress
         const anonData = useStore.getState().accounts['anonymous'];
@@ -75,7 +77,10 @@ export const initAuthListener = () => {
       firestoreUnsubscribe = onSnapshot(userRef, (snapshot) => {
         if (snapshot.exists() && !snapshot.metadata.hasPendingWrites) {
            isSyncing = true;
-           useStore.getState().syncFromRemote(user.uid, snapshot.data() as any);
+           const remoteData = snapshot.data() as any;
+           useStore.getState().syncFromRemote(user.uid, remoteData);
+           // Also keep local anonymous in sync with remote changes
+           useStore.getState().syncFromRemote('anonymous', remoteData);
            setTimeout(() => { isSyncing = false; }, 50);
         }
       });
@@ -102,13 +107,8 @@ export const initAuthListener = () => {
     } else {
       const state = useStore.getState();
       const currentId = state.currentAccountId;
-      
-      // If logging out, copy the last known cloud state to anonymous so they don't lose local progress
-      if (currentId !== 'anonymous') {
-        const lastData = state.accounts[currentId];
-        if (lastData) {
-          state.syncFromRemote('anonymous', JSON.parse(JSON.stringify(lastData)));
-        }
+      if (currentId !== 'anonymous' && state.accounts[currentId]) {
+        state.syncFromRemote('anonymous', state.accounts[currentId]);
       }
       
       useStore.getState().switchAccount('anonymous');
