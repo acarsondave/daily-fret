@@ -50,7 +50,7 @@ export const initAuthListener = () => {
         // Merge anonymous local data into existing cloud data
         const mergedData = { ...cloudData };
         if (anonData) {
-          const newRoutines = (anonData.routines || []).filter(r => !cloudData.routines?.some((cr: any) => cr.id === r.id));
+          const newRoutines = (anonData.routines || []).filter(r => !r.isDefault && !cloudData.routines?.some((cr: any) => cr.id === r.id));
           mergedData.routines = [...(cloudData.routines || []), ...newRoutines];
           mergedData.dailyLogs = { ...(cloudData.dailyLogs || {}), ...(anonData.dailyLogs || {}) };
           
