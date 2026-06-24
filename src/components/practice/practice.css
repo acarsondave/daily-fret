@@ -1,0 +1,257 @@
+.practice-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  background: rgba(10, 10, 12, 0.86);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.practice-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-6);
+}
+
+.practice-eyebrow {
+  font-family: var(--font-secondary);
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.practice-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+  transition: color 0.2s ease, background 0.2s ease;
+}
+.practice-close:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.practice-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  padding: var(--space-6) var(--space-6) var(--space-16);
+  text-align: center;
+}
+
+/* Hero chord readout */
+.practice-mode {
+  font-size: 0.8rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  transition: color 0.3s ease;
+}
+.practice-mode.is-chord {
+  color: var(--accent-primary);
+}
+
+.practice-hero {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: clamp(5rem, 22vw, 12rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--text-primary);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease;
+}
+.practice-hero.is-idle {
+  color: var(--text-secondary);
+  opacity: 0.4;
+}
+.practice-hero.is-active {
+  transform: scale(1.06);
+}
+
+/* Chroma visualizer */
+.chroma-viz {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  height: 120px;
+  width: min(560px, 90vw);
+}
+.chroma-bar-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  height: 100%;
+}
+.chroma-bar-track {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.chroma-bar-fill {
+  width: 100%;
+  height: 0%;
+  background: linear-gradient(180deg, var(--accent-primary), rgba(56, 189, 248, 0.35));
+  border-radius: var(--radius-sm);
+  transition: height 0.09s linear;
+}
+.chroma-bar-label {
+  font-family: var(--font-secondary);
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+/* Mic gate / errors */
+.mic-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  max-width: 420px;
+}
+.mic-gate p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+/* Generic practice buttons */
+.practice-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-8);
+  border-radius: var(--radius-full);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: 1rem;
+  transition: transform 0.15s ease, background 0.2s ease, opacity 0.2s ease;
+}
+.practice-btn:active {
+  transform: scale(0.97);
+}
+.practice-btn.primary {
+  background: var(--accent-primary);
+  color: #06141d;
+  box-shadow: var(--shadow-glow);
+}
+.practice-btn.ghost {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+.practice-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* One-minute changes */
+.om-setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-8);
+  width: min(460px, 92vw);
+}
+.om-selects {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+}
+.om-select {
+  appearance: none;
+  background: var(--surface-color);
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-6);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: 1.5rem;
+  text-align: center;
+  cursor: pointer;
+}
+.om-arrow {
+  color: var(--text-secondary);
+}
+
+.om-pair {
+  font-size: 0.85rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.om-pair .target {
+  color: var(--accent-primary);
+}
+.om-count {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: clamp(5rem, 20vw, 10rem);
+  line-height: 1;
+  color: var(--text-primary);
+}
+.om-count.pop {
+  animation: om-pop 0.3s ease;
+}
+@keyframes om-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); color: var(--accent-primary); }
+  100% { transform: scale(1); }
+}
+.om-caption {
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.om-timer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-primary);
+  font-size: 2rem;
+  color: var(--text-secondary);
+}
+.om-detected {
+  font-size: 0.8rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  min-height: 1.2em;
+}
+.om-results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  width: min(420px, 92vw);
+}
+.om-actions {
+  display: flex;
+  gap: var(--space-4);
+  width: 100%;
+}
+.om-actions .practice-btn {
+  flex: 1;
+}

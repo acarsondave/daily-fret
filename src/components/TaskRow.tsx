@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useStore, useUserData, getTodayString } from '../store';
-import { Check, Circle, Trash, PencilSimple, X } from '@phosphor-icons/react';
+import { Check, Circle, Trash, PencilSimple, X, Waveform, ArrowsLeftRight } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
+import type { DrillConfig, DrillKind } from '../types';
 import './TaskRow.css';
+
+const DRILL_CHORDS = ['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F'];
 
 interface TaskRowProps {
   routineId: string;
@@ -12,18 +15,23 @@ interface TaskRowProps {
   title: string;
   description?: string;
   duration?: string;
+  drill?: DrillConfig;
+  onLaunchDrill?: () => void;
 }
 
-export function TaskRow({ routineId, taskId, title, description, duration }: TaskRowProps) {
+export function TaskRow({ routineId, taskId, title, description, duration, drill, onLaunchDrill }: TaskRowProps) {
   const today = getTodayString();
   const { toggleTaskCompletion, deleteTask, updateTask } = useStore();
   const userData = useUserData();
   const log = userData?.dailyLogs?.[today];
   
   const isCompleted = log?.completedTaskIds?.includes(taskId) || false;
+  const todayResult = log?.drillResults?.[taskId];
 
   const [isEditing, setIsEditing] = useState(false);
   const [editDraft, setEditDraft] = useState({ title, description: description || '', duration: duration || '' });
+  const [editDrillKind, setEditDrillKind] = useState<DrillKind | 'none'>(drill?.kind ?? 'none');
+  const [editChords, setEditChords] = useState({ from: drill?.chordFrom ?? 'A', to: drill?.chordTo ?? 'D' });
 
   const titleInputRef = useRef<HTMLInputElement>(null);
   const taskRef = useRef<HTMLDivElement>(null);
@@ -45,16 +53,32 @@ export function TaskRow({ routineId, taskId, title, description, duration }: Tas
 
   const saveEdit = () => {
     if (!editDraft.title.trim()) return;
+
+    let nextDrill: DrillConfig | undefined;
+    if (editDrillKind === 'one-minute-changes') {
+      nextDrill = {
+        kind: 'one-minute-changes',
+        chordFrom: editChords.from,
+        chordTo: editChords.to,
+        durationSec: drill?.durationSec ?? 60,
+      };
+    } else if (editDrillKind === 'free-play') {
+      nextDrill = { kind: 'free-play' };
+    }
+
     updateTask(routineId, taskId, {
       title: editDraft.title.trim(),
       description: editDraft.description.trim() || undefined,
-      duration: editDraft.duration.trim() || undefined
+      duration: editDraft.duration.trim() || undefined,
+      drill: nextDrill,
     });
     setIsEditing(false);
   };
 
   const cancelEdit = () => {
     setEditDraft({ title, description: description || '', duration: duration || '' });
+    setEditDrillKind(drill?.kind ?? 'none');
+    setEditChords({ from: drill?.chordFrom ?? 'A', to: drill?.chordTo ?? 'D' });
     setIsEditing(false);
   };
 
@@ -110,6 +134,46 @@ export function TaskRow({ routineId, taskId, title, description, duration }: Tas
             rows={2}
             maxLength={300}
           />
+
+          <div className="drill-edit">
+            <span className="drill-edit-label">Live drill</span>
+            <div className="drill-segment">
+              {([
+                ['none', 'None'],
+                ['free-play', 'Free Play'],
+                ['one-minute-changes', '1-Min Changes'],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={clsx('drill-segment-btn', editDrillKind === value && 'active')}
+                  onClick={() => setEditDrillKind(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {editDrillKind === 'one-minute-changes' && (
+              <div className="drill-chords">
+                <select
+                  className="drill-select"
+                  value={editChords.from}
+                  onChange={e => setEditChords(c => ({ ...c, from: e.target.value }))}
+                >
+                  {DRILL_CHORDS.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <ArrowsLeftRight size={16} color="var(--text-secondary)" />
+                <select
+                  className="drill-select"
+                  value={editChords.to}
+                  onChange={e => setEditChords(c => ({ ...c, to: e.target.value }))}
+                >
+                  {DRILL_CHORDS.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+
           <div className="task-edit-actions">
             <button className="icon-btn" onClick={cancelEdit}><X size={18} /></button>
             <button className="icon-btn success" onClick={saveEdit} disabled={!editDraft.title.trim()}><Check size={18} /></button>
@@ -162,10 +226,30 @@ export function TaskRow({ routineId, taskId, title, description, duration }: Tas
         <div className="task-content">
           <div className="task-header">
             <span className="task-title">{title}</span>
-            {duration && <span className="task-duration">{duration}</span>}
+            <div className="task-meta">
+              {typeof todayResult === 'number' && (
+                <span className="task-drill-result">{todayResult} cpm</span>
+              )}
+              {duration && <span className="task-duration">{duration}</span>}
+            </div>
           </div>
           {description && <p className="task-desc">{description}</p>}
         </div>
+
+        {drill && (
+          <button
+            type="button"
+            className="task-drill-btn"
+            title={drill.kind === 'free-play' ? 'Free play' : '1-minute changes'}
+            onClick={(e) => {
+              e.stopPropagation();
+              onLaunchDrill?.();
+            }}
+          >
+            <Waveform size={15} weight="bold" />
+            <span>Practice</span>
+          </button>
+        )}
       </motion.div>
     </ContextMenu>
   );

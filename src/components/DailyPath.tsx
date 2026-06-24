@@ -4,6 +4,7 @@ import { TaskRow } from './TaskRow';
 import { Modal } from './Modal';
 import { TaskCreatorModal } from './TaskCreatorModal';
 import { RoutineManagerModal } from './RoutineManagerModal';
+import { PracticeOverlay } from './practice/PracticeOverlay';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lightning, Plus, CaretDown, Gear } from '@phosphor-icons/react';
 import clsx from 'clsx';
@@ -24,6 +25,7 @@ export function DailyPath() {
   const [isJotterOpen, setIsJotterOpen] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isRoutineModalOpen, setIsRoutineModalOpen] = useState(false);
+  const [activeDrillTaskId, setActiveDrillTaskId] = useState<string | null>(null);
 
   const routineDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -42,6 +44,10 @@ export function DailyPath() {
   const isEmpty = tasks.length === 0;
 
   const allCompleted = !isEmpty && tasks.every(t => log?.completedTaskIds?.includes(t.id));
+
+  const activeDrillTask = activeDrillTaskId
+    ? tasks.find(t => t.id === activeDrillTaskId && t.drill) ?? null
+    : null;
 
   // Automatically open jotter when all completed (only once per session ideally, but for now just open it)
   useEffect(() => {
@@ -186,7 +192,7 @@ export function DailyPath() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.03 }}
                 >
-                  <TaskRow routineId={activeRoutineId} taskId={task.id} title={task.title} description={task.description} duration={task.duration} />
+                  <TaskRow routineId={activeRoutineId} taskId={task.id} title={task.title} description={task.description} duration={task.duration} drill={task.drill} onLaunchDrill={() => setActiveDrillTaskId(task.id)} />
                 </motion.div>
               ))}
 
@@ -314,6 +320,16 @@ export function DailyPath() {
         isOpen={isRoutineModalOpen}
         onClose={() => setIsRoutineModalOpen(false)}
       />
+
+      <AnimatePresence>
+        {activeDrillTask && (
+          <PracticeOverlay
+            key={activeDrillTask.id}
+            task={activeDrillTask}
+            onClose={() => setActiveDrillTaskId(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

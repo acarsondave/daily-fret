@@ -11,7 +11,7 @@ const defaultRoutines: Routine[] = [
     tasks: [
       { id: 't1', title: 'Spider Exercises', description: '1st fret start. Low E to high E.', duration: '5 mins' },
       { id: 't2', title: 'Lauren Bateman Pushups', description: '20 reps per finger on the G string.', duration: '2-3 mins' },
-      { id: 't3', title: 'Chord Speed Training', description: 'A, D, E transitions. Goal: 65+ cpm.', duration: '3 mins' }
+      { id: 't3', title: 'Chord Speed Training', description: 'A, D, E transitions. Goal: 65+ cpm.', duration: '3 mins', drill: { kind: 'one-minute-changes', chordFrom: 'A', chordTo: 'D', durationSec: 60 } }
     ]
   },
   {
@@ -22,7 +22,7 @@ const defaultRoutines: Routine[] = [
     tasks: [
       { id: 'c1', title: 'Spider Exercises', description: '1st fret start. Low E to high E.', duration: '5 mins' },
       { id: 'c2', title: 'Lauren Bateman Pushups', description: '20 reps per finger on the G string.', duration: '2-3 mins' },
-      { id: 'c3', title: 'Chord Speed Training', description: 'A, D, E transitions. Goal: 65+ cpm.', duration: '3 mins' },
+      { id: 'c3', title: 'Chord Speed Training', description: 'A, D, E transitions. Goal: 65+ cpm.', duration: '3 mins', drill: { kind: 'one-minute-changes', chordFrom: 'A', chordTo: 'D', durationSec: 60 } },
       { id: 'c4', title: 'JustinGuitar Lesson', description: 'Watch and grasp new concepts from Module 2.', duration: '10 mins' },
       { id: 'c5', title: 'Song Integration', description: '"Wild Thing" by The Troggs practice.', duration: '10 mins' }
     ]
@@ -63,6 +63,7 @@ interface AppState {
   
   toggleTaskCompletion: (date: string, taskId: string) => void;
   saveFeedback: (date: string, feedback: string) => void;
+  recordDrillResult: (date: string, taskId: string, cpm: number) => void;
   setActiveRoutine: (routineId: string) => void;
 }
 
@@ -250,6 +251,41 @@ export const useStore = create<AppState>()(
               dailyLogs: {
                 ...acc.dailyLogs,
                 [date]: { ...log, feedback }
+              }
+            }
+          }
+        };
+      }),
+
+      recordDrillResult: (date, taskId, cpm) => set((state) => {
+        const accId = state.currentAccountId;
+        const acc = state.accounts[accId];
+        const log = acc.dailyLogs[date] || {
+          date,
+          routineId: acc.activeRoutineId,
+          completedTaskIds: []
+        };
+
+        const previousBest = log.drillResults?.[taskId] ?? 0;
+        const completedTaskIds = log.completedTaskIds.includes(taskId)
+          ? log.completedTaskIds
+          : [...log.completedTaskIds, taskId];
+
+        return {
+          accounts: {
+            ...state.accounts,
+            [accId]: {
+              ...acc,
+              dailyLogs: {
+                ...acc.dailyLogs,
+                [date]: {
+                  ...log,
+                  completedTaskIds,
+                  drillResults: {
+                    ...log.drillResults,
+                    [taskId]: Math.max(previousBest, cpm)
+                  }
+                }
               }
             }
           }
