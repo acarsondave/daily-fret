@@ -35,6 +35,7 @@ export const initAuthListener = () => {
       storeUnsubscribe = null;
     }
     
+    try {
     if (user) {
       useStore.getState().switchAccount(user.uid);
       
@@ -113,7 +114,12 @@ export const initAuthListener = () => {
       
       useStore.getState().switchAccount('anonymous');
     }
-    
-    useAuthStore.getState().setLoading(false);
+    } catch (err) {
+      // Never leave the app stuck on the loader: if cloud sync fails (offline,
+      // permissions, blocked transport), fall through to the local-first state.
+      console.error('Auth/sync initialization failed; continuing locally', err);
+    } finally {
+      useAuthStore.getState().setLoading(false);
+    }
   });
 };

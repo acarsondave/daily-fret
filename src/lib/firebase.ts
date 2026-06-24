@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -13,4 +13,13 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// ignoreUndefinedProperties: optional fields (e.g. a task's `drill`) may be
+// undefined; without this, Firestore throws on write and breaks sync.
+// experimentalAutoDetectLongPolling: Safari/ITP and some proxies break
+// Firestore's default WebChannel transport, leaving requests hanging; this
+// auto-falls back to long polling.
+export const db = initializeFirestore(app, {
+  ignoreUndefinedProperties: true,
+  experimentalAutoDetectLongPolling: true,
+});
