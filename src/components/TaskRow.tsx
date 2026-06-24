@@ -6,6 +6,7 @@ import clsx from 'clsx';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
 import type { DrillConfig, DrillKind } from '../types';
 import './TaskRow.css';
+import './drill-fields.css';
 
 const DRILL_CHORDS = ['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F'];
 

@@ -21,6 +21,7 @@ export class ChordCapture {
   private detector: ChordDetector | null = null;
   private disposed = false;
   private starting = false;
+  private detachResume: (() => void) | null = null;
 
   get running(): boolean {
     return this.ctx !== null || this.starting;
@@ -76,7 +77,24 @@ export class ChordCapture {
     this.node.connect(this.sink);
     this.sink.connect(ctx.destination);
 
+    this.attachResumeOnGesture(ctx);
     this.starting = false;
+  }
+
+  // iOS Safari frequently leaves the AudioContext suspended until a user
+  // gesture lands. Resume on the next interaction, then self-detach.
+  private attachResumeOnGesture(ctx: AudioContext): void {
+    if (ctx.state === 'running') return;
+    const events: Array<keyof DocumentEventMap> = ['pointerdown', 'touchend', 'keydown'];
+    const resume = () => { void ctx.resume(); };
+    events.forEach((e) => document.addEventListener(e, resume, { passive: true }));
+    this.detachResume = () => {
+      events.forEach((e) => document.removeEventListener(e, resume));
+      this.detachResume = null;
+    };
+    ctx.addEventListener('statechange', () => {
+      if (ctx.state === 'running') this.detachResume?.();
+    });
   }
 
   setOffset(offset: number): void {
@@ -90,6 +108,7 @@ export class ChordCapture {
 
   private async teardown(): Promise<void> {
     this.starting = false;
+    this.detachResume?.();
     if (this.node) {
       this.node.port.onmessage = null;
       this.node.disconnect();

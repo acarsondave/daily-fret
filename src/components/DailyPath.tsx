@@ -1,14 +1,26 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, lazy, Suspense } from 'react';
 import { useStore, useUserData, getTodayString } from '../store';
 import { TaskRow } from './TaskRow';
 import { Modal } from './Modal';
 import { TaskCreatorModal } from './TaskCreatorModal';
 import { RoutineManagerModal } from './RoutineManagerModal';
-import { PracticeOverlay } from './practice/PracticeOverlay';
+import type { Task } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lightning, Plus, CaretDown, Gear } from '@phosphor-icons/react';
+import { Lightning, Plus, CaretDown, Gear, Waveform } from '@phosphor-icons/react';
 import clsx from 'clsx';
 import './DailyPath.css';
+
+// Code-split the audio/practice path: it pulls in the DSP + worklet glue and is
+// only needed once a user actually starts a drill, keeping first paint light.
+const PracticeOverlay = lazy(() =>
+  import('./practice/PracticeOverlay').then((m) => ({ default: m.PracticeOverlay })),
+);
+
+const FREE_PLAY_TASK: Task = {
+  id: '__free_play__',
+  title: 'Free Play',
+  drill: { kind: 'free-play' },
+};
 
 export function DailyPath() {
   const today = getTodayString();
@@ -25,7 +37,7 @@ export function DailyPath() {
   const [isJotterOpen, setIsJotterOpen] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isRoutineModalOpen, setIsRoutineModalOpen] = useState(false);
-  const [activeDrillTaskId, setActiveDrillTaskId] = useState<string | null>(null);
+  const [practiceTask, setPracticeTask] = useState<Task | null>(null);
 
   const routineDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -44,10 +56,6 @@ export function DailyPath() {
   const isEmpty = tasks.length === 0;
 
   const allCompleted = !isEmpty && tasks.every(t => log?.completedTaskIds?.includes(t.id));
-
-  const activeDrillTask = activeDrillTaskId
-    ? tasks.find(t => t.id === activeDrillTaskId && t.drill) ?? null
-    : null;
 
   // Automatically open jotter when all completed (only once per session ideally, but for now just open it)
   useEffect(() => {
@@ -178,6 +186,15 @@ export function DailyPath() {
             )}
           </AnimatePresence>
         </div>
+
+        <button
+          className="free-play-launch"
+          onClick={() => setPracticeTask(FREE_PLAY_TASK)}
+          title="Free Play - detect whatever you strum"
+        >
+          <Waveform weight="duotone" className="free-play-icon" />
+          <span>Free Play</span>
+        </button>
       </div>
 
       <div className="task-container-wrapper">
@@ -192,7 +209,7 @@ export function DailyPath() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.03 }}
                 >
-                  <TaskRow routineId={activeRoutineId} taskId={task.id} title={task.title} description={task.description} duration={task.duration} drill={task.drill} onLaunchDrill={() => setActiveDrillTaskId(task.id)} />
+                  <TaskRow routineId={activeRoutineId} taskId={task.id} title={task.title} description={task.description} duration={task.duration} drill={task.drill} onLaunchDrill={() => setPracticeTask(task)} />
                 </motion.div>
               ))}
 
@@ -321,15 +338,17 @@ export function DailyPath() {
         onClose={() => setIsRoutineModalOpen(false)}
       />
 
-      <AnimatePresence>
-        {activeDrillTask && (
-          <PracticeOverlay
-            key={activeDrillTask.id}
-            task={activeDrillTask}
-            onClose={() => setActiveDrillTaskId(null)}
-          />
-        )}
-      </AnimatePresence>
+      <Suspense fallback={null}>
+        <AnimatePresence>
+          {practiceTask && (
+            <PracticeOverlay
+              key={practiceTask.id}
+              task={practiceTask}
+              onClose={() => setPracticeTask(null)}
+            />
+          )}
+        </AnimatePresence>
+      </Suspense>
     </div>
   );
 }

@@ -9,12 +9,43 @@
 .path-header-center {
   display: flex;
   justify-content: center;
+  align-items: center;
+  gap: var(--space-3);
   width: 100%;
   z-index: 30;
 }
 
 .routine-selector-container {
   position: relative;
+}
+
+.free-play-launch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-full);
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: 0.95rem;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, border-color 0.2s ease;
+}
+
+.free-play-launch:hover {
+  background: rgba(56, 189, 248, 0.22);
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
+.free-play-launch:active {
+  transform: scale(0.95);
+}
+
+.free-play-icon {
+  font-size: 1.15rem;
 }
 
 .routine-selector {
