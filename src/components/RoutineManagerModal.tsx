@@ -80,8 +80,8 @@ export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProp
       setJsonText('');
       setJsonError('');
       setView('list');
-    } catch (err: any) {
-      setJsonError(err.message);
+    } catch (err) {
+      setJsonError(err instanceof Error ? err.message : 'Invalid JSON');
     }
   };
 

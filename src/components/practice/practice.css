@@ -241,10 +241,11 @@
   min-height: 1.2em;
 }
 .om-results {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-6);
+  gap: var(--space-5);
   width: min(420px, 92vw);
 }
 .om-actions {
@@ -254,4 +255,79 @@
 }
 .om-actions .practice-btn {
   flex: 1;
+}
+
+/* Setup: personal best badge */
+.om-best-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.22);
+  color: #fbbf24;
+  font-family: var(--font-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.om-best-spark {
+  color: #fbbf24;
+  opacity: 0.9;
+}
+
+/* Results: target ring */
+.om-ring {
+  color: var(--accent-primary);
+}
+.om-ring.is-pr {
+  color: #fbbf24;
+}
+.om-ring-value {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: clamp(3.5rem, 14vw, 5rem);
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.om-context {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-secondary);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+.om-context.is-pr {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.om-result-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+.om-result-spark {
+  color: var(--accent-primary);
+}
+
+/* Results: PR celebration sparkles */
+.om-sparkles {
+  position: absolute;
+  top: 110px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.om-sparkle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: #fbbf24;
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.7);
 }

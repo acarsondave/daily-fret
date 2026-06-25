@@ -1,0 +1,78 @@
+.progress-empty {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  text-align: center;
+  padding: var(--space-6) var(--space-2);
+}
+
+.progress-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-3);
+}
+
+.progress-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.progress-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.progress-pair {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+.progress-arrow {
+  color: var(--text-secondary);
+}
+
+.progress-today {
+  font-family: var(--font-secondary);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.progress-best {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: 2.25rem;
+  line-height: 1;
+}
+.progress-best-unit {
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.progress-spark {
+  height: 34px;
+}
+
+.progress-heat {
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+.progress-heat-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.4s ease;
+}

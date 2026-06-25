@@ -2,7 +2,7 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth, db } from "./firebase";
 import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 import { create } from "zustand";
-import { useStore } from "../store";
+import { useStore, type UserData } from "../store";
 
 interface AuthState {
   user: User | null;
@@ -45,13 +45,13 @@ export const initAuthListener = () => {
       // Initial fetch to see if data exists remotely
       const docSnap = await getDoc(userRef);
       if (docSnap.exists()) {
-        const cloudData = docSnap.data() as any;
+        const cloudData = docSnap.data() as Partial<UserData>;
         const anonData = useStore.getState().accounts['anonymous'];
         
         // Merge anonymous local data into existing cloud data
-        const mergedData = { ...cloudData };
+        const mergedData: Partial<UserData> = { ...cloudData };
         if (anonData) {
-          const newRoutines = (anonData.routines || []).filter(r => !r.isDefault && !cloudData.routines?.some((cr: any) => cr.id === r.id));
+          const newRoutines = (anonData.routines || []).filter(r => !r.isDefault && !cloudData.routines?.some((cr) => cr.id === r.id));
           mergedData.routines = [...(cloudData.routines || []), ...newRoutines];
           mergedData.dailyLogs = { ...(cloudData.dailyLogs || {}), ...(anonData.dailyLogs || {}) };
           
@@ -78,7 +78,7 @@ export const initAuthListener = () => {
       firestoreUnsubscribe = onSnapshot(userRef, (snapshot) => {
         if (snapshot.exists() && !snapshot.metadata.hasPendingWrites) {
            isSyncing = true;
-           const remoteData = snapshot.data() as any;
+           const remoteData = snapshot.data() as Partial<UserData>;
            useStore.getState().syncFromRemote(user.uid, remoteData);
            // Also keep local anonymous in sync with remote changes
            useStore.getState().syncFromRemote('anonymous', remoteData);

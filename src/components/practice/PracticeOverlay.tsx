@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { X } from '@phosphor-icons/react';
@@ -16,6 +16,21 @@ interface Props {
 export function PracticeOverlay({ task, onClose }: Props) {
   const recordDrillResult = useStore((s) => s.recordDrillResult);
   const drill = task.drill;
+
+  // Snapshot history once at mount so the in-session result can be compared
+  // against the pre-session best (recordDrillResult mutates the store live).
+  const { personalBest, series } = useMemo(() => {
+    const acc = useStore.getState().accounts[useStore.getState().currentAccountId];
+    const logs = Object.values(acc?.dailyLogs ?? {});
+    const points = logs
+      .filter((l) => typeof l.drillResults?.[task.id] === 'number')
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((l) => l.drillResults![task.id]);
+    return {
+      personalBest: points.reduce((m, v) => Math.max(m, v), 0),
+      series: points,
+    };
+  }, [task.id]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -54,6 +69,8 @@ export function PracticeOverlay({ task, onClose }: Props) {
         ) : (
           <OneMinuteChanges
             config={drill}
+            personalBest={personalBest}
+            series={series}
             onResult={(cpm) => recordDrillResult(getTodayString(), task.id, cpm)}
             onClose={onClose}
           />

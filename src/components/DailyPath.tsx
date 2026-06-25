@@ -1,12 +1,14 @@
 import { useState, useMemo, useEffect, useRef, lazy, Suspense } from 'react';
 import { useStore, useUserData, getTodayString } from '../store';
+import { useDrillStats } from '../lib/drillStats';
 import { TaskRow } from './TaskRow';
 import { Modal } from './Modal';
 import { TaskCreatorModal } from './TaskCreatorModal';
 import { RoutineManagerModal } from './RoutineManagerModal';
+import { ProgressPanel } from './practice/ProgressPanel';
 import type { Task } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lightning, Plus, CaretDown, Gear, Waveform } from '@phosphor-icons/react';
+import { Lightning, Plus, CaretDown, Gear, Waveform, ChartLineUp } from '@phosphor-icons/react';
 import clsx from 'clsx';
 import './DailyPath.css';
 
@@ -26,7 +28,7 @@ export function DailyPath() {
   const today = getTodayString();
   const userData = useUserData();
   
-  const routines = userData?.routines || [];
+  const routines = useMemo(() => userData?.routines || [], [userData]);
   const activeRoutineId = userData?.activeRoutineId;
   const dailyLogs = userData?.dailyLogs || {};
   
@@ -37,7 +39,12 @@ export function DailyPath() {
   const [isJotterOpen, setIsJotterOpen] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isRoutineModalOpen, setIsRoutineModalOpen] = useState(false);
+  const [isProgressOpen, setIsProgressOpen] = useState(false);
   const [practiceTask, setPracticeTask] = useState<Task | null>(null);
+  const [prevAllCompleted, setPrevAllCompleted] = useState(false);
+
+  const drillStats = useDrillStats();
+  const hasProgress = drillStats.some((s) => s.series.length > 0);
 
   const routineDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -57,12 +64,14 @@ export function DailyPath() {
 
   const allCompleted = !isEmpty && tasks.every(t => log?.completedTaskIds?.includes(t.id));
 
-  // Automatically open jotter when all completed (only once per session ideally, but for now just open it)
-  useEffect(() => {
+  // Open the jotter on the rising edge of completion (when no feedback yet),
+  // adjusting state during render rather than in an effect.
+  if (allCompleted !== prevAllCompleted) {
+    setPrevAllCompleted(allCompleted);
     if (allCompleted && log?.feedback === undefined) {
       setIsJotterOpen(true);
     }
-  }, [allCompleted, log?.feedback]);
+  }
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -195,6 +204,17 @@ export function DailyPath() {
           <Waveform weight="duotone" className="free-play-icon" />
           <span>Free Play</span>
         </button>
+
+        {hasProgress && (
+          <button
+            className="progress-launch"
+            onClick={() => setIsProgressOpen(true)}
+            title="Your change-speed progress"
+          >
+            <ChartLineUp weight="duotone" className="progress-launch-icon" />
+            <span>Progress</span>
+          </button>
+        )}
       </div>
 
       <div className="task-container-wrapper">
@@ -337,6 +357,14 @@ export function DailyPath() {
         isOpen={isRoutineModalOpen}
         onClose={() => setIsRoutineModalOpen(false)}
       />
+
+      <Modal
+        isOpen={isProgressOpen}
+        onClose={() => setIsProgressOpen(false)}
+        title="Progress"
+      >
+        <ProgressPanel />
+      </Modal>
 
       <Suspense fallback={null}>
         <AnimatePresence>

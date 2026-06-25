@@ -34,7 +34,7 @@ const getTodayString = () => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
-interface UserData {
+export interface UserData {
   routines: Routine[];
   dailyLogs: Record<string, DailyLog>;
   activeRoutineId: string;
@@ -52,7 +52,7 @@ interface AppState {
   
   // Actions
   switchAccount: (uid: string) => void;
-  syncFromRemote: (uid: string, data: UserData) => void;
+  syncFromRemote: (uid: string, data: Partial<UserData>) => void;
   
   addRoutine: (routine: Routine) => void;
   updateRoutine: (routineId: string, updates: Partial<Routine>) => void;

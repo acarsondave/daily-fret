@@ -48,6 +48,36 @@
   font-size: 1.15rem;
 }
 
+.progress-launch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-full);
+  background: rgba(20, 20, 22, 0.4);
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.progress-launch:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.progress-launch:active {
+  transform: scale(0.95);
+}
+
+.progress-launch-icon {
+  font-size: 1.15rem;
+}
+
 .routine-selector {
   display: flex;
   align-items: center;
