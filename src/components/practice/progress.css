@@ -11,6 +11,69 @@
   gap: var(--space-5);
 }
 
+/* Recommendation — closes the loop from tracking to action */
+.progress-reco {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  text-align: left;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--accent-glow);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, border-color 0.2s ease;
+}
+.progress-reco:hover {
+  background: rgba(56, 189, 248, 0.22);
+  border-color: rgba(56, 189, 248, 0.45);
+}
+.progress-reco:active {
+  transform: scale(0.99);
+}
+.progress-reco-icon {
+  color: var(--accent-primary);
+  flex-shrink: 0;
+}
+.progress-reco-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.progress-reco-label {
+  font-family: var(--font-secondary);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-primary);
+}
+.progress-reco-pair {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+.progress-reco-reason {
+  font-family: var(--font-secondary);
+  font-weight: 500;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.progress-reco-go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+  color: #06141d;
+}
+
 /* Summary strip — the at-a-glance "is this worth it" answer */
 .progress-summary {
   display: grid;

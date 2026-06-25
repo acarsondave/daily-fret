@@ -50,3 +50,24 @@ export function useDrillStats(): PairStat[] {
     return stats;
   }, [userData, today]);
 }
+
+export interface Recommendation {
+  stat: PairStat;
+  reason: string;
+}
+
+// Pick the single pair most worth drilling next, closing the loop between
+// tracking and action. Priority: something not yet practiced today, then the
+// weakest pair by personal best. Returns null when there's no history.
+export function recommendNext(stats: PairStat[]): Recommendation | null {
+  const withHistory = stats.filter((s) => s.series.length > 0);
+  if (withHistory.length === 0) return null;
+
+  const notToday = withHistory.filter((s) => s.today === null);
+  const pool = notToday.length ? notToday : withHistory;
+  const pick = [...pool].sort((a, b) => a.best - b.best)[0];
+
+  const reason =
+    pick.today === null ? 'Not practiced today' : 'Your slowest pair — push it';
+  return { stat: pick, reason };
+}

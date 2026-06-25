@@ -1,10 +1,14 @@
-import { TrendUp, TrendDown, Minus } from '@phosphor-icons/react';
+import { TrendUp, TrendDown, Minus, Target, Play } from '@phosphor-icons/react';
 import clsx from 'clsx';
-import { useDrillStats } from '../../lib/drillStats';
+import { useDrillStats, recommendNext } from '../../lib/drillStats';
 import { Sparkline } from './Sparkline';
 import './progress.css';
 
-export function ProgressPanel() {
+interface Props {
+  onPractice?: (taskId: string) => void;
+}
+
+export function ProgressPanel({ onPractice }: Props) {
   const stats = useDrillStats().filter((s) => s.series.length > 0);
 
   if (stats.length === 0) {
@@ -18,9 +22,29 @@ export function ProgressPanel() {
   const sorted = [...stats].sort((a, b) => b.best - a.best);
   const topBest = Math.max(...stats.map((s) => s.best));
   const totalSessions = stats.reduce((sum, s) => sum + s.series.length, 0);
+  const recommendation = recommendNext(stats);
 
   return (
     <div className="progress-root">
+      {recommendation && onPractice && (
+        <button
+          className="progress-reco"
+          onClick={() => onPractice(recommendation.stat.taskId)}
+        >
+          <Target size={20} weight="duotone" className="progress-reco-icon" />
+          <span className="progress-reco-text">
+            <span className="progress-reco-label">Practice next</span>
+            <span className="progress-reco-pair">
+              {recommendation.stat.from} → {recommendation.stat.to}
+              <span className="progress-reco-reason"> · {recommendation.reason}</span>
+            </span>
+          </span>
+          <span className="progress-reco-go">
+            <Play size={16} weight="fill" />
+          </span>
+        </button>
+      )}
+
       <div className="progress-summary">
         <div className="progress-stat">
           <span className="progress-stat-value">{topBest}</span>

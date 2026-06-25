@@ -363,7 +363,17 @@ export function DailyPath() {
         onClose={() => setIsProgressOpen(false)}
         title="Progress"
       >
-        <ProgressPanel />
+        <ProgressPanel
+          onPractice={(taskId) => {
+            const task = routines
+              .flatMap((r) => r.tasks)
+              .find((t) => t.id === taskId);
+            if (task) {
+              setIsProgressOpen(false);
+              setPracticeTask(task);
+            }
+          }}
+        />
       </Modal>
 
       <Suspense fallback={null}>

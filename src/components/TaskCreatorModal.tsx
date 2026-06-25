@@ -22,6 +22,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
   const [duration, setDuration] = useState('');
   const [drillKind, setDrillKind] = useState<DrillKind | 'none'>('none');
   const [chords, setChords] = useState({ from: 'A', to: 'D' });
+  const [trainerChords, setTrainerChords] = useState<string[]>(['A', 'D', 'E', 'G', 'C']);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +33,12 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
       drill = { kind: 'one-minute-changes', chordFrom: chords.from, chordTo: chords.to, durationSec: 60 };
     } else if (drillKind === 'free-play') {
       drill = { kind: 'free-play' };
+    } else if (drillKind === 'chord-trainer') {
+      drill = {
+        kind: 'chord-trainer',
+        chords: trainerChords.length >= 2 ? trainerChords : ['A', 'D', 'E', 'G', 'C'],
+        durationSec: 60,
+      };
     }
 
     addTask(routineId, {
@@ -47,6 +54,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
     setDuration('');
     setDrillKind('none');
     setChords({ from: 'A', to: 'D' });
+    setTrainerChords(['A', 'D', 'E', 'G', 'C']);
     onClose();
   };
 
@@ -102,6 +110,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
                 ['none', 'None'],
                 ['free-play', 'Free Play'],
                 ['one-minute-changes', '1-Min Changes'],
+                ['chord-trainer', 'Chord Trainer'],
               ] as const).map(([value, label]) => (
                 <button
                   key={value}
@@ -122,6 +131,22 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
                 <select className="drill-select" value={chords.to} onChange={e => setChords(c => ({ ...c, to: e.target.value }))}>
                   {DRILL_CHORDS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
+              </div>
+            )}
+            {drillKind === 'chord-trainer' && (
+              <div className="drill-chip-grid">
+                {DRILL_CHORDS.map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    className={clsx('drill-chip', trainerChords.includes(c) && 'active')}
+                    onClick={() => setTrainerChords(prev =>
+                      prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c],
+                    )}
+                  >
+                    {c}
+                  </button>
+                ))}
               </div>
             )}
           </div>

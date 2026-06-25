@@ -6,6 +6,7 @@ import { useStore, getTodayString } from '../../store';
 import type { Task } from '../../types';
 import { FreePlay } from './FreePlay';
 import { OneMinuteChanges } from './OneMinuteChanges';
+import { ChordTrainer } from './ChordTrainer';
 import './practice.css';
 
 interface Props {
@@ -62,14 +63,22 @@ export function PracticeOverlay({ task, onClose }: Props) {
       </div>
 
       <div className="practice-body">
-        {drill.kind === 'free-play' ? (
-          <FreePlay />
-        ) : (
+        {drill.kind === 'free-play' && <FreePlay />}
+        {drill.kind === 'one-minute-changes' && (
           <OneMinuteChanges
             config={drill}
             personalBest={personalBest}
             series={series}
             onResult={(cpm) => recordDrillResult(getTodayString(), task.id, cpm)}
+            onClose={onClose}
+          />
+        )}
+        {drill.kind === 'chord-trainer' && (
+          <ChordTrainer
+            config={drill}
+            personalBest={personalBest}
+            series={series}
+            onResult={(score) => recordDrillResult(getTodayString(), task.id, score)}
             onClose={onClose}
           />
         )}

@@ -12,6 +12,8 @@ import {
 import { useChordDetector } from '../../hooks/useChordDetector';
 import { ProgressRing } from './ProgressRing';
 import { Sparkline } from './Sparkline';
+import { SignalMeter } from './SignalMeter';
+import { classifyLevel, type SignalQuality } from './signalQuality';
 import type { DrillConfig } from '../../types';
 
 const CHORDS = ['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F'];
@@ -43,6 +45,8 @@ export function OneMinuteChanges({
   const [transitions, setTransitions] = useState(0);
   const [timeLeft, setTimeLeft] = useState(duration);
   const [detected, setDetected] = useState('listening...');
+  const [signal, setSignal] = useState<SignalQuality>('silent');
+  const signalRef = useRef<SignalQuality>('silent');
   const [result, setResult] = useState<{
     value: number;
     prevBest: number;
@@ -116,11 +120,25 @@ export function OneMinuteChanges({
     setTransitions(0);
     setTimeLeft(duration);
     setDetected('listening...');
+    setSignal('silent');
+    signalRef.current = 'silent';
     setView('playing');
 
     // Restrict detection to just the two target chords — removes third-chord
     // misdetections and makes counting far more accurate.
-    void start({ onChord: (ev) => handleChord(ev.chord) }, { restrictTo: [from, to] });
+    void start(
+      {
+        onChord: (ev) => handleChord(ev.chord),
+        onLevel: (ev) => {
+          const quality = classifyLevel(ev);
+          if (quality !== signalRef.current) {
+            signalRef.current = quality;
+            setSignal(quality);
+          }
+        },
+      },
+      { restrictTo: [from, to] },
+    );
 
     clearTimer();
     const deadline = Date.now() + duration * 1000;
@@ -213,7 +231,10 @@ export function OneMinuteChanges({
             </button>
           </div>
         ) : (
-          <div className="om-detected">{detected}</div>
+          <>
+            <div className="om-detected">{detected}</div>
+            <SignalMeter quality={signal} />
+          </>
         )}
       </>
     );

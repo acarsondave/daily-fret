@@ -1,0 +1,50 @@
+.signal-meter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.04);
+  font-family: var(--font-secondary);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  transition: color 0.25s ease, background 0.25s ease;
+}
+
+.signal-mic {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.signal-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+.signal-bar {
+  width: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.18);
+}
+.signal-bar:nth-child(1) { height: 5px; }
+.signal-bar:nth-child(2) { height: 8px; }
+.signal-bar:nth-child(3) { height: 12px; }
+
+.signal-label {
+  white-space: nowrap;
+}
+
+/* Quality states */
+.signal-meter.is-good { color: var(--success-color); }
+.signal-meter.is-good .signal-bar.is-on { background: var(--success-color); }
+
+.signal-meter.is-weak { color: #fbbf24; }
+.signal-meter.is-weak .signal-bar.is-on { background: #fbbf24; }
+
+.signal-meter.is-loud { color: #fbbf24; }
+.signal-meter.is-loud .signal-bar.is-on { background: #fbbf24; }
+
+.signal-meter.is-silent { color: #f87171; }
+.signal-meter.is-silent .signal-bar.is-on { background: #f87171; }

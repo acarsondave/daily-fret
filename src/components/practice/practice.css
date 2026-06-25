@@ -273,6 +273,50 @@
   flex: 1;
 }
 
+/* Chord Trainer */
+.ct-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  max-width: min(420px, 92vw);
+}
+.ct-chip {
+  min-width: 52px;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: 1.05rem;
+  transition: transform 0.15s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.ct-chip:active { transform: scale(0.95); }
+.ct-chip.is-on {
+  background: var(--accent-glow);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: var(--accent-primary);
+}
+
+.practice-hero.ct-target.is-hit {
+  transform: translateZ(0) scale(1.08);
+  color: var(--success-color);
+}
+
+.ct-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+.ct-score {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: var(--text-primary);
+}
+
 /* Setup: personal best badge */
 .om-best-badge {
   display: inline-flex;

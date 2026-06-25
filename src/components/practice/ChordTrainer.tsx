@@ -1,0 +1,268 @@
+import { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  Play,
+  Hourglass,
+  ArrowRight,
+  Microphone,
+  ArrowClockwise,
+  Trophy,
+} from '@phosphor-icons/react';
+import { useChordDetector } from '../../hooks/useChordDetector';
+import { ProgressRing } from './ProgressRing';
+import { Sparkline } from './Sparkline';
+import { SignalMeter } from './SignalMeter';
+import { classifyLevel, type SignalQuality } from './signalQuality';
+import type { DrillConfig } from '../../types';
+
+const ALL_CHORDS = ['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F'];
+const DEFAULT_POOL = ['A', 'D', 'E', 'G', 'C'];
+
+type View = 'setup' | 'playing' | 'results';
+
+interface Props {
+  config?: DrillConfig;
+  onResult?: (score: number) => void;
+  onClose?: () => void;
+  personalBest?: number;
+  series?: number[];
+}
+
+export function ChordTrainer({
+  config,
+  onResult,
+  onClose,
+  personalBest = 0,
+  series = [],
+}: Props) {
+  const { status, error, start, stop } = useChordDetector();
+
+  const duration = config?.durationSec ?? 60;
+  const [pool, setPool] = useState<string[]>(
+    config?.chords?.length ? config.chords : DEFAULT_POOL,
+  );
+
+  const [view, setView] = useState<View>('setup');
+  const [target, setTarget] = useState('');
+  const [score, setScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(duration);
+  const [signal, setSignal] = useState<SignalQuality>('silent');
+  const [result, setResult] = useState<{ value: number; prevBest: number; series: number[] } | null>(null);
+
+  const targetRef = useRef('');
+  const scoreRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const popTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const signalRef = useRef<SignalQuality>('silent');
+
+  const [runningBest, setRunningBest] = useState(personalBest);
+  const [runningSeries, setRunningSeries] = useState<number[]>(series);
+
+  const clearTimer = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
+  };
+
+  const pickTarget = (exclude: string) => {
+    const choices = pool.filter((c) => c !== exclude);
+    const next = choices.length ? choices : pool;
+    return next[Math.floor(Math.random() * next.length)];
+  };
+
+  const popHero = () => {
+    const el = heroRef.current;
+    if (!el) return;
+    el.classList.remove('is-hit');
+    void el.offsetWidth;
+    el.classList.add('is-hit');
+    if (popTimer.current) clearTimeout(popTimer.current);
+    popTimer.current = setTimeout(() => el.classList.remove('is-hit'), 320);
+  };
+
+  const handleChord = (chord: string) => {
+    if (chord !== targetRef.current) return;
+    scoreRef.current += 1;
+    setScore(scoreRef.current);
+    popHero();
+    const next = pickTarget(targetRef.current);
+    targetRef.current = next;
+    setTarget(next);
+  };
+
+  const finish = () => {
+    clearTimer();
+    void stop();
+    const value = scoreRef.current;
+    const prevBest = runningBest;
+    const seriesSnapshot = [...runningSeries, value];
+    setResult({ value, prevBest, series: seriesSnapshot });
+    setRunningBest(Math.max(prevBest, value));
+    setRunningSeries(seriesSnapshot);
+    setView('results');
+    onResult?.(value);
+  };
+
+  const startSession = () => {
+    scoreRef.current = 0;
+    setScore(0);
+    setTimeLeft(duration);
+    setSignal('silent');
+    signalRef.current = 'silent';
+    const first = pool[Math.floor(Math.random() * pool.length)] ?? pool[0];
+    targetRef.current = first;
+    setTarget(first);
+    setView('playing');
+
+    void start(
+      {
+        onChord: (ev) => handleChord(ev.chord),
+        onLevel: (ev) => {
+          const quality = classifyLevel(ev);
+          if (quality !== signalRef.current) {
+            signalRef.current = quality;
+            setSignal(quality);
+          }
+        },
+      },
+      { restrictTo: pool },
+    );
+
+    clearTimer();
+    const deadline = Date.now() + duration * 1000;
+    timerRef.current = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining <= 0) finish();
+    }, 200);
+  };
+
+  useEffect(() => {
+    return () => {
+      clearTimer();
+      if (popTimer.current) clearTimeout(popTimer.current);
+      void stop();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggleChord = (c: string) => {
+    setPool((prev) =>
+      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c],
+    );
+  };
+
+  if (view === 'setup') {
+    return (
+      <div className="om-setup">
+        {runningBest > 0 && (
+          <div className="om-best-badge">
+            <Trophy size={16} weight="fill" />
+            <span>Best {runningBest}</span>
+            {runningSeries.length >= 2 && (
+              <Sparkline values={runningSeries} className="om-best-spark" />
+            )}
+          </div>
+        )}
+        <p className="om-caption">Pick the chords to drill</p>
+        <div className="ct-chip-grid">
+          {ALL_CHORDS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={pool.includes(c) ? 'ct-chip is-on' : 'ct-chip'}
+              onClick={() => toggleChord(c)}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+        <button
+          className="practice-btn primary"
+          onClick={startSession}
+          disabled={pool.length < 2}
+        >
+          <Play size={20} weight="fill" /> Start {duration}s
+        </button>
+        {pool.length < 2 && <p className="om-caption">Pick at least two chords</p>}
+      </div>
+    );
+  }
+
+  if (view === 'playing') {
+    const micFailed = status === 'error';
+    return (
+      <>
+        <div className="practice-mode is-chord">play this chord</div>
+        <div ref={heroRef} className="practice-hero ct-target">
+          {target}
+        </div>
+        <div className="ct-stats">
+          <span className="ct-score">{score} nailed</span>
+          <span className="om-timer">
+            <Hourglass size={22} /> {timeLeft}
+          </span>
+        </div>
+        {micFailed ? (
+          <div className="mic-gate">
+            <Microphone size={32} weight="duotone" color="var(--text-secondary)" />
+            <p>{error ?? 'Microphone unavailable.'}</p>
+            <button className="practice-btn ghost" onClick={startSession}>
+              <ArrowClockwise size={16} weight="bold" /> Retry
+            </button>
+          </div>
+        ) : (
+          <SignalMeter quality={signal} />
+        )}
+      </>
+    );
+  }
+
+  const value = result?.value ?? score;
+  const prevBest = result?.prevBest ?? personalBest;
+  const resultSeries = result?.series ?? [...runningSeries, value];
+
+  const isFirst = prevBest === 0;
+  const isNewBest = !isFirst && value > prevBest;
+  const celebrate = isNewBest || (isFirst && value > 0);
+  const progress = isFirst ? (value > 0 ? 1 : 0) : value / Math.max(prevBest, 1);
+
+  let context: string;
+  if (isFirst) context = value > 0 ? 'First benchmark set' : 'No chords detected';
+  else if (isNewBest) context = `+${value - prevBest} over your best`;
+  else if (value === prevBest) context = 'Matched your best';
+  else context = `${prevBest - value} to beat your best`;
+
+  return (
+    <motion.div
+      className="om-results"
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+    >
+      <ProgressRing progress={progress} className={celebrate ? 'om-ring is-pr' : 'om-ring'}>
+        <div className="om-ring-value">{value}</div>
+        <div className="om-caption">chords nailed</div>
+      </ProgressRing>
+
+      <div className={celebrate ? 'om-context is-pr' : 'om-context'}>
+        {celebrate && <Trophy size={16} weight="fill" />}
+        <span>{context}</span>
+      </div>
+
+      {resultSeries.length >= 2 && (
+        <Sparkline values={resultSeries} className="om-result-spark" width={120} />
+      )}
+
+      <div className="om-saved-hint">Saved automatically</div>
+
+      <div className="om-actions">
+        <button className="practice-btn ghost" onClick={() => onClose?.()}>
+          Done
+        </button>
+        <button className="practice-btn primary" onClick={() => setView('setup')} autoFocus>
+          Next <ArrowRight size={18} weight="bold" />
+        </button>
+      </div>
+    </motion.div>
+  );
+}

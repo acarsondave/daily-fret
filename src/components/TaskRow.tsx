@@ -65,6 +65,14 @@ export function TaskRow({ routineId, taskId, title, description, duration, drill
       };
     } else if (editDrillKind === 'free-play') {
       nextDrill = { kind: 'free-play' };
+    } else if (editDrillKind === 'chord-trainer') {
+      // Preserve the configured pool (the edit form has no chip picker); fall
+      // back to a sensible default if switching a task into this drill.
+      nextDrill = {
+        kind: 'chord-trainer',
+        chords: drill?.chords?.length ? drill.chords : ['A', 'D', 'E', 'G', 'C'],
+        durationSec: drill?.durationSec ?? 60,
+      };
     }
 
     updateTask(routineId, taskId, {
@@ -143,6 +151,7 @@ export function TaskRow({ routineId, taskId, title, description, duration, drill
                 ['none', 'None'],
                 ['free-play', 'Free Play'],
                 ['one-minute-changes', '1-Min Changes'],
+                ['chord-trainer', 'Chord Trainer'],
               ] as const).map(([value, label]) => (
                 <button
                   key={value}
@@ -229,7 +238,9 @@ export function TaskRow({ routineId, taskId, title, description, duration, drill
             <span className="task-title">{title}</span>
             <div className="task-meta">
               {typeof todayResult === 'number' && (
-                <span className="task-drill-result">{todayResult} cpm</span>
+                <span className="task-drill-result">
+                  {todayResult} {drill?.kind === 'chord-trainer' ? 'nailed' : 'cpm'}
+                </span>
               )}
               {duration && <span className="task-duration">{duration}</span>}
             </div>
@@ -241,7 +252,13 @@ export function TaskRow({ routineId, taskId, title, description, duration, drill
           <button
             type="button"
             className="task-drill-btn"
-            title={drill.kind === 'free-play' ? 'Free play' : '1-minute changes'}
+            title={
+              drill.kind === 'free-play'
+                ? 'Free play'
+                : drill.kind === 'chord-trainer'
+                  ? 'Chord trainer'
+                  : '1-minute changes'
+            }
             onClick={(e) => {
               e.stopPropagation();
               onLaunchDrill?.();
