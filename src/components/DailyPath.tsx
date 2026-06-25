@@ -66,10 +66,8 @@ export function DailyPath() {
   const tasks = activeRoutine?.tasks || [];
   const isEmpty = tasks.length === 0;
 
-  // Scored drills the coached session can run, in routine order.
-  const coachableTasks = tasks.filter(
-    (t) => t.drill?.kind === 'one-minute-changes' || t.drill?.kind === 'chord-trainer',
-  );
+  // Coached mode can run any task except open-ended free play (drills + timed).
+  const hasCoachable = tasks.some((t) => t.drill?.kind !== 'free-play');
 
   const allCompleted = !isEmpty && tasks.every(t => log?.completedTaskIds?.includes(t.id));
 
@@ -214,11 +212,11 @@ export function DailyPath() {
           <span>Custom</span>
         </button>
 
-        {coachableTasks.length > 0 && (
+        {hasCoachable && (
           <button
             className="progress-launch"
             onClick={() => setIsCoachedOpen(true)}
-            title="Run this routine's drills back to back"
+            title="Run this whole routine, guided"
           >
             <PlayCircle weight="duotone" className="progress-launch-icon" />
             <span>Coached</span>
@@ -384,14 +382,19 @@ export function DailyPath() {
         title="Progress"
       >
         <ProgressPanel
-          onPractice={(taskId) => {
-            const task = routines
-              .flatMap((r) => r.tasks)
-              .find((t) => t.id === taskId);
-            if (task) {
-              setIsProgressOpen(false);
-              setPracticeTask(task);
-            }
+          onPracticePair={(from, to) => {
+            useStore.getState().setLastPair(from, to);
+            const existing = tasks.find((t) => t.drill?.kind === 'one-minute-changes');
+            const base: Task = existing ?? {
+              id: '__changes__',
+              title: 'Chord Changes',
+              drill: { kind: 'one-minute-changes', durationSec: 60 },
+            };
+            setIsProgressOpen(false);
+            setPracticeTask({
+              ...base,
+              drill: { kind: 'one-minute-changes', chordFrom: from, chordTo: to, durationSec: 60 },
+            });
           }}
         />
       </Modal>
@@ -410,10 +413,10 @@ export function DailyPath() {
 
       <Suspense fallback={null}>
         <AnimatePresence>
-          {isCoachedOpen && (
+          {isCoachedOpen && activeRoutine && (
             <CoachedSession
               key="coached"
-              tasks={coachableTasks}
+              routine={activeRoutine}
               onClose={() => setIsCoachedOpen(false)}
             />
           )}

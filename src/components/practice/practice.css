@@ -304,6 +304,13 @@
   color: var(--accent-primary);
 }
 
+.timed-desc {
+  max-width: min(440px, 90vw);
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
 .coach-summary {
   display: flex;
   flex-direction: column;

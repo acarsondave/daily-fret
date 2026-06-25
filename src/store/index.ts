@@ -8,6 +8,7 @@ const defaultRoutines: Routine[] = [
     name: '10-Min Muscle Memory',
     description: 'Low energy day. 100% focused on physical mechanics.',
     isDefault: true,
+    chords: ['A', 'D', 'E'],
     tasks: [
       { id: 't1', title: 'Spider Exercises', description: '1st fret start. Low E to high E.', duration: '5 mins' },
       { id: 't2', title: 'Lauren Bateman Pushups', description: '20 reps per finger on the G string.', duration: '2-3 mins' },
@@ -19,6 +20,7 @@ const defaultRoutines: Routine[] = [
     name: '30-Min Concept Mastery',
     description: 'High energy day. Focus on JustinGuitar module concepts.',
     isDefault: true,
+    chords: ['A', 'D', 'E', 'G'],
     tasks: [
       { id: 'c1', title: 'Spider Exercises', description: '1st fret start. Low E to high E.', duration: '5 mins' },
       { id: 'c2', title: 'Lauren Bateman Pushups', description: '20 reps per finger on the G string.', duration: '2-3 mins' },
@@ -42,6 +44,9 @@ export interface UserData {
   routines: Routine[];
   dailyLogs: Record<string, DailyLog>;
   activeRoutineId: string;
+  // Last chord pair practiced, so the changes drill reopens on it instead of
+  // resetting to A/D every time.
+  lastPair?: { from: string; to: string };
   // Epoch ms of the last local mutation to this account. Drives conflict
   // resolution against the cloud copy. Older/legacy data defaults to 0.
   updatedAt: number;
@@ -70,9 +75,14 @@ interface AppState {
   deleteTask: (routineId: string, taskId: string) => void;
 
   toggleTaskCompletion: (date: string, taskId: string) => void;
+  completeTask: (date: string, taskId: string) => void;
   saveFeedback: (date: string, feedback: string) => void;
-  recordDrillResult: (date: string, taskId: string, cpm: number) => void;
+  // Records a numeric drill result. `taskId` is marked complete for the day;
+  // the value is stored under `resultKey` when given (e.g. a chord-pair key),
+  // otherwise under the taskId.
+  recordDrillResult: (date: string, taskId: string, value: number, resultKey?: string) => void;
   setActiveRoutine: (routineId: string) => void;
+  setLastPair: (from: string, to: string) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -135,6 +145,7 @@ export const useStore = create<AppState>()(
               data.activeRoutineId ??
               local?.activeRoutineId ??
               defaultUserData.activeRoutineId,
+            lastPair: data.lastPair ?? local?.lastPair,
             updatedAt: remoteUpdatedAt,
           };
 
@@ -241,6 +252,27 @@ export const useStore = create<AppState>()(
           }),
         ),
 
+        completeTask: (date, taskId) => set((state) =>
+          mutate(state, (a) => {
+            const log = a.dailyLogs[date] || {
+              date,
+              routineId: a.activeRoutineId,
+              completedTaskIds: [],
+            };
+            if (log.completedTaskIds.includes(taskId)) return a;
+            return {
+              ...a,
+              dailyLogs: {
+                ...a.dailyLogs,
+                [date]: {
+                  ...log,
+                  completedTaskIds: [...log.completedTaskIds, taskId],
+                },
+              },
+            };
+          }),
+        ),
+
         saveFeedback: (date, feedback) => set((state) => {
           const acc = state.accounts[state.currentAccountId];
           if (!acc.dailyLogs[date]) return state;
@@ -253,14 +285,15 @@ export const useStore = create<AppState>()(
           }));
         }),
 
-        recordDrillResult: (date, taskId, cpm) => set((state) =>
+        recordDrillResult: (date, taskId, value, resultKey) => set((state) =>
           mutate(state, (a) => {
             const log = a.dailyLogs[date] || {
               date,
               routineId: a.activeRoutineId,
               completedTaskIds: [],
             };
-            const previousBest = log.drillResults?.[taskId] ?? 0;
+            const key = resultKey ?? taskId;
+            const previousBest = log.drillResults?.[key] ?? 0;
             const completedTaskIds = log.completedTaskIds.includes(taskId)
               ? log.completedTaskIds
               : [...log.completedTaskIds, taskId];
@@ -273,7 +306,7 @@ export const useStore = create<AppState>()(
                   completedTaskIds,
                   drillResults: {
                     ...log.drillResults,
-                    [taskId]: Math.max(previousBest, cpm),
+                    [key]: Math.max(previousBest, value),
                   },
                 },
               },
@@ -283,6 +316,10 @@ export const useStore = create<AppState>()(
 
         setActiveRoutine: (routineId) => set((state) =>
           mutate(state, (a) => ({ ...a, activeRoutineId: routineId })),
+        ),
+
+        setLastPair: (from, to) => set((state) =>
+          mutate(state, (a) => ({ ...a, lastPair: { from, to } })),
         ),
       };
     },

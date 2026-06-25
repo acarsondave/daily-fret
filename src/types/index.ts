@@ -22,6 +22,7 @@ export interface Routine {
   description: string;
   tasks: Task[];
   isDefault?: boolean;
+  chords?: string[]; // working chord vocabulary; drives pairs + Coached mode
 }
 
 export interface DailyLog {

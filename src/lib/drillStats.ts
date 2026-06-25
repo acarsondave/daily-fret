@@ -1,52 +1,46 @@
 import { useMemo } from 'react';
 import { useUserData, getTodayString } from '../store';
+import { parsePairKey } from './pairs';
 
 export interface PairStat {
-  taskId: string;
-  title: string;
+  key: string; // the pair storage key
   from: string;
   to: string;
   best: number; // personal best cpm across all days
   today: number | null; // today's best cpm, if practiced today
-  series: { date: string; cpm: number }[]; // chronological
+  series: { date: string; cpm: number }[]; // chronological, one point per day
 }
 
-// Aggregates every one-minute-changes drill task (deduped across routines) with
-// its history, for the Progress views. Only tasks that still exist are included.
+// Aggregates chord-change history by *pair* (e.g. A↔D) across every routine and
+// day, reading the per-pair keys written by recordDrillResult. Each pair keeps
+// its own benchmark — D↔A is no longer conflated with E↔A.
 export function useDrillStats(): PairStat[] {
   const userData = useUserData();
   const today = getTodayString();
 
   return useMemo(() => {
     const dailyLogs = userData?.dailyLogs ?? {};
-    const routines = userData?.routines ?? [];
-    const logs = Object.values(dailyLogs);
-    const stats: PairStat[] = [];
-    const seen = new Set<string>();
+    const byPair = new Map<string, PairStat>();
 
-    for (const routine of routines) {
-      for (const task of routine.tasks) {
-        if (task.drill?.kind !== 'one-minute-changes') continue;
-        if (seen.has(task.id)) continue;
-        seen.add(task.id);
-
-        const series = logs
-          .filter((l) => typeof l.drillResults?.[task.id] === 'number')
-          .map((l) => ({ date: l.date, cpm: l.drillResults![task.id] }))
-          .sort((a, b) => a.date.localeCompare(b.date));
-
-        stats.push({
-          taskId: task.id,
-          title: task.title,
-          from: task.drill.chordFrom ?? '?',
-          to: task.drill.chordTo ?? '?',
-          best: series.reduce((m, s) => Math.max(m, s.cpm), 0),
-          today: dailyLogs[today]?.drillResults?.[task.id] ?? null,
-          series,
-        });
+    for (const log of Object.values(dailyLogs)) {
+      const results = log.drillResults;
+      if (!results) continue;
+      for (const [key, cpm] of Object.entries(results)) {
+        const pair = parsePairKey(key);
+        if (!pair || typeof cpm !== 'number') continue;
+        let stat = byPair.get(key);
+        if (!stat) {
+          stat = { key, from: pair.from, to: pair.to, best: 0, today: null, series: [] };
+          byPair.set(key, stat);
+        }
+        stat.series.push({ date: log.date, cpm });
+        stat.best = Math.max(stat.best, cpm);
+        if (log.date === today) stat.today = cpm;
       }
     }
 
+    const stats = [...byPair.values()];
+    for (const s of stats) s.series.sort((a, b) => a.date.localeCompare(b.date));
     return stats;
   }, [userData, today]);
 }
@@ -56,9 +50,8 @@ export interface Recommendation {
   reason: string;
 }
 
-// Pick the single pair most worth drilling next, closing the loop between
-// tracking and action. Priority: something not yet practiced today, then the
-// weakest pair by personal best. Returns null when there's no history.
+// Pick the single pair most worth drilling next. Priority: a pair not yet
+// practiced today, then the weakest by personal best. Returns null with no data.
 export function recommendNext(stats: PairStat[]): Recommendation | null {
   const withHistory = stats.filter((s) => s.series.length > 0);
   if (withHistory.length === 0) return null;

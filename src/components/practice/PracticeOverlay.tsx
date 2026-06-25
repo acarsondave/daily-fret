@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { X } from '@phosphor-icons/react';
 import { useStore, getTodayString } from '../../store';
+import { pairKey } from '../../lib/pairs';
 import type { Task } from '../../types';
 import { FreePlay } from './FreePlay';
 import { OneMinuteChanges } from './OneMinuteChanges';
@@ -16,6 +17,8 @@ interface Props {
 
 export function PracticeOverlay({ task, onClose }: Props) {
   const recordDrillResult = useStore((s) => s.recordDrillResult);
+  const setLastPair = useStore((s) => s.setLastPair);
+  const lastPair = useStore((s) => s.accounts[s.currentAccountId]?.lastPair);
   const drill = task.drill;
 
   // Snapshot history once at mount so the in-session result can be compared
@@ -66,10 +69,18 @@ export function PracticeOverlay({ task, onClose }: Props) {
         {drill.kind === 'free-play' && <FreePlay />}
         {drill.kind === 'one-minute-changes' && (
           <OneMinuteChanges
-            config={drill}
-            personalBest={personalBest}
-            series={series}
-            onResult={(cpm) => recordDrillResult(getTodayString(), task.id, cpm)}
+            config={{ kind: 'one-minute-changes', durationSec: drill.durationSec }}
+            defaultPair={
+              lastPair ??
+              (drill.chordFrom && drill.chordTo
+                ? { from: drill.chordFrom, to: drill.chordTo }
+                : undefined)
+            }
+            onSessionStart={(f, t) => setLastPair(f, t)}
+            onResult={(cpm, f, t) => {
+              recordDrillResult(getTodayString(), task.id, cpm, pairKey(f, t));
+              setLastPair(f, t);
+            }}
             onClose={onClose}
           />
         )}

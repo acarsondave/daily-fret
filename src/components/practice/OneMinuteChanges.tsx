@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Play,
@@ -14,36 +14,54 @@ import { ProgressRing } from './ProgressRing';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
 import { classifyLevel, type SignalQuality } from './signalQuality';
+import { useStore } from '../../store';
+import { pairKey } from '../../lib/pairs';
 import type { DrillConfig } from '../../types';
 
 const CHORDS = ['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F'];
+const EMPTY_LOGS = {};
 
 type View = 'setup' | 'playing' | 'results';
 
 interface Props {
   config?: DrillConfig;
-  onResult?: (cpm: number) => void;
+  onResult?: (cpm: number, from: string, to: string) => void;
   onClose?: () => void;
-  personalBest?: number; // best cpm before this session
-  series?: number[]; // chronological cpm history before this session
   autoStart?: boolean; // skip the setup screen and begin immediately (coached)
   onNext?: () => void; // when set, the results "Next" advances a sequence
+  defaultPair?: { from: string; to: string }; // reopen on the last pair played
+  onSessionStart?: (from: string, to: string) => void; // remember the pair
 }
 
 export function OneMinuteChanges({
   config,
   onResult,
   onClose,
-  personalBest = 0,
-  series = [],
   autoStart = false,
   onNext,
+  defaultPair,
+  onSessionStart,
 }: Props) {
   const { status, error, start, stop } = useChordDetector();
 
   const duration = config?.durationSec ?? 60;
-  const [from, setFrom] = useState(config?.chordFrom ?? 'D');
-  const [to, setTo] = useState(config?.chordTo ?? 'A');
+  const [from, setFrom] = useState(config?.chordFrom ?? defaultPair?.from ?? 'D');
+  const [to, setTo] = useState(config?.chordTo ?? defaultPair?.to ?? 'A');
+
+  // Per-pair history, sourced straight from the store so each pair keeps its own
+  // benchmark and the setup badge reflects whatever pair is currently selected.
+  const dailyLogs = useStore((s) => s.accounts[s.currentAccountId]?.dailyLogs ?? EMPTY_LOGS);
+  const { pairBest, pairSeries } = useMemo(() => {
+    const key = pairKey(from, to);
+    const points = Object.values(dailyLogs)
+      .filter((l) => typeof l.drillResults?.[key] === 'number')
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((l) => l.drillResults![key]);
+    return {
+      pairBest: points.reduce((m, v) => Math.max(m, v), 0),
+      pairSeries: points,
+    };
+  }, [dailyLogs, from, to]);
 
   const [view, setView] = useState<View>('setup');
   const [transitions, setTransitions] = useState(0);
@@ -62,16 +80,15 @@ export function OneMinuteChanges({
   const transitionsRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countRef = useRef<HTMLDivElement>(null);
+  // Best for the current pair captured at the moment a session starts, so the
+  // results screen compares against the pre-session best (the store already
+  // holds the new result by the time results render).
+  const prevBestRef = useRef(0);
 
   // A human can't genuinely alternate two chords faster than this; anything
   // quicker is a detection wobble, not a real change, so we ignore it. ~130ms
   // still allows well over 200 changes/min.
   const MIN_CHANGE_MS = 130;
-  // Running best/history that folds in each session completed in this overlay so
-  // retries compare against the true best, not just the pre-open snapshot. State
-  // (not a ref) so the setup view re-renders with updated values after a retry.
-  const [runningBest, setRunningBest] = useState(personalBest);
-  const [runningSeries, setRunningSeries] = useState<number[]>(series);
 
   const clearTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -108,16 +125,12 @@ export function OneMinuteChanges({
     clearTimer();
     void stop();
     const value = transitionsRef.current;
-    const prevBest = runningBest;
-    const seriesSnapshot = [...runningSeries, value];
-    setResult({ value, prevBest, series: seriesSnapshot });
-    setRunningBest(Math.max(prevBest, value));
-    setRunningSeries(seriesSnapshot);
+    setResult({ value, prevBest: prevBestRef.current, series: [] });
     setView('results');
-    onResult?.(value);
+    onResult?.(value, from, to);
   };
 
-  const startSession = () => {
+  const startSession = async () => {
     transitionsRef.current = 0;
     lastChordRef.current = '';
     lastCountAtRef.current = 0;
@@ -126,11 +139,15 @@ export function OneMinuteChanges({
     setDetected('listening...');
     setSignal('silent');
     signalRef.current = 'silent';
+    prevBestRef.current = pairBest;
+    onSessionStart?.(from, to);
     setView('playing');
 
     // Restrict detection to just the two target chords — removes third-chord
-    // misdetections and makes counting far more accurate.
-    void start(
+    // misdetections and makes counting far more accurate. Wait for the mic to
+    // actually be live before starting the clock so the permission prompt
+    // doesn't eat into the timer (and we bail cleanly if it's denied).
+    const live = await start(
       {
         onChord: (ev) => handleChord(ev.chord),
         onLevel: (ev) => {
@@ -143,6 +160,7 @@ export function OneMinuteChanges({
       },
       { restrictTo: [from, to] },
     );
+    if (!live) return; // denied / failed — the mic gate view takes over
 
     clearTimer();
     const deadline = Date.now() + duration * 1000;
@@ -168,12 +186,12 @@ export function OneMinuteChanges({
   if (view === 'setup') {
     return (
       <div className="om-setup">
-        {runningBest > 0 && (
+        {pairBest > 0 && (
           <div className="om-best-badge">
             <Trophy size={16} weight="fill" />
-            <span>Best {runningBest}</span>
-            {runningSeries.length >= 2 && (
-              <Sparkline values={runningSeries} className="om-best-spark" />
+            <span>Best {pairBest}</span>
+            {pairSeries.length >= 2 && (
+              <Sparkline values={pairSeries} className="om-best-spark" />
             )}
           </div>
         )}
@@ -215,7 +233,25 @@ export function OneMinuteChanges({
   }
 
   if (view === 'playing') {
-    const micFailed = status === 'error';
+    if (status === 'error') {
+      return (
+        <div className="mic-gate">
+          <Microphone size={40} weight="duotone" color="var(--text-secondary)" />
+          <p>{error ?? 'Microphone unavailable.'}</p>
+          <button className="practice-btn primary" onClick={startSession}>
+            <ArrowClockwise size={18} weight="bold" /> Try again
+          </button>
+        </div>
+      );
+    }
+    if (status !== 'running') {
+      return (
+        <div className="mic-gate">
+          <Microphone size={40} weight="duotone" color="var(--accent-primary)" />
+          <p>Allow microphone access to begin…</p>
+        </div>
+      );
+    }
     return (
       <>
         <div className="om-pair">
@@ -230,27 +266,14 @@ export function OneMinuteChanges({
         <div className="om-timer">
           <Hourglass size={26} /> {timeLeft}
         </div>
-        {micFailed ? (
-          <div className="mic-gate">
-            <Microphone size={32} weight="duotone" color="var(--text-secondary)" />
-            <p>{error ?? 'Microphone unavailable.'}</p>
-            <button className="practice-btn ghost" onClick={startSession}>
-              <ArrowClockwise size={16} weight="bold" /> Retry
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="om-detected">{detected}</div>
-            <SignalMeter quality={signal} />
-          </>
-        )}
+        <div className="om-detected">{detected}</div>
+        <SignalMeter quality={signal} />
       </>
     );
   }
 
   const value = result?.value ?? transitions;
-  const prevBest = result?.prevBest ?? personalBest;
-  const resultSeries = result?.series ?? [...runningSeries, value];
+  const prevBest = result?.prevBest ?? 0;
 
   const isFirst = prevBest === 0;
   const isNewBest = !isFirst && value > prevBest;
@@ -308,12 +331,9 @@ export function OneMinuteChanges({
           <ArrowsLeftRight size={14} />
           <span className="target">{to}</span>
         </div>
-        {resultSeries.length >= 2 && (
-          <Sparkline values={resultSeries} className="om-result-spark" width={120} />
-        )}
       </div>
 
-      <div className="om-saved-hint">Saved automatically</div>
+      <div className="om-saved-hint">Saved automatically · see Progress for trends</div>
 
       <div className="om-actions">
         <button className="practice-btn ghost" onClick={() => onClose?.()}>

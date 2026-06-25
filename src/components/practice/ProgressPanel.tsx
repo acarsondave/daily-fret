@@ -1,35 +1,56 @@
-import { TrendUp, TrendDown, Minus, Target, Play } from '@phosphor-icons/react';
+import { useMemo, useState } from 'react';
+import { Target, Play, TrendUp, TrendDown, Minus, Fire } from '@phosphor-icons/react';
 import clsx from 'clsx';
-import { useDrillStats, recommendNext } from '../../lib/drillStats';
-import { Sparkline } from './Sparkline';
+import { useDrillStats, recommendNext, type PairStat } from '../../lib/drillStats';
+import { useUserData } from '../../store';
+import { ProgressChart } from './ProgressChart';
 import './progress.css';
 
-interface Props {
-  onPractice?: (taskId: string) => void;
+function currentStreak(dailyLogs: Record<string, { completedTaskIds?: string[] }>): number {
+  let streak = 0;
+  const d = new Date();
+  // Allow today to be empty (you may not have practiced yet) without breaking it.
+  for (let i = 0; i < 400; i++) {
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const done = (dailyLogs[key]?.completedTaskIds?.length ?? 0) > 0;
+    if (done) streak += 1;
+    else if (i !== 0) break;
+    d.setDate(d.getDate() - 1);
+  }
+  return streak;
 }
 
-export function ProgressPanel({ onPractice }: Props) {
-  const stats = useDrillStats().filter((s) => s.series.length > 0);
+interface Props {
+  onPracticePair?: (from: string, to: string) => void;
+}
+
+export function ProgressPanel({ onPracticePair }: Props) {
+  const stats = useDrillStats();
+  const userData = useUserData();
+
+  const sorted = useMemo(() => [...stats].sort((a, b) => b.best - a.best), [stats]);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   if (stats.length === 0) {
     return (
       <p className="progress-empty">
-        Run a 1-Minute Changes drill to start tracking your change speed.
+        Run a Chord Changes drill to start tracking your speed — each pair builds its own benchmark here.
       </p>
     );
   }
 
-  const sorted = [...stats].sort((a, b) => b.best - a.best);
+  const selected: PairStat = sorted.find((s) => s.key === selectedKey) ?? sorted[0];
   const topBest = Math.max(...stats.map((s) => s.best));
   const totalSessions = stats.reduce((sum, s) => sum + s.series.length, 0);
+  const streak = currentStreak(userData?.dailyLogs ?? {});
   const recommendation = recommendNext(stats);
 
   return (
     <div className="progress-root">
-      {recommendation && onPractice && (
+      {recommendation && onPracticePair && (
         <button
           className="progress-reco"
-          onClick={() => onPractice(recommendation.stat.taskId)}
+          onClick={() => onPracticePair(recommendation.stat.from, recommendation.stat.to)}
         >
           <Target size={20} weight="duotone" className="progress-reco-icon" />
           <span className="progress-reco-text">
@@ -51,63 +72,62 @@ export function ProgressPanel({ onPractice }: Props) {
           <span className="progress-stat-label">top cpm</span>
         </div>
         <div className="progress-stat">
-          <span className="progress-stat-value">{stats.length}</span>
-          <span className="progress-stat-label">
-            pair{stats.length === 1 ? '' : 's'} trained
-          </span>
+          <span className="progress-stat-value">{totalSessions}</span>
+          <span className="progress-stat-label">session{totalSessions === 1 ? '' : 's'}</span>
         </div>
         <div className="progress-stat">
-          <span className="progress-stat-value">{totalSessions}</span>
-          <span className="progress-stat-label">
-            session{totalSessions === 1 ? '' : 's'}
+          <span className="progress-stat-value progress-stat-streak">
+            {streak > 0 && <Fire size={18} weight="fill" />}
+            {streak}
           </span>
+          <span className="progress-stat-label">day streak</span>
         </div>
       </div>
 
-      <div className="progress-list">
+      <div className="progress-chart-card">
+        <div className="progress-chart-head">
+          <div className="progress-chart-titles">
+            <span className="progress-chart-pair">
+              {selected.from} ↔ {selected.to}
+            </span>
+            <span className="progress-chart-sub">best changes / min</span>
+          </div>
+          <span className="progress-chart-best">{selected.best}</span>
+        </div>
+        <ProgressChart series={selected.series} />
+      </div>
+
+      <div className="progress-pairs">
         {sorted.map((s) => {
           const cpms = s.series.map((p) => p.cpm);
           const first = cpms[0];
           const last = cpms[cpms.length - 1];
           const hasTrend = cpms.length >= 2;
-          const deltaPct =
-            hasTrend && first > 0 ? Math.round(((last - first) / first) * 100) : 0;
+          const deltaPct = hasTrend && first > 0 ? Math.round(((last - first) / first) * 100) : 0;
           const dir = !hasTrend ? 'flat' : deltaPct > 0 ? 'up' : deltaPct < 0 ? 'down' : 'flat';
-
           return (
-            <div key={s.taskId} className="progress-row">
-              <div className="progress-row-main">
-                <div className="progress-row-head">
-                  <span className="progress-pair">
-                    {s.from} <span className="progress-arrow">→</span> {s.to}
-                  </span>
-                  {hasTrend && (
-                    <span className={clsx('progress-trend', `is-${dir}`)}>
-                      {dir === 'up' && <TrendUp size={13} weight="bold" />}
-                      {dir === 'down' && <TrendDown size={13} weight="bold" />}
-                      {dir === 'flat' && <Minus size={13} weight="bold" />}
-                      {dir === 'up' ? '+' : ''}
-                      {deltaPct}%
-                    </span>
-                  )}
-                </div>
-                <div className="progress-figure">
-                  <span className="progress-best-value">{s.best}</span>
-                  <span className="progress-best-unit">cpm best</span>
-                </div>
-                <span className="progress-meta">
-                  {s.today !== null ? `Today ${s.today}` : `Last ${last}`}
-                  {' · '}
-                  {cpms.length} session{cpms.length === 1 ? '' : 's'}
-                </span>
-              </div>
-
+            <button
+              key={s.key}
+              className={clsx('progress-pair-row', s.key === selected.key && 'is-active')}
+              onClick={() => setSelectedKey(s.key)}
+            >
+              <span className="progress-pair-name">
+                {s.from} ↔ {s.to}
+              </span>
+              <span className="progress-pair-best">
+                {s.best}
+                <span className="progress-pair-unit">cpm</span>
+              </span>
               {hasTrend && (
-                <div className={clsx('progress-trend-line', `is-${dir}`)}>
-                  <Sparkline values={cpms} width={108} height={48} area />
-                </div>
+                <span className={clsx('progress-trend', `is-${dir}`)}>
+                  {dir === 'up' && <TrendUp size={12} weight="bold" />}
+                  {dir === 'down' && <TrendDown size={12} weight="bold" />}
+                  {dir === 'flat' && <Minus size={12} weight="bold" />}
+                  {dir === 'up' ? '+' : ''}
+                  {deltaPct}%
+                </span>
               )}
-            </div>
+            </button>
           );
         })}
       </div>

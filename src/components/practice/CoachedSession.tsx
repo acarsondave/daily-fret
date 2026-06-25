@@ -1,46 +1,48 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { X, CheckCircle, Trophy } from '@phosphor-icons/react';
 import { useStore, getTodayString } from '../../store';
-import type { Task } from '../../types';
+import { pairKey } from '../../lib/pairs';
+import { buildSegments } from '../../lib/coached';
+import type { Routine } from '../../types';
 import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
+import { TimedSegment } from './TimedSegment';
 import './practice.css';
 
-type Phase = 'intro' | 'drill' | 'summary';
+type Phase = 'intro' | 'segment' | 'summary';
 
 interface Props {
-  tasks: Task[]; // scored drill tasks, in order
+  routine: Routine;
   onClose: () => void;
 }
 
 interface StepResult {
-  taskId: string;
   title: string;
-  value: number;
+  value: number | null;
   unit: string;
 }
 
-function snapshot(taskId: string): { personalBest: number; series: number[] } {
-  const state = useStore.getState();
-  const acc = state.accounts[state.currentAccountId];
-  const points = Object.values(acc?.dailyLogs ?? {})
-    .filter((l) => typeof l.drillResults?.[taskId] === 'number')
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map((l) => l.drillResults![taskId]);
-  return { personalBest: points.reduce((m, v) => Math.max(m, v), 0), series: points };
+function mins(seconds: number): string {
+  const m = Math.round(seconds / 60);
+  return `${m} min${m === 1 ? '' : 's'}`;
 }
 
-export function CoachedSession({ tasks, onClose }: Props) {
+export function CoachedSession({ routine, onClose }: Props) {
   const recordDrillResult = useStore((s) => s.recordDrillResult);
+  const completeTask = useStore((s) => s.completeTask);
+  const setLastPair = useStore((s) => s.setLastPair);
+
+  const segments = useMemo(() => buildSegments(routine), [routine]);
+
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>('intro');
   const [countdown, setCountdown] = useState(3);
   const [results, setResults] = useState<StepResult[]>([]);
+  const lastValueRef = useRef<number | null>(null);
 
-  const task = tasks[index];
-  const snap = useMemo(() => snapshot(task?.id ?? ''), [task?.id]);
+  const seg = segments[index];
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -54,7 +56,7 @@ export function CoachedSession({ tasks, onClose }: Props) {
     };
   }, [onClose]);
 
-  // Get-ready countdown before each drill.
+  // Get-ready countdown before each segment.
   useEffect(() => {
     if (phase !== 'intro') return;
     const started = Date.now();
@@ -62,7 +64,7 @@ export function CoachedSession({ tasks, onClose }: Props) {
       const remaining = 3 - Math.floor((Date.now() - started) / 1000);
       if (remaining <= 0) {
         clearInterval(id);
-        setPhase('drill');
+        setPhase('segment');
       } else {
         setCountdown(remaining);
       }
@@ -70,10 +72,26 @@ export function CoachedSession({ tasks, onClose }: Props) {
     return () => clearInterval(id);
   }, [phase, index]);
 
-  if (!task) return null;
+  if (!seg) {
+    // Routine has no runnable segments.
+    return createPortal(
+      <motion.div className="practice-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <div className="practice-topbar">
+          <span className="practice-eyebrow">Coached</span>
+          <button className="practice-close" onClick={onClose}><X size={20} weight="bold" /></button>
+        </div>
+        <div className="practice-body">
+          <p className="om-caption">This routine has no drills or timed tasks yet.</p>
+          <button className="practice-btn primary" onClick={onClose}>Done</button>
+        </div>
+      </motion.div>,
+      document.body,
+    );
+  }
 
-  const advance = () => {
-    if (index < tasks.length - 1) {
+  const advance = (result?: StepResult) => {
+    if (result) setResults((prev) => [...prev, result]);
+    if (index < segments.length - 1) {
       setCountdown(3);
       setIndex((i) => i + 1);
       setPhase('intro');
@@ -82,21 +100,12 @@ export function CoachedSession({ tasks, onClose }: Props) {
     }
   };
 
-  const handleResult = (value: number) => {
-    recordDrillResult(getTodayString(), task.id, value);
-    setResults((prev) => [
-      ...prev,
-      {
-        taskId: task.id,
-        title: task.title,
-        value,
-        unit: task.drill?.kind === 'chord-trainer' ? 'nailed' : 'cpm',
-      },
-    ]);
-  };
-
-  const drillLabel =
-    task.drill?.kind === 'chord-trainer' ? 'Chord Trainer' : '1-Minute Changes';
+  const subLabel =
+    seg.kind === 'changes'
+      ? `${seg.from} ↔ ${seg.to}`
+      : seg.kind === 'trainer'
+        ? `Chord Trainer · ${seg.chords.join(' ')}`
+        : mins(seg.seconds);
 
   return createPortal(
     <motion.div
@@ -108,7 +117,7 @@ export function CoachedSession({ tasks, onClose }: Props) {
     >
       <div className="practice-topbar">
         <span className="practice-eyebrow">
-          Coached · {Math.min(index + 1, tasks.length)} / {tasks.length}
+          Coached · {Math.min(index + 1, segments.length)} / {segments.length}
         </span>
         <button className="practice-close" onClick={onClose} title="Exit (Esc)">
           <X size={20} weight="bold" />
@@ -124,35 +133,53 @@ export function CoachedSession({ tasks, onClose }: Props) {
             animate={{ opacity: 1, y: 0 }}
           >
             <span className="coach-up-next">Up next</span>
-            <div className="coach-intro-title">{task.title}</div>
-            <div className="om-caption">{drillLabel}</div>
+            <div className="coach-intro-title">{seg.title}</div>
+            <div className="om-caption">{subLabel}</div>
             <div className="coach-countdown">{countdown}</div>
           </motion.div>
         )}
 
-        {phase === 'drill' && task.drill?.kind === 'one-minute-changes' && (
+        {phase === 'segment' && seg.kind === 'changes' && (
           <OneMinuteChanges
-            key={`drill-${index}`}
-            config={task.drill}
-            personalBest={snap.personalBest}
-            series={snap.series}
+            key={`seg-${index}`}
+            config={{ kind: 'one-minute-changes', chordFrom: seg.from, chordTo: seg.to, durationSec: 60 }}
             autoStart
-            onResult={handleResult}
-            onNext={advance}
+            onResult={(cpm, f, t) => {
+              recordDrillResult(getTodayString(), seg.taskId, cpm, pairKey(f, t));
+              setLastPair(f, t);
+              lastValueRef.current = cpm;
+            }}
+            onNext={() =>
+              advance({ title: `${seg.from} ↔ ${seg.to}`, value: lastValueRef.current, unit: 'cpm' })
+            }
             onClose={onClose}
           />
         )}
 
-        {phase === 'drill' && task.drill?.kind === 'chord-trainer' && (
+        {phase === 'segment' && seg.kind === 'trainer' && (
           <ChordTrainer
-            key={`drill-${index}`}
-            config={task.drill}
-            personalBest={snap.personalBest}
-            series={snap.series}
+            key={`seg-${index}`}
+            config={{ kind: 'chord-trainer', chords: seg.chords, durationSec: 60 }}
             autoStart
-            onResult={handleResult}
-            onNext={advance}
+            onResult={(score) => {
+              recordDrillResult(getTodayString(), seg.taskId, score);
+              lastValueRef.current = score;
+            }}
+            onNext={() => advance({ title: seg.title, value: lastValueRef.current, unit: 'nailed' })}
             onClose={onClose}
+          />
+        )}
+
+        {phase === 'segment' && seg.kind === 'timed' && (
+          <TimedSegment
+            key={`seg-${index}`}
+            title={seg.title}
+            description={seg.description}
+            seconds={seg.seconds}
+            onDone={() => {
+              completeTask(getTodayString(), seg.taskId);
+              advance({ title: seg.title, value: null, unit: '' });
+            }}
           />
         )}
 
@@ -166,12 +193,14 @@ export function CoachedSession({ tasks, onClose }: Props) {
             <h2 className="coach-summary-title">Session complete</h2>
             <div className="coach-summary-list">
               {results.map((r, i) => (
-                <div key={`${r.taskId}-${i}`} className="coach-summary-row">
+                <div key={i} className="coach-summary-row">
                   <CheckCircle size={18} weight="fill" className="coach-summary-check" />
                   <span className="coach-summary-name">{r.title}</span>
-                  <span className="coach-summary-val">
-                    {r.value} <span className="coach-summary-unit">{r.unit}</span>
-                  </span>
+                  {r.value !== null && (
+                    <span className="coach-summary-val">
+                      {r.value} <span className="coach-summary-unit">{r.unit}</span>
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

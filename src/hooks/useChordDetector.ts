@@ -17,15 +17,16 @@ export function useChordDetector() {
     handlersRef.current = handlers;
   }, []);
 
+  // Resolves to true once the mic is live, false if access failed/was denied.
   const start = useCallback(async (
     handlers: DetectorHandlers,
     options?: { restrictTo?: string[]; offset?: number },
-  ) => {
+  ): Promise<boolean> => {
     handlersRef.current = handlers;
     if (captureRef.current?.running) {
       captureRef.current.setRestrict(options?.restrictTo ?? null);
       setStatus('running');
-      return;
+      return true;
     }
     setStatus('requesting');
     setError(null);
@@ -41,12 +42,14 @@ export function useChordDetector() {
         onLevel: (e) => handlersRef.current.onLevel?.(e),
       });
       setStatus('running');
+      return true;
     } catch (err) {
       captureRef.current = null;
       setStatus('error');
       setError(
         err instanceof Error ? err.message : 'Microphone access was denied.',
       );
+      return false;
     }
   }, []);
 

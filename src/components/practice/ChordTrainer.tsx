@@ -107,7 +107,7 @@ export function ChordTrainer({
     onResult?.(value);
   };
 
-  const startSession = () => {
+  const startSession = async () => {
     scoreRef.current = 0;
     setScore(0);
     setTimeLeft(duration);
@@ -118,7 +118,9 @@ export function ChordTrainer({
     setTarget(first);
     setView('playing');
 
-    void start(
+    // Wait for the mic before starting the clock so the permission prompt
+    // doesn't burn the timer, and bail cleanly if access is denied.
+    const live = await start(
       {
         onChord: (ev) => handleChord(ev.chord),
         onLevel: (ev) => {
@@ -131,6 +133,7 @@ export function ChordTrainer({
       },
       { restrictTo: pool },
     );
+    if (!live) return;
 
     clearTimer();
     const deadline = Date.now() + duration * 1000;
@@ -198,7 +201,25 @@ export function ChordTrainer({
   }
 
   if (view === 'playing') {
-    const micFailed = status === 'error';
+    if (status === 'error') {
+      return (
+        <div className="mic-gate">
+          <Microphone size={40} weight="duotone" color="var(--text-secondary)" />
+          <p>{error ?? 'Microphone unavailable.'}</p>
+          <button className="practice-btn primary" onClick={startSession}>
+            <ArrowClockwise size={18} weight="bold" /> Try again
+          </button>
+        </div>
+      );
+    }
+    if (status !== 'running') {
+      return (
+        <div className="mic-gate">
+          <Microphone size={40} weight="duotone" color="var(--accent-primary)" />
+          <p>Allow microphone access to begin…</p>
+        </div>
+      );
+    }
     return (
       <>
         <div className="practice-mode is-chord">play this chord</div>
@@ -211,17 +232,7 @@ export function ChordTrainer({
             <Hourglass size={22} /> {timeLeft}
           </span>
         </div>
-        {micFailed ? (
-          <div className="mic-gate">
-            <Microphone size={32} weight="duotone" color="var(--text-secondary)" />
-            <p>{error ?? 'Microphone unavailable.'}</p>
-            <button className="practice-btn ghost" onClick={startSession}>
-              <ArrowClockwise size={16} weight="bold" /> Retry
-            </button>
-          </div>
-        ) : (
-          <SignalMeter quality={signal} />
-        )}
+        <SignalMeter quality={signal} />
       </>
     );
   }
