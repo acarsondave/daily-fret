@@ -1,7 +1,11 @@
 # Roadmap — next features
 
-Captured 2026-06-25. These are the agreed next steps to pick up later. The PWA /
-offline-install route was explicitly **dropped** for now — not needed.
+Captured 2026-06-25. **All four items below shipped on 2026-06-25** — kept here
+as a record of intent and where each lives. The PWA / offline-install route was
+explicitly **dropped** — not needed.
+
+Status: ✅ Mic-reliability indicator · ✅ Chord Trainer drill · ✅ Coached
+session flow · ✅ Close-the-loop recommendations.
 
 Ordered roughly by value-to-effort. Each item lists the intent, the concrete
 work, and the files most likely involved.

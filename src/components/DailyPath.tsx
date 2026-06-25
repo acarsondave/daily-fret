@@ -8,7 +8,7 @@ import { RoutineManagerModal } from './RoutineManagerModal';
 import { ProgressPanel } from './practice/ProgressPanel';
 import type { Task } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lightning, Plus, CaretDown, Gear, Waveform, ChartLineUp } from '@phosphor-icons/react';
+import { Lightning, Plus, CaretDown, Gear, Waveform, ChartLineUp, PlayCircle } from '@phosphor-icons/react';
 import clsx from 'clsx';
 import './DailyPath.css';
 
@@ -16,6 +16,9 @@ import './DailyPath.css';
 // only needed once a user actually starts a drill, keeping first paint light.
 const PracticeOverlay = lazy(() =>
   import('./practice/PracticeOverlay').then((m) => ({ default: m.PracticeOverlay })),
+);
+const CoachedSession = lazy(() =>
+  import('./practice/CoachedSession').then((m) => ({ default: m.CoachedSession })),
 );
 
 const FREE_PLAY_TASK: Task = {
@@ -40,6 +43,7 @@ export function DailyPath() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isRoutineModalOpen, setIsRoutineModalOpen] = useState(false);
   const [isProgressOpen, setIsProgressOpen] = useState(false);
+  const [isCoachedOpen, setIsCoachedOpen] = useState(false);
   const [practiceTask, setPracticeTask] = useState<Task | null>(null);
   const [prevAllCompleted, setPrevAllCompleted] = useState(false);
 
@@ -61,6 +65,11 @@ export function DailyPath() {
 
   const tasks = activeRoutine?.tasks || [];
   const isEmpty = tasks.length === 0;
+
+  // Scored drills the coached session can run, in routine order.
+  const coachableTasks = tasks.filter(
+    (t) => t.drill?.kind === 'one-minute-changes' || t.drill?.kind === 'chord-trainer',
+  );
 
   const allCompleted = !isEmpty && tasks.every(t => log?.completedTaskIds?.includes(t.id));
 
@@ -204,6 +213,17 @@ export function DailyPath() {
           <Waveform weight="duotone" className="free-play-icon" />
           <span>Custom</span>
         </button>
+
+        {coachableTasks.length > 0 && (
+          <button
+            className="progress-launch"
+            onClick={() => setIsCoachedOpen(true)}
+            title="Run this routine's drills back to back"
+          >
+            <PlayCircle weight="duotone" className="progress-launch-icon" />
+            <span>Coached</span>
+          </button>
+        )}
 
         {hasProgress && (
           <button
@@ -383,6 +403,18 @@ export function DailyPath() {
               key={practiceTask.id}
               task={practiceTask}
               onClose={() => setPracticeTask(null)}
+            />
+          )}
+        </AnimatePresence>
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <AnimatePresence>
+          {isCoachedOpen && (
+            <CoachedSession
+              key="coached"
+              tasks={coachableTasks}
+              onClose={() => setIsCoachedOpen(false)}
             />
           )}
         </AnimatePresence>

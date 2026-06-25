@@ -26,6 +26,8 @@ interface Props {
   onClose?: () => void;
   personalBest?: number; // best cpm before this session
   series?: number[]; // chronological cpm history before this session
+  autoStart?: boolean; // skip the setup screen and begin immediately (coached)
+  onNext?: () => void; // when set, the results "Next" advances a sequence
 }
 
 export function OneMinuteChanges({
@@ -34,6 +36,8 @@ export function OneMinuteChanges({
   onClose,
   personalBest = 0,
   series = [],
+  autoStart = false,
+  onNext,
 }: Props) {
   const { status, error, start, stop } = useChordDetector();
 
@@ -150,7 +154,11 @@ export function OneMinuteChanges({
   };
 
   useEffect(() => {
+    // Defer the auto-start a tick so it runs after mount (keeps setState out of
+    // the effect body and is safe across StrictMode's mount/cleanup/mount).
+    const t = autoStart ? setTimeout(() => startSession(), 0) : null;
     return () => {
+      if (t) clearTimeout(t);
       clearTimer();
       void stop();
     };
@@ -309,14 +317,14 @@ export function OneMinuteChanges({
 
       <div className="om-actions">
         <button className="practice-btn ghost" onClick={() => onClose?.()}>
-          Done
+          {onNext ? 'End session' : 'Done'}
         </button>
         <button
           className="practice-btn primary"
-          onClick={() => setView('setup')}
+          onClick={onNext ?? (() => setView('setup'))}
           autoFocus
         >
-          Next <ArrowRight size={18} weight="bold" />
+          {onNext ? 'Next drill' : 'Next'} <ArrowRight size={18} weight="bold" />
         </button>
       </div>
     </motion.div>

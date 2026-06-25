@@ -26,6 +26,8 @@ interface Props {
   onClose?: () => void;
   personalBest?: number;
   series?: number[];
+  autoStart?: boolean;
+  onNext?: () => void;
 }
 
 export function ChordTrainer({
@@ -34,6 +36,8 @@ export function ChordTrainer({
   onClose,
   personalBest = 0,
   series = [],
+  autoStart = false,
+  onNext,
 }: Props) {
   const { status, error, start, stop } = useChordDetector();
 
@@ -138,7 +142,11 @@ export function ChordTrainer({
   };
 
   useEffect(() => {
+    // Defer the auto-start a tick (keeps setState out of the effect body and is
+    // safe across StrictMode's mount/cleanup/mount).
+    const t = autoStart ? setTimeout(() => startSession(), 0) : null;
     return () => {
+      if (t) clearTimeout(t);
       clearTimer();
       if (popTimer.current) clearTimeout(popTimer.current);
       void stop();
@@ -257,10 +265,14 @@ export function ChordTrainer({
 
       <div className="om-actions">
         <button className="practice-btn ghost" onClick={() => onClose?.()}>
-          Done
+          {onNext ? 'End session' : 'Done'}
         </button>
-        <button className="practice-btn primary" onClick={() => setView('setup')} autoFocus>
-          Next <ArrowRight size={18} weight="bold" />
+        <button
+          className="practice-btn primary"
+          onClick={onNext ?? (() => setView('setup'))}
+          autoFocus
+        >
+          {onNext ? 'Next drill' : 'Next'} <ArrowRight size={18} weight="bold" />
         </button>
       </div>
     </motion.div>
