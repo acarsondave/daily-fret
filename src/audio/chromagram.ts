@@ -10,6 +10,13 @@ export const SEMITONES = 12;
 const BUFFER_SIZE = 8192;
 const CHROMA_INTERVAL = BUFFER_SIZE / 2;
 
+// Minimum number of real (downsampled) samples required before a chroma is
+// computed. After an onset reset the window grows from zero; at the downsampled
+// rate (~11025 Hz) 2048 samples is ~186ms — enough frequency resolution to
+// separate the lowest semitones (≈5.4 Hz/bin) while still giving fast strums a
+// usable readout long before the full 8192-sample window would fill.
+const MIN_FILLED = 2048;
+
 // Gain inside the log compression ln(1 + k * |X|). Matches the native engine.
 const LOG_COMPRESSION_GAIN = 50.0;
 
@@ -57,6 +64,10 @@ export class Chromagram {
   private readonly chroma: Float32Array;
   private readonly noteFrequencies: Float32Array;
   private samplesSinceLast = 0;
+  // Count of real samples written since the last reset, capped at BUFFER_SIZE.
+  // Drives the growing analysis window so detection works immediately after an
+  // onset instead of waiting for the fixed window to refill to its center.
+  private filled = 0;
 
   constructor(options: Partial<ChromagramOptions> = {}) {
     const opts = { ...DEFAULTS, ...options };
@@ -89,6 +100,7 @@ export class Chromagram {
     this.buffer.fill(0);
     this.head = 0;
     this.samplesSinceLast = 0;
+    this.filled = 0;
     this.chroma.fill(0);
   }
 
@@ -107,12 +119,19 @@ export class Chromagram {
       this.buffer[this.head] = this.filtered[i];
       this.head = (this.head + 1) % BUFFER_SIZE;
     }
+    this.filled = Math.min(BUFFER_SIZE, this.filled + this.filtered.length);
 
     this.samplesSinceLast += this.opts.frameSize;
     if (this.samplesSinceLast < this.opts.hopSize) {
       return null;
     }
     this.samplesSinceLast -= this.opts.hopSize;
+
+    // Not enough real audio yet (e.g. right after an onset reset) to produce a
+    // meaningful spectrum — wait for the window to grow.
+    if (this.filled < MIN_FILLED) {
+      return null;
+    }
 
     this.computeSpectrum();
     this.computeChromagram();
@@ -148,11 +167,37 @@ export class Chromagram {
   }
 
   private computeSpectrum(): void {
-    const start = this.head;
-    for (let i = 0; i < BUFFER_SIZE; i++) {
-      const sample = this.buffer[(start + i) % BUFFER_SIZE];
-      this.fftRe[i] = sample * HAMMING_WINDOW[i];
-      this.fftIm[i] = 0;
+    const L = this.filled;
+
+    if (L >= BUFFER_SIZE) {
+      // Steady state: full window, reuse the precomputed Hamming taper. `head`
+      // points at the oldest sample (next write slot), so reading forward gives
+      // oldest→newest in order.
+      const start = this.head;
+      for (let i = 0; i < BUFFER_SIZE; i++) {
+        const sample = this.buffer[(start + i) % BUFFER_SIZE];
+        this.fftRe[i] = sample * HAMMING_WINDOW[i];
+        this.fftIm[i] = 0;
+      }
+    } else {
+      // Growing window: taper the most-recent L samples with a length-L Hamming
+      // and right-align them in the zero-padded FFT input. The magnitude
+      // spectrum is shift-invariant, so the left-pad placement is irrelevant to
+      // the resulting chroma; zero-padding to BUFFER_SIZE keeps the bin mapping
+      // identical to the steady-state path.
+      const pad = BUFFER_SIZE - L;
+      for (let i = 0; i < pad; i++) {
+        this.fftRe[i] = 0;
+        this.fftIm[i] = 0;
+      }
+      const denom = L > 1 ? L - 1 : 1;
+      const startBuf = (this.head - L + BUFFER_SIZE) % BUFFER_SIZE;
+      for (let j = 0; j < L; j++) {
+        const sample = this.buffer[(startBuf + j) % BUFFER_SIZE];
+        const w = 0.54 - 0.46 * Math.cos((2 * Math.PI * j) / denom);
+        this.fftRe[pad + j] = sample * w;
+        this.fftIm[pad + j] = 0;
+      }
     }
 
     this.fft.transform(this.fftRe, this.fftIm);

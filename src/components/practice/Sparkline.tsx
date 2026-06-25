@@ -3,10 +3,17 @@ interface SparklineProps {
   width?: number;
   height?: number;
   className?: string;
+  area?: boolean; // fill under the line for a clearer trend read
 }
 
 // Minimal trend line. Uses currentColor so callers control the hue via CSS.
-export function Sparkline({ values, width = 96, height = 28, className }: SparklineProps) {
+export function Sparkline({
+  values,
+  width = 96,
+  height = 28,
+  className,
+  area = false,
+}: SparklineProps) {
   if (values.length < 2) return null;
 
   const max = Math.max(...values);
@@ -27,6 +34,7 @@ export function Sparkline({ values, width = 96, height = 28, className }: Sparkl
     .join(' ');
 
   const [lastX, lastY] = points[points.length - 1];
+  const areaD = `${d} L${width.toFixed(1)} ${height} L0 ${height} Z`;
 
   return (
     <svg
@@ -37,6 +45,7 @@ export function Sparkline({ values, width = 96, height = 28, className }: Sparkl
       fill="none"
       aria-hidden="true"
     >
+      {area && <path d={areaD} fill="currentColor" opacity={0.12} stroke="none" />}
       <path
         d={d}
         stroke="currentColor"

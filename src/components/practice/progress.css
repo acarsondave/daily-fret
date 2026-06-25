@@ -5,74 +5,157 @@
   padding: var(--space-6) var(--space-2);
 }
 
-.progress-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: var(--space-3);
-}
-
-.progress-card {
+.progress-root {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-5);
+}
+
+/* Summary strip — the at-a-glance "is this worth it" answer */
+.progress-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
   padding: var(--space-4);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.progress-card-head {
+.progress-stat {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-2);
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+.progress-stat + .progress-stat {
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+.progress-stat-value {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: 1.9rem;
+  line-height: 1;
+  color: var(--text-primary);
+}
+.progress-stat-label {
+  font-family: var(--font-secondary);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
 }
 
+/* Per-pair rows */
+.progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.progress-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.progress-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.progress-row-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
 .progress-pair {
   font-family: var(--font-primary);
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 1.05rem;
   color: var(--text-primary);
+  white-space: nowrap;
 }
 .progress-arrow {
   color: var(--text-secondary);
 }
 
-.progress-today {
+/* Improvement badge — gives the trend line an explicit meaning */
+.progress-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
   font-family: var(--font-secondary);
-  font-size: 0.7rem;
-  letter-spacing: 0.06em;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.progress-trend.is-up {
+  color: var(--success-color);
+  background: var(--success-glow);
+}
+.progress-trend.is-down {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
+}
+.progress-trend.is-flat {
   color: var(--text-secondary);
-  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.05);
 }
 
-.progress-best {
+.progress-figure {
   display: flex;
   align-items: baseline;
-  gap: 4px;
+  gap: 6px;
+}
+.progress-best-value {
   font-family: var(--font-primary);
   font-weight: 700;
-  font-size: 2.25rem;
+  font-size: 2.4rem;
   line-height: 1;
+  color: var(--text-primary);
 }
 .progress-best-unit {
+  font-family: var(--font-secondary);
   font-size: 0.75rem;
   font-weight: 600;
-  opacity: 0.7;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
 }
 
-.progress-spark {
-  height: 34px;
+.progress-meta {
+  font-family: var(--font-secondary);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
 }
 
-.progress-heat {
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.05);
-  overflow: hidden;
+/* Trend line — colour follows the improvement direction */
+.progress-trend-line {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
 }
-.progress-heat-fill {
-  height: 100%;
-  border-radius: var(--radius-full);
-  transition: width 0.4s ease;
+.progress-trend-line.is-up {
+  color: var(--success-color);
+}
+.progress-trend-line.is-down {
+  color: #f87171;
+}
+.progress-trend-line.is-flat {
+  color: var(--accent-primary);
 }

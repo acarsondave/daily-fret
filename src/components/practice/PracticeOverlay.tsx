@@ -46,8 +46,6 @@ export function PracticeOverlay({ task, onClose }: Props) {
 
   if (!drill) return null;
 
-  const label = drill.kind === 'free-play' ? 'Free Play' : '1-Minute Changes';
-
   return createPortal(
     <motion.div
       className="practice-overlay"
@@ -57,7 +55,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
     >
       <div className="practice-topbar">
-        <span className="practice-eyebrow">{task.title} · {label}</span>
+        <span className="practice-eyebrow">{task.title}</span>
         <button className="practice-close" onClick={onClose} title="Exit (Esc)">
           <X size={20} weight="bold" />
         </button>

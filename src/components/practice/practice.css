@@ -71,13 +71,20 @@
   letter-spacing: -0.04em;
   color: var(--text-primary);
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease;
+  /* Promote to a dedicated compositing layer and isolate its paint so the
+     glyph repaints cleanly on every chord change. Without this the large text
+     animating over the overlay's backdrop-filter can leave ghost edges behind. */
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  contain: layout paint;
 }
 .practice-hero.is-idle {
   color: var(--text-secondary);
   opacity: 0.4;
 }
 .practice-hero.is-active {
-  transform: scale(1.06);
+  transform: translateZ(0) scale(1.06);
 }
 
 /* Chroma visualizer */

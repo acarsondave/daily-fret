@@ -20,7 +20,7 @@ const PracticeOverlay = lazy(() =>
 
 const FREE_PLAY_TASK: Task = {
   id: '__free_play__',
-  title: 'Free Play',
+  title: 'Custom',
   drill: { kind: 'free-play' },
 };
 
@@ -199,10 +199,10 @@ export function DailyPath() {
         <button
           className="free-play-launch"
           onClick={() => setPracticeTask(FREE_PLAY_TASK)}
-          title="Free Play - detect whatever you strum"
+          title="Custom - detect whatever you strum"
         >
           <Waveform weight="duotone" className="free-play-icon" />
-          <span>Free Play</span>
+          <span>Custom</span>
         </button>
 
         {hasProgress && (
