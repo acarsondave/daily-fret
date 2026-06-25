@@ -34,33 +34,41 @@ const getTodayString = () => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
+// Monotonic-ish wall clock used to stamp the last local mutation, so cloud sync
+// can do last-write-wins and never clobber un-uploaded local changes.
+const now = () => Date.now();
+
 export interface UserData {
   routines: Routine[];
   dailyLogs: Record<string, DailyLog>;
   activeRoutineId: string;
+  // Epoch ms of the last local mutation to this account. Drives conflict
+  // resolution against the cloud copy. Older/legacy data defaults to 0.
+  updatedAt: number;
 }
 
 const defaultUserData: UserData = {
   routines: defaultRoutines,
   dailyLogs: {},
-  activeRoutineId: 'r_10min'
+  activeRoutineId: 'r_10min',
+  updatedAt: 0,
 };
 
 interface AppState {
   accounts: Record<string, UserData>;
   currentAccountId: string; // 'anonymous' or firebase UID
-  
+
   // Actions
   switchAccount: (uid: string) => void;
   syncFromRemote: (uid: string, data: Partial<UserData>) => void;
-  
+
   addRoutine: (routine: Routine) => void;
   updateRoutine: (routineId: string, updates: Partial<Routine>) => void;
   deleteRoutine: (routineId: string) => void;
   addTask: (routineId: string, task: Task) => void;
   updateTask: (routineId: string, taskId: string, updates: Partial<Task>) => void;
   deleteTask: (routineId: string, taskId: string) => void;
-  
+
   toggleTaskCompletion: (date: string, taskId: string) => void;
   saveFeedback: (date: string, feedback: string) => void;
   recordDrillResult: (date: string, taskId: string, cpm: number) => void;
@@ -69,247 +77,219 @@ interface AppState {
 
 export const useStore = create<AppState>()(
   persist(
-    (set) => ({
-      accounts: {
-        'anonymous': defaultUserData
-      },
-      currentAccountId: 'anonymous',
-      
-      switchAccount: (uid) => set((state) => {
-        if (!state.accounts[uid]) {
-          // Initialize new account with default data or empty
-          return {
-            currentAccountId: uid,
-            accounts: {
-              ...state.accounts,
-              [uid]: defaultUserData
-            }
-          };
-        }
-        return { currentAccountId: uid };
-      }),
+    (set) => {
+      // Apply a local mutation to the current account and stamp it as the most
+      // recent write. Centralised so every action participates in last-write-wins.
+      const mutate = (
+        state: AppState,
+        updater: (acc: UserData) => UserData,
+      ): Partial<AppState> => {
+        const accId = state.currentAccountId;
+        const acc = state.accounts[accId] ?? defaultUserData;
+        return {
+          accounts: {
+            ...state.accounts,
+            [accId]: { ...updater(acc), updatedAt: now() },
+          },
+        };
+      };
 
-      syncFromRemote: (uid, data) => set((state) => ({
+      return {
         accounts: {
-          ...state.accounts,
-          [uid]: {
-            ...defaultUserData,
-            ...data,
-            routines: data.routines?.length ? data.routines : defaultUserData.routines,
-            dailyLogs: data.dailyLogs || {}
-          }
-        }
-      })),
+          anonymous: defaultUserData,
+        },
+        currentAccountId: 'anonymous',
 
-      addRoutine: (routine) => set((state) => {
-        const accId = state.currentAccountId;
-        const acc = state.accounts[accId];
-        if (acc.routines.length >= 10) {
-          alert("Maximum limit of 10 routines reached.");
-          return state;
-        }
-        return {
-          accounts: {
-            ...state.accounts,
-            [accId]: {
-              ...acc,
-              routines: [...acc.routines, routine],
-              activeRoutineId: acc.routines.length === 0 ? routine.id : acc.activeRoutineId
-            }
+        switchAccount: (uid) => set((state) => {
+          if (!state.accounts[uid]) {
+            return {
+              currentAccountId: uid,
+              accounts: {
+                ...state.accounts,
+                [uid]: defaultUserData,
+              },
+            };
           }
-        };
-      }),
+          return { currentAccountId: uid };
+        }),
 
-      updateRoutine: (routineId, updates) => set((state) => {
-        const accId = state.currentAccountId;
-        const acc = state.accounts[accId];
-        return {
-          accounts: {
-            ...state.accounts,
-            [accId]: {
-              ...acc,
-              routines: acc.routines.map(r => r.id === routineId ? { ...r, ...updates } : r)
-            }
+        // Reconcile a remote/cloud snapshot into a local account using
+        // last-write-wins: a strictly-newer local copy is preserved so a stale
+        // cloud read (e.g. before a debounced upload landed) never wipes recent
+        // local edits. Equal/newer remote data is applied.
+        syncFromRemote: (uid, data) => set((state) => {
+          const local = state.accounts[uid];
+          const remoteUpdatedAt = data.updatedAt ?? 0;
+          const localUpdatedAt = local?.updatedAt ?? 0;
+
+          if (local && localUpdatedAt > remoteUpdatedAt) {
+            return state;
           }
-        };
-      }),
 
-      deleteRoutine: (routineId) => set((state) => {
-        const accId = state.currentAccountId;
-        const acc = state.accounts[accId];
-        if (acc.routines.length <= 1) {
-          alert("You must have at least one routine.");
-          return state;
-        }
-        const updatedRoutines = acc.routines.filter(r => r.id !== routineId);
-        const newActiveId = acc.activeRoutineId === routineId ? updatedRoutines[0].id : acc.activeRoutineId;
-        return {
-          accounts: {
-            ...state.accounts,
-            [accId]: {
-              ...acc,
+          const merged: UserData = {
+            routines: data.routines?.length
+              ? data.routines
+              : local?.routines ?? defaultUserData.routines,
+            dailyLogs: data.dailyLogs ?? local?.dailyLogs ?? {},
+            activeRoutineId:
+              data.activeRoutineId ??
+              local?.activeRoutineId ??
+              defaultUserData.activeRoutineId,
+            updatedAt: remoteUpdatedAt,
+          };
+
+          return {
+            accounts: { ...state.accounts, [uid]: merged },
+          };
+        }),
+
+        addRoutine: (routine) => set((state) => {
+          const acc = state.accounts[state.currentAccountId];
+          if (acc.routines.length >= 10) {
+            alert('Maximum limit of 10 routines reached.');
+            return state;
+          }
+          return mutate(state, (a) => ({
+            ...a,
+            routines: [...a.routines, routine],
+            activeRoutineId: a.routines.length === 0 ? routine.id : a.activeRoutineId,
+          }));
+        }),
+
+        updateRoutine: (routineId, updates) => set((state) =>
+          mutate(state, (a) => ({
+            ...a,
+            routines: a.routines.map((r) =>
+              r.id === routineId ? { ...r, ...updates } : r,
+            ),
+          })),
+        ),
+
+        deleteRoutine: (routineId) => set((state) => {
+          const acc = state.accounts[state.currentAccountId];
+          if (acc.routines.length <= 1) {
+            alert('You must have at least one routine.');
+            return state;
+          }
+          return mutate(state, (a) => {
+            const updatedRoutines = a.routines.filter((r) => r.id !== routineId);
+            return {
+              ...a,
               routines: updatedRoutines,
-              activeRoutineId: newActiveId
-            }
-          }
-        };
-      }),
+              activeRoutineId:
+                a.activeRoutineId === routineId
+                  ? updatedRoutines[0].id
+                  : a.activeRoutineId,
+            };
+          });
+        }),
 
-      addTask: (routineId, task) => set((state) => {
-        const accId = state.currentAccountId;
-        const acc = state.accounts[accId];
-        return {
-          accounts: {
-            ...state.accounts,
-            [accId]: {
-              ...acc,
-              routines: acc.routines.map(r => r.id === routineId ? { ...r, tasks: [...r.tasks, task] } : r)
-            }
-          }
-        };
-      }),
+        addTask: (routineId, task) => set((state) =>
+          mutate(state, (a) => ({
+            ...a,
+            routines: a.routines.map((r) =>
+              r.id === routineId ? { ...r, tasks: [...r.tasks, task] } : r,
+            ),
+          })),
+        ),
 
-      updateTask: (routineId, taskId, updates) => set((state) => {
-        const accId = state.currentAccountId;
-        const acc = state.accounts[accId];
-        return {
-          accounts: {
-            ...state.accounts,
-            [accId]: {
-              ...acc,
-              routines: acc.routines.map(r => {
-                if (r.id !== routineId) return r;
-                return {
-                  ...r,
-                  tasks: r.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t)
-                };
-              })
-            }
-          }
-        };
-      }),
+        updateTask: (routineId, taskId, updates) => set((state) =>
+          mutate(state, (a) => ({
+            ...a,
+            routines: a.routines.map((r) =>
+              r.id !== routineId
+                ? r
+                : {
+                    ...r,
+                    tasks: r.tasks.map((t) =>
+                      t.id === taskId ? { ...t, ...updates } : t,
+                    ),
+                  },
+            ),
+          })),
+        ),
 
-      deleteTask: (routineId, taskId) => set((state) => {
-        const accId = state.currentAccountId;
-        const acc = state.accounts[accId];
-        return {
-          accounts: {
-            ...state.accounts,
-            [accId]: {
-              ...acc,
-              routines: acc.routines.map(r => {
-                if (r.id !== routineId) return r;
-                return {
-                  ...r,
-                  tasks: r.tasks.filter(t => t.id !== taskId)
-                };
-              })
-            }
-          }
-        };
-      }),
+        deleteTask: (routineId, taskId) => set((state) =>
+          mutate(state, (a) => ({
+            ...a,
+            routines: a.routines.map((r) =>
+              r.id !== routineId
+                ? r
+                : { ...r, tasks: r.tasks.filter((t) => t.id !== taskId) },
+            ),
+          })),
+        ),
 
-      toggleTaskCompletion: (date, taskId) => set((state) => {
-        const accId = state.currentAccountId;
-        const acc = state.accounts[accId];
-        const log = acc.dailyLogs[date] || {
-          date,
-          routineId: acc.activeRoutineId,
-          completedTaskIds: []
-        };
-        
-        const isCompleted = log.completedTaskIds.includes(taskId);
-        const updatedTaskIds = isCompleted 
-          ? log.completedTaskIds.filter(id => id !== taskId)
-          : [...log.completedTaskIds, taskId];
-          
-        return {
-          accounts: {
-            ...state.accounts,
-            [accId]: {
-              ...acc,
+        toggleTaskCompletion: (date, taskId) => set((state) =>
+          mutate(state, (a) => {
+            const log = a.dailyLogs[date] || {
+              date,
+              routineId: a.activeRoutineId,
+              completedTaskIds: [],
+            };
+            const isCompleted = log.completedTaskIds.includes(taskId);
+            const updatedTaskIds = isCompleted
+              ? log.completedTaskIds.filter((id) => id !== taskId)
+              : [...log.completedTaskIds, taskId];
+            return {
+              ...a,
               dailyLogs: {
-                ...acc.dailyLogs,
-                [date]: { ...log, completedTaskIds: updatedTaskIds }
-              }
-            }
-          }
-        };
-      }),
+                ...a.dailyLogs,
+                [date]: { ...log, completedTaskIds: updatedTaskIds },
+              },
+            };
+          }),
+        ),
 
-      saveFeedback: (date, feedback) => set((state) => {
-        const accId = state.currentAccountId;
-        const acc = state.accounts[accId];
-        const log = acc.dailyLogs[date];
-        if (!log) return state;
-        
-        return {
-          accounts: {
-            ...state.accounts,
-            [accId]: {
-              ...acc,
+        saveFeedback: (date, feedback) => set((state) => {
+          const acc = state.accounts[state.currentAccountId];
+          if (!acc.dailyLogs[date]) return state;
+          return mutate(state, (a) => ({
+            ...a,
+            dailyLogs: {
+              ...a.dailyLogs,
+              [date]: { ...a.dailyLogs[date], feedback },
+            },
+          }));
+        }),
+
+        recordDrillResult: (date, taskId, cpm) => set((state) =>
+          mutate(state, (a) => {
+            const log = a.dailyLogs[date] || {
+              date,
+              routineId: a.activeRoutineId,
+              completedTaskIds: [],
+            };
+            const previousBest = log.drillResults?.[taskId] ?? 0;
+            const completedTaskIds = log.completedTaskIds.includes(taskId)
+              ? log.completedTaskIds
+              : [...log.completedTaskIds, taskId];
+            return {
+              ...a,
               dailyLogs: {
-                ...acc.dailyLogs,
-                [date]: { ...log, feedback }
-              }
-            }
-          }
-        };
-      }),
-
-      recordDrillResult: (date, taskId, cpm) => set((state) => {
-        const accId = state.currentAccountId;
-        const acc = state.accounts[accId];
-        const log = acc.dailyLogs[date] || {
-          date,
-          routineId: acc.activeRoutineId,
-          completedTaskIds: []
-        };
-
-        const previousBest = log.drillResults?.[taskId] ?? 0;
-        const completedTaskIds = log.completedTaskIds.includes(taskId)
-          ? log.completedTaskIds
-          : [...log.completedTaskIds, taskId];
-
-        return {
-          accounts: {
-            ...state.accounts,
-            [accId]: {
-              ...acc,
-              dailyLogs: {
-                ...acc.dailyLogs,
+                ...a.dailyLogs,
                 [date]: {
                   ...log,
                   completedTaskIds,
                   drillResults: {
                     ...log.drillResults,
-                    [taskId]: Math.max(previousBest, cpm)
-                  }
-                }
-              }
-            }
-          }
-        };
-      }),
+                    [taskId]: Math.max(previousBest, cpm),
+                  },
+                },
+              },
+            };
+          }),
+        ),
 
-      setActiveRoutine: (routineId) => set((state) => {
-        const accId = state.currentAccountId;
-        const acc = state.accounts[accId];
-        return {
-          accounts: {
-            ...state.accounts,
-            [accId]: {
-              ...acc,
-              activeRoutineId: routineId
-            }
-          }
-        };
-      })
-    }),
+        setActiveRoutine: (routineId) => set((state) =>
+          mutate(state, (a) => ({ ...a, activeRoutineId: routineId })),
+        ),
+      };
+    },
     {
-      name: 'daily-fret-storage'
-    }
-  )
+      name: 'daily-fret-storage',
+    },
+  ),
 );
 
 // Selector hook for convenience
@@ -318,4 +298,4 @@ export const useUserData = () => {
   return store.accounts[store.currentAccountId] || defaultUserData;
 };
 
-export { getTodayString };
+export { getTodayString, defaultUserData };

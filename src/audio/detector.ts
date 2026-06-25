@@ -4,13 +4,18 @@
 
 import { Chromagram, SEMITONES } from './chromagram';
 import { OnsetDetector } from './onset';
-import { matchChord } from './chords';
+import { matchChord, matchChordAmong } from './chords';
 
 export const FRAME_SIZE = 1024;
 
 const SILENCE_THRESHOLD = 0.005;
 const CHORD_STABLE_FRAMES = 2;
 const CHROMA_SALIENCE_MIN = 1.2;
+// When detection is restricted to a known chord pair we can be a touch more
+// permissive on tonal salience (only two templates to confuse), but we add a
+// margin gate so an ambiguous, mid-transition chroma doesn't flap between them.
+const CHROMA_SALIENCE_MIN_RESTRICTED = 1.1;
+const RESTRICTED_MARGIN_MIN = 0.08;
 
 export const NO_CHORD = 'No Chord';
 
@@ -39,6 +44,7 @@ export interface DetectorHandlers {
 export interface DetectorOptions extends DetectorHandlers {
   sampleRate: number;
   offset?: number;
+  restrictTo?: string[]; // when set, only these chord names are matched
 }
 
 export class ChordDetector {
@@ -46,6 +52,7 @@ export class ChordDetector {
   private readonly onsetDetector: OnsetDetector;
   private readonly handlers: DetectorHandlers;
   private offset: number;
+  private restrictTo: string[] | null;
 
   private lastEmittedChord: string | null = null;
   private chordHistory: string[] = [];
@@ -65,10 +72,15 @@ export class ChordDetector {
     this.onsetDetector = new OnsetDetector(FRAME_SIZE, opts.sampleRate);
     this.handlers = opts;
     this.offset = opts.offset ?? 0;
+    this.restrictTo = opts.restrictTo && opts.restrictTo.length ? opts.restrictTo : null;
   }
 
   setOffset(offset: number): void {
     this.offset = offset;
+  }
+
+  setRestrict(chords: string[] | null): void {
+    this.restrictTo = chords && chords.length ? chords : null;
   }
 
   /// Feed exactly one FRAME_SIZE block of mono samples.
@@ -122,7 +134,10 @@ export class ChordDetector {
     }
     const mean = sum / SEMITONES;
     const salience = mean > 0 ? peak / mean : 0;
-    const salient = mean > 0 && salience >= CHROMA_SALIENCE_MIN;
+    const salienceFloor = this.restrictTo
+      ? CHROMA_SALIENCE_MIN_RESTRICTED
+      : CHROMA_SALIENCE_MIN;
+    const salient = mean > 0 && salience >= salienceFloor;
 
     const normalized = new Float32Array(SEMITONES);
     if (peak > 0) {
@@ -130,7 +145,20 @@ export class ChordDetector {
     }
 
     if (salient) {
-      const match = matchChord(normalized, this.offset);
+      const match = this.restrictTo
+        ? matchChordAmong(normalized, this.restrictTo, this.offset)
+        : matchChord(normalized, this.offset);
+      // In restricted mode reject ambiguous frames (the chroma is between the
+      // two targets, e.g. fingers in flight) so we don't flap and over-count.
+      if (match && this.restrictTo && match.margin < RESTRICTED_MARGIN_MIN) {
+        this.handlers.onLevel?.({
+          rms,
+          noiseFloor: this.noiseFloor,
+          salience,
+          chroma: normalized,
+        });
+        return;
+      }
       if (match) {
         if (this.chordHistory.length >= CHORD_STABLE_FRAMES) {
           this.chordHistory.shift();

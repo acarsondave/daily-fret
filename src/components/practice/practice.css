@@ -255,6 +255,15 @@
   gap: var(--space-5);
   width: min(420px, 92vw);
 }
+.om-saved-hint {
+  font-family: var(--font-secondary);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
 .om-actions {
   display: flex;
   gap: var(--space-4);

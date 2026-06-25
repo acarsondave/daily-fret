@@ -17,9 +17,13 @@ export function useChordDetector() {
     handlersRef.current = handlers;
   }, []);
 
-  const start = useCallback(async (handlers: DetectorHandlers) => {
+  const start = useCallback(async (
+    handlers: DetectorHandlers,
+    options?: { restrictTo?: string[]; offset?: number },
+  ) => {
     handlersRef.current = handlers;
     if (captureRef.current?.running) {
+      captureRef.current.setRestrict(options?.restrictTo ?? null);
       setStatus('running');
       return;
     }
@@ -30,6 +34,8 @@ export function useChordDetector() {
     captureRef.current = capture;
     try {
       await capture.start({
+        restrictTo: options?.restrictTo,
+        offset: options?.offset,
         onChord: (e) => handlersRef.current.onChord?.(e),
         onOnset: (e) => handlersRef.current.onOnset?.(e),
         onLevel: (e) => handlersRef.current.onLevel?.(e),
@@ -42,6 +48,10 @@ export function useChordDetector() {
         err instanceof Error ? err.message : 'Microphone access was denied.',
       );
     }
+  }, []);
+
+  const setRestrict = useCallback((chords: string[] | null) => {
+    captureRef.current?.setRestrict(chords);
   }, []);
 
   const stop = useCallback(async () => {
@@ -58,5 +68,5 @@ export function useChordDetector() {
     };
   }, []);
 
-  return { status, error, start, stop, setHandlers };
+  return { status, error, start, stop, setHandlers, setRestrict };
 }

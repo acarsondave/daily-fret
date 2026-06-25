@@ -4,8 +4,7 @@ import {
   Play,
   ArrowsLeftRight,
   Hourglass,
-  ArrowCounterClockwise,
-  Check,
+  ArrowRight,
   Microphone,
   ArrowClockwise,
   Trophy,
@@ -51,9 +50,15 @@ export function OneMinuteChanges({
   } | null>(null);
 
   const lastChordRef = useRef('');
+  const lastCountAtRef = useRef(0);
   const transitionsRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countRef = useRef<HTMLDivElement>(null);
+
+  // A human can't genuinely alternate two chords faster than this; anything
+  // quicker is a detection wobble, not a real change, so we ignore it. ~130ms
+  // still allows well over 200 changes/min.
+  const MIN_CHANGE_MS = 130;
   // Running best/history that folds in each session completed in this overlay so
   // retries compare against the true best, not just the pre-open snapshot. State
   // (not a ref) so the setup view re-renders with updated values after a retry.
@@ -78,9 +83,15 @@ export function OneMinuteChanges({
     const isTarget = chord === from || chord === to;
     if (!isTarget) return;
     if (lastChordRef.current !== '' && chord !== lastChordRef.current) {
-      transitionsRef.current += 1;
-      setTransitions(transitionsRef.current);
-      popCount();
+      // Reject impossibly-fast flips between the two targets — those are
+      // detection wobble during a transition, not real changes.
+      const t = Date.now();
+      if (t - lastCountAtRef.current >= MIN_CHANGE_MS) {
+        transitionsRef.current += 1;
+        setTransitions(transitionsRef.current);
+        popCount();
+        lastCountAtRef.current = t;
+      }
     }
     lastChordRef.current = chord;
   };
@@ -101,12 +112,15 @@ export function OneMinuteChanges({
   const startSession = () => {
     transitionsRef.current = 0;
     lastChordRef.current = '';
+    lastCountAtRef.current = 0;
     setTransitions(0);
     setTimeLeft(duration);
     setDetected('listening...');
     setView('playing');
 
-    void start({ onChord: (ev) => handleChord(ev.chord) });
+    // Restrict detection to just the two target chords — removes third-chord
+    // misdetections and makes counting far more accurate.
+    void start({ onChord: (ev) => handleChord(ev.chord) }, { restrictTo: [from, to] });
 
     clearTimer();
     const deadline = Date.now() + duration * 1000;
@@ -270,18 +284,18 @@ export function OneMinuteChanges({
         )}
       </div>
 
+      <div className="om-saved-hint">Saved automatically</div>
+
       <div className="om-actions">
-        <button className="practice-btn ghost" onClick={() => setView('setup')}>
-          <ArrowCounterClockwise size={18} /> Retry
+        <button className="practice-btn ghost" onClick={() => onClose?.()}>
+          Done
         </button>
         <button
           className="practice-btn primary"
-          onClick={() => {
-            onResult?.(transitionsRef.current);
-            onClose?.();
-          }}
+          onClick={() => setView('setup')}
+          autoFocus
         >
-          <Check size={18} weight="bold" /> Save
+          Next <ArrowRight size={18} weight="bold" />
         </button>
       </div>
     </motion.div>

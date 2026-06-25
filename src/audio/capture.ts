@@ -10,6 +10,7 @@ const WORKLET_URL = `${import.meta.env.BASE_URL}pcm-worklet.js`;
 
 export interface CaptureHandlers extends DetectorHandlers {
   offset?: number;
+  restrictTo?: string[];
 }
 
 export class ChordCapture {
@@ -57,6 +58,7 @@ export class ChordCapture {
     this.detector = new ChordDetector({
       sampleRate: ctx.sampleRate,
       offset: handlers.offset ?? 0,
+      restrictTo: handlers.restrictTo,
       onChord: handlers.onChord,
       onOnset: handlers.onOnset,
       onLevel: handlers.onLevel,
@@ -99,6 +101,10 @@ export class ChordCapture {
 
   setOffset(offset: number): void {
     this.detector?.setOffset(offset);
+  }
+
+  setRestrict(chords: string[] | null): void {
+    this.detector?.setRestrict(chords);
   }
 
   async stop(): Promise<void> {
