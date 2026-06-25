@@ -3,6 +3,7 @@ import { useStore, useUserData, getTodayString } from '../store';
 import { useDrillStats } from '../lib/drillStats';
 import { TaskRow } from './TaskRow';
 import { Modal } from './Modal';
+import { Loader } from './Loader';
 import { TaskCreatorModal } from './TaskCreatorModal';
 import { RoutineManagerModal } from './RoutineManagerModal';
 import { ProgressPanel } from './practice/ProgressPanel';
@@ -399,7 +400,7 @@ export function DailyPath() {
         />
       </Modal>
 
-      <Suspense fallback={null}>
+      <Suspense fallback={practiceTask ? <Loader overlay label="Tuning up…" /> : null}>
         <AnimatePresence>
           {practiceTask && (
             <PracticeOverlay
@@ -411,7 +412,7 @@ export function DailyPath() {
         </AnimatePresence>
       </Suspense>
 
-      <Suspense fallback={null}>
+      <Suspense fallback={isCoachedOpen ? <Loader overlay label="Tuning up…" /> : null}>
         <AnimatePresence>
           {isCoachedOpen && activeRoutine && (
             <CoachedSession

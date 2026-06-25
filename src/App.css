@@ -65,3 +65,20 @@
   margin: 0 auto;
   z-index: 20;
 }
+
+@media (max-width: 600px) {
+  .app-header {
+    padding: var(--space-4);
+  }
+  .header-date {
+    font-size: 0.8rem;
+    letter-spacing: 0.03em;
+  }
+  .header-actions {
+    gap: var(--space-3) !important;
+  }
+  .center-content {
+    padding-top: 92px;
+    padding-bottom: 64px;
+  }
+}

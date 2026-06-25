@@ -12,7 +12,7 @@ import { useChordDetector } from '../../hooks/useChordDetector';
 import { ProgressRing } from './ProgressRing';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
-import { classifyLevel, type SignalQuality } from './signalQuality';
+import { useSignalMeter } from './signalQuality';
 import type { DrillConfig } from '../../types';
 
 const ALL_CHORDS = ['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F'];
@@ -50,7 +50,7 @@ export function ChordTrainer({
   const [target, setTarget] = useState('');
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(duration);
-  const [signal, setSignal] = useState<SignalQuality>('silent');
+  const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter();
   const [result, setResult] = useState<{ value: number; prevBest: number; series: number[] } | null>(null);
 
   const targetRef = useRef('');
@@ -58,7 +58,6 @@ export function ChordTrainer({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const heroRef = useRef<HTMLDivElement>(null);
   const popTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const signalRef = useRef<SignalQuality>('silent');
 
   const [runningBest, setRunningBest] = useState(personalBest);
   const [runningSeries, setRunningSeries] = useState<number[]>(series);
@@ -111,8 +110,7 @@ export function ChordTrainer({
     scoreRef.current = 0;
     setScore(0);
     setTimeLeft(duration);
-    setSignal('silent');
-    signalRef.current = 'silent';
+    resetSignal();
     const first = pool[Math.floor(Math.random() * pool.length)] ?? pool[0];
     targetRef.current = first;
     setTarget(first);
@@ -123,13 +121,7 @@ export function ChordTrainer({
     const live = await start(
       {
         onChord: (ev) => handleChord(ev.chord),
-        onLevel: (ev) => {
-          const quality = classifyLevel(ev);
-          if (quality !== signalRef.current) {
-            signalRef.current = quality;
-            setSignal(quality);
-          }
-        },
+        onLevel: (ev) => pushSignal(ev),
       },
       { restrictTo: pool },
     );

@@ -3,20 +3,19 @@ import { Microphone, ArrowClockwise } from '@phosphor-icons/react';
 import { useChordDetector } from '../../hooks/useChordDetector';
 import { NO_CHORD } from '../../audio/detector';
 import { SignalMeter } from './SignalMeter';
-import { classifyLevel, type SignalQuality } from './signalQuality';
+import { useSignalMeter } from './signalQuality';
 
 const NOTE_LABELS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 export function FreePlay() {
   const { status, error, start, stop } = useChordDetector();
   const [chord, setChord] = useState('--');
-  const [signal, setSignal] = useState<SignalQuality>('silent');
+  const { quality: signal, push: pushSignal } = useSignalMeter();
 
   const heroRef = useRef<HTMLDivElement>(null);
   const barRefs = useRef<(HTMLDivElement | null)[]>([]);
   const popTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lowLevelFrames = useRef(0);
-  const signalRef = useRef<SignalQuality>('silent');
 
   const pop = () => {
     const hero = heroRef.current;
@@ -55,11 +54,7 @@ export function FreePlay() {
         pop();
       },
       onLevel: (ev) => {
-        const quality = classifyLevel(ev);
-        if (quality !== signalRef.current) {
-          signalRef.current = quality;
-          setSignal(quality);
-        }
+        pushSignal(ev);
         if (ev.chroma === null) {
           lowLevelFrames.current += 1;
           if (lowLevelFrames.current > 12) resetIdle();

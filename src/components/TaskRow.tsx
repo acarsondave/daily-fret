@@ -234,8 +234,12 @@ export function TaskRow({ routineId, taskId, title, description, duration, drill
         </div>
         
         <div className="task-content">
-          <div className="task-header">
-            <span className="task-title">{title}</span>
+          <span className="task-title">{title}</span>
+          {description && <p className="task-desc">{description}</p>}
+        </div>
+
+        <div className="task-aside">
+          {(typeof todayResult === 'number' || duration) && (
             <div className="task-meta">
               {typeof todayResult === 'number' && (
                 <span className="task-drill-result">
@@ -244,30 +248,28 @@ export function TaskRow({ routineId, taskId, title, description, duration, drill
               )}
               {duration && <span className="task-duration">{duration}</span>}
             </div>
-          </div>
-          {description && <p className="task-desc">{description}</p>}
+          )}
+          {drill && (
+            <button
+              type="button"
+              className="task-drill-btn"
+              title={
+                drill.kind === 'free-play'
+                  ? 'Free play'
+                  : drill.kind === 'chord-trainer'
+                    ? 'Chord trainer'
+                    : '1-minute changes'
+              }
+              onClick={(e) => {
+                e.stopPropagation();
+                onLaunchDrill?.();
+              }}
+            >
+              <Waveform size={15} weight="bold" />
+              <span>Practice</span>
+            </button>
+          )}
         </div>
-
-        {drill && (
-          <button
-            type="button"
-            className="task-drill-btn"
-            title={
-              drill.kind === 'free-play'
-                ? 'Free play'
-                : drill.kind === 'chord-trainer'
-                  ? 'Chord trainer'
-                  : '1-minute changes'
-            }
-            onClick={(e) => {
-              e.stopPropagation();
-              onLaunchDrill?.();
-            }}
-          >
-            <Waveform size={15} weight="bold" />
-            <span>Practice</span>
-          </button>
-        )}
       </motion.div>
     </ContextMenu>
   );

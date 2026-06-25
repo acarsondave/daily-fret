@@ -2,8 +2,12 @@ import { useState } from 'react';
 import { Modal } from './Modal';
 import { useStore, useUserData } from '../store';
 import { Gear, Trash, Check, Code, UploadSimple, ArrowLeft, Plus, X } from '@phosphor-icons/react';
+import clsx from 'clsx';
 import type { Routine } from '../types';
+import { routineChords } from '../lib/pairs';
 import './RoutineManagerModal.css';
+
+const VOCAB_CHORDS = ['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F'];
 
 interface RoutineManagerModalProps {
   isOpen: boolean;
@@ -38,6 +42,14 @@ export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProp
       updateRoutine(editingId, { name: editName.trim() });
     }
     setEditingId(null);
+  };
+
+  const toggleVocab = (r: Routine, chord: string) => {
+    const current = routineChords(r);
+    const next = current.includes(chord)
+      ? current.filter((c) => c !== chord)
+      : [...current, chord];
+    updateRoutine(r.id, { chords: next });
   };
 
   const handleCreateSubmit = (e: React.FormEvent) => {
@@ -129,26 +141,43 @@ export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProp
                       </button>
                     </div>
                   ) : (
-                    <div className="routine-edit-display-row">
-                      <span className="routine-edit-name" onClick={() => handleEdit(r)}>{r.name}</span>
-                      <div className="routine-actions">
-                        {deletingId === r.id ? (
-                          <>
-                            <span className="confirm-text" style={{ fontSize: '0.8rem', color: 'var(--error-color)', marginRight: '8px' }}>Delete?</span>
-                            <button className="icon-btn danger" onClick={() => { deleteRoutine(r.id); setDeletingId(null); }}>
-                              <Check size={18} />
+                    <>
+                      <div className="routine-edit-display-row">
+                        <span className="routine-edit-name" onClick={() => handleEdit(r)}>{r.name}</span>
+                        <div className="routine-actions">
+                          {deletingId === r.id ? (
+                            <>
+                              <span className="confirm-text" style={{ fontSize: '0.8rem', color: 'var(--error-color)', marginRight: '8px' }}>Delete?</span>
+                              <button className="icon-btn danger" onClick={() => { deleteRoutine(r.id); setDeletingId(null); }}>
+                                <Check size={18} />
+                              </button>
+                              <button className="icon-btn" onClick={() => setDeletingId(null)}>
+                                <X size={18} />
+                              </button>
+                            </>
+                          ) : (
+                            <button className="icon-btn danger" onClick={() => setDeletingId(r.id)} disabled={routines.length <= 1}>
+                              <Trash size={18} />
                             </button>
-                            <button className="icon-btn" onClick={() => setDeletingId(null)}>
-                              <X size={18} />
-                            </button>
-                          </>
-                        ) : (
-                          <button className="icon-btn danger" onClick={() => setDeletingId(r.id)} disabled={routines.length <= 1}>
-                            <Trash size={18} />
-                          </button>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
+                      <div className="routine-vocab">
+                        <span className="routine-vocab-label">Chords you're working on</span>
+                        <div className="routine-vocab-chips">
+                          {VOCAB_CHORDS.map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              className={clsx('routine-vocab-chip', routineChords(r).includes(c) && 'is-on')}
+                              onClick={() => toggleVocab(r, c)}
+                            >
+                              {c}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
               ))}

@@ -51,6 +51,26 @@
   text-align: center;
 }
 
+@media (max-width: 600px) {
+  .practice-topbar {
+    padding: var(--space-4);
+  }
+  .practice-body {
+    padding: var(--space-4) var(--space-4) var(--space-12);
+    gap: var(--space-6);
+  }
+  .om-selects {
+    gap: var(--space-2);
+  }
+  .om-select {
+    font-size: 1.25rem;
+    padding: var(--space-2) var(--space-4);
+  }
+  .ct-stats {
+    gap: var(--space-4);
+  }
+}
+
 /* Hero chord readout */
 .practice-mode {
   font-size: 0.8rem;

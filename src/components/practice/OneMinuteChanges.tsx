@@ -13,7 +13,7 @@ import { useChordDetector } from '../../hooks/useChordDetector';
 import { ProgressRing } from './ProgressRing';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
-import { classifyLevel, type SignalQuality } from './signalQuality';
+import { useSignalMeter } from './signalQuality';
 import { useStore } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import type { DrillConfig } from '../../types';
@@ -67,8 +67,7 @@ export function OneMinuteChanges({
   const [transitions, setTransitions] = useState(0);
   const [timeLeft, setTimeLeft] = useState(duration);
   const [detected, setDetected] = useState('listening...');
-  const [signal, setSignal] = useState<SignalQuality>('silent');
-  const signalRef = useRef<SignalQuality>('silent');
+  const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter();
   const [result, setResult] = useState<{
     value: number;
     prevBest: number;
@@ -137,8 +136,7 @@ export function OneMinuteChanges({
     setTransitions(0);
     setTimeLeft(duration);
     setDetected('listening...');
-    setSignal('silent');
-    signalRef.current = 'silent';
+    resetSignal();
     prevBestRef.current = pairBest;
     onSessionStart?.(from, to);
     setView('playing');
@@ -150,13 +148,7 @@ export function OneMinuteChanges({
     const live = await start(
       {
         onChord: (ev) => handleChord(ev.chord),
-        onLevel: (ev) => {
-          const quality = classifyLevel(ev);
-          if (quality !== signalRef.current) {
-            signalRef.current = quality;
-            setSignal(quality);
-          }
-        },
+        onLevel: (ev) => pushSignal(ev),
       },
       { restrictTo: [from, to] },
     );

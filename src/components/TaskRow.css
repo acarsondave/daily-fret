@@ -1,6 +1,6 @@
 .task-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-4);
   padding: var(--space-4);
   background: var(--surface-color);
@@ -31,7 +31,6 @@
   width: 24px;
   height: 24px;
   flex-shrink: 0;
-  margin-top: 2px;
 }
 
 .check-bg {
@@ -165,7 +164,16 @@
   margin-top: var(--space-1);
 }
 
-/* Right-aligned meta cluster (duration + drill result) */
+/* Single right-side cluster: meta chips above the Practice button, so they
+   read as one aligned group instead of two stray right-aligned items. */
+.task-aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
 .task-meta {
   display: flex;
   align-items: center;
@@ -189,7 +197,6 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  align-self: center;
   flex-shrink: 0;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-full);

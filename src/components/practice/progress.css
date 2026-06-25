@@ -180,3 +180,12 @@
 .progress-trend.is-up { color: var(--success-color); background: var(--success-glow); }
 .progress-trend.is-down { color: #f87171; background: rgba(248, 113, 113, 0.12); }
 .progress-trend.is-flat { color: var(--text-secondary); background: rgba(255, 255, 255, 0.05); }
+
+@media (max-width: 600px) {
+  .progress-stat-value,
+  .progress-chart-best {
+    font-size: 1.5rem;
+  }
+  .progress-summary { padding: var(--space-3); }
+  .progress-chart-card { padding: var(--space-3); }
+}

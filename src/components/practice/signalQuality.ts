@@ -1,3 +1,4 @@
+import { useCallback, useRef, useState } from 'react';
 import type { LevelEvent } from '../../audio/detector';
 
 export type SignalQuality = 'silent' | 'weak' | 'good' | 'loud';
@@ -10,4 +11,44 @@ export function classifyLevel(ev: LevelEvent | null): SignalQuality {
   if (ev.rms > 0.6) return 'loud';
   if (ev.salience < 1.5) return 'weak';
   return 'good';
+}
+
+// How long a new bucket must hold before we actually show it. Level events
+// arrive ~40×/s and naturally jitter around the thresholds; without this dwell
+// the meter strobes and looks broken.
+const DWELL_MS = 400;
+
+// Debounced mic-quality state. Feed it level events via `push`; the returned
+// `quality` only changes once a different bucket has persisted past DWELL_MS,
+// so the meter stays calm and readable.
+export function useSignalMeter() {
+  const [quality, setQuality] = useState<SignalQuality>('silent');
+  const currentRef = useRef<SignalQuality>('silent');
+  const pendingRef = useRef<{ q: SignalQuality; since: number } | null>(null);
+
+  const push = useCallback((ev: LevelEvent | null) => {
+    const q = classifyLevel(ev);
+    const now = Date.now();
+    if (q === currentRef.current) {
+      pendingRef.current = null;
+      return;
+    }
+    if (!pendingRef.current || pendingRef.current.q !== q) {
+      pendingRef.current = { q, since: now };
+      return;
+    }
+    if (now - pendingRef.current.since >= DWELL_MS) {
+      currentRef.current = q;
+      pendingRef.current = null;
+      setQuality(q);
+    }
+  }, []);
+
+  const reset = useCallback(() => {
+    currentRef.current = 'silent';
+    pendingRef.current = null;
+    setQuality('silent');
+  }, []);
+
+  return { quality, push, reset };
 }
