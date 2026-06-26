@@ -73,6 +73,11 @@
   font-size: 0.72rem;
 }
 
+.drill-hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
 .drill-chip-grid {
   display: flex;
   flex-wrap: wrap;

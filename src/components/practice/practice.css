@@ -300,6 +300,10 @@
   align-items: center;
   gap: var(--space-3);
   text-align: center;
+  width: min(420px, 92vw);
+}
+.coach-intro .om-actions {
+  margin-top: var(--space-2);
 }
 .coach-up-next {
   font-family: var(--font-secondary);

@@ -2,26 +2,24 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { X, CheckCircle, Trophy } from '@phosphor-icons/react';
-import { useStore, getTodayString } from '../../store';
+import { useStore, getTodayString, type CoachStepResult } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import { buildSegments } from '../../lib/coached';
+import { useChordDetector } from '../../hooks/useChordDetector';
 import type { Routine } from '../../types';
 import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
 import { TimedSegment } from './TimedSegment';
 import './practice.css';
 
-type Phase = 'intro' | 'segment' | 'summary';
+type Phase = 'resume' | 'intro' | 'rest' | 'segment' | 'summary';
+
+const INTRO_SECONDS = 3;
+const REST_SECONDS = 30;
 
 interface Props {
   routine: Routine;
   onClose: () => void;
-}
-
-interface StepResult {
-  title: string;
-  value: number | null;
-  unit: string;
 }
 
 function mins(seconds: number): string {
@@ -33,20 +31,47 @@ export function CoachedSession({ routine, onClose }: Props) {
   const recordDrillResult = useStore((s) => s.recordDrillResult);
   const completeTask = useStore((s) => s.completeTask);
   const setLastPair = useStore((s) => s.setLastPair);
+  const saveCoachProgress = useStore((s) => s.saveCoachProgress);
+  const clearCoachProgress = useStore((s) => s.clearCoachProgress);
 
   const segments = useMemo(() => buildSegments(routine), [routine]);
+  const today = getTodayString();
 
-  const [index, setIndex] = useState(0);
-  const [phase, setPhase] = useState<Phase>('intro');
-  const [countdown, setCountdown] = useState(3);
-  const [results, setResults] = useState<StepResult[]>([]);
+  // One mic for the whole session — segments share it via the `detector` prop so
+  // we don't re-request permission (and re-spin the audio graph) per drill.
+  const detector = useChordDetector();
+
+  // Resume support: pick up a saved, unfinished session for this routine/day.
+  const [resumeData] = useState(() => {
+    const s = useStore.getState();
+    const cp = s.accounts[s.currentAccountId]?.coachProgress;
+    if (cp && cp.routineId === routine.id && cp.date === today && cp.index > 0 && cp.index < segments.length) {
+      return cp;
+    }
+    return null;
+  });
+
+  const [index, setIndex] = useState(() => resumeData?.index ?? 0);
+  const [results, setResults] = useState<CoachStepResult[]>(() => resumeData?.results ?? []);
+  const [phase, setPhase] = useState<Phase>(() => (resumeData ? 'resume' : 'intro'));
+  const [countdown, setCountdown] = useState(INTRO_SECONDS);
+  const [restLeft, setRestLeft] = useState(REST_SECONDS);
+  const [restPaused, setRestPaused] = useState(false);
+  const restLeftRef = useRef(REST_SECONDS);
   const lastValueRef = useRef<number | null>(null);
 
   const seg = segments[index];
 
+  const exit = () => {
+    if (phase !== 'summary' && index > 0) {
+      saveCoachProgress({ routineId: routine.id, date: today, index, results });
+    }
+    onClose();
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') exit();
     };
     window.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
@@ -54,14 +79,23 @@ export function CoachedSession({ routine, onClose }: Props) {
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
     };
-  }, [onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, index, results]);
 
-  // Get-ready countdown before each segment.
+  // Release the shared mic when the whole session unmounts.
+  useEffect(() => {
+    return () => {
+      void detector.stop();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Get-ready countdown before a segment.
   useEffect(() => {
     if (phase !== 'intro') return;
     const started = Date.now();
     const id = setInterval(() => {
-      const remaining = 3 - Math.floor((Date.now() - started) / 1000);
+      const remaining = INTRO_SECONDS - Math.floor((Date.now() - started) / 1000);
       if (remaining <= 0) {
         clearInterval(id);
         setPhase('segment');
@@ -72,8 +106,23 @@ export function CoachedSession({ routine, onClose }: Props) {
     return () => clearInterval(id);
   }, [phase, index]);
 
+  // Rest timer between segments (gym-style). Pausable; skippable.
+  useEffect(() => {
+    if (phase !== 'rest' || restPaused) return;
+    const deadline = Date.now() + restLeftRef.current * 1000;
+    const id = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      restLeftRef.current = remaining;
+      setRestLeft(remaining);
+      if (remaining <= 0) {
+        clearInterval(id);
+        setPhase('segment');
+      }
+    }, 250);
+    return () => clearInterval(id);
+  }, [phase, restPaused]);
+
   if (!seg) {
-    // Routine has no runnable segments.
     return createPortal(
       <motion.div className="practice-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
         <div className="practice-topbar">
@@ -89,15 +138,29 @@ export function CoachedSession({ routine, onClose }: Props) {
     );
   }
 
-  const advance = (result?: StepResult) => {
-    if (result) setResults((prev) => [...prev, result]);
-    if (index < segments.length - 1) {
-      setCountdown(3);
-      setIndex((i) => i + 1);
-      setPhase('intro');
+  const advance = (result?: CoachStepResult) => {
+    const nextResults = result ? [...results, result] : results;
+    setResults(nextResults);
+    const nextIndex = index + 1;
+    if (nextIndex < segments.length) {
+      saveCoachProgress({ routineId: routine.id, date: today, index: nextIndex, results: nextResults });
+      setIndex(nextIndex);
+      restLeftRef.current = REST_SECONDS;
+      setRestLeft(REST_SECONDS);
+      setRestPaused(false);
+      setPhase('rest');
     } else {
+      clearCoachProgress();
+      void detector.stop();
       setPhase('summary');
     }
+  };
+
+  const startOver = () => {
+    setIndex(0);
+    setResults([]);
+    clearCoachProgress();
+    setPhase('intro');
   };
 
   const subLabel =
@@ -119,23 +182,48 @@ export function CoachedSession({ routine, onClose }: Props) {
         <span className="practice-eyebrow">
           Coached · {Math.min(index + 1, segments.length)} / {segments.length}
         </span>
-        <button className="practice-close" onClick={onClose} title="Exit (Esc)">
+        <button className="practice-close" onClick={exit} title="Exit (Esc) — your place is saved">
           <X size={20} weight="bold" />
         </button>
       </div>
 
       <div className="practice-body">
+        {phase === 'resume' && (
+          <motion.div className="coach-intro" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <span className="coach-up-next">Resume session</span>
+            <div className="coach-intro-title">{routine.name}</div>
+            <div className="om-caption">You stopped at {index + 1} / {segments.length}</div>
+            <div className="om-actions">
+              <button className="practice-btn ghost" onClick={startOver}>Start over</button>
+              <button className="practice-btn primary" onClick={() => setPhase('intro')} autoFocus>
+                Resume
+              </button>
+            </div>
+          </motion.div>
+        )}
+
         {phase === 'intro' && (
-          <motion.div
-            key={`intro-${index}`}
-            className="coach-intro"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
+          <motion.div key={`intro-${index}`} className="coach-intro" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <span className="coach-up-next">Up next</span>
             <div className="coach-intro-title">{seg.title}</div>
             <div className="om-caption">{subLabel}</div>
             <div className="coach-countdown">{countdown}</div>
+          </motion.div>
+        )}
+
+        {phase === 'rest' && (
+          <motion.div key={`rest-${index}`} className="coach-intro" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <span className="coach-up-next">{restPaused ? 'Paused' : 'Rest'}</span>
+            <div className="coach-countdown">{restLeft}</div>
+            <div className="om-caption">Next: {seg.title} · {subLabel}</div>
+            <div className="om-actions">
+              <button className="practice-btn ghost" onClick={() => setRestPaused((p) => !p)}>
+                {restPaused ? 'Resume rest' : 'Pause'}
+              </button>
+              <button className="practice-btn primary" onClick={() => setPhase('segment')} autoFocus>
+                Skip rest
+              </button>
+            </div>
           </motion.div>
         )}
 
@@ -144,15 +232,14 @@ export function CoachedSession({ routine, onClose }: Props) {
             key={`seg-${index}`}
             config={{ kind: 'one-minute-changes', chordFrom: seg.from, chordTo: seg.to, durationSec: 60 }}
             autoStart
+            detector={detector}
             onResult={(cpm, f, t) => {
-              recordDrillResult(getTodayString(), seg.taskId, cpm, pairKey(f, t));
+              recordDrillResult(today, seg.taskId, cpm, pairKey(f, t));
               setLastPair(f, t);
               lastValueRef.current = cpm;
             }}
-            onNext={() =>
-              advance({ title: `${seg.from} ↔ ${seg.to}`, value: lastValueRef.current, unit: 'cpm' })
-            }
-            onClose={onClose}
+            onNext={() => advance({ title: `${seg.from} ↔ ${seg.to}`, value: lastValueRef.current, unit: 'cpm' })}
+            onClose={exit}
           />
         )}
 
@@ -161,12 +248,13 @@ export function CoachedSession({ routine, onClose }: Props) {
             key={`seg-${index}`}
             config={{ kind: 'chord-trainer', chords: seg.chords, durationSec: 60 }}
             autoStart
+            detector={detector}
             onResult={(score) => {
-              recordDrillResult(getTodayString(), seg.taskId, score);
+              recordDrillResult(today, seg.taskId, score);
               lastValueRef.current = score;
             }}
             onNext={() => advance({ title: seg.title, value: lastValueRef.current, unit: 'nailed' })}
-            onClose={onClose}
+            onClose={exit}
           />
         )}
 
@@ -177,18 +265,14 @@ export function CoachedSession({ routine, onClose }: Props) {
             description={seg.description}
             seconds={seg.seconds}
             onDone={() => {
-              completeTask(getTodayString(), seg.taskId);
+              completeTask(today, seg.taskId);
               advance({ title: seg.title, value: null, unit: '' });
             }}
           />
         )}
 
         {phase === 'summary' && (
-          <motion.div
-            className="coach-summary"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
+          <motion.div className="coach-summary" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <Trophy size={40} weight="fill" className="coach-summary-trophy" />
             <h2 className="coach-summary-title">Session complete</h2>
             <div className="coach-summary-list">

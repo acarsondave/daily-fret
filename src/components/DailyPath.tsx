@@ -9,7 +9,7 @@ import { RoutineManagerModal } from './RoutineManagerModal';
 import { ProgressPanel } from './practice/ProgressPanel';
 import type { Task } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lightning, Plus, CaretDown, Gear, Waveform, ChartLineUp, PlayCircle } from '@phosphor-icons/react';
+import { Lightning, Plus, CaretDown, Gear, ChartLineUp, PlayCircle } from '@phosphor-icons/react';
 import clsx from 'clsx';
 import './DailyPath.css';
 
@@ -21,12 +21,6 @@ const PracticeOverlay = lazy(() =>
 const CoachedSession = lazy(() =>
   import('./practice/CoachedSession').then((m) => ({ default: m.CoachedSession })),
 );
-
-const FREE_PLAY_TASK: Task = {
-  id: '__free_play__',
-  title: 'Custom',
-  drill: { kind: 'free-play' },
-};
 
 export function DailyPath() {
   const today = getTodayString();
@@ -67,8 +61,8 @@ export function DailyPath() {
   const tasks = activeRoutine?.tasks || [];
   const isEmpty = tasks.length === 0;
 
-  // Coached mode can run any task except open-ended free play (drills + timed).
-  const hasCoachable = tasks.some((t) => t.drill?.kind !== 'free-play');
+  // Coached mode runs every task in order (drills + timed blocks).
+  const hasCoachable = tasks.length > 0;
 
   const allCompleted = !isEmpty && tasks.every(t => log?.completedTaskIds?.includes(t.id));
 
@@ -203,15 +197,6 @@ export function DailyPath() {
             )}
           </AnimatePresence>
         </div>
-
-        <button
-          className="free-play-launch"
-          onClick={() => setPracticeTask(FREE_PLAY_TASK)}
-          title="Custom - detect whatever you strum"
-        >
-          <Waveform weight="duotone" className="free-play-icon" />
-          <span>Custom</span>
-        </button>
 
         {hasCoachable && (
           <button

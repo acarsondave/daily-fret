@@ -12,7 +12,7 @@ const defaultRoutines: Routine[] = [
     tasks: [
       { id: 't1', title: 'Spider Exercises', description: '1st fret start. Low E to high E.', duration: '5 mins' },
       { id: 't2', title: 'Lauren Bateman Pushups', description: '20 reps per finger on the G string.', duration: '2-3 mins' },
-      { id: 't3', title: 'Chord Speed Training', description: 'A, D, E transitions. Goal: 65+ cpm.', duration: '3 mins', drill: { kind: 'one-minute-changes', chordFrom: 'A', chordTo: 'D', durationSec: 60 } }
+      { id: 't3', title: 'Chord Speed Training', description: 'A, D, E transitions. Goal: 65+ cpm.', duration: '3 mins', drill: { kind: 'one-minute-changes', chords: ['A', 'D', 'E'], durationSec: 60 } }
     ]
   },
   {
@@ -24,7 +24,7 @@ const defaultRoutines: Routine[] = [
     tasks: [
       { id: 'c1', title: 'Spider Exercises', description: '1st fret start. Low E to high E.', duration: '5 mins' },
       { id: 'c2', title: 'Lauren Bateman Pushups', description: '20 reps per finger on the G string.', duration: '2-3 mins' },
-      { id: 'c3', title: 'Chord Speed Training', description: 'A, D, E transitions. Goal: 65+ cpm.', duration: '3 mins', drill: { kind: 'one-minute-changes', chordFrom: 'A', chordTo: 'D', durationSec: 60 } },
+      { id: 'c3', title: 'Chord Speed Training', description: 'A, D, E, G transitions. Goal: 65+ cpm.', duration: '3 mins', drill: { kind: 'one-minute-changes', chords: ['A', 'D', 'E', 'G'], durationSec: 60 } },
       { id: 'c4', title: 'JustinGuitar Lesson', description: 'Watch and grasp new concepts from Module 2.', duration: '10 mins' },
       { id: 'c5', title: 'Song Integration', description: '"Wild Thing" by The Troggs practice.', duration: '10 mins' }
     ]
@@ -40,6 +40,21 @@ const getTodayString = () => {
 // can do last-write-wins and never clobber un-uploaded local changes.
 const now = () => Date.now();
 
+export interface CoachStepResult {
+  title: string;
+  value: number | null;
+  unit: string;
+}
+
+// In-progress coached session, persisted so an interruption (pause, close, or
+// reload) can be resumed from where it left off.
+export interface CoachProgress {
+  routineId: string;
+  date: string;
+  index: number;
+  results: CoachStepResult[];
+}
+
 export interface UserData {
   routines: Routine[];
   dailyLogs: Record<string, DailyLog>;
@@ -47,6 +62,7 @@ export interface UserData {
   // Last chord pair practiced, so the changes drill reopens on it instead of
   // resetting to A/D every time.
   lastPair?: { from: string; to: string };
+  coachProgress?: CoachProgress | null;
   // Epoch ms of the last local mutation to this account. Drives conflict
   // resolution against the cloud copy. Older/legacy data defaults to 0.
   updatedAt: number;
@@ -83,6 +99,8 @@ interface AppState {
   recordDrillResult: (date: string, taskId: string, value: number, resultKey?: string) => void;
   setActiveRoutine: (routineId: string) => void;
   setLastPair: (from: string, to: string) => void;
+  saveCoachProgress: (progress: CoachProgress) => void;
+  clearCoachProgress: () => void;
 }
 
 export const useStore = create<AppState>()(
@@ -146,6 +164,7 @@ export const useStore = create<AppState>()(
               local?.activeRoutineId ??
               defaultUserData.activeRoutineId,
             lastPair: data.lastPair ?? local?.lastPair,
+            coachProgress: data.coachProgress ?? null,
             updatedAt: remoteUpdatedAt,
           };
 
@@ -320,6 +339,14 @@ export const useStore = create<AppState>()(
 
         setLastPair: (from, to) => set((state) =>
           mutate(state, (a) => ({ ...a, lastPair: { from, to } })),
+        ),
+
+        saveCoachProgress: (progress) => set((state) =>
+          mutate(state, (a) => ({ ...a, coachProgress: progress })),
+        ),
+
+        clearCoachProgress: () => set((state) =>
+          mutate(state, (a) => ({ ...a, coachProgress: null })),
         ),
       };
     },

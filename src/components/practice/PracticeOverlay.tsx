@@ -5,7 +5,6 @@ import { X } from '@phosphor-icons/react';
 import { useStore, getTodayString } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import type { Task } from '../../types';
-import { FreePlay } from './FreePlay';
 import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
 import './practice.css';
@@ -66,10 +65,16 @@ export function PracticeOverlay({ task, onClose }: Props) {
       </div>
 
       <div className="practice-body">
-        {drill.kind === 'free-play' && <FreePlay />}
         {drill.kind === 'one-minute-changes' && (
           <OneMinuteChanges
             config={{ kind: 'one-minute-changes', durationSec: drill.durationSec }}
+            chordPool={
+              drill.chords?.length
+                ? drill.chords
+                : drill.chordFrom && drill.chordTo
+                  ? [drill.chordFrom, drill.chordTo]
+                  : undefined
+            }
             defaultPair={
               lastPair ??
               (drill.chordFrom && drill.chordTo

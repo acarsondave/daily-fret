@@ -9,7 +9,7 @@ import {
   ArrowClockwise,
   Trophy,
 } from '@phosphor-icons/react';
-import { useChordDetector } from '../../hooks/useChordDetector';
+import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { ProgressRing } from './ProgressRing';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
@@ -31,6 +31,8 @@ interface Props {
   onNext?: () => void; // when set, the results "Next" advances a sequence
   defaultPair?: { from: string; to: string }; // reopen on the last pair played
   onSessionStart?: (from: string, to: string) => void; // remember the pair
+  detector?: ChordDetectorApi; // shared mic (Coached) so it isn't restarted per drill
+  chordPool?: string[]; // the chords this task practises switching between
 }
 
 export function OneMinuteChanges({
@@ -41,12 +43,25 @@ export function OneMinuteChanges({
   onNext,
   defaultPair,
   onSessionStart,
+  detector,
+  chordPool,
 }: Props) {
-  const { status, error, start, stop } = useChordDetector();
+  const own = useChordDetector();
+  const sharedMic = !!detector;
+  const { status, error, start, stop, setHandlers } = detector ?? own;
 
+  // Selectable chords for this drill — the task's comfortable set, falling back
+  // to the full list. The initial pair prefers the remembered pair when it fits.
+  const pool = chordPool && chordPool.length >= 2 ? chordPool : CHORDS;
   const duration = config?.durationSec ?? 60;
-  const [from, setFrom] = useState(config?.chordFrom ?? defaultPair?.from ?? 'D');
-  const [to, setTo] = useState(config?.chordTo ?? defaultPair?.to ?? 'A');
+  const initFrom = config?.chordFrom ?? (defaultPair && pool.includes(defaultPair.from) ? defaultPair.from : pool[0]);
+  const initTo =
+    config?.chordTo ??
+    (defaultPair && pool.includes(defaultPair.to) && defaultPair.to !== initFrom
+      ? defaultPair.to
+      : pool.find((c) => c !== initFrom) ?? pool[1]);
+  const [from, setFrom] = useState(initFrom);
+  const [to, setTo] = useState(initTo);
 
   // Per-pair history, sourced straight from the store so each pair keeps its own
   // benchmark and the setup badge reflects whatever pair is currently selected.
@@ -122,7 +137,10 @@ export function OneMinuteChanges({
 
   const finish = () => {
     clearTimer();
-    void stop();
+    // Shared mic stays live for the next segment, but detach our handlers so a
+    // ringing chord during the results screen / rest can't drive this drill.
+    if (sharedMic) setHandlers({});
+    else void stop();
     const value = transitionsRef.current;
     setResult({ value, prevBest: prevBestRef.current, series: [] });
     setView('results');
@@ -170,7 +188,7 @@ export function OneMinuteChanges({
     return () => {
       if (t) clearTimeout(t);
       clearTimer();
-      void stop();
+      if (!sharedMic) void stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -193,7 +211,7 @@ export function OneMinuteChanges({
             value={from}
             onChange={(e) => setFrom(e.target.value)}
           >
-            {CHORDS.map((c) => (
+            {pool.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
@@ -205,7 +223,7 @@ export function OneMinuteChanges({
             value={to}
             onChange={(e) => setTo(e.target.value)}
           >
-            {CHORDS.map((c) => (
+            {pool.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>

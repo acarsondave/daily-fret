@@ -8,7 +8,7 @@ import {
   ArrowClockwise,
   Trophy,
 } from '@phosphor-icons/react';
-import { useChordDetector } from '../../hooks/useChordDetector';
+import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { ProgressRing } from './ProgressRing';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
@@ -28,6 +28,7 @@ interface Props {
   series?: number[];
   autoStart?: boolean;
   onNext?: () => void;
+  detector?: ChordDetectorApi;
 }
 
 export function ChordTrainer({
@@ -38,8 +39,11 @@ export function ChordTrainer({
   series = [],
   autoStart = false,
   onNext,
+  detector,
 }: Props) {
-  const { status, error, start, stop } = useChordDetector();
+  const own = useChordDetector();
+  const sharedMic = !!detector;
+  const { status, error, start, stop, setHandlers } = detector ?? own;
 
   const duration = config?.durationSec ?? 60;
   const [pool, setPool] = useState<string[]>(
@@ -95,7 +99,8 @@ export function ChordTrainer({
 
   const finish = () => {
     clearTimer();
-    void stop();
+    if (sharedMic) setHandlers({});
+    else void stop();
     const value = scoreRef.current;
     const prevBest = runningBest;
     const seriesSnapshot = [...runningSeries, value];
@@ -144,7 +149,7 @@ export function ChordTrainer({
       if (t) clearTimeout(t);
       clearTimer();
       if (popTimer.current) clearTimeout(popTimer.current);
-      void stop();
+      if (!sharedMic) void stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

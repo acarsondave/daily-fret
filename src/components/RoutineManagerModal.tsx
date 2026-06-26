@@ -163,7 +163,7 @@ export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProp
                         </div>
                       </div>
                       <div className="routine-vocab">
-                        <span className="routine-vocab-label">Chords you're working on</span>
+                        <span className="routine-vocab-label">Chords you've learned</span>
                         <div className="routine-vocab-chips">
                           {VOCAB_CHORDS.map((c) => (
                             <button

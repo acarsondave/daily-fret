@@ -1,11 +1,13 @@
-export type DrillKind = 'free-play' | 'one-minute-changes' | 'chord-trainer';
+export type DrillKind = 'one-minute-changes' | 'chord-trainer';
 
 export interface DrillConfig {
   kind: DrillKind;
-  chordFrom?: string; // one-minute-changes
-  chordTo?: string; // one-minute-changes
-  durationSec?: number; // one-minute-changes / chord-trainer, defaults to 60
-  chords?: string[]; // chord-trainer: the pool of chords to call out
+  chordFrom?: string; // legacy single-pair changes config (back-compat)
+  chordTo?: string;
+  durationSec?: number; // defaults to 60
+  // one-minute-changes: the chords you're comfortable switching between (pairs
+  // are derived from these). chord-trainer: the pool of chords to call out.
+  chords?: string[];
 }
 
 export interface Task {

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useStore, useUserData, getTodayString } from '../store';
-import { Check, Circle, Trash, PencilSimple, X, Waveform, ArrowsLeftRight } from '@phosphor-icons/react';
+import { Check, Circle, Trash, PencilSimple, X, Waveform } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
@@ -32,7 +32,16 @@ export function TaskRow({ routineId, taskId, title, description, duration, drill
   const [isEditing, setIsEditing] = useState(false);
   const [editDraft, setEditDraft] = useState({ title, description: description || '', duration: duration || '' });
   const [editDrillKind, setEditDrillKind] = useState<DrillKind | 'none'>(drill?.kind ?? 'none');
-  const [editChords, setEditChords] = useState({ from: drill?.chordFrom ?? 'A', to: drill?.chordTo ?? 'D' });
+  const initialDrillChords =
+    drill?.chords?.length
+      ? drill.chords
+      : drill?.chordFrom && drill?.chordTo
+        ? [drill.chordFrom, drill.chordTo]
+        : ['A', 'D', 'E'];
+  const [editChords, setEditChords] = useState<string[]>(initialDrillChords);
+  const [editTrainerChords, setEditTrainerChords] = useState<string[]>(
+    drill?.kind === 'chord-trainer' && drill.chords?.length ? drill.chords : ['A', 'D', 'E', 'G', 'C'],
+  );
 
   const titleInputRef = useRef<HTMLInputElement>(null);
   const taskRef = useRef<HTMLDivElement>(null);
@@ -59,18 +68,13 @@ export function TaskRow({ routineId, taskId, title, description, duration, drill
     if (editDrillKind === 'one-minute-changes') {
       nextDrill = {
         kind: 'one-minute-changes',
-        chordFrom: editChords.from,
-        chordTo: editChords.to,
+        chords: editChords.length >= 2 ? editChords : ['A', 'D'],
         durationSec: drill?.durationSec ?? 60,
       };
-    } else if (editDrillKind === 'free-play') {
-      nextDrill = { kind: 'free-play' };
     } else if (editDrillKind === 'chord-trainer') {
-      // Preserve the configured pool (the edit form has no chip picker); fall
-      // back to a sensible default if switching a task into this drill.
       nextDrill = {
         kind: 'chord-trainer',
-        chords: drill?.chords?.length ? drill.chords : ['A', 'D', 'E', 'G', 'C'],
+        chords: editTrainerChords.length >= 2 ? editTrainerChords : ['A', 'D', 'E', 'G', 'C'],
         durationSec: drill?.durationSec ?? 60,
       };
     }
@@ -87,7 +91,10 @@ export function TaskRow({ routineId, taskId, title, description, duration, drill
   const cancelEdit = () => {
     setEditDraft({ title, description: description || '', duration: duration || '' });
     setEditDrillKind(drill?.kind ?? 'none');
-    setEditChords({ from: drill?.chordFrom ?? 'A', to: drill?.chordTo ?? 'D' });
+    setEditChords(initialDrillChords);
+    setEditTrainerChords(
+      drill?.kind === 'chord-trainer' && drill.chords?.length ? drill.chords : ['A', 'D', 'E', 'G', 'C'],
+    );
     setIsEditing(false);
   };
 
@@ -149,7 +156,6 @@ export function TaskRow({ routineId, taskId, title, description, duration, drill
             <div className="drill-segment">
               {([
                 ['none', 'None'],
-                ['free-play', 'Free Play'],
                 ['one-minute-changes', '1-Min Changes'],
                 ['chord-trainer', 'Chord Trainer'],
               ] as const).map(([value, label]) => (
@@ -164,23 +170,42 @@ export function TaskRow({ routineId, taskId, title, description, duration, drill
               ))}
             </div>
             {editDrillKind === 'one-minute-changes' && (
-              <div className="drill-chords">
-                <select
-                  className="drill-select"
-                  value={editChords.from}
-                  onChange={e => setEditChords(c => ({ ...c, from: e.target.value }))}
-                >
-                  {DRILL_CHORDS.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <ArrowsLeftRight size={16} color="var(--text-secondary)" />
-                <select
-                  className="drill-select"
-                  value={editChords.to}
-                  onChange={e => setEditChords(c => ({ ...c, to: e.target.value }))}
-                >
-                  {DRILL_CHORDS.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
+              <>
+                <span className="drill-hint">Chords to switch between</span>
+                <div className="drill-chip-grid">
+                  {DRILL_CHORDS.map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={clsx('drill-chip', editChords.includes(c) && 'active')}
+                      onClick={() => setEditChords(prev =>
+                        prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c],
+                      )}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+            {editDrillKind === 'chord-trainer' && (
+              <>
+                <span className="drill-hint">Chords to reinforce</span>
+                <div className="drill-chip-grid">
+                  {DRILL_CHORDS.map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={clsx('drill-chip', editTrainerChords.includes(c) && 'active')}
+                      onClick={() => setEditTrainerChords(prev =>
+                        prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c],
+                      )}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
           </div>
 
@@ -253,13 +278,7 @@ export function TaskRow({ routineId, taskId, title, description, duration, drill
             <button
               type="button"
               className="task-drill-btn"
-              title={
-                drill.kind === 'free-play'
-                  ? 'Free play'
-                  : drill.kind === 'chord-trainer'
-                    ? 'Chord trainer'
-                    : '1-minute changes'
-              }
+              title={drill.kind === 'chord-trainer' ? 'Chord trainer' : '1-minute changes'}
               onClick={(e) => {
                 e.stopPropagation();
                 onLaunchDrill?.();

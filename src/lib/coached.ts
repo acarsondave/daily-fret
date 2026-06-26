@@ -23,38 +23,31 @@ export function parseDuration(label: string | undefined): number {
 
 export function buildSegments(routine: Routine | undefined): CoachSegment[] {
   if (!routine) return [];
-  const chords = routineChords(routine);
-  const pairs = chordPairs(chords);
+  const learned = routineChords(routine);
   const segments: CoachSegment[] = [];
 
   for (const task of routine.tasks) {
     const kind = task.drill?.kind;
     if (kind === 'one-minute-changes') {
-      const list =
-        pairs.length > 0
-          ? pairs
-          : task.drill?.chordFrom && task.drill?.chordTo
-            ? [{ from: task.drill.chordFrom, to: task.drill.chordTo }]
-            : [];
-      for (const p of list) {
-        segments.push({
-          kind: 'changes',
-          taskId: task.id,
-          title: task.title,
-          from: p.from,
-          to: p.to,
-        });
+      // Changes use the task's comfortable chord set (so a freshly-learned
+      // chord can stay out of switching practice until you're ready), falling
+      // back to the legacy single pair, then the routine's learned chords.
+      const changeChords = task.drill?.chords?.length
+        ? task.drill.chords
+        : task.drill?.chordFrom && task.drill?.chordTo
+          ? [task.drill.chordFrom, task.drill.chordTo]
+          : learned;
+      for (const p of chordPairs(changeChords)) {
+        segments.push({ kind: 'changes', taskId: task.id, title: task.title, from: p.from, to: p.to });
       }
     } else if (kind === 'chord-trainer') {
+      // Trainer reinforces everything learned (or its own explicit pool).
       segments.push({
         kind: 'trainer',
         taskId: task.id,
         title: task.title,
-        chords: task.drill?.chords?.length ? task.drill.chords : chords,
+        chords: task.drill?.chords?.length ? task.drill.chords : learned,
       });
-    } else if (kind === 'free-play') {
-      // Exploratory, open-ended — not part of a timed coached run.
-      continue;
     } else {
       segments.push({
         kind: 'timed',

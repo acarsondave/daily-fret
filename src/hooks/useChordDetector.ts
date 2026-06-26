@@ -73,3 +73,5 @@ export function useChordDetector() {
 
   return { status, error, start, stop, setHandlers, setRestrict };
 }
+
+export type ChordDetectorApi = ReturnType<typeof useChordDetector>;
