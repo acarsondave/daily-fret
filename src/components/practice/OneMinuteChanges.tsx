@@ -83,7 +83,9 @@ export function OneMinuteChanges({
     };
   }, [dailyLogs, from, to]);
 
-  const [view, setView] = useState<View>('setup');
+  // In coached mode we skip the setup screen entirely; start on 'playing' so the
+  // chord preselector never flashes for a frame before auto-start kicks in.
+  const [view, setView] = useState<View>(autoStart ? 'playing' : 'setup');
   const [transitions, setTransitions] = useState(0);
   const [timeLeft, setTimeLeft] = useState(duration);
   const [detected, setDetected] = useState('listening...');

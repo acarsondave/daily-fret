@@ -55,7 +55,9 @@ export function ChordTrainer({
     config?.chords?.length ? config.chords : DEFAULT_POOL,
   );
 
-  const [view, setView] = useState<View>('setup');
+  // Coached mode skips setup; start on 'playing' so the chord preselector never
+  // flashes for a frame before auto-start kicks in.
+  const [view, setView] = useState<View>(autoStart ? 'playing' : 'setup');
   const [target, setTarget] = useState('');
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(duration);
