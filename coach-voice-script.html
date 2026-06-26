@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Daily Fret — Coach Voice Script</title>
+<style>
+  :root {
+    --bg: #0b0b0d; --panel: #141417; --line: rgba(255,255,255,.08);
+    --txt: #ececf1; --dim: #9a9aa6; --accent: #38bdf8; --accent-soft: rgba(56,189,248,.12);
+    --ok: #34d399;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--txt);
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 40px 20px 80px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 1.9rem; margin: 0 0 4px; letter-spacing: -.02em; }
+  .sub { color: var(--dim); margin: 0 0 28px; }
+  h2 { font-size: 1.2rem; margin: 36px 0 6px; }
+  .count { color: var(--dim); font-weight: 400; font-size: .85rem; }
+  .note { color: var(--dim); font-size: .9rem; margin: 0 0 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin: 14px 0; }
+  ol { margin: 0; padding: 0; list-style: none; }
+  li { display: flex; align-items: flex-start; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  li:last-child { border-bottom: none; }
+  .fname { flex: 0 0 118px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .76rem; color: var(--accent); padding-top: 3px; }
+  .line { flex: 1; }
+  button.copy {
+    flex: 0 0 auto; cursor: pointer; border: 1px solid var(--line); background: transparent;
+    color: var(--dim); border-radius: 8px; padding: 5px 12px; font-size: .8rem; transition: .15s;
+  }
+  button.copy:hover { color: var(--txt); border-color: var(--accent); }
+  button.copy.done { color: var(--ok); border-color: var(--ok); }
+  .section-actions { margin: 10px 0 0; }
+  button.copyall {
+    cursor: pointer; border: 1px solid var(--accent); background: var(--accent-soft);
+    color: var(--accent); border-radius: 8px; padding: 7px 14px; font-size: .82rem; font-weight: 600;
+  }
+  a { color: var(--accent); }
+  .pill { display: inline-block; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 2px 10px; font-size: .75rem; font-weight: 600; }
+  code { background: rgba(255,255,255,.06); padding: 1px 6px; border-radius: 5px; font-size: .85em; }
+  .steps { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 8px 22px; }
+  .steps li { display: list-item; }
+  .steps ol { list-style: decimal; padding-left: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Daily Fret — Coach Voice Script</h1>
+  <p class="sub">Paste each line into any realistic text-to-speech tool, export the clip, and save it under the filename shown. Drop the folder into the app and the coach comes alive — no API keys, no cost.</p>
+
+  <div class="steps">
+    <h2 style="margin-top:18px">How to use this</h2>
+    <ol>
+      <li>Pick a <strong>free, natural-sounding</strong> TTS tool (suggestions below). Choose <em>one</em> voice and keep it consistent across every clip.</li>
+      <li>For each line, hit <strong>Copy</strong>, paste into the tool, generate, and download as <strong>MP3</strong>.</li>
+      <li>Save it using the <span class="fname" style="flex:none">filename</span> shown next to the line (e.g. <code>up-next-03.mp3</code>).</li>
+      <li>Put every clip in a folder named <code>coach</code> and drop it at <code>daily-fret/public/coach/</code>.</li>
+      <li>Tell me they're in — I'll wire up the player (picks a fresh variant each time, no repeats inside a 14-session window) in one short pass.</li>
+    </ol>
+    <p class="note">You don't need every line to start — even 3–4 per section already feels alive. Fill the rest whenever.</p>
+  </div>
+
+  <h2>Free tools that sound genuinely human</h2>
+  <div class="card">
+    <ul style="margin:0;padding-left:18px">
+      <li><strong>ElevenLabs free tier</strong> — the most expressive. ~10k characters/month free, which covers this whole script in one month. <a href="https://elevenlabs.io" target="_blank" rel="noopener">elevenlabs.io</a></li>
+      <li><strong>Kokoro TTS (web)</strong> — open-source, unlimited, fully free, runs in your browser. Great natural quality. <a href="https://kokoroweb.app" target="_blank" rel="noopener">kokoroweb.app</a> · <a href="https://huggingface.co/spaces/webml-community/kokoro-webgpu" target="_blank" rel="noopener">HF demo</a></li>
+      <li><strong>Microsoft Edge "Read Aloud" / Natural voices</strong> — surprisingly good and free (voices like "Aria", "Guy", "Jenny").</li>
+    </ul>
+    <p class="note" style="margin-bottom:0"><strong>Voice direction:</strong> warm, calm, encouraging — a supportive coach, not a hype announcer. Steady pace, friendly. Pick a single voice and stick with it so every cue feels like the same person.</p>
+  </div>
+
+  <h2>A note on drill names <span class="pill">read me</span></h2>
+  <div class="card">
+    <p class="note" style="margin:0">Your drill names are whatever you type, so pre-made clips can't speak them. The coach uses <strong>name-free phrasing</strong> ("here's your next one") while the name stays on screen — this works for any routine. <br><br>Optionally, for your <em>own</em> recurring drills you can record their names too: save as <code>name-&lt;slug&gt;.mp3</code> (e.g. <code>name-spider-exercises.mp3</code>) and I'll have the coach speak the name when a matching clip exists.</p>
+  </div>
+
+  <div id="sections"></div>
+
+  <div style="margin-top:30px">
+    <button class="copyall" onclick="copyEverything(this)">Copy every line (one per row)</button>
+  </div>
+</div>
+
+<script>
+const SECTIONS = [
+  {
+    id: 'up-next', title: 'Up Next — drill intro', file: 'up-next',
+    note: 'Plays as each drill begins (name shows on screen, so these stay name-free).',
+    lines: [
+      "Alright, here's your next one. Let's lock in.",
+      "Up next — settle in and find your hands.",
+      "Next drill coming up. Take a breath and get ready.",
+      "Here we go again. Eyes on the screen, you've got this.",
+      "Time for the next one. Loose shoulders, steady hands.",
+      "Let's keep the momentum going. Next drill.",
+      "Coming up next. Reset, refocus, and let's play.",
+      "Your next challenge is ready. Trust your fingers.",
+      "Next up. Small steps, big progress.",
+      "Let's go. Get your hands into position.",
+      "Here's the next one. Stay smooth, stay relaxed.",
+      "Ready for the next? Let's make it count.",
+      "Onward to the next drill. Breathe, and begin.",
+      "Next one's loaded. Find your groove."
+    ]
+  },
+  {
+    id: 'rest-start', title: 'Rest — starting', file: 'rest-start',
+    note: 'Plays the moment a rest begins.',
+    lines: [
+      "Nice work. Take a moment to rest.",
+      "That's done. Relax for a few seconds.",
+      "Good effort. Shake it out and breathe.",
+      "Rest up. Let your hands recover.",
+      "Take a breather, you earned it.",
+      "Ease off for a moment. Loosen those fingers.",
+      "Pause and reset. We'll go again shortly.",
+      "Great. Drop your shoulders and relax.",
+      "Quick rest now. Let the tension melt away.",
+      "Catch your breath. The next one will be ready soon.",
+      "Rest those hands. Stretch if you need to.",
+      "Well played. Take a short break.",
+      "Breathe out. Let everything soften for a second.",
+      "Time to recover. Stay loose."
+    ]
+  },
+  {
+    id: 'rest-tip', title: 'Rest — tips & encouragement', file: 'rest-tip',
+    note: 'Optional second line during a rest, for extra liveness.',
+    lines: [
+      "Gently stretch your fingers and wrists.",
+      "Roll your shoulders back and let them drop.",
+      "Shake out your fretting hand.",
+      "Take a slow breath in… and out.",
+      "Wiggle your fingers to keep the blood flowing.",
+      "Loosen your grip. Tension is the enemy.",
+      "Sip some water if you've got it.",
+      "Open and close your hands a few times.",
+      "Relax your jaw and your shoulders.",
+      "Stretch your wrist gently, both directions.",
+      "Picture the next chord shapes in your mind.",
+      "Stay loose, and get ready for what's next.",
+      "Give your hands a quick massage.",
+      "Reset your posture, and sit tall."
+    ]
+  },
+  {
+    id: 'done', title: 'Completion — after a drill/block', file: 'done',
+    note: 'A short acknowledgement when a drill or block finishes.',
+    lines: [
+      "Nicely done.",
+      "That's the way. Clean work.",
+      "Great job on that one.",
+      "You're getting smoother every rep.",
+      "Solid. That's real progress.",
+      "Well played. Keep that up.",
+      "Good control there.",
+      "That's improvement you can feel.",
+      "Excellent. Your hands are learning.",
+      "Strong effort on that drill.",
+      "Smooth and steady. Love it.",
+      "That's how it's done.",
+      "Nice. You're building real muscle memory.",
+      "Good work. Onward."
+    ]
+  },
+  {
+    id: 'session', title: 'Session complete — final congrats', file: 'session',
+    note: 'Plays once, at the very end of the whole session.',
+    lines: [
+      "That's a wrap. You finished today's session. Be proud.",
+      "Session complete. Every minute today made you better.",
+      "You did it. Consistency like this is how players are made.",
+      "All done for today. Your future self thanks you.",
+      "Congratulations. A full session, in the books.",
+      "That's everything. Great discipline showing up today.",
+      "Session finished. Rest those hands, you earned it.",
+      "Beautifully done. See you tomorrow for more.",
+      "You made it through. Small steps, every single day.",
+      "Complete. That's another brick in the wall of mastery.",
+      "Well done today. Real progress, real effort.",
+      "That's the session. Now keep this streak alive.",
+      "Finished strong. Be proud of the work you put in.",
+      "All wrapped up. Your fingers are stronger than yesterday."
+    ]
+  },
+  {
+    id: 'count-in', title: 'Count-in (optional)', file: 'count-in',
+    note: 'Optional spoken lead-in right before a drill starts. The app also has a count-in beep, so this is purely a bonus.',
+    lines: [
+      "Three, two, one. Play.",
+      "Get ready… and go.",
+      "Here we go in three, two, one."
+    ]
+  }
+];
+
+const pad = (n) => String(n).padStart(2, '0');
+
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta); done();
+}
+function copyText(text, btn, label) {
+  const original = label || btn.textContent;
+  const done = () => { btn.textContent = 'Copied'; btn.classList.add('done'); setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1200); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
+  } else { fallbackCopy(text, done); }
+}
+
+const container = document.getElementById('sections');
+SECTIONS.forEach((sec) => {
+  const h = document.createElement('h2');
+  h.innerHTML = sec.title + ' <span class="count">· ' + sec.lines.length + ' variants</span>';
+  container.appendChild(h);
+  const note = document.createElement('p'); note.className = 'note'; note.textContent = sec.note; container.appendChild(note);
+  const card = document.createElement('div'); card.className = 'card';
+  const ol = document.createElement('ol');
+  sec.lines.forEach((line, i) => {
+    const fname = sec.file + '-' + pad(i + 1) + '.mp3';
+    const li = document.createElement('li');
+    const f = document.createElement('span'); f.className = 'fname'; f.textContent = fname;
+    const l = document.createElement('span'); l.className = 'line'; l.textContent = line;
+    const b = document.createElement('button'); b.className = 'copy'; b.textContent = 'Copy';
+    b.onclick = () => copyText(line, b);
+    li.append(f, l, b); ol.appendChild(li);
+  });
+  card.appendChild(ol);
+  const actions = document.createElement('div'); actions.className = 'section-actions';
+  const all = document.createElement('button'); all.className = 'copyall'; all.textContent = 'Copy all ' + sec.lines.length + ' lines';
+  all.onclick = () => copyText(sec.lines.join('\n'), all, 'Copy all ' + sec.lines.length + ' lines');
+  actions.appendChild(all); card.appendChild(actions);
+  container.appendChild(card);
+});
+
+function copyEverything(btn) {
+  const all = SECTIONS.flatMap((s) => s.lines).join('\n');
+  copyText(all, btn, 'Copy every line (one per row)');
+}
+</script>
+</body>
+</html>

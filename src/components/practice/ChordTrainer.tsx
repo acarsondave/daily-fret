@@ -13,6 +13,7 @@ import { ProgressRing } from './ProgressRing';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
 import { useSignalMeter } from './signalQuality';
+import { sfx } from '../../audio/sfx';
 import type { DrillConfig } from '../../types';
 
 const ALL_CHORDS = ['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F'];
@@ -112,6 +113,9 @@ export function ChordTrainer({
     else void stop();
     const value = scoreRef.current;
     const prevBest = runningBest;
+    const celebrate = prevBest === 0 ? value > 0 : value > prevBest;
+    if (celebrate) sfx.best();
+    else sfx.complete();
     const seriesSnapshot = [...runningSeries, value];
     setResult({ value, prevBest, series: seriesSnapshot });
     setRunningBest(Math.max(prevBest, value));
@@ -121,6 +125,7 @@ export function ChordTrainer({
   };
 
   const startSession = async () => {
+    sfx.go();
     scoreRef.current = 0;
     setScore(0);
     setTimeLeft(duration);

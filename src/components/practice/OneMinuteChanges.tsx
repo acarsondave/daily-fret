@@ -16,6 +16,7 @@ import { SignalMeter } from './SignalMeter';
 import { useSignalMeter } from './signalQuality';
 import { useStore } from '../../store';
 import { pairKey } from '../../lib/pairs';
+import { sfx } from '../../audio/sfx';
 import type { DrillConfig } from '../../types';
 
 const CHORDS = ['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F'];
@@ -152,12 +153,17 @@ export function OneMinuteChanges({
     if (sharedMic) setHandlers({});
     else void stop();
     const value = transitionsRef.current;
-    setResult({ value, prevBest: prevBestRef.current, series: [] });
+    const prev = prevBestRef.current;
+    const celebrate = prev === 0 ? value > 0 : value > prev;
+    if (celebrate) sfx.best();
+    else sfx.complete();
+    setResult({ value, prevBest: prev, series: [] });
     setView('results');
     onResult?.(value, from, to);
   };
 
   const startSession = async () => {
+    sfx.go();
     transitionsRef.current = 0;
     lastChordRef.current = '';
     lastCountAtRef.current = 0;

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Pause, Play, SkipForward } from '@phosphor-icons/react';
 import { ProgressRing } from './ProgressRing';
+import { sfx } from '../../audio/sfx';
 
 const AUTO_ADVANCE_SECONDS = 5;
 
@@ -49,6 +50,7 @@ export function TimedSegment({ title, description, seconds, onDone, nextLabel = 
   // Once the block is done, roll into the next segment hands-free.
   useEffect(() => {
     if (!finished) return;
+    sfx.complete();
     const deadline = Date.now() + AUTO_ADVANCE_SECONDS * 1000;
     const id = setInterval(() => {
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));

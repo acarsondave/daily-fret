@@ -5,6 +5,7 @@ import { X, CheckCircle, Trophy } from '@phosphor-icons/react';
 import { useStore, getTodayString, type CoachStepResult } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import { buildSegments } from '../../lib/coached';
+import { sfx } from '../../audio/sfx';
 import { useChordDetector } from '../../hooks/useChordDetector';
 import type { Routine } from '../../types';
 import { OneMinuteChanges } from './OneMinuteChanges';
@@ -99,13 +100,16 @@ export function CoachedSession({ routine, onClose }: Props) {
   useEffect(() => {
     if (phase !== 'intro') return;
     const started = Date.now();
+    let lastShown = -1;
     const id = setInterval(() => {
       const remaining = INTRO_SECONDS - Math.floor((Date.now() - started) / 1000);
       if (remaining <= 0) {
         clearInterval(id);
         setPhase('segment');
-      } else {
+      } else if (remaining !== lastShown) {
+        lastShown = remaining;
         setCountdown(remaining);
+        sfx.tick(); // 3 · 2 · 1 count-in
       }
     }, 200);
     return () => clearInterval(id);
@@ -159,10 +163,12 @@ export function CoachedSession({ routine, onClose }: Props) {
       restLeftRef.current = REST_SECONDS;
       setRestLeft(REST_SECONDS);
       setPhase('rest');
+      sfx.rest();
     } else {
       clearCoachProgress();
       void detector.stop();
       setPhase('summary');
+      sfx.sessionComplete();
     }
   };
 
