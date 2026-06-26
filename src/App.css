@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh; /* track Safari's collapsing toolbar so nothing is clipped */
   position: relative;
   overflow: hidden; /* Prevent body scroll */
 }
@@ -54,16 +55,18 @@
 
 .center-content {
   flex: 1;
+  min-height: 0; /* allow children to shrink so the task panel can fit + scroll */
   display: flex;
   align-items: center;
   justify-content: flex-start;
   flex-direction: column;
   padding-top: 120px; /* offset for header */
-  padding-bottom: 80px; /* offset for footer */
+  padding-bottom: calc(80px + env(safe-area-inset-bottom)); /* offset for footer */
   width: 100%;
   max-width: 800px;
   margin: 0 auto;
   z-index: 20;
+  overflow-y: auto; /* safety: never clip the add-task control on short viewports */
 }
 
 @media (max-width: 600px) {

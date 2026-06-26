@@ -88,7 +88,14 @@ async function loadManifest(): Promise<void> {
 // Warm the manifest early (e.g. when a coached session mounts) so the first
 // line plays without a fetch delay.
 export function preloadCoachVoice(): void {
-  void loadManifest();
+  void loadManifest().then(() => {
+    if (!manifest) return;
+    // Warm the HTTP cache for the (few) drill-name clips so the first
+    // announcement plays immediately instead of waiting on a fetch.
+    for (const slug of manifest.names) {
+      void fetch(`${base()}coach/name-${slug}.mp3`, { cache: 'force-cache' }).catch(() => {});
+    }
+  });
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');

@@ -124,7 +124,13 @@ export function CoachedSession({ routine, onClose }: Props) {
     let cancelled = false;
     (async () => {
       setCountdown(0); // show "Get ready…" while the coach talks
-      const announced = await announceDrill(seg.title); // "Up next, <drill name>"
+      // A task can fan into several segments (one per chord pair). Speak the
+      // name only on its first segment; later pairs get a short generic lead-in
+      // so we don't repeat "Chord Speed Training" before every pair.
+      const isFirstOfTask = index === 0 || segments[index - 1]?.taskId !== seg.taskId;
+      const announced = isFirstOfTask
+        ? await announceDrill(seg.title) // "Up next, <drill name>"
+        : await speak('up-next');
       if (cancelled) return;
       const counted = announced ? await speak('count-in') : false; // spoken 3·2·1
       if (cancelled) return;
@@ -143,7 +149,7 @@ export function CoachedSession({ routine, onClose }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [phase, index, seg]);
+  }, [phase, index, seg, segments]);
 
   // Rest timer between segments (gym-style). Fully automatic — it counts itself
   // down and rolls into the next drill, so there's nothing to tap during a rest.

@@ -72,8 +72,9 @@ async function synth(text, destPath) {
       body: JSON.stringify({
         text,
         model_id: MODEL_ID,
-        // A calm, encouraging coach: stable but with a touch of warmth.
-        voice_settings: { stability: 0.45, similarity_boost: 0.8, style: 0.15, use_speaker_boost: true },
+        // A calm, encouraging coach: stable, a touch of warmth, and slightly
+        // slower than default so lines breathe and don't feel rushed.
+        voice_settings: { stability: 0.45, similarity_boost: 0.8, style: 0.15, use_speaker_boost: true, speed: 0.92 },
       }),
     },
   );

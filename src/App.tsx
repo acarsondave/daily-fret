@@ -3,7 +3,6 @@ import { DailyPath } from './components/DailyPath';
 import { Footer } from './components/Footer';
 import { AccountModal } from './components/AccountModal';
 import { StreakGraph } from './components/StreakGraph';
-import { SoundToggle } from './components/SoundToggle';
 import { initAuthListener, useAuthStore } from './lib/auth';
 import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
@@ -54,7 +53,6 @@ function App() {
               <div className="header-date">{displayDate}</div>
               <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
                 <StreakGraph />
-                <SoundToggle />
                 <div className="header-account">
                   {!user ? (
                     <button className="account-btn local-mode" onClick={() => setIsAccountModalOpen(true)}>
