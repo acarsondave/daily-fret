@@ -55,6 +55,10 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
+  width: 100%;
+  max-width: 100%;
+  padding: 0 var(--space-3);
+  box-sizing: border-box;
 }
 
 .mic-picker {
@@ -66,7 +70,9 @@
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-secondary);
   cursor: pointer;
-  max-width: 240px;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   transition: background 0.2s ease;
 }
 
@@ -96,8 +102,17 @@
   font-size: 0.72rem;
   letter-spacing: 0.02em;
   cursor: pointer;
-  max-width: 180px;
+  min-width: 0;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
   text-overflow: ellipsis;
+}
+
+@media (max-width: 600px) {
+  .mic-picker-select {
+    max-width: 150px;
+  }
 }
 
 .mic-picker-select option {

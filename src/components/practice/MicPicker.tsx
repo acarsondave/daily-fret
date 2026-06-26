@@ -6,6 +6,15 @@ interface Props {
   onSwitch: (deviceId: string) => void;
 }
 
+// Browser labels are verbose ("Default - MacBook Pro Microphone (Built-in)").
+// Trim the OS prefix and trailing qualifier so the control stays compact.
+function shortLabel(label: string): string {
+  return label
+    .replace(/^(default|communications)\s*-\s*/i, '')
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .trim() || label;
+}
+
 // Lets the player pick which input the detector listens to. Only renders once
 // more than one input exists (after permission is granted, so labels are real).
 export function MicPicker({ onSwitch }: Props) {
@@ -50,7 +59,7 @@ export function MicPicker({ onSwitch }: Props) {
       >
         {devices.map((d) => (
           <option key={d.deviceId} value={d.deviceId}>
-            {d.label}
+            {shortLabel(d.label)}
           </option>
         ))}
       </select>

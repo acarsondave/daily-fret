@@ -72,9 +72,9 @@ async function synth(text, destPath) {
       body: JSON.stringify({
         text,
         model_id: MODEL_ID,
-        // Default, natural settings — pacing comes from the punctuation in
-        // coach-phrases.mjs, not from slowing the whole voice down.
-        voice_settings: { stability: 0.5, similarity_boost: 0.75, use_speaker_boost: true },
+        // Slightly slowed so lines breathe and don't feel rushed; punctuation in
+        // coach-phrases.mjs handles the finer pauses.
+        voice_settings: { stability: 0.5, similarity_boost: 0.75, use_speaker_boost: true, speed: 0.9 },
       }),
     },
   );

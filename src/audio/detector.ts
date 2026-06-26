@@ -9,13 +9,19 @@ import { matchChord, matchChordAmong } from './chords';
 export const FRAME_SIZE = 1024;
 
 const SILENCE_THRESHOLD = 0.005;
+// Cap the adaptive noise floor so a noisy/sensitive mic can't drag the active
+// gate (noiseFloor * 2) up high enough to swallow real playing. Without this the
+// gate "locks out" and detection goes dead for seconds until the floor decays.
+const NOISE_FLOOR_MAX = 0.03;
 const CHORD_STABLE_FRAMES = 2;
 export const CHROMA_SALIENCE_MIN = 1.2;
 // When detection is restricted to a known chord pair we can be a touch more
 // permissive on tonal salience (only two templates to confuse), but we add a
 // margin gate so an ambiguous, mid-transition chroma doesn't flap between them.
 const CHROMA_SALIENCE_MIN_RESTRICTED = 1.1;
-const RESTRICTED_MARGIN_MIN = 0.08;
+// Reject ambiguous frames more firmly: a ringing/decaying chord drifting toward
+// the other target otherwise registers phantom transitions (false counts).
+const RESTRICTED_MARGIN_MIN = 0.12;
 
 export const NO_CHORD = 'No Chord';
 
@@ -93,7 +99,7 @@ export class ChordDetector {
 
     const activeThreshold = Math.max(this.noiseFloor * 2, SILENCE_THRESHOLD);
     if (rms < activeThreshold) {
-      this.noiseFloor = this.noiseFloor * 0.98 + rms * 0.02;
+      this.noiseFloor = Math.min(this.noiseFloor * 0.98 + rms * 0.02, NOISE_FLOOR_MAX);
       this.handlers.onLevel?.({
         rms,
         noiseFloor: this.noiseFloor,
