@@ -52,8 +52,12 @@
   <h1>Daily Fret — Coach Voice Script</h1>
   <p class="sub">Paste each line into any realistic text-to-speech tool, export the clip, and save it under the filename shown. Drop the folder into the app and the coach comes alive — no API keys, no cost.</p>
 
+  <div class="card" style="border-color: rgba(56,189,248,.3)">
+    <strong>Automated route (recommended):</strong> run <code>ELEVENLABS_API_KEY=sk_xxx npm run gen:voice</code> to generate every clip into <code>public/coach/</code> in one shot. This page below is the manual fallback if you'd rather paste lines into a tool by hand or top up a few variants.
+  </div>
+
   <div class="steps">
-    <h2 style="margin-top:18px">How to use this</h2>
+    <h2 style="margin-top:18px">How to use this (manual route)</h2>
     <ol>
       <li>Pick a <strong>free, natural-sounding</strong> TTS tool (suggestions below). Choose <em>one</em> voice and keep it consistent across every clip.</li>
       <li>For each line, hit <strong>Copy</strong>, paste into the tool, generate, and download as <strong>MP3</strong>.</li>

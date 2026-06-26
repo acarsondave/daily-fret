@@ -11,6 +11,7 @@ interface Props {
   description?: string;
   seconds: number;
   onDone: () => void; // advance to the next segment
+  onFinish?: () => void; // fired once the moment the block completes
   nextLabel?: string; // what comes after, e.g. "Rest" or "Finishing"
 }
 
@@ -23,7 +24,7 @@ function fmt(s: number): string {
 // A plain timed practice block used inside Coached mode for tasks that aren't
 // interactive drills (e.g. "Spider Exercises", a lesson). Counts down, can be
 // paused/skipped, and reports done so the session advances.
-export function TimedSegment({ title, description, seconds, onDone, nextLabel = 'Up next' }: Props) {
+export function TimedSegment({ title, description, seconds, onDone, onFinish, nextLabel = 'Up next' }: Props) {
   const [left, setLeft] = useState(seconds);
   const [paused, setPaused] = useState(false);
   const [finished, setFinished] = useState(false);
@@ -51,6 +52,7 @@ export function TimedSegment({ title, description, seconds, onDone, nextLabel = 
   useEffect(() => {
     if (!finished) return;
     sfx.complete();
+    onFinish?.();
     const deadline = Date.now() + AUTO_ADVANCE_SECONDS * 1000;
     const id = setInterval(() => {
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));

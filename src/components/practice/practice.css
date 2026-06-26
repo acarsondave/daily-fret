@@ -24,6 +24,12 @@
   color: var(--text-secondary);
 }
 
+.practice-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .practice-close {
   display: inline-flex;
   align-items: center;
@@ -38,6 +44,14 @@
 .practice-close:hover {
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.08);
+}
+/* Coach-voice toggle when muted: dim it so the "on" state reads as active. */
+.practice-close.is-off {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+.practice-close.is-off:hover {
+  opacity: 0.8;
 }
 
 .practice-body {

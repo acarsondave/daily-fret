@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { X, CheckCircle, Trophy } from '@phosphor-icons/react';
+import { X, CheckCircle, Trophy, Megaphone } from '@phosphor-icons/react';
 import { useStore, getTodayString, type CoachStepResult } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import { buildSegments } from '../../lib/coached';
 import { sfx } from '../../audio/sfx';
+import { speak, preloadCoachVoice, stopVoice, isCoachVoiceEnabled, setCoachVoiceEnabled } from '../../audio/coachVoice';
 import { useChordDetector } from '../../hooks/useChordDetector';
 import type { Routine } from '../../types';
 import { OneMinuteChanges } from './OneMinuteChanges';
@@ -57,6 +58,7 @@ export function CoachedSession({ routine, onClose }: Props) {
   const [phase, setPhase] = useState<Phase>(() => (resumeData ? 'resume' : 'intro'));
   const [countdown, setCountdown] = useState(INTRO_SECONDS);
   const [restLeft, setRestLeft] = useState(REST_SECONDS);
+  const [voiceOn, setVoiceOn] = useState(isCoachVoiceEnabled());
   const restLeftRef = useRef(REST_SECONDS);
   const lastValueRef = useRef<number | null>(null);
 
@@ -88,10 +90,16 @@ export function CoachedSession({ routine, onClose }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, index, results]);
 
-  // Release the shared mic when the whole session unmounts.
+  // Warm the voice pack so the first line doesn't lag.
+  useEffect(() => {
+    preloadCoachVoice();
+  }, []);
+
+  // Release the shared mic and silence the coach when the session unmounts.
   useEffect(() => {
     return () => {
       void detector.stop();
+      stopVoice();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -99,6 +107,7 @@ export function CoachedSession({ routine, onClose }: Props) {
   // Get-ready countdown before a segment.
   useEffect(() => {
     if (phase !== 'intro') return;
+    void speak('up-next'); // announce the first drill as the count-in runs
     const started = Date.now();
     let lastShown = -1;
     const id = setInterval(() => {
@@ -119,6 +128,8 @@ export function CoachedSession({ routine, onClose }: Props) {
   // down and rolls into the next drill, so there's nothing to tap during a rest.
   useEffect(() => {
     if (phase !== 'rest') return;
+    // A second, encouraging line partway through the rest (stretch reminders etc.).
+    const tip = setTimeout(() => void speak('rest-tip', false), 6000);
     const deadline = Date.now() + restLeftRef.current * 1000;
     const id = setInterval(() => {
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
@@ -129,7 +140,10 @@ export function CoachedSession({ routine, onClose }: Props) {
         setPhase('segment');
       }
     }, 250);
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      clearTimeout(tip);
+    };
   }, [phase]);
 
   if (!seg) {
@@ -164,11 +178,13 @@ export function CoachedSession({ routine, onClose }: Props) {
       setRestLeft(REST_SECONDS);
       setPhase('rest');
       sfx.rest();
+      void speak('rest-start');
     } else {
       clearCoachProgress();
       void detector.stop();
       setPhase('summary');
       sfx.sessionComplete();
+      void speak('session');
     }
   };
 
@@ -198,9 +214,23 @@ export function CoachedSession({ routine, onClose }: Props) {
         <span className="practice-eyebrow">
           Coached · {Math.min(index + 1, segments.length)} / {segments.length}
         </span>
-        <button className="practice-close" onClick={exit} title="Exit (Esc) — your place is saved">
-          <X size={20} weight="bold" />
-        </button>
+        <div className="practice-topbar-actions">
+          <button
+            className={voiceOn ? 'practice-close' : 'practice-close is-off'}
+            onClick={() => {
+              const next = !voiceOn;
+              setCoachVoiceEnabled(next);
+              setVoiceOn(next);
+            }}
+            title={voiceOn ? 'Coach voice on' : 'Coach voice off'}
+            aria-pressed={voiceOn}
+          >
+            <Megaphone size={20} weight={voiceOn ? 'fill' : 'regular'} />
+          </button>
+          <button className="practice-close" onClick={exit} title="Exit (Esc) — your place is saved">
+            <X size={20} weight="bold" />
+          </button>
+        </div>
       </div>
 
       <div className="practice-body">
@@ -249,6 +279,7 @@ export function CoachedSession({ routine, onClose }: Props) {
               recordDrillResult(today, seg.taskId, cpm, pairKey(f, t), false);
               setLastPair(f, t);
               lastValueRef.current = cpm;
+              void speak('done');
             }}
             onNext={() => advance({ title: `${seg.from} ↔ ${seg.to}`, value: lastValueRef.current, unit: 'cpm' })}
             onClose={exit}
@@ -266,6 +297,7 @@ export function CoachedSession({ routine, onClose }: Props) {
             onResult={(score) => {
               recordDrillResult(today, seg.taskId, score, undefined, false);
               lastValueRef.current = score;
+              void speak('done');
             }}
             onNext={() => advance({ title: seg.title, value: lastValueRef.current, unit: 'nailed' })}
             onClose={exit}
@@ -279,6 +311,7 @@ export function CoachedSession({ routine, onClose }: Props) {
             description={seg.description}
             seconds={seg.seconds}
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
+            onFinish={() => void speak('done')}
             onDone={() => advance({ title: seg.title, value: null, unit: '' })}
           />
         )}
