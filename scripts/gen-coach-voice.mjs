@@ -30,7 +30,7 @@ const OUT_DIR = path.resolve(__dirname, '../public/coach');
 const NAMES_FILE = path.resolve(__dirname, 'drill-names.json');
 
 const API_KEY = process.env.ELEVENLABS_API_KEY;
-const VOICE_ID = process.env.ELEVEN_VOICE_ID || 'itMkRQx56fOF4CJe1D0C';
+const VOICE_ID = process.env.ELEVEN_VOICE_ID || 'XrExE9yKIg1WjnnlVkGX';
 const MODEL_ID = process.env.ELEVEN_MODEL_ID || 'eleven_flash_v2_5';
 const OUTPUT_FORMAT = 'mp3_44100_128';
 const FORCE = process.argv.includes('--force');
