@@ -184,9 +184,9 @@
 
 .task-container {
   width: 100%;
-  /* Cap to the space left after the header, routine selector and footer so the
-     add-task button is always on screen (Safari's toolbar makes 75vh too tall). */
-  max-height: calc(100dvh - 17rem);
+  /* Fill most of the viewport (dvh tracks Safari's toolbar); center-content
+     scrolls as a safety net so the add-task button is never clipped. */
+  max-height: calc(100dvh - 10rem);
   display: flex;
   flex-direction: column;
   border-radius: var(--radius-2xl);
@@ -219,30 +219,25 @@
 }
 
 .task-container-footer {
-  padding: var(--space-3) var(--space-4) var(--space-4);
+  padding: var(--space-4) 0;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   flex-shrink: 0;
 }
 
 .add-task-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-5);
-  border-radius: var(--radius-full);
   color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  border: none;
   font-size: 0.95rem;
-  font-weight: 600;
-  transition: color 0.2s, background 0.2s, border-color 0.2s;
+  transition: color 0.2s;
 }
 
 .add-task-btn:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.14);
 }
 
 /* Empty State / Inline Creation */
