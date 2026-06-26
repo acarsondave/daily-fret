@@ -328,6 +328,33 @@
   color: var(--accent-primary);
 }
 
+/* Hands-free auto-advance countdown shown on coached results / finished blocks */
+.coach-advance {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+.coach-advance-label {
+  font-family: var(--font-secondary);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.coach-advance-count {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: 2.4rem;
+  line-height: 1;
+  color: var(--accent-primary);
+  animation: coach-advance-pulse 1s ease-in-out infinite;
+}
+@keyframes coach-advance-pulse {
+  0%, 100% { opacity: 0.65; transform: scale(0.96); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
 .timed-desc {
   max-width: min(440px, 90vw);
   text-align: center;

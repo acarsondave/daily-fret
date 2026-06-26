@@ -7,6 +7,7 @@ import { Loader } from './Loader';
 import { TaskCreatorModal } from './TaskCreatorModal';
 import { RoutineManagerModal } from './RoutineManagerModal';
 import { ProgressPanel } from './practice/ProgressPanel';
+import { sanitizeMinutes } from '../lib/coached';
 import type { Task } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lightning, Plus, CaretDown, Gear, ChartLineUp, PlayCircle } from '@phosphor-icons/react';
@@ -67,10 +68,13 @@ export function DailyPath() {
   const allCompleted = !isEmpty && tasks.every(t => log?.completedTaskIds?.includes(t.id));
 
   // Open the jotter on the rising edge of completion (when no feedback yet),
-  // adjusting state during render rather than in an effect.
+  // adjusting state during render rather than in an effect. Hold off while a
+  // guided session or a drill is on screen — completing the last task there
+  // shouldn't pop the note sheet *under* the overlay; we surface it once the
+  // coached session closes instead (see CoachedSession onClose below).
   if (allCompleted !== prevAllCompleted) {
     setPrevAllCompleted(allCompleted);
-    if (allCompleted && log?.feedback === undefined) {
+    if (allCompleted && log?.feedback === undefined && !isCoachedOpen && !practiceTask) {
       setIsJotterOpen(true);
     }
   }
@@ -116,7 +120,7 @@ export function DailyPath() {
       description: inlineDraft.description.trim() || undefined,
       duration: inlineDraft.duration.trim() || undefined
     };
-    useStore.getState().addTask(activeRoutineId, newTask);
+    useStore.getState().addTask(activeRoutine.id, newTask);
     setInlineStep(null);
     setInlineDraft({ title: '', description: '', duration: '' });
   };
@@ -233,7 +237,7 @@ export function DailyPath() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.03 }}
                 >
-                  <TaskRow routineId={activeRoutineId} taskId={task.id} title={task.title} description={task.description} duration={task.duration} drill={task.drill} onLaunchDrill={() => setPracticeTask(task)} />
+                  <TaskRow routineId={activeRoutine.id} taskId={task.id} title={task.title} description={task.description} duration={task.duration} drill={task.drill} index={idx} total={tasks.length} onLaunchDrill={() => setPracticeTask(task)} />
                 </motion.div>
               ))}
 
@@ -290,17 +294,18 @@ export function DailyPath() {
                   )}
                   {inlineStep === 'duration' && (
                     <>
-                      <span className="inline-tooltip">How long? (Optional)</span>
+                      <span className="inline-tooltip">How many minutes? (Optional)</span>
                       <div className="inline-input-wrapper">
-                        <input 
+                        <input
                           ref={durationInputRef}
                           autoFocus
-                          placeholder="e.g. 5m"
+                          placeholder="e.g. 5"
                           value={inlineDraft.duration}
-                          onChange={e => setInlineDraft(d => ({ ...d, duration: e.target.value }))}
+                          onChange={e => setInlineDraft(d => ({ ...d, duration: sanitizeMinutes(e.target.value) }))}
                           onKeyDown={handleInlineKeyDown}
                           className="inline-input fluid-input"
-                          maxLength={30}
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                         />
                       </div>
                     </>
@@ -403,7 +408,17 @@ export function DailyPath() {
             <CoachedSession
               key="coached"
               routine={activeRoutine}
-              onClose={() => setIsCoachedOpen(false)}
+              onClose={() => {
+                setIsCoachedOpen(false);
+                // If the guided run finished the whole routine, invite a
+                // reflection note now (read fresh state — `log` is stale here).
+                const acc = useStore.getState().accounts[useStore.getState().currentAccountId];
+                const freshLog = acc?.dailyLogs?.[today];
+                const done = tasks.length > 0 && tasks.every((t) => freshLog?.completedTaskIds?.includes(t.id));
+                if (done && freshLog?.feedback === undefined) {
+                  setIsJotterOpen(true);
+                }
+              }}
             />
           )}
         </AnimatePresence>

@@ -1,3 +1,24 @@
+/* Minutes-only duration field: the input takes digits, the "mins" suffix is a
+   cosmetic label so the stored value stays an unambiguous number. Shared by the
+   task editor and the Add Task modal. */
+.task-duration-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.task-duration-field input {
+  padding-right: 3.4rem;
+}
+.task-duration-suffix {
+  position: absolute;
+  right: var(--space-3);
+  font-family: var(--font-primary);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
 /* Shared "Live drill" picker used by the task editor and the Add Task modal. */
 .drill-edit {
   display: flex;

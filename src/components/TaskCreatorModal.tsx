@@ -3,6 +3,7 @@ import { Modal } from './Modal';
 import { useStore } from '../store';
 import { Plus } from '@phosphor-icons/react';
 import clsx from 'clsx';
+import { sanitizeMinutes } from '../lib/coached';
 import type { DrillConfig, DrillKind } from '../types';
 import './TaskCreatorModal.css';
 import './drill-fields.css';
@@ -47,7 +48,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
       id: crypto.randomUUID(),
       title: title.trim(),
       description: description.trim(),
-      duration: duration.trim() || '5 mins',
+      duration: duration.trim() || '5',
       drill,
     });
 
@@ -84,14 +85,18 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
 
           <div className="form-group">
             <label>Duration</label>
-            <input 
-              type="text" 
-              className="task-input" 
-              placeholder="e.g. 5 mins" 
-              value={duration}
-              onChange={e => setDuration(e.target.value)}
-              maxLength={30}
-            />
+            <div className="task-duration-field">
+              <input
+                type="text"
+                className="task-input"
+                placeholder="Minutes"
+                value={duration}
+                onChange={e => setDuration(sanitizeMinutes(e.target.value))}
+                inputMode="numeric"
+                pattern="[0-9]*"
+              />
+              <span className="task-duration-suffix">mins</span>
+            </div>
           </div>
 
           <div className="form-group">

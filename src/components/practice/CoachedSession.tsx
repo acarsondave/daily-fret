@@ -56,11 +56,16 @@ export function CoachedSession({ routine, onClose }: Props) {
   const [phase, setPhase] = useState<Phase>(() => (resumeData ? 'resume' : 'intro'));
   const [countdown, setCountdown] = useState(INTRO_SECONDS);
   const [restLeft, setRestLeft] = useState(REST_SECONDS);
-  const [restPaused, setRestPaused] = useState(false);
   const restLeftRef = useRef(REST_SECONDS);
   const lastValueRef = useRef<number | null>(null);
 
   const seg = segments[index];
+  const isLastSegment = index >= segments.length - 1;
+  // A task can fan out into several segments (e.g. one-minute-changes → one per
+  // chord pair). It only counts as "done" once its *final* segment is finished,
+  // so checking off after a single pair no longer fires early.
+  const isFinalSegmentOfTask = (i: number) =>
+    !!segments[i] && segments[i + 1]?.taskId !== segments[i].taskId;
 
   const exit = () => {
     if (phase !== 'summary' && index > 0) {
@@ -106,9 +111,10 @@ export function CoachedSession({ routine, onClose }: Props) {
     return () => clearInterval(id);
   }, [phase, index]);
 
-  // Rest timer between segments (gym-style). Pausable; skippable.
+  // Rest timer between segments (gym-style). Fully automatic — it counts itself
+  // down and rolls into the next drill, so there's nothing to tap during a rest.
   useEffect(() => {
-    if (phase !== 'rest' || restPaused) return;
+    if (phase !== 'rest') return;
     const deadline = Date.now() + restLeftRef.current * 1000;
     const id = setInterval(() => {
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
@@ -120,7 +126,7 @@ export function CoachedSession({ routine, onClose }: Props) {
       }
     }, 250);
     return () => clearInterval(id);
-  }, [phase, restPaused]);
+  }, [phase]);
 
   if (!seg) {
     return createPortal(
@@ -139,6 +145,11 @@ export function CoachedSession({ routine, onClose }: Props) {
   }
 
   const advance = (result?: CoachStepResult) => {
+    // Tick the underlying task off only when this was its last segment, so a
+    // multi-pair changes task isn't marked done after a single pair.
+    if (isFinalSegmentOfTask(index)) {
+      completeTask(today, seg.taskId);
+    }
     const nextResults = result ? [...results, result] : results;
     setResults(nextResults);
     const nextIndex = index + 1;
@@ -147,7 +158,6 @@ export function CoachedSession({ routine, onClose }: Props) {
       setIndex(nextIndex);
       restLeftRef.current = REST_SECONDS;
       setRestLeft(REST_SECONDS);
-      setRestPaused(false);
       setPhase('rest');
     } else {
       clearCoachProgress();
@@ -213,28 +223,24 @@ export function CoachedSession({ routine, onClose }: Props) {
 
         {phase === 'rest' && (
           <motion.div key={`rest-${index}`} className="coach-intro" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-            <span className="coach-up-next">{restPaused ? 'Paused' : 'Rest'}</span>
+            <span className="coach-up-next">Rest</span>
             <div className="coach-countdown">{restLeft}</div>
             <div className="om-caption">Next: {seg.title} · {subLabel}</div>
-            <div className="om-actions">
-              <button className="practice-btn ghost" onClick={() => setRestPaused((p) => !p)}>
-                {restPaused ? 'Resume rest' : 'Pause'}
-              </button>
-              <button className="practice-btn primary" onClick={() => setPhase('segment')} autoFocus>
-                Skip rest
-              </button>
-            </div>
           </motion.div>
         )}
 
         {phase === 'segment' && seg.kind === 'changes' && (
           <OneMinuteChanges
             key={`seg-${index}`}
-            config={{ kind: 'one-minute-changes', chordFrom: seg.from, chordTo: seg.to, durationSec: 60 }}
+            config={{ kind: 'one-minute-changes', chordFrom: seg.from, chordTo: seg.to, durationSec: seg.seconds }}
             autoStart
+            autoAdvance
+            nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             detector={detector}
             onResult={(cpm, f, t) => {
-              recordDrillResult(today, seg.taskId, cpm, pairKey(f, t));
+              // Don't auto-complete the task here — Coached marks it done only
+              // after the last pair (see advance / isFinalSegmentOfTask).
+              recordDrillResult(today, seg.taskId, cpm, pairKey(f, t), false);
               setLastPair(f, t);
               lastValueRef.current = cpm;
             }}
@@ -246,11 +252,13 @@ export function CoachedSession({ routine, onClose }: Props) {
         {phase === 'segment' && seg.kind === 'trainer' && (
           <ChordTrainer
             key={`seg-${index}`}
-            config={{ kind: 'chord-trainer', chords: seg.chords, durationSec: 60 }}
+            config={{ kind: 'chord-trainer', chords: seg.chords, durationSec: seg.seconds }}
             autoStart
+            autoAdvance
+            nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             detector={detector}
             onResult={(score) => {
-              recordDrillResult(today, seg.taskId, score);
+              recordDrillResult(today, seg.taskId, score, undefined, false);
               lastValueRef.current = score;
             }}
             onNext={() => advance({ title: seg.title, value: lastValueRef.current, unit: 'nailed' })}
@@ -264,10 +272,8 @@ export function CoachedSession({ routine, onClose }: Props) {
             title={seg.title}
             description={seg.description}
             seconds={seg.seconds}
-            onDone={() => {
-              completeTask(today, seg.taskId);
-              advance({ title: seg.title, value: null, unit: '' });
-            }}
+            nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
+            onDone={() => advance({ title: seg.title, value: null, unit: '' })}
           />
         )}
 

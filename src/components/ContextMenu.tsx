@@ -26,10 +26,11 @@ export function ContextMenu({ children, content }: ContextMenuProps) {
 }
 
 // Export a wrapper for the items to keep styling consistent
-export function ContextMenuItem({ children, onClick, className = '' }: { children: ReactNode, onClick: () => void, className?: string }) {
+export function ContextMenuItem({ children, onClick, className = '', disabled = false }: { children: ReactNode, onClick: () => void, className?: string, disabled?: boolean }) {
   return (
-    <RadixContextMenu.Item 
+    <RadixContextMenu.Item
       className={`context-menu-item ${className}`}
+      disabled={disabled}
       onSelect={onClick}
     >
       {children}

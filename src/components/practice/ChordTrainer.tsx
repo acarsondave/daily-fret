@@ -17,6 +17,7 @@ import type { DrillConfig } from '../../types';
 
 const ALL_CHORDS = ['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F'];
 const DEFAULT_POOL = ['A', 'D', 'E', 'G', 'C'];
+const AUTO_ADVANCE_SECONDS = 5;
 
 type View = 'setup' | 'playing' | 'results';
 
@@ -28,6 +29,8 @@ interface Props {
   series?: number[];
   autoStart?: boolean;
   onNext?: () => void;
+  autoAdvance?: boolean; // results auto-continue after a short countdown (no button)
+  nextLabel?: string; // what the auto-advance is moving toward, e.g. "Rest"
   detector?: ChordDetectorApi;
 }
 
@@ -39,6 +42,8 @@ export function ChordTrainer({
   series = [],
   autoStart = false,
   onNext,
+  autoAdvance = false,
+  nextLabel = 'Up next',
   detector,
 }: Props) {
   const own = useChordDetector();
@@ -65,6 +70,8 @@ export function ChordTrainer({
 
   const [runningBest, setRunningBest] = useState(personalBest);
   const [runningSeries, setRunningSeries] = useState<number[]>(series);
+  // Coached mode auto-continues from results after a brief beat (no tap needed).
+  const [advanceLeft, setAdvanceLeft] = useState(AUTO_ADVANCE_SECONDS);
 
   const clearTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -153,6 +160,22 @@ export function ChordTrainer({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Hands-free advance once results land in coached mode.
+  useEffect(() => {
+    if (view !== 'results' || !autoAdvance || !onNext) return;
+    const deadline = Date.now() + AUTO_ADVANCE_SECONDS * 1000;
+    const id = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setAdvanceLeft(remaining);
+      if (remaining <= 0) {
+        clearInterval(id);
+        onNext();
+      }
+    }, 200);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, autoAdvance]);
 
   const toggleChord = (c: string) => {
     setPool((prev) =>
@@ -271,18 +294,25 @@ export function ChordTrainer({
 
       <div className="om-saved-hint">Saved automatically</div>
 
-      <div className="om-actions">
-        <button className="practice-btn ghost" onClick={() => onClose?.()}>
-          {onNext ? 'End session' : 'Done'}
-        </button>
-        <button
-          className="practice-btn primary"
-          onClick={onNext ?? (() => setView('setup'))}
-          autoFocus
-        >
-          {onNext ? 'Next drill' : 'Next'} <ArrowRight size={18} weight="bold" />
-        </button>
-      </div>
+      {autoAdvance ? (
+        <div className="coach-advance">
+          <span className="coach-advance-label">{nextLabel} in</span>
+          <span className="coach-advance-count">{advanceLeft}</span>
+        </div>
+      ) : (
+        <div className="om-actions">
+          <button className="practice-btn ghost" onClick={() => onClose?.()}>
+            {onNext ? 'End session' : 'Done'}
+          </button>
+          <button
+            className="practice-btn primary"
+            onClick={onNext ?? (() => setView('setup'))}
+            autoFocus
+          >
+            {onNext ? 'Next drill' : 'Next'} <ArrowRight size={18} weight="bold" />
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }

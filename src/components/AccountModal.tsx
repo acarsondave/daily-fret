@@ -4,7 +4,7 @@ import { auth } from '../lib/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { useAuthStore } from '../lib/auth';
 import { useStore } from '../store';
-import { SignOut, ArrowRight, Guitar, Spinner, DownloadSimple } from '@phosphor-icons/react';
+import { SignOut, ArrowRight, Spinner, DownloadSimple } from '@phosphor-icons/react';
 import './AccountModal.css';
 
 interface AccountModalProps {
@@ -45,46 +45,6 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
       await signOut(auth);
       setIsLoading(false);
     }, 250); // wait for modal exit animation to prevent login form flash
-  };
-
-  const restoreDefaults = () => {
-    useStore.setState(state => {
-      const uid = state.currentAccountId;
-      const acc = state.accounts[uid];
-      const seededRoutines = [
-        {
-          id: 'r_10min',
-          name: '10-Min Muscle Memory',
-          description: 'Low energy day. 100% focused on physical mechanics.',
-          isDefault: true,
-          tasks: [
-            { id: 't1', title: 'Spider Exercises', description: '1st fret start. Low E to high E.', duration: '5 mins' },
-            { id: 't2', title: 'Lauren Bateman Pushups', description: '20 reps per finger on the G string.', duration: '2-3 mins' },
-            { id: 't3', title: 'Chord Speed Training', description: 'A, D, E transitions. Goal: 65+ cpm.', duration: '3 mins' }
-          ]
-        },
-        {
-          id: 'r_30min',
-          name: '30-Min Concept Mastery',
-          description: 'High energy day. Focus on JustinGuitar module concepts.',
-          isDefault: true,
-          tasks: [
-            { id: 'c1', title: 'Spider Exercises', description: '1st fret start. Low E to high E.', duration: '5 mins' },
-            { id: 'c2', title: 'Lauren Bateman Pushups', description: '20 reps per finger on the G string.', duration: '2-3 mins' },
-            { id: 'c3', title: 'Chord Speed Training', description: 'A, D, E transitions. Goal: 65+ cpm.', duration: '3 mins' },
-            { id: 'c4', title: 'JustinGuitar Lesson', description: 'Watch and grasp new concepts from Module 2.', duration: '10 mins' },
-            { id: 'c5', title: 'Song Integration', description: '"Wild Thing" by The Troggs practice.', duration: '10 mins' }
-          ]
-        }
-      ];
-      return { 
-        accounts: { 
-          ...state.accounts, 
-          [uid]: { ...acc, routines: seededRoutines, activeRoutineId: 'r_10min' } 
-        } 
-      };
-    });
-    onClose();
   };
 
   const exportData = () => {
@@ -159,11 +119,6 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                 <span>Export My Data (JSON)</span>
               </button>
 
-              <button className="settings-action-btn" onClick={restoreDefaults}>
-                <Guitar size={18} />
-                <span>Restore Starter Routines</span>
-              </button>
-              
               <button className="settings-action-btn logout" onClick={handleLogout} disabled={isLoading}>
                 {isLoading ? <Spinner size={18} className="spinner-icon" /> : <SignOut size={18} />}
                 <span>{isLoading ? 'Logging Out...' : 'Log Out'}</span>

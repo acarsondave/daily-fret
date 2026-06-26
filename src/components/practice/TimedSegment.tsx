@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Pause, Play, ArrowRight, SkipForward } from '@phosphor-icons/react';
+import { Pause, Play, SkipForward } from '@phosphor-icons/react';
 import { ProgressRing } from './ProgressRing';
+
+const AUTO_ADVANCE_SECONDS = 5;
 
 interface Props {
   title: string;
   description?: string;
   seconds: number;
   onDone: () => void; // advance to the next segment
+  nextLabel?: string; // what comes after, e.g. "Rest" or "Finishing"
 }
 
 function fmt(s: number): string {
@@ -19,10 +22,11 @@ function fmt(s: number): string {
 // A plain timed practice block used inside Coached mode for tasks that aren't
 // interactive drills (e.g. "Spider Exercises", a lesson). Counts down, can be
 // paused/skipped, and reports done so the session advances.
-export function TimedSegment({ title, description, seconds, onDone }: Props) {
+export function TimedSegment({ title, description, seconds, onDone, nextLabel = 'Up next' }: Props) {
   const [left, setLeft] = useState(seconds);
   const [paused, setPaused] = useState(false);
   const [finished, setFinished] = useState(false);
+  const [advanceLeft, setAdvanceLeft] = useState(AUTO_ADVANCE_SECONDS);
   const leftRef = useRef(seconds);
 
   useEffect(() => {
@@ -42,6 +46,22 @@ export function TimedSegment({ title, description, seconds, onDone }: Props) {
     return () => clearInterval(id);
   }, [paused, finished]);
 
+  // Once the block is done, roll into the next segment hands-free.
+  useEffect(() => {
+    if (!finished) return;
+    const deadline = Date.now() + AUTO_ADVANCE_SECONDS * 1000;
+    const id = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setAdvanceLeft(remaining);
+      if (remaining <= 0) {
+        clearInterval(id);
+        onDone();
+      }
+    }, 200);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finished]);
+
   const togglePause = () => setPaused((p) => !p);
 
   const progress = seconds > 0 ? (seconds - left) / seconds : 1;
@@ -55,10 +75,9 @@ export function TimedSegment({ title, description, seconds, onDone }: Props) {
       >
         <div className="coach-intro-title">{title}</div>
         <div className="om-caption">Block complete</div>
-        <div className="om-actions">
-          <button className="practice-btn primary" onClick={onDone} autoFocus>
-            Next <ArrowRight size={18} weight="bold" />
-          </button>
+        <div className="coach-advance">
+          <span className="coach-advance-label">{nextLabel} in</span>
+          <span className="coach-advance-count">{advanceLeft}</span>
         </div>
       </motion.div>
     );

@@ -50,6 +50,11 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
+.context-menu-item[data-disabled] {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
 .context-menu-item.danger {
   color: var(--error-color);
 }

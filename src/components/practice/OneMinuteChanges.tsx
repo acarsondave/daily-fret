@@ -20,6 +20,7 @@ import type { DrillConfig } from '../../types';
 
 const CHORDS = ['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F'];
 const EMPTY_LOGS = {};
+const AUTO_ADVANCE_SECONDS = 5;
 
 type View = 'setup' | 'playing' | 'results';
 
@@ -29,6 +30,8 @@ interface Props {
   onClose?: () => void;
   autoStart?: boolean; // skip the setup screen and begin immediately (coached)
   onNext?: () => void; // when set, the results "Next" advances a sequence
+  autoAdvance?: boolean; // results auto-continue after a short countdown (no button)
+  nextLabel?: string; // what the auto-advance is moving toward, e.g. "Rest"
   defaultPair?: { from: string; to: string }; // reopen on the last pair played
   onSessionStart?: (from: string, to: string) => void; // remember the pair
   detector?: ChordDetectorApi; // shared mic (Coached) so it isn't restarted per drill
@@ -41,6 +44,8 @@ export function OneMinuteChanges({
   onClose,
   autoStart = false,
   onNext,
+  autoAdvance = false,
+  nextLabel = 'Up next',
   defaultPair,
   onSessionStart,
   detector,
@@ -88,6 +93,9 @@ export function OneMinuteChanges({
     prevBest: number;
     series: number[];
   } | null>(null);
+  // Coached mode auto-continues from the results screen after a brief beat, so
+  // the session flows hands-free instead of waiting on a "Next" tap.
+  const [advanceLeft, setAdvanceLeft] = useState(AUTO_ADVANCE_SECONDS);
 
   const lastChordRef = useRef('');
   const lastCountAtRef = useRef(0);
@@ -192,6 +200,23 @@ export function OneMinuteChanges({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Hands-free advance: once results land in coached mode, count down and move
+  // on automatically (the top-bar X is still there to bail).
+  useEffect(() => {
+    if (view !== 'results' || !autoAdvance || !onNext) return;
+    const deadline = Date.now() + AUTO_ADVANCE_SECONDS * 1000;
+    const id = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setAdvanceLeft(remaining);
+      if (remaining <= 0) {
+        clearInterval(id);
+        onNext();
+      }
+    }, 200);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, autoAdvance]);
 
   if (view === 'setup') {
     return (
@@ -345,18 +370,25 @@ export function OneMinuteChanges({
 
       <div className="om-saved-hint">Saved automatically · see Progress for trends</div>
 
-      <div className="om-actions">
-        <button className="practice-btn ghost" onClick={() => onClose?.()}>
-          {onNext ? 'End session' : 'Done'}
-        </button>
-        <button
-          className="practice-btn primary"
-          onClick={onNext ?? (() => setView('setup'))}
-          autoFocus
-        >
-          {onNext ? 'Next drill' : 'Next'} <ArrowRight size={18} weight="bold" />
-        </button>
-      </div>
+      {autoAdvance ? (
+        <div className="coach-advance">
+          <span className="coach-advance-label">{nextLabel} in</span>
+          <span className="coach-advance-count">{advanceLeft}</span>
+        </div>
+      ) : (
+        <div className="om-actions">
+          <button className="practice-btn ghost" onClick={() => onClose?.()}>
+            {onNext ? 'End session' : 'Done'}
+          </button>
+          <button
+            className="practice-btn primary"
+            onClick={onNext ?? (() => setView('setup'))}
+            autoFocus
+          >
+            {onNext ? 'Next drill' : 'Next'} <ArrowRight size={18} weight="bold" />
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }

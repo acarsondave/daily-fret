@@ -2,34 +2,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Routine, DailyLog, Task } from '../types';
 
-const defaultRoutines: Routine[] = [
-  {
-    id: 'r_10min',
-    name: '10-Min Muscle Memory',
-    description: 'Low energy day. 100% focused on physical mechanics.',
-    isDefault: true,
-    chords: ['A', 'D', 'E'],
-    tasks: [
-      { id: 't1', title: 'Spider Exercises', description: '1st fret start. Low E to high E.', duration: '5 mins' },
-      { id: 't2', title: 'Lauren Bateman Pushups', description: '20 reps per finger on the G string.', duration: '2-3 mins' },
-      { id: 't3', title: 'Chord Speed Training', description: 'A, D, E transitions. Goal: 65+ cpm.', duration: '3 mins', drill: { kind: 'one-minute-changes', chords: ['A', 'D', 'E'], durationSec: 60 } }
-    ]
-  },
-  {
-    id: 'r_30min',
-    name: '30-Min Concept Mastery',
-    description: 'High energy day. Focus on JustinGuitar module concepts.',
-    isDefault: true,
-    chords: ['A', 'D', 'E', 'G'],
-    tasks: [
-      { id: 'c1', title: 'Spider Exercises', description: '1st fret start. Low E to high E.', duration: '5 mins' },
-      { id: 'c2', title: 'Lauren Bateman Pushups', description: '20 reps per finger on the G string.', duration: '2-3 mins' },
-      { id: 'c3', title: 'Chord Speed Training', description: 'A, D, E, G transitions. Goal: 65+ cpm.', duration: '3 mins', drill: { kind: 'one-minute-changes', chords: ['A', 'D', 'E', 'G'], durationSec: 60 } },
-      { id: 'c4', title: 'JustinGuitar Lesson', description: 'Watch and grasp new concepts from Module 2.', duration: '10 mins' },
-      { id: 'c5', title: 'Song Integration', description: '"Wild Thing" by The Troggs practice.', duration: '10 mins' }
-    ]
-  }
-];
+// No seeded routines — a fresh user starts from a clean, Notion-style empty
+// state and builds their own routines/tasks from scratch.
+const defaultRoutines: Routine[] = [];
 
 const getTodayString = () => {
   const date = new Date();
@@ -71,7 +46,7 @@ export interface UserData {
 const defaultUserData: UserData = {
   routines: defaultRoutines,
   dailyLogs: {},
-  activeRoutineId: 'r_10min',
+  activeRoutineId: '',
   updatedAt: 0,
 };
 
@@ -89,6 +64,7 @@ interface AppState {
   addTask: (routineId: string, task: Task) => void;
   updateTask: (routineId: string, taskId: string, updates: Partial<Task>) => void;
   deleteTask: (routineId: string, taskId: string) => void;
+  moveTask: (routineId: string, taskId: string, direction: 'up' | 'down') => void;
 
   toggleTaskCompletion: (date: string, taskId: string) => void;
   completeTask: (date: string, taskId: string) => void;
@@ -96,7 +72,7 @@ interface AppState {
   // Records a numeric drill result. `taskId` is marked complete for the day;
   // the value is stored under `resultKey` when given (e.g. a chord-pair key),
   // otherwise under the taskId.
-  recordDrillResult: (date: string, taskId: string, value: number, resultKey?: string) => void;
+  recordDrillResult: (date: string, taskId: string, value: number, resultKey?: string, markComplete?: boolean) => void;
   setActiveRoutine: (routineId: string) => void;
   setLastPair: (from: string, to: string) => void;
   saveCoachProgress: (progress: CoachProgress) => void;
@@ -250,6 +226,25 @@ export const useStore = create<AppState>()(
           })),
         ),
 
+        // Reorder a task within its routine. Order is meaningful: it's the exact
+        // sequence Coached mode plays through, so swapping neighbours lets the
+        // user shape the guided session.
+        moveTask: (routineId, taskId, direction) => set((state) =>
+          mutate(state, (a) => ({
+            ...a,
+            routines: a.routines.map((r) => {
+              if (r.id !== routineId) return r;
+              const idx = r.tasks.findIndex((t) => t.id === taskId);
+              if (idx < 0) return r;
+              const swapWith = direction === 'up' ? idx - 1 : idx + 1;
+              if (swapWith < 0 || swapWith >= r.tasks.length) return r;
+              const tasks = [...r.tasks];
+              [tasks[idx], tasks[swapWith]] = [tasks[swapWith], tasks[idx]];
+              return { ...r, tasks };
+            }),
+          })),
+        ),
+
         toggleTaskCompletion: (date, taskId) => set((state) =>
           mutate(state, (a) => {
             const log = a.dailyLogs[date] || {
@@ -304,7 +299,7 @@ export const useStore = create<AppState>()(
           }));
         }),
 
-        recordDrillResult: (date, taskId, value, resultKey) => set((state) =>
+        recordDrillResult: (date, taskId, value, resultKey, markComplete = true) => set((state) =>
           mutate(state, (a) => {
             const log = a.dailyLogs[date] || {
               date,
@@ -313,9 +308,12 @@ export const useStore = create<AppState>()(
             };
             const key = resultKey ?? taskId;
             const previousBest = log.drillResults?.[key] ?? 0;
-            const completedTaskIds = log.completedTaskIds.includes(taskId)
-              ? log.completedTaskIds
-              : [...log.completedTaskIds, taskId];
+            // A one-minute-changes task expands into several pair drills; the
+            // caller (Coached) only marks it complete once the last pair is done,
+            // so a single pair no longer ticks the whole task off prematurely.
+            const completedTaskIds = markComplete && !log.completedTaskIds.includes(taskId)
+              ? [...log.completedTaskIds, taskId]
+              : log.completedTaskIds;
             return {
               ...a,
               dailyLogs: {
@@ -356,10 +354,10 @@ export const useStore = create<AppState>()(
   ),
 );
 
-// Selector hook for convenience
-export const useUserData = () => {
-  const store = useStore();
-  return store.accounts[store.currentAccountId] || defaultUserData;
-};
+// Selector hook for convenience. Subscribes to *only* the current account slice
+// (not the whole store) so unrelated state changes don't re-render every
+// consumer — and the slice reference is stable until that account mutates.
+export const useUserData = () =>
+  useStore((s) => s.accounts[s.currentAccountId] ?? defaultUserData);
 
 export { getTodayString, defaultUserData };
