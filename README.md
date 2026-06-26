@@ -1,4 +1,4 @@
-# Daily Fret
+# Daily Fret 🎸
 
 A local-first daily practice tracker for guitar. You build your own routines,
 check off tasks each day, and run interactive drills that listen to your playing
