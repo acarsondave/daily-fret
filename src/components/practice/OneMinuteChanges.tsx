@@ -13,6 +13,7 @@ import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDet
 import { ProgressRing } from './ProgressRing';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
+import { MicPicker } from './MicPicker';
 import { useSignalMeter } from './signalQuality';
 import { useStore } from '../../store';
 import { pairKey } from '../../lib/pairs';
@@ -54,7 +55,7 @@ export function OneMinuteChanges({
 }: Props) {
   const own = useChordDetector();
   const sharedMic = !!detector;
-  const { status, error, start, stop, setHandlers } = detector ?? own;
+  const { status, error, start, stop, setHandlers, switchDevice } = detector ?? own;
 
   // Selectable chords for this drill — the task's comfortable set, falling back
   // to the full list. The initial pair prefers the remembered pair when it fits.
@@ -310,7 +311,10 @@ export function OneMinuteChanges({
           <Hourglass size={26} /> {timeLeft}
         </div>
         <div className="om-detected">{detected}</div>
-        <SignalMeter quality={signal} />
+        <div className="signal-cluster">
+          <SignalMeter quality={signal} />
+          <MicPicker onSwitch={switchDevice} />
+        </div>
       </>
     );
   }

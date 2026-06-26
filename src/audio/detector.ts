@@ -10,7 +10,7 @@ export const FRAME_SIZE = 1024;
 
 const SILENCE_THRESHOLD = 0.005;
 const CHORD_STABLE_FRAMES = 2;
-const CHROMA_SALIENCE_MIN = 1.2;
+export const CHROMA_SALIENCE_MIN = 1.2;
 // When detection is restricted to a known chord pair we can be a touch more
 // permissive on tonal salience (only two templates to confuse), but we add a
 // margin gate so an ambiguous, mid-transition chroma doesn't flap between them.

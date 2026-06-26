@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChordCapture } from '../audio/capture';
 import type { DetectorHandlers } from '../audio/detector';
+import { getPreferredMicId, setPreferredMicId } from '../audio/micDevice';
 
 export type DetectorStatus = 'idle' | 'requesting' | 'running' | 'error';
+
+type StartOptions = { restrictTo?: string[]; offset?: number };
 
 // Owns a single ChordCapture instance for a component. Handlers are read
 // through a ref so the latest closures (and component state) are used without
@@ -10,6 +13,7 @@ export type DetectorStatus = 'idle' | 'requesting' | 'running' | 'error';
 export function useChordDetector() {
   const captureRef = useRef<ChordCapture | null>(null);
   const handlersRef = useRef<DetectorHandlers>({});
+  const optionsRef = useRef<StartOptions | undefined>(undefined);
   const [status, setStatus] = useState<DetectorStatus>('idle');
   const [error, setError] = useState<string | null>(null);
 
@@ -20,9 +24,10 @@ export function useChordDetector() {
   // Resolves to true once the mic is live, false if access failed/was denied.
   const start = useCallback(async (
     handlers: DetectorHandlers,
-    options?: { restrictTo?: string[]; offset?: number },
+    options?: StartOptions,
   ): Promise<boolean> => {
     handlersRef.current = handlers;
+    optionsRef.current = options;
     if (captureRef.current?.running) {
       captureRef.current.setRestrict(options?.restrictTo ?? null);
       setStatus('running');
@@ -35,6 +40,7 @@ export function useChordDetector() {
     captureRef.current = capture;
     try {
       await capture.start({
+        deviceId: getPreferredMicId() ?? undefined,
         restrictTo: options?.restrictTo,
         offset: options?.offset,
         onChord: (e) => handlersRef.current.onChord?.(e),
@@ -52,6 +58,19 @@ export function useChordDetector() {
       return false;
     }
   }, []);
+
+  // Switch the active input device. Persists the choice and, if a capture is
+  // live, restarts it on the new device with the same handlers/restriction.
+  const switchDevice = useCallback(async (deviceId: string): Promise<void> => {
+    setPreferredMicId(deviceId);
+    if (!captureRef.current?.running) return;
+    const handlers = handlersRef.current;
+    const options = optionsRef.current;
+    const prev = captureRef.current;
+    captureRef.current = null;
+    await prev.stop();
+    await start(handlers, options);
+  }, [start]);
 
   const setRestrict = useCallback((chords: string[] | null) => {
     captureRef.current?.setRestrict(chords);
@@ -71,7 +90,7 @@ export function useChordDetector() {
     };
   }, []);
 
-  return { status, error, start, stop, setHandlers, setRestrict };
+  return { status, error, start, stop, setHandlers, setRestrict, switchDevice };
 }
 
 export type ChordDetectorApi = ReturnType<typeof useChordDetector>;

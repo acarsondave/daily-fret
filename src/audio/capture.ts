@@ -11,6 +11,19 @@ const WORKLET_URL = `${import.meta.env.BASE_URL}pcm-worklet.js`;
 export interface CaptureHandlers extends DetectorHandlers {
   offset?: number;
   restrictTo?: string[];
+  deviceId?: string; // specific mic to capture from; omitted = system default
+}
+
+// Disable the browser's voice-oriented processing — it mangles a guitar's
+// harmonics (and a headset's onboard DSP can suppress the guitar as "noise").
+function audioConstraints(deviceId?: string): MediaTrackConstraints {
+  const base: MediaTrackConstraints = {
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false,
+    channelCount: 1,
+  };
+  return deviceId ? { ...base, deviceId: { exact: deviceId } } : base;
 }
 
 export class ChordCapture {
@@ -35,14 +48,24 @@ export class ChordCapture {
 
     // StrictMode (and rapid open/close) can call stop() mid-startup. Re-check
     // `disposed` after every await and tear down any partial graph if so.
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false,
-        channelCount: 1,
-      },
-    });
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        audio: audioConstraints(handlers.deviceId),
+      });
+    } catch (err) {
+      // The preferred device may be gone (unplugged headset); fall back to the
+      // system default rather than failing the whole drill.
+      if (
+        handlers.deviceId &&
+        err instanceof DOMException &&
+        (err.name === 'OverconstrainedError' || err.name === 'NotFoundError')
+      ) {
+        this.stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints() });
+      } else {
+        this.starting = false;
+        throw err;
+      }
+    }
     if (this.disposed) return this.teardown();
 
     const ctx = new AudioContext();
