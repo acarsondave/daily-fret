@@ -1,5 +1,0 @@
-# Progress
-- Initialized Vite project.
-- Defined architecture and design documents.
-- Installed core dependencies.
-- Next: Build core CSS token variables.

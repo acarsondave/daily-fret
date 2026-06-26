@@ -18,6 +18,17 @@ dist-ssr
 .env.*
 !.env.example
 
+# Local-only working docs (kept on disk, out of the repo).
+coach-voice-script.html
+docs/design-main.md
+docs/DESIGN_SYSTEM.md
+docs/FRONTEND_GUIDELINES.md
+docs/APP_FLOW.md
+docs/PRD.md
+docs/TECH_STACK.md
+docs/LESSONS.md
+docs/progress.txt
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

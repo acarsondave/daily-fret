@@ -1,47 +1,66 @@
-# Daily Fret 🎸
+# Daily Fret
 
-A premium, low-friction daily routine tracker specifically designed for the modern guitar learning journey. Built with a "local-first" architecture to ensure maximum performance and accessibility, regardless of network state.
+A local-first daily practice tracker for guitar. You build your own routines,
+check off tasks each day, and run interactive drills that listen to your playing
+through the mic. A guided "Coached" mode strings a routine's drills into one
+hands-free session with a spoken coach.
 
-## Core Features
-- **Frictionless Daily Path**: Instantly load into your day's tasks. No bloated dashboards.
-- **Local-First & Offline Ready**: Powered by Zustand and `localStorage`. Your data is always available instantly.
-- **Cloud Sync**: Optional Firebase Authentication enables seamless cross-device syncing of your routines and progress.
-- **Aesthetic Excellence**: Built strictly with Vanilla CSS and Framer Motion. Zero UI frameworks. 2026-level micro-interactions.
-- **Flexible Routines**: Ships with structured 10-Minute and 30-Minute practice templates out of the box.
+## Features
 
-## Architecture & Stack
-- **Frontend**: React 19, TypeScript, Vite
-- **Styling**: Vanilla CSS (Nesting, Variables, Custom properties)
-- **State**: Zustand (Persisted)
-- **Animations**: Framer Motion
-- **Backend Sync**: Firebase Firestore & Auth
-- **Hosting**: Cloudflare Pages
+- **Build your own routines.** Starts empty; add tasks, reorder them, and turn
+  any task into a live drill.
+- **Live drills.** One-Minute Changes (counts clean chord switches per minute)
+  and Chord Trainer (calls a target chord and confirms when you nail it), both
+  driven by real-time pitch/chord detection.
+- **Coached mode.** Runs a routine end to end: announces each drill by name,
+  counts you in, runs the drill, then a short rest, and repeats. Optional spoken
+  coach voice and sound effects; resumes where you left off.
+- **Progress.** Per-chord-pair history and best scores over time.
+- **Local-first with optional sync.** Works offline via `localStorage`; signing
+  in with Firebase syncs routines and progress across devices.
 
-## Getting Started
+## Stack
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/acarsondave/daily-fret.git
-   ```
-2. Install dependencies:
-   ```bash
-   cd daily-fret
-   npm install
-   ```
-3. Set up environment variables:
-   Create a `.env.local` file with your Firebase configuration.
-   ```
-   VITE_FIREBASE_API_KEY=your_api_key
-   VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
-   VITE_FIREBASE_PROJECT_ID=your_project_id
-   VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-   VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-   VITE_FIREBASE_APP_ID=your_app_id
-   ```
-4. Run the development server:
-   ```bash
-   npm run dev
-   ```
+- React 19, TypeScript, Vite
+- Zustand (persisted) for state
+- Vanilla CSS + Framer Motion
+- Firebase Auth + Firestore for sync
+- Cloudflare Pages for hosting
 
-## Contributing
-This project is currently built for personal use but engineered for scalability. PRs are welcome for bug fixes or aesthetic improvements.
+## Getting started
+
+```bash
+npm install
+cp .env.example .env   # fill in your Firebase web config
+npm run dev
+```
+
+The `VITE_FIREBASE_*` values are client-side config (inlined into the bundle),
+not secrets — access is governed by Firestore security rules. For deploys, set
+the same variables as build-time environment variables in Cloudflare Pages
+instead of committing `.env`.
+
+## Coach voice
+
+The coach voice is pre-rendered to static MP3s at build time, so the deployed
+app ships no API key and costs nothing at runtime. To (re)generate after adding
+or renaming drills:
+
+```bash
+# pull your distinct drill names from Firebase (your account only)
+FIREBASE_EMAIL=you@example.com FIREBASE_PASSWORD=... npm run names
+
+# render phrase + drill-name clips into public/coach/
+ELEVENLABS_API_KEY=sk_... npm run gen:voice -- --force
+```
+
+Then commit `public/coach/` and `scripts/drill-names.json`. Phrases live in
+`scripts/coach-phrases.mjs`.
+
+## Scripts
+
+- `npm run dev` — dev server
+- `npm run build` — typecheck and production build
+- `npm run lint` — ESLint
+- `npm run names` — fetch your drill names from Firebase
+- `npm run gen:voice` — render coach-voice clips
