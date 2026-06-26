@@ -1,7 +1,19 @@
 {
-  "up-next": 14,
-  "rest-start": 14,
-  "rest-tip": 14,
-  "done": 14,
-  "session": 14
+  "counts": {
+    "up-next": 14,
+    "rest-start": 14,
+    "rest-tip": 14,
+    "done": 14,
+    "name-lead": 6,
+    "count-in": 6,
+    "session": 14
+  },
+  "names": [
+    "chord-perfect-training",
+    "chord-speed-training",
+    "justinguitar-lesson",
+    "lauren-bateman-pushups",
+    "song-integration",
+    "spider-exercises"
+  ]
 }

@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "names": "node scripts/fetch-drill-names.mjs",
     "gen:voice": "node scripts/gen-coach-voice.mjs"
   },
   "dependencies": {

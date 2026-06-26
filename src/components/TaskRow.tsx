@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { useStore, getTodayString } from '../store';
 import { Check, Circle, Trash, PencilSimple, X, Waveform, ArrowUp, ArrowDown } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
@@ -6,7 +6,7 @@ import clsx from 'clsx';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
 import { chordPairs, pairKey } from '../lib/pairs';
 import { sanitizeMinutes, formatDuration } from '../lib/coached';
-import type { DrillConfig, DrillKind } from '../types';
+import type { DrillConfig, DrillKind, Task } from '../types';
 import './TaskRow.css';
 import './drill-fields.css';
 
@@ -24,12 +24,18 @@ interface TaskRowProps {
   drill?: DrillConfig;
   index: number;
   total: number;
-  onLaunchDrill?: () => void;
+  onLaunchDrill?: (task: Task) => void;
 }
 
-export function TaskRow({ routineId, taskId, title, description, duration, drill, index, total, onLaunchDrill }: TaskRowProps) {
+export const TaskRow = memo(function TaskRow({ routineId, taskId, title, description, duration, drill, index, total, onLaunchDrill }: TaskRowProps) {
   const today = getTodayString();
-  const { toggleTaskCompletion, deleteTask, updateTask, moveTask } = useStore();
+  // Select each action on its own — Zustand returns the *same* function
+  // reference every render, so this row no longer subscribes to the whole store
+  // (a bare `useStore()` did, re-rendering every row on any state change).
+  const toggleTaskCompletion = useStore((s) => s.toggleTaskCompletion);
+  const deleteTask = useStore((s) => s.deleteTask);
+  const updateTask = useStore((s) => s.updateTask);
+  const moveTask = useStore((s) => s.moveTask);
 
   // Subscribe narrowly to just this task's completion and best result so one
   // task toggling doesn't re-render every other row (these return primitives,
@@ -330,7 +336,7 @@ export function TaskRow({ routineId, taskId, title, description, duration, drill
               title={drill.kind === 'chord-trainer' ? 'Chord trainer' : '1-minute changes'}
               onClick={(e) => {
                 e.stopPropagation();
-                onLaunchDrill?.();
+                onLaunchDrill?.({ id: taskId, title, description, duration, drill });
               }}
             >
               <Waveform size={15} weight="bold" />
@@ -341,4 +347,4 @@ export function TaskRow({ routineId, taskId, title, description, duration, drill
       </motion.div>
     </ContextMenu>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, lazy, Suspense } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { useStore, useUserData, getTodayString } from '../store';
 import { useDrillStats } from '../lib/drillStats';
 import { TaskRow } from './TaskRow';
@@ -45,6 +45,10 @@ export function DailyPath() {
 
   const drillStats = useDrillStats();
   const hasProgress = drillStats.some((s) => s.series.length > 0);
+
+  // Stable across renders so memoized TaskRows don't re-render when the list
+  // does (e.g. when another task is toggled). The row passes its own task back.
+  const launchDrill = useCallback((task: Task) => setPracticeTask(task), []);
 
   const routineDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -237,7 +241,7 @@ export function DailyPath() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.03 }}
                 >
-                  <TaskRow routineId={activeRoutine.id} taskId={task.id} title={task.title} description={task.description} duration={task.duration} drill={task.drill} index={idx} total={tasks.length} onLaunchDrill={() => setPracticeTask(task)} />
+                  <TaskRow routineId={activeRoutine.id} taskId={task.id} title={task.title} description={task.description} duration={task.duration} drill={task.drill} index={idx} total={tasks.length} onLaunchDrill={launchDrill} />
                 </motion.div>
               ))}
 

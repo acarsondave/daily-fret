@@ -18,7 +18,10 @@ type ViewState = 'list' | 'create' | 'import';
 
 export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProps) {
   const { routines } = useUserData();
-  const { addRoutine, updateRoutine, deleteRoutine } = useStore();
+  // Per-action selectors return stable refs — avoids subscribing to the whole store.
+  const addRoutine = useStore((s) => s.addRoutine);
+  const updateRoutine = useStore((s) => s.updateRoutine);
+  const deleteRoutine = useStore((s) => s.deleteRoutine);
   
   const [view, setView] = useState<ViewState>('list');
   

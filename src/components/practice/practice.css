@@ -342,6 +342,17 @@
   color: var(--accent-primary);
 }
 
+/* Shown while the coach is announcing the drill (in place of a number). */
+.coach-countdown-ready {
+  margin-top: var(--space-4);
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: clamp(1.6rem, 6vw, 2.4rem);
+  line-height: 1.1;
+  color: var(--accent-primary);
+  opacity: 0.85;
+}
+
 /* Hands-free auto-advance countdown shown on coached results / finished blocks */
 .coach-advance {
   display: flex;

@@ -88,6 +88,30 @@ export const SECTIONS = [
     ],
   },
   {
+    file: 'name-lead',
+    title: 'Lead-in before a spoken drill name',
+    lines: [
+      "Up next,",
+      "Next up,",
+      "Now,",
+      "Here we go with,",
+      "Time for,",
+      "Let's do,",
+    ],
+  },
+  {
+    file: 'count-in',
+    title: 'Count-in — spoken right before a drill starts',
+    lines: [
+      "Get ready… three, two, one.",
+      "Here we go in three, two, one.",
+      "Ready? And… go.",
+      "Hands up… three, two, one.",
+      "Let's play in three, two, one.",
+      "Okay — three, two, one.",
+    ],
+  },
+  {
     file: 'session',
     title: 'Session complete — final congrats',
     lines: [

@@ -6,18 +6,23 @@ import { useStore, getTodayString, type CoachStepResult } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import { buildSegments } from '../../lib/coached';
 import { sfx } from '../../audio/sfx';
-import { speak, preloadCoachVoice, stopVoice, isCoachVoiceEnabled, setCoachVoiceEnabled } from '../../audio/coachVoice';
+import { speak, announceDrill, preloadCoachVoice, stopVoice, isCoachVoiceEnabled, setCoachVoiceEnabled } from '../../audio/coachVoice';
 import { useChordDetector } from '../../hooks/useChordDetector';
 import type { Routine } from '../../types';
 import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
 import { TimedSegment } from './TimedSegment';
+import { MicPermissionHint } from './MicPermissionHint';
 import './practice.css';
 
 type Phase = 'resume' | 'intro' | 'rest' | 'segment' | 'summary';
 
-const INTRO_SECONDS = 3;
+// Visual count-in length used only as a *silent fallback* — when the coach voice
+// is on, the spoken count-in drives the timing instead (see the intro effect).
+const COUNT_IN_SECONDS = 3;
 const REST_SECONDS = 30;
+
+const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 interface Props {
   routine: Routine;
@@ -56,7 +61,8 @@ export function CoachedSession({ routine, onClose }: Props) {
   const [index, setIndex] = useState(() => resumeData?.index ?? 0);
   const [results, setResults] = useState<CoachStepResult[]>(() => resumeData?.results ?? []);
   const [phase, setPhase] = useState<Phase>(() => (resumeData ? 'resume' : 'intro'));
-  const [countdown, setCountdown] = useState(INTRO_SECONDS);
+  // 0 → the coach is announcing ("Get ready…"); >0 → silent visual count-in.
+  const [countdown, setCountdown] = useState(0);
   const [restLeft, setRestLeft] = useState(REST_SECONDS);
   const [voiceOn, setVoiceOn] = useState(isCoachVoiceEnabled());
   const restLeftRef = useRef(REST_SECONDS);
@@ -104,25 +110,34 @@ export function CoachedSession({ routine, onClose }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Get-ready countdown before a segment.
+  // Announce → count-in → start, before *every* drill. The drill only starts
+  // once the coach has finished talking, so the voice never overlaps the drill.
+  // When the voice is off/unavailable, a silent 3·2·1 visual count-in stands in.
   useEffect(() => {
-    if (phase !== 'intro') return;
-    void speak('up-next'); // announce the first drill as the count-in runs
-    const started = Date.now();
-    let lastShown = -1;
-    const id = setInterval(() => {
-      const remaining = INTRO_SECONDS - Math.floor((Date.now() - started) / 1000);
-      if (remaining <= 0) {
-        clearInterval(id);
-        setPhase('segment');
-      } else if (remaining !== lastShown) {
-        lastShown = remaining;
-        setCountdown(remaining);
-        sfx.tick(); // 3 · 2 · 1 count-in
+    if (phase !== 'intro' || !seg) return;
+    let cancelled = false;
+    (async () => {
+      setCountdown(0); // show "Get ready…" while the coach talks
+      const announced = await announceDrill(seg.title); // "Up next, <drill name>"
+      if (cancelled) return;
+      const counted = announced ? await speak('count-in') : false; // spoken 3·2·1
+      if (cancelled) return;
+      if (!counted) {
+        // Silent fallback: tick a visible 3·2·1 so the start never feels abrupt.
+        for (let n = COUNT_IN_SECONDS; n >= 1; n--) {
+          if (cancelled) return;
+          setCountdown(n);
+          sfx.tick();
+          await delay(1000);
+        }
       }
-    }, 200);
-    return () => clearInterval(id);
-  }, [phase, index]);
+      if (cancelled) return;
+      setPhase('segment');
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, index, seg]);
 
   // Rest timer between segments (gym-style). Fully automatic — it counts itself
   // down and rolls into the next drill, so there's nothing to tap during a rest.
@@ -137,7 +152,7 @@ export function CoachedSession({ routine, onClose }: Props) {
       setRestLeft(remaining);
       if (remaining <= 0) {
         clearInterval(id);
-        setPhase('segment');
+        setPhase('intro'); // announce + count-in the next drill before it starts
       }
     }, 250);
     return () => {
@@ -253,7 +268,12 @@ export function CoachedSession({ routine, onClose }: Props) {
             <span className="coach-up-next">Up next</span>
             <div className="coach-intro-title">{seg.title}</div>
             <div className="om-caption">{subLabel}</div>
-            <div className="coach-countdown">{countdown}</div>
+            {countdown > 0 ? (
+              <div className="coach-countdown">{countdown}</div>
+            ) : (
+              <div className="coach-countdown-ready">Get ready…</div>
+            )}
+            <MicPermissionHint />
           </motion.div>
         )}
 
@@ -262,6 +282,7 @@ export function CoachedSession({ routine, onClose }: Props) {
             <span className="coach-up-next">Rest</span>
             <div className="coach-countdown">{restLeft}</div>
             <div className="om-caption">Next: {seg.title} · {subLabel}</div>
+            <MicPermissionHint />
           </motion.div>
         )}
 
