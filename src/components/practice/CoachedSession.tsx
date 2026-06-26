@@ -42,6 +42,12 @@ export function CoachedSession({ routine, onClose }: Props) {
   const clearCoachProgress = useStore((s) => s.clearCoachProgress);
 
   const segments = useMemo(() => buildSegments(routine), [routine]);
+  // Only nudge about the mic if this routine actually listens (changes/trainer);
+  // a timed-only routine never opens the mic, so the hint would be misleading.
+  const needsMic = useMemo(
+    () => segments.some((s) => s.kind === 'changes' || s.kind === 'trainer'),
+    [segments],
+  );
   const today = getTodayString();
 
   // One mic for the whole session — segments share it via the `detector` prop so
@@ -273,7 +279,7 @@ export function CoachedSession({ routine, onClose }: Props) {
             ) : (
               <div className="coach-countdown-ready">Get ready…</div>
             )}
-            <MicPermissionHint />
+            {needsMic && <MicPermissionHint />}
           </motion.div>
         )}
 
@@ -282,7 +288,7 @@ export function CoachedSession({ routine, onClose }: Props) {
             <span className="coach-up-next">Rest</span>
             <div className="coach-countdown">{restLeft}</div>
             <div className="om-caption">Next: {seg.title} · {subLabel}</div>
-            <MicPermissionHint />
+            {needsMic && <MicPermissionHint />}
           </motion.div>
         )}
 
