@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Local env — set these in Cloudflare Pages build env vars instead.
+# .env.example stays tracked as documentation.
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
