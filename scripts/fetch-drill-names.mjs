@@ -74,12 +74,17 @@ async function main() {
 
   const data = snap.data();
   const bySlug = new Map(); // slug -> title (first spelling wins)
+  const remember = (raw) => {
+    const title = (raw ?? '').trim();
+    if (!title) return;
+    const slug = slugify(title);
+    if (slug && !bySlug.has(slug)) bySlug.set(slug, title);
+  };
   for (const r of data.routines ?? []) {
     for (const t of r.tasks ?? []) {
-      const title = (t.title ?? '').trim();
-      if (!title) continue;
-      const slug = slugify(title);
-      if (slug && !bySlug.has(slug)) bySlug.set(slug, title);
+      remember(t.title);
+      // Configurable timed tasks announce each block by its own label.
+      for (const b of t.blocks ?? []) remember(b.label);
     }
   }
 

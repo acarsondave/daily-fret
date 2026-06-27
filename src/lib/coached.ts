@@ -8,6 +8,7 @@ import { chordPairs, routineChords } from './pairs';
 export type CoachSegment =
   | { kind: 'changes'; taskId: string; title: string; from: string; to: string; seconds: number }
   | { kind: 'trainer'; taskId: string; title: string; chords: string[]; seconds: number }
+  | { kind: 'song'; taskId: string; title: string; songId: string }
   | { kind: 'timed'; taskId: string; title: string; description?: string; seconds: number };
 
 // Parse a free-form duration label ("5 mins", "2-3 mins", "90s") into seconds.
@@ -73,6 +74,26 @@ export function buildSegments(routine: Routine | undefined): CoachSegment[] {
         chords: task.drill?.chords?.length ? task.drill.chords : learned,
         seconds: drillSeconds,
       });
+    } else if (kind === 'song' && task.drill?.songId) {
+      // Self-paced play-along: no fixed length, it ends when the song is done.
+      segments.push({
+        kind: 'song',
+        taskId: task.id,
+        title: task.title,
+        songId: task.drill.songId,
+      });
+    } else if (task.blocks?.length) {
+      // Configurable timed task: each block runs as its own segment, announced
+      // by its label, so one task (e.g. "Strumming") can hold several patterns.
+      for (const block of task.blocks) {
+        segments.push({
+          kind: 'timed',
+          taskId: task.id,
+          title: block.label,
+          description: block.note,
+          seconds: block.durationSec,
+        });
+      }
     } else {
       segments.push({
         kind: 'timed',

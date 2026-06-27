@@ -11,6 +11,7 @@ import { useChordDetector } from '../../hooks/useChordDetector';
 import type { Routine } from '../../types';
 import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
+import { SongPlayer } from './SongPlayer';
 import { TimedSegment } from './TimedSegment';
 import { MicPermissionHint } from './MicPermissionHint';
 import './practice.css';
@@ -45,7 +46,7 @@ export function CoachedSession({ routine, onClose }: Props) {
   // Only nudge about the mic if this routine actually listens (changes/trainer);
   // a timed-only routine never opens the mic, so the hint would be misleading.
   const needsMic = useMemo(
-    () => segments.some((s) => s.kind === 'changes' || s.kind === 'trainer'),
+    () => segments.some((s) => s.kind === 'changes' || s.kind === 'trainer' || s.kind === 'song'),
     [segments],
   );
   const today = getTodayString();
@@ -127,8 +128,11 @@ export function CoachedSession({ routine, onClose }: Props) {
       // A task can fan into several segments (one per chord pair). Speak the
       // name only on its first segment; later pairs get a short generic lead-in
       // so we don't repeat "Chord Speed Training" before every pair.
-      const isFirstOfTask = index === 0 || segments[index - 1]?.taskId !== seg.taskId;
-      const announced = isFirstOfTask
+      // Announce the name when the title changes from the previous segment. A
+      // task that fans into same-titled segments (changes → one per pair) is
+      // announced once; distinct-titled segments (blocks, songs) each get named.
+      const isNewTitle = index === 0 || segments[index - 1]?.title !== seg.title;
+      const announced = isNewTitle
         ? await announceDrill(seg.title) // "Up next, <drill name>"
         : await speak('up-next');
       if (cancelled) return;
@@ -227,7 +231,9 @@ export function CoachedSession({ routine, onClose }: Props) {
       ? `${seg.from} ↔ ${seg.to}`
       : seg.kind === 'trainer'
         ? `Chord Trainer · ${seg.chords.join(' ')}`
-        : mins(seg.seconds);
+        : seg.kind === 'song'
+          ? 'Play-along · self-paced'
+          : mins(seg.seconds);
 
   return createPortal(
     <motion.div
@@ -333,6 +339,20 @@ export function CoachedSession({ routine, onClose }: Props) {
               void speak('done');
             }}
             onNext={() => advance({ title: seg.title, value: lastValueRef.current, unit: 'nailed' })}
+            onClose={exit}
+          />
+        )}
+
+        {phase === 'segment' && seg.kind === 'song' && (
+          <SongPlayer
+            key={`seg-${index}`}
+            songId={seg.songId}
+            autoStart
+            autoAdvance
+            nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
+            detector={detector}
+            onFinish={() => void speak('done')}
+            onNext={() => advance({ title: seg.title, value: null, unit: '' })}
             onClose={exit}
           />
         )}

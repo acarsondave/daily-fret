@@ -6,6 +6,7 @@ import clsx from 'clsx';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
 import { chordPairs, pairKey } from '../lib/pairs';
 import { sanitizeMinutes, formatDuration } from '../lib/coached';
+import { SONGS } from '../data/songs';
 import type { DrillConfig, DrillKind, Task } from '../types';
 import './TaskRow.css';
 import './drill-fields.css';
@@ -87,6 +88,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
   const [editTrainerChords, setEditTrainerChords] = useState<string[]>(
     drill?.kind === 'chord-trainer' && drill.chords?.length ? drill.chords : ['A', 'D', 'E', 'G', 'C'],
   );
+  const [editSongId, setEditSongId] = useState<string>(drill?.songId ?? SONGS[0].id);
 
   const titleInputRef = useRef<HTMLInputElement>(null);
   const taskRef = useRef<HTMLDivElement>(null);
@@ -122,6 +124,8 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
         chords: editTrainerChords.length >= 2 ? editTrainerChords : ['A', 'D', 'E', 'G', 'C'],
         durationSec: drill?.durationSec ?? 60,
       };
+    } else if (editDrillKind === 'song') {
+      nextDrill = { kind: 'song', songId: editSongId };
     }
 
     updateTask(routineId, taskId, {
@@ -140,6 +144,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
     setEditTrainerChords(
       drill?.kind === 'chord-trainer' && drill.chords?.length ? drill.chords : ['A', 'D', 'E', 'G', 'C'],
     );
+    setEditSongId(drill?.songId ?? SONGS[0].id);
     setIsEditing(false);
   };
 
@@ -207,6 +212,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
                 ['none', 'None'],
                 ['one-minute-changes', '1-Min Changes'],
                 ['chord-trainer', 'Chord Trainer'],
+                ['song', 'Song'],
               ] as const).map(([value, label]) => (
                 <button
                   key={value}
@@ -254,6 +260,22 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
                     </button>
                   ))}
                 </div>
+              </>
+            )}
+            {editDrillKind === 'song' && (
+              <>
+                <span className="drill-hint">Play along to the chords at your own pace</span>
+                <select
+                  className="task-input drill-song-select"
+                  value={editSongId}
+                  onChange={e => setEditSongId(e.target.value)}
+                >
+                  {SONGS.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.title} · {s.artist} ({s.chords.join(' ')})
+                    </option>
+                  ))}
+                </select>
               </>
             )}
           </div>
@@ -333,7 +355,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
             <button
               type="button"
               className="task-drill-btn"
-              title={drill.kind === 'chord-trainer' ? 'Chord trainer' : '1-minute changes'}
+              title={drill.kind === 'chord-trainer' ? 'Chord trainer' : drill.kind === 'song' ? 'Song play-along' : '1-minute changes'}
               onClick={(e) => {
                 e.stopPropagation();
                 onLaunchDrill?.({ id: taskId, title, description, duration, drill });

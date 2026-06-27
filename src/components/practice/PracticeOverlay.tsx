@@ -7,6 +7,7 @@ import { pairKey } from '../../lib/pairs';
 import type { Task } from '../../types';
 import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
+import { SongPlayer } from './SongPlayer';
 import './practice.css';
 
 interface Props {
@@ -97,6 +98,9 @@ export function PracticeOverlay({ task, onClose }: Props) {
             onResult={(score) => recordDrillResult(getTodayString(), task.id, score)}
             onClose={onClose}
           />
+        )}
+        {drill.kind === 'song' && drill.songId && (
+          <SongPlayer songId={drill.songId} onClose={onClose} />
         )}
       </div>
     </motion.div>,

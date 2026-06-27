@@ -1,4 +1,4 @@
-export type DrillKind = 'one-minute-changes' | 'chord-trainer';
+export type DrillKind = 'one-minute-changes' | 'chord-trainer' | 'song';
 
 export interface DrillConfig {
   kind: DrillKind;
@@ -8,6 +8,17 @@ export interface DrillConfig {
   // one-minute-changes: the chords you're comfortable switching between (pairs
   // are derived from these). chord-trainer: the pool of chords to call out.
   chords?: string[];
+  songId?: string; // song-player: which song from the catalog to play along to
+}
+
+// One labeled block inside a configurable timed task. Lets a single task (e.g.
+// "Strumming") hold several self-contained blocks, each with its own minutes,
+// that coached mode walks through as separate segments.
+export interface TimedBlock {
+  id: string;
+  label: string;
+  durationSec: number;
+  note?: string;
 }
 
 export interface Task {
@@ -16,6 +27,7 @@ export interface Task {
   description?: string;
   duration?: string; // e.g., "5 mins"
   drill?: DrillConfig; // when set, the task launches an interactive detector
+  blocks?: TimedBlock[]; // when set (and no drill), a multi-block timed task
 }
 
 export interface Routine {
