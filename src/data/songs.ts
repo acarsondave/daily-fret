@@ -1,30 +1,31 @@
-// Chord-only song catalog for the play-along drill. Playing a song always runs
-// two passes: Learn (self-paced, advance when you play the chord) then Play
-// (tempo-led metronome, bars auto-advance, detection is advisory only).
+// Chord-only song catalog for the play-along drill. Playing a song runs two
+// passes: Learn (self-paced, advance when you play the chord) then Play
+// (tempo-led karaoke, the lane scrolls and bars auto-advance; detection is
+// advisory only — it lights the chord when you hit it, never grades).
 //
-// HOW TO ADD A SONG (no code knowledge needed — copy an entry and edit):
-//   id        unique slug, e.g. 'horse-with-no-name'
-//   title     display name
-//   artist    display name
-//   level     'Beginner' | 'Easy'
-//   bpm       base tempo for the Play pass (a steady guess is fine; it's
-//             adjustable live). Slow ~70, medium ~100, upbeat ~140.
-//   strum     ONE bar as 8 eighth-note slots, each: D (down) U (up) - (rest).
-//             e.g. 'D-D-D-D-' = four downstrokes, 'D-DU-UD-' = the common one.
-//   chords    the distinct chords used — drives detection + the chord legend.
-//             Only these are recognized: A C D E G Am Dm Em F.
-//   sections  the song in order. Each section is { label, chords, lyric? }.
-//             Each chord in `chords` is ONE bar; repeat a chord to hold it
-//             longer. `lyric` is an optional tiny line shown during the section.
+// HOW TO ADD A SONG (copy an entry and edit):
+//   id/title/artist/level  display + a unique slug
+//   bpm        tempo for the Play pass (adjustable live)
+//   strum      DEFAULT strum for a bar: a string of D (down) / U (up) / - (rest),
+//              e.g. 'DD' = two downs, 'DDDD' = four downs. Per-bar overrides below.
+//   chords     distinct chords used (drives detection). Only: A C D E G Am Dm Em F
+//   sections   the song in order. Each section is { label, steps }. A step is one
+//              bar: s('A') or s('A','lyric sung here') or s('E', '', 'DDDDDD') to
+//              override the strum for a long-held chord.
 //
-// Then it shows up in the Song picker automatically. That's the whole job.
+// `s(chord, lyric?, strum?)` keeps authoring terse. That's the whole job.
 
 export type StrumDir = 'D' | 'U' | '-';
 
+export interface SongStepDef {
+  chord: string;
+  strum?: string; // overrides the song default for this bar
+  lyric?: string; // word(s) sung starting on this chord (karaoke sync)
+}
+
 export interface SongSection {
   label: string;
-  chords: string[]; // one chord per bar
-  lyric?: string; // optional tiny lyric line shown during this section
+  steps: SongStepDef[];
 }
 
 export interface Song {
@@ -33,128 +34,162 @@ export interface Song {
   artist: string;
   level: 'Beginner' | 'Easy';
   bpm: number;
-  strum: string; // 8 chars of D/U/-
+  strum: string;
   chords: string[];
   sections: SongSection[];
 }
 
-export const SONGS: Song[] = [
-  {
-    // The chart's (G A G) fills are played as a fast open-string riff back to A,
-    // so this version stays on A, D, E throughout.
-    id: 'wild-thing',
-    title: 'Wild Thing',
-    artist: 'The Troggs',
-    level: 'Beginner',
-    bpm: 100,
-    strum: 'D-D-D-D-',
-    chords: ['A', 'D', 'E'],
-    sections: [
-      {
-        label: 'Verse',
-        chords: ['A', 'D', 'E', 'D', 'A', 'D', 'E', 'D', 'A', 'D', 'E', 'D', 'A', 'D', 'E'],
-        lyric: 'Wild thing, you make my heart sing. You make everything groovy. Wild thing.',
-      },
-      { label: 'Bridge', chords: ['A'], lyric: 'Wild thing, I think I love you.' },
-      { label: 'Interlude', chords: ['A', 'D', 'E', 'D', 'A', 'D', 'E', 'D'] },
-      {
-        label: 'Verse',
-        chords: ['A', 'D', 'E', 'D', 'A', 'D', 'E', 'D', 'A', 'D', 'E', 'D', 'A', 'D', 'E'],
-        lyric: 'Wild thing, you make my heart sing. You make everything groovy. Wild thing.',
-      },
-      {
-        label: 'Outro',
-        chords: ['A', 'D', 'E', 'D', 'A', 'D', 'E'],
-        lyric: "Come on, come on, wild thing. Shake it, shake it, wild thing.",
-      },
-    ],
-  },
-  {
-    id: 'three-little-birds',
-    title: 'Three Little Birds',
-    artist: 'Bob Marley',
-    level: 'Beginner',
-    bpm: 76,
-    strum: 'D-DU-UD-',
-    chords: ['A', 'D', 'E'],
-    sections: [
-      { label: 'Chorus', chords: ['A', 'A', 'D', 'A', 'E', 'A'], lyric: "Don't worry about a thing." },
-      { label: 'Verse', chords: ['A', 'A', 'D', 'A', 'E', 'A'], lyric: 'Rise up this morning, smiled with the rising sun.' },
-      { label: 'Chorus', chords: ['A', 'A', 'D', 'A', 'E', 'A'], lyric: "'Cause every little thing gonna be all right." },
-    ],
-  },
-  {
-    id: 'bad-moon-rising',
-    title: 'Bad Moon Rising',
-    artist: 'Creedence Clearwater Revival',
-    level: 'Easy',
-    bpm: 120,
-    strum: 'D-DU-UD-',
-    chords: ['D', 'A', 'G'],
-    sections: [
-      { label: 'Verse', chords: ['D', 'A', 'G', 'D'], lyric: 'I see a bad moon rising.' },
-      { label: 'Chorus', chords: ['G', 'D', 'A', 'G', 'D'], lyric: "Don't go around tonight." },
-      { label: 'Verse', chords: ['D', 'A', 'G', 'D'], lyric: 'I hear hurricanes a-blowing.' },
-    ],
-  },
-  {
-    id: 'knockin-on-heavens-door',
-    title: "Knockin' on Heaven's Door",
-    artist: 'Bob Dylan',
-    level: 'Easy',
-    bpm: 72,
-    strum: 'D-DU-UD-',
-    chords: ['G', 'D', 'Am', 'C'],
-    sections: [
-      { label: 'Verse', chords: ['G', 'D', 'Am', 'Am', 'G', 'D', 'C', 'C'], lyric: "Mama, take this badge off of me." },
-      { label: 'Verse', chords: ['G', 'D', 'Am', 'Am', 'G', 'D', 'C', 'C'], lyric: "I can't use it anymore." },
-      { label: 'Chorus', chords: ['G', 'D', 'C', 'C', 'G', 'D', 'C', 'C'], lyric: "Knock, knock, knockin' on heaven's door." },
-    ],
-  },
+const s = (chord: string, lyric?: string, strum?: string): SongStepDef => ({
+  chord,
+  ...(lyric ? { lyric } : {}),
+  ...(strum ? { strum } : {}),
+});
+
+// --- Wild Thing (The Troggs), faithful to the common chart ---
+const WT_CHORUS: SongStepDef[] = [
+  s('A', 'Wild thing'), s('D'),
+  s('E'), s('D', 'you make my heart sing'), s('A'), s('D'),
+  s('E'), s('D', 'you make everything groovy'), s('A'), s('D'),
+  s('E'), s('D'), s('A', 'wild thing'), s('D'), s('E'), s('G'), s('A'), s('G'),
 ];
+const WT_INTERLUDE: SongStepDef[] = [s('A'), s('D'), s('E'), s('D'), s('A'), s('D'), s('E'), s('D')];
+
+const wildThing: Song = {
+  id: 'wild-thing',
+  title: 'Wild Thing',
+  artist: 'The Troggs',
+  level: 'Beginner',
+  bpm: 100,
+  strum: 'DD',
+  chords: ['A', 'D', 'E', 'G'],
+  sections: [
+    // Prelude — played before the singing starts.
+    { label: 'Intro', steps: [s('A'), s('D'), s('E', '', 'DDDDDD')] },
+    { label: 'Chorus', steps: WT_CHORUS },
+    {
+      label: 'Verse 1',
+      steps: [
+        s('A', 'Wild thing,'), s('G'), s('A', 'I think I love you'), s('G'),
+        s('A', 'but'), s('G'), s('A', 'I wanna know for sure'), s('G'),
+        s('A'), s('G', "so come on, hold me tight"), s('A', 'I love you'),
+      ],
+    },
+    { label: 'Interlude', steps: WT_INTERLUDE },
+    { label: 'Chorus', steps: WT_CHORUS },
+    {
+      label: 'Solo',
+      steps: [
+        s('A'), s('D'), s('E'), s('D'), s('A'), s('D'), s('E'), s('D'),
+        s('A'), s('D'), s('E'), s('D'), s('A'), s('D'), s('E'), s('G'), s('A'), s('G'),
+      ],
+    },
+    {
+      label: 'Verse 2',
+      steps: [
+        s('A', 'Wild thing,'), s('G'), s('A', 'I think you move me'), s('G'),
+        s('A', 'but'), s('G'), s('A', 'I wanna know for sure'), s('G'),
+        s('A'), s('G', "so come on, hold me tight"), s('A', 'you move me'),
+      ],
+    },
+    { label: 'Interlude', steps: WT_INTERLUDE },
+    { label: 'Chorus', steps: WT_CHORUS },
+  ],
+};
+
+const threeLittleBirds: Song = {
+  id: 'three-little-birds',
+  title: 'Three Little Birds',
+  artist: 'Bob Marley',
+  level: 'Beginner',
+  bpm: 76,
+  strum: 'DDUUDU',
+  chords: ['A', 'D', 'E'],
+  sections: [
+    { label: 'Chorus', steps: [s('A', "Don't worry"), s('A', 'about a thing'), s('D'), s('A', "'cause every little thing"), s('E'), s('A', 'gonna be all right')] },
+    { label: 'Verse', steps: [s('A', 'Rise up this morning'), s('A'), s('D', 'smiled with the rising sun'), s('A'), s('E', 'three little birds'), s('A', 'by my doorstep')] },
+    { label: 'Chorus', steps: [s('A', "Don't worry"), s('A', 'about a thing'), s('D'), s('A', "'cause every little thing"), s('E'), s('A', 'gonna be all right')] },
+  ],
+};
+
+const badMoonRising: Song = {
+  id: 'bad-moon-rising',
+  title: 'Bad Moon Rising',
+  artist: 'Creedence Clearwater Revival',
+  level: 'Easy',
+  bpm: 120,
+  strum: 'DDUUDU',
+  chords: ['D', 'A', 'G'],
+  sections: [
+    { label: 'Verse', steps: [s('D', 'I see a bad moon rising'), s('A'), s('G'), s('D')] },
+    { label: 'Chorus', steps: [s('G', "Don't go around tonight"), s('D'), s('A', "it's bound to take your life"), s('G'), s('D')] },
+    { label: 'Verse', steps: [s('D', 'I hear hurricanes a-blowing'), s('A'), s('G'), s('D')] },
+  ],
+};
+
+const knockinHeaven: Song = {
+  id: 'knockin-on-heavens-door',
+  title: "Knockin' on Heaven's Door",
+  artist: 'Bob Dylan',
+  level: 'Easy',
+  bpm: 72,
+  strum: 'DDUUDU',
+  chords: ['G', 'D', 'Am', 'C'],
+  sections: [
+    { label: 'Verse', steps: [s('G', 'Mama, take this badge off of me'), s('D'), s('Am'), s('Am'), s('G'), s('D'), s('C'), s('C')] },
+    { label: 'Verse', steps: [s('G', "I can't use it anymore"), s('D'), s('Am'), s('Am'), s('G'), s('D'), s('C'), s('C')] },
+    { label: 'Chorus', steps: [s('G', "Knock, knock, knockin'"), s('D'), s('C', "on heaven's door"), s('C'), s('G'), s('D'), s('C'), s('C')] },
+  ],
+};
+
+export const SONGS: Song[] = [wildThing, threeLittleBirds, badMoonRising, knockinHeaven];
 
 export function getSong(id: string | undefined): Song | undefined {
-  return id ? SONGS.find((s) => s.id === id) : undefined;
+  return id ? SONGS.find((song) => song.id === id) : undefined;
 }
 
-// Parse the 8-slot strum string into directions, padded/truncated to 8.
 export function parseStrum(strum: string): StrumDir[] {
-  const slots: StrumDir[] = [];
-  for (let i = 0; i < 8; i++) {
-    const c = strum[i];
-    slots.push(c === 'D' || c === 'U' ? c : '-');
-  }
-  return slots;
+  const out: StrumDir[] = [];
+  for (const c of strum) out.push(c === 'D' || c === 'U' ? c : '-');
+  return out;
 }
 
-export interface SongStep {
+export interface SongCell {
   chord: string;
+  strum: string;
   section: string;
   lyric?: string;
+  sectionStart: boolean; // first cell of a new section
 }
 
-// Learn pass: the ordered chord-change timeline, collapsing a chord that repeats
-// the previous step (the detector only emits on a change, so holding a chord for
-// several bars is one step here).
-export function songTimeline(song: Song): SongStep[] {
-  const steps: SongStep[] = [];
+// Play pass: every step is one bar, in order.
+export function songBars(song: Song): SongCell[] {
+  const cells: SongCell[] = [];
   for (const section of song.sections) {
-    for (const chord of section.chords) {
-      if (steps.length && steps[steps.length - 1].chord === chord) continue;
-      steps.push({ chord, section: section.label, lyric: section.lyric });
+    section.steps.forEach((step, i) => {
+      cells.push({
+        chord: step.chord,
+        strum: step.strum ?? song.strum,
+        section: section.label,
+        lyric: step.lyric,
+        sectionStart: i === 0,
+      });
+    });
+  }
+  return cells;
+}
+
+// Learn pass: collapse a chord that repeats the previous bar (the detector emits
+// once per change), but keep a lyric/section-start that would otherwise be lost.
+export function songTimeline(song: Song): SongCell[] {
+  const bars = songBars(song);
+  const steps: SongCell[] = [];
+  for (const bar of bars) {
+    const prev = steps[steps.length - 1];
+    if (prev && prev.chord === bar.chord) {
+      if (!prev.lyric && bar.lyric) prev.lyric = bar.lyric;
+      continue;
     }
+    steps.push({ ...bar });
   }
   return steps;
-}
-
-// Play pass: every listed chord is one bar (no collapsing), so a held chord
-// occupies the bars it's written for and the metronome dwells on it.
-export function songBars(song: Song): SongStep[] {
-  const bars: SongStep[] = [];
-  for (const section of song.sections) {
-    for (const chord of section.chords) {
-      bars.push({ chord, section: section.label, lyric: section.lyric });
-    }
-  }
-  return bars;
 }

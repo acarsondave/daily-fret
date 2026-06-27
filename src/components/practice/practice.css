@@ -56,10 +56,14 @@
 
 .practice-body {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* `safe` keeps the top reachable when content is taller than the viewport, so
+     drills stay usable on short windows instead of clipping above the fold. */
+  justify-content: safe center;
+  overflow-y: auto;
   gap: var(--space-8);
   padding: var(--space-6) var(--space-6) var(--space-16);
   text-align: center;
@@ -563,7 +567,10 @@
   box-shadow: 0 0 12px rgba(251, 191, 36, 0.7);
 }
 
-/* ---- Song play-along ---- */
+
+/* ===== Song play-along (karaoke) ===== */
+
+/* Intro / setup */
 .song-intro-head {
   display: inline-flex;
   align-items: center;
@@ -577,7 +584,6 @@
   color: var(--text-primary);
   text-align: left;
 }
-
 .song-chip-row {
   display: inline-flex;
   flex-wrap: wrap;
@@ -596,99 +602,22 @@
   font-size: 0.85rem;
 }
 
-.song-next {
-  font-family: var(--font-secondary);
-  font-size: 0.85rem;
-  letter-spacing: 0.04em;
-  color: var(--text-secondary);
+/* Stage layout — fills the practice body, no fullscreen needed */
+.song-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(var(--space-3), 4vh, var(--space-6));
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
 }
-.song-next strong {
-  color: var(--text-primary);
-  font-weight: 700;
-  margin-left: 0.25rem;
-}
-
-.song-progress {
+.song-topline {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  width: 100%;
-  max-width: 280px;
 }
-.song-progress-bar {
-  flex: 1;
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.1);
-  overflow: hidden;
-}
-.song-progress-fill {
-  height: 100%;
-  border-radius: var(--radius-full);
-  background: var(--accent-primary);
-  transition: width 0.25s ease;
-}
-.song-progress-count {
-  font-family: var(--font-secondary);
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-  min-width: 48px;
-  text-align: right;
-}
-
-.song-skip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-full);
-  color: var(--text-secondary);
-  font-family: var(--font-secondary);
-  font-size: 0.72rem;
-  opacity: 0.7;
-  transition: color 0.2s ease, opacity 0.2s ease;
-}
-.song-skip:hover {
-  color: var(--text-primary);
-  opacity: 1;
-}
-
-/* ---- Strum pattern (arrow art) ---- */
-.strum-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.03);
-}
-.strum-slot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 30px;
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  transition: color 0.12s ease, background 0.12s ease, transform 0.12s ease;
-}
-.strum-slot.is-off { opacity: 0.85; }
-.strum-slot.is-beat { margin-left: 2px; }
-.strum-slot.is-rest { color: rgba(255, 255, 255, 0.22); }
-.strum-rest-dot {
-  width: 4px;
-  height: 4px;
-  border-radius: var(--radius-full);
-  background: currentColor;
-}
-.strum-slot.is-active {
-  color: var(--accent-primary);
-  background: var(--accent-glow);
-  transform: translateY(-1px);
-}
-.strum-slot.is-active.is-rest { color: var(--accent-primary); }
-
-/* ---- Pass badge (Learn / Play) ---- */
 .song-pass {
   font-family: var(--font-secondary);
   font-size: 0.7rem;
@@ -701,25 +630,139 @@
   background: rgba(255, 255, 255, 0.04);
 }
 .song-pass.is-play { color: var(--accent-primary); background: var(--accent-glow); }
-
-/* ---- Tiny lyric line ---- */
-.song-lyric {
-  max-width: 320px;
-  text-align: center;
+.song-section-tag {
   font-family: var(--font-secondary);
-  font-size: 0.8rem;
-  line-height: 1.4;
+  font-size: 0.78rem;
   color: var(--text-secondary);
-  opacity: 0.85;
-  margin: 0;
 }
 
-/* ---- Tempo control ---- */
-.song-tempo {
-  display: inline-flex;
+/* The scrolling lane */
+.song-lane {
+  position: relative;
+  width: 100%;
+  height: 116px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent);
+}
+.song-now-marker {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  bottom: 6px;
+  width: 76px;
+  transform: translateX(-50%);
+  border-radius: var(--radius-md);
+  border: 1.5px solid rgba(56, 189, 248, 0.45);
+  background: rgba(56, 189, 248, 0.06);
+  pointer-events: none;
+  z-index: 0;
+}
+.song-now-marker.is-pulsing { animation: now-pulse var(--beat-ms, 600ms) steps(1, end) infinite; }
+@keyframes now-pulse {
+  0% { background: rgba(56, 189, 248, 0.16); border-color: rgba(56, 189, 248, 0.7); }
+  50% { background: rgba(56, 189, 248, 0.05); border-color: rgba(56, 189, 248, 0.4); }
+  100% { background: rgba(56, 189, 248, 0.05); border-color: rgba(56, 189, 248, 0.4); }
+}
+.song-track {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  will-change: transform;
+}
+.song-cell {
+  flex: 0 0 76px;
+  margin: 0 8px;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: var(--space-2);
+  opacity: 0.4;
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
+.song-cell.is-past { opacity: 0.18; }
+.song-cell.is-now { opacity: 1; transform: scale(1.12); }
+.song-cell-chord {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: 1.7rem;
+  line-height: 1;
+  color: var(--text-primary);
+}
+.song-cell.is-now .song-cell-chord { color: var(--accent-primary); }
+
+/* Strum arrows */
+.strum-row { display: inline-flex; align-items: center; gap: 2px; height: 18px; }
+.strum-arrow { display: inline-flex; align-items: center; justify-content: center; color: var(--text-secondary); }
+.song-cell.is-now .strum-arrow { color: var(--text-primary); }
+.strum-arrow.is-rest { color: rgba(255, 255, 255, 0.25); }
+.strum-rest-dot { width: 4px; height: 4px; border-radius: var(--radius-full); background: currentColor; }
+
+/* Synced lyric / count-in */
+.song-lyric-line {
+  min-height: 1.6em;
+  text-align: center;
+  font-family: var(--font-secondary);
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  max-width: 90%;
+}
+.song-countin-num {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: clamp(2.5rem, 10vw, 3.5rem);
+  line-height: 1;
+  color: var(--accent-primary);
+}
+
+/* Parts timeline (sections + playhead) */
+.song-parts {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+}
+.song-part {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  border-right: 1px solid rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+.song-part:last-child { border-right: none; }
+.song-part-label {
+  font-family: var(--font-secondary);
+  font-size: 0.6rem;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 4px;
+}
+.song-parts-head {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent-primary);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
+}
+
+/* Foot: tempo / skip + signal */
+.song-stage-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.song-tempo { display: inline-flex; align-items: center; gap: var(--space-2); }
 .song-tempo-btn {
   display: inline-flex;
   align-items: center;
@@ -736,25 +779,30 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-width: 64px;
+  min-width: 60px;
   justify-content: center;
   font-family: var(--font-primary);
   font-weight: 700;
   font-size: 0.9rem;
   color: var(--text-primary);
 }
-
-/* ---- Count-in ---- */
-.song-countin {
-  display: flex;
-  flex-direction: column;
+.song-skip {
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-family: var(--font-secondary);
+  font-size: 0.72rem;
+  opacity: 0.75;
+  transition: color 0.2s ease, opacity 0.2s ease;
 }
-.song-countin-num {
-  font-family: var(--font-primary);
-  font-weight: 700;
-  font-size: clamp(4rem, 18vw, 6rem);
-  line-height: 1;
-  color: var(--accent-primary);
+.song-skip:hover { color: var(--text-primary); opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .song-now-marker.is-pulsing { animation: none; }
 }
+
+.song-cell.is-correct .song-cell-chord { color: var(--success-color); }
+.song-cell.is-correct .strum-arrow { color: var(--success-color); }

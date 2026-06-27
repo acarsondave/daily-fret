@@ -1,36 +1,24 @@
 import { ArrowDown, ArrowUp } from '@phosphor-icons/react';
-import type { StrumDir } from '../../data/songs';
+import { parseStrum } from '../../data/songs';
 
 interface Props {
-  slots: StrumDir[]; // 8 eighth-note slots
-  activeSlot?: number; // current beat cursor; -1/undefined = static reference
+  strum: string; // D/U/- string, any length
+  size?: number;
 }
 
-// The strum pattern as arrow art: down/up arrows for strums, a dim dot for
-// rests. In the Play pass the active eighth-note is highlighted by the cursor;
-// in Learn it sits static as a reference. Eight slots read as four beats.
-export function StrumRow({ slots, activeSlot = -1 }: Props) {
+// A chord's strum as arrow art: down/up arrows for strums, a dim dot for rests.
+// Length is the strum count, so "DD" reads as two downs and "DDDDDD" as six.
+export function StrumRow({ strum, size = 13 }: Props) {
+  const slots = parseStrum(strum);
   return (
     <div className="strum-row" aria-hidden="true">
-      {slots.map((dir, i) => {
-        const isBeat = i % 2 === 0; // downbeats (1 2 3 4)
-        const isActive = i === activeSlot;
-        return (
-          <div
-            key={i}
-            className={[
-              'strum-slot',
-              isBeat ? 'is-beat' : 'is-off',
-              dir === '-' ? 'is-rest' : 'is-strum',
-              isActive ? 'is-active' : '',
-            ].join(' ').trim()}
-          >
-            {dir === 'D' && <ArrowDown size={16} weight="bold" />}
-            {dir === 'U' && <ArrowUp size={16} weight="bold" />}
-            {dir === '-' && <span className="strum-rest-dot" />}
-          </div>
-        );
-      })}
+      {slots.map((dir, i) => (
+        <span key={i} className={dir === '-' ? 'strum-arrow is-rest' : 'strum-arrow'}>
+          {dir === 'D' && <ArrowDown size={size} weight="bold" />}
+          {dir === 'U' && <ArrowUp size={size} weight="bold" />}
+          {dir === '-' && <span className="strum-rest-dot" />}
+        </span>
+      ))}
     </div>
   );
 }

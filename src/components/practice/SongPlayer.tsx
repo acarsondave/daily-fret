@@ -17,12 +17,14 @@ import { SignalMeter } from './SignalMeter';
 import { StrumRow } from './StrumRow';
 import { useSignalMeter } from './signalQuality';
 import { sfx } from '../../audio/sfx';
-import { getSong, songTimeline, songBars, parseStrum, type SongStep } from '../../data/songs';
+import { getSong, songTimeline, songBars, type SongCell } from '../../data/songs';
 
 const AUTO_ADVANCE_SECONDS = 5;
+const BEATS_PER_BAR = 4;
 const BPM_MIN = 50;
 const BPM_MAX = 170;
 const BPM_STEP = 4;
+const STRIDE = 92; // px between cell centers (cell width + gaps); matches CSS
 
 type Phase = 'intro' | 'learn' | 'countin' | 'play' | 'results';
 
@@ -31,18 +33,40 @@ interface Props {
   onClose?: () => void;
   autoStart?: boolean;
   onNext?: () => void;
-  autoAdvance?: boolean; // coached: roll into the next segment hands-free
+  autoAdvance?: boolean;
   nextLabel?: string;
   detector?: ChordDetectorApi;
-  onFinish?: () => void; // fired the moment both passes complete (coach "done" cue)
+  onFinish?: () => void;
 }
 
 const clampBpm = (n: number) => Math.max(BPM_MIN, Math.min(BPM_MAX, n));
 
-// Two-pass chord play-along. Pass 1 (Learn) is self-paced: advance by playing
-// the chord. Pass 2 (Play) is tempo-led: a metronome sweeps the strum pattern
-// and bars auto-advance, with detection only lighting the chord when you hit it
-// (no grading). Reuses the shared detector in coached mode.
+interface Segment {
+  label: string;
+  startFrac: number;
+  widthFrac: number;
+}
+
+function buildSegments(cells: SongCell[]): Segment[] {
+  if (!cells.length) return [];
+  const segs: Segment[] = [];
+  let start = 0;
+  for (let i = 1; i <= cells.length; i++) {
+    if (i === cells.length || cells[i].sectionStart) {
+      segs.push({
+        label: cells[start].section,
+        startFrac: start / cells.length,
+        widthFrac: (i - start) / cells.length,
+      });
+      start = i;
+    }
+  }
+  return segs;
+}
+
+// Two-pass karaoke play-along. Learn (self-paced) then Play (tempo-led). The lane
+// is a single transform-animated track so motion is GPU-driven, not per-frame
+// React — only discrete bar changes hit state. Detection is advisory in Play.
 export function SongPlayer({
   songId,
   onClose,
@@ -58,17 +82,15 @@ export function SongPlayer({
   const { status, error, start, stop, setHandlers } = detector ?? own;
 
   const song = getSong(songId);
-  const timeline = useMemo<SongStep[]>(() => (song ? songTimeline(song) : []), [song]);
-  const bars = useMemo<SongStep[]>(() => (song ? songBars(song) : []), [song]);
-  const strumSlots = useMemo(() => (song ? parseStrum(song.strum) : []), [song]);
+  const timeline = useMemo<SongCell[]>(() => (song ? songTimeline(song) : []), [song]);
+  const bars = useMemo<SongCell[]>(() => (song ? songBars(song) : []), [song]);
   const learnTotal = timeline.length;
   const playTotal = bars.length;
 
   const [phase, setPhase] = useState<Phase>(autoStart ? 'learn' : 'intro');
   const [learnIdx, setLearnIdx] = useState(0);
   const [barIdx, setBarIdx] = useState(0);
-  const [eighth, setEighth] = useState(-1);
-  const [countIn, setCountIn] = useState(4);
+  const [countIn, setCountIn] = useState(BEATS_PER_BAR);
   const [bpm, setBpm] = useState(song?.bpm ?? 100);
   const [detected, setDetected] = useState('');
   const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter();
@@ -76,17 +98,13 @@ export function SongPlayer({
 
   const learnIdxRef = useRef(0);
   const barIdxRef = useRef(0);
-  const eighthRef = useRef(-1);
   const detectedRef = useRef('');
-  const heroRef = useRef<HTMLDivElement>(null);
 
-  const popHero = () => {
-    const el = heroRef.current;
-    if (!el) return;
-    el.classList.remove('is-hit');
-    void el.offsetWidth;
-    el.classList.add('is-hit');
-  };
+  const isPlay = phase === 'play';
+  const cells = isPlay || phase === 'countin' ? bars : timeline;
+  const current = isPlay || phase === 'countin' ? barIdx : learnIdx;
+  const total = cells === bars ? playTotal : learnTotal;
+  const segments = useMemo(() => buildSegments(cells), [cells]);
 
   const finish = () => {
     if (sharedMic) setHandlers({});
@@ -96,34 +114,27 @@ export function SongPlayer({
     setPhase('results');
   };
 
-  // --- Learn pass (self-paced) ---
   const handleLearnChord = (chord: string) => {
     if (learnIdxRef.current >= learnTotal) return;
     if (chord !== timeline[learnIdxRef.current].chord) return;
     const next = learnIdxRef.current + 1;
     learnIdxRef.current = next;
-    popHero();
     sfx.tick();
     if (next >= learnTotal) {
-      // Hand off to the tempo pass.
       barIdxRef.current = 0;
-      eighthRef.current = -1;
-      setBarIdx(0);
-      setEighth(-1);
-      setDetected('');
       detectedRef.current = '';
-      setCountIn(4);
+      setBarIdx(0);
+      setDetected('');
+      setCountIn(BEATS_PER_BAR);
       setPhase('countin');
       return;
     }
     setLearnIdx(next);
   };
 
-  // --- Play pass (tempo-led) — detection only lights the matching chord ---
   const handlePlayChord = (chord: string) => {
     detectedRef.current = chord;
     setDetected(chord);
-    if (bars[barIdxRef.current] && chord === bars[barIdxRef.current].chord) popHero();
   };
 
   const startSession = async () => {
@@ -131,16 +142,13 @@ export function SongPlayer({
     sfx.go();
     learnIdxRef.current = 0;
     barIdxRef.current = 0;
-    eighthRef.current = -1;
     detectedRef.current = '';
     setLearnIdx(0);
     setBarIdx(0);
-    setEighth(-1);
     setDetected('');
     setBpm(song.bpm);
     resetSignal();
     setPhase('learn');
-
     await start(
       { onChord: (ev) => handleLearnChord(ev.chord), onLevel: (ev) => pushSignal(ev) },
       { restrictTo: song.chords },
@@ -156,19 +164,18 @@ export function SongPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Swap to advisory handlers once we leave the Learn pass.
   useEffect(() => {
     if (phase !== 'countin') return;
     setHandlers({ onChord: (ev) => handlePlayChord(ev.chord), onLevel: (ev) => pushSignal(ev) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
-  // Count-in: four metronome beats before the bars start moving.
+  // Count-in: BEATS_PER_BAR metronome beats before the lane starts moving.
   useEffect(() => {
     if (phase !== 'countin') return;
     sfx.tick();
     const beatMs = 60000 / bpm;
-    let n = 4;
+    let n = BEATS_PER_BAR;
     const id = setInterval(() => {
       n -= 1;
       if (n <= 0) {
@@ -183,18 +190,19 @@ export function SongPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
-  // Metronome: sweep the eighth-note cursor; a bar (8 eighths) per chord. Polls
-  // a moving deadline so it stays on time, and restarts cleanly on tempo change.
+  // Metronome: beats drive audio + the CSS pulse (steady, in CSS); only a bar
+  // boundary advances the lane in React. Polls a moving deadline to stay on time.
   useEffect(() => {
     if (phase !== 'play') return;
-    const eighthMs = 60000 / bpm / 2;
-    let nextAt = Date.now() + eighthMs;
+    const beatMs = 60000 / bpm;
+    let beat = 0; // beats elapsed since play start of the current run
+    let nextAt = Date.now() + beatMs;
     const id = setInterval(() => {
       if (Date.now() < nextAt) return;
-      nextAt += eighthMs;
-      let e = eighthRef.current + 1;
-      if (e >= 8) {
-        e = 0;
+      nextAt += beatMs;
+      sfx.tick();
+      beat += 1;
+      if (beat % BEATS_PER_BAR === 0) {
         const b = barIdxRef.current + 1;
         barIdxRef.current = b;
         if (b >= playTotal) {
@@ -204,15 +212,11 @@ export function SongPlayer({
         }
         setBarIdx(b);
       }
-      eighthRef.current = e;
-      setEighth(e);
-      if (e % 2 === 0) sfx.tick(); // click on the four beats
-    }, 15);
+    }, 16);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, bpm, playTotal]);
 
-  // Hands-free advance once both passes complete in coached mode.
   useEffect(() => {
     if (phase !== 'results' || !autoAdvance || !onNext) return;
     const deadline = Date.now() + AUTO_ADVANCE_SECONDS * 1000;
@@ -293,87 +297,95 @@ export function SongPlayer({
     );
   }
 
-  if (phase === 'learn') {
-    const step = timeline[Math.min(learnIdx, learnTotal - 1)];
-    const next = learnIdx + 1 < learnTotal ? timeline[learnIdx + 1] : null;
-    const progress = learnTotal > 0 ? learnIdx / learnTotal : 0;
+  if (phase === 'results') {
     return (
-      <>
-        <div className="song-pass">Learn · your pace</div>
-        <div className="practice-mode is-chord">{step.section}</div>
-        <div ref={heroRef} className="practice-hero ct-target">{step.chord}</div>
-        <div className="song-next">{next ? <>next <strong>{next.chord}</strong></> : 'last chord'}</div>
-        <StrumRow slots={strumSlots} />
-        {step.lyric && <p className="song-lyric">{step.lyric}</p>}
-        <div className="song-progress">
-          <div className="song-progress-bar"><div className="song-progress-fill" style={{ width: `${progress * 100}%` }} /></div>
-          <span className="song-progress-count">{learnIdx} / {learnTotal}</span>
-        </div>
-        <SignalMeter quality={signal} />
-        <button className="song-skip" onClick={() => handleLearnChord(timeline[learnIdxRef.current]?.chord ?? '')}>
-          <SkipForward size={16} weight="fill" /> Skip chord
-        </button>
-      </>
-    );
-  }
-
-  if (phase === 'countin') {
-    const first = bars[0];
-    return (
-      <motion.div className="song-countin" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <div className="song-pass">Play · get ready</div>
-        <div className="song-countin-num">{countIn}</div>
-        <div className="om-caption">Starting on {first?.chord}</div>
-        <StrumRow slots={strumSlots} />
-        {TempoControl}
+      <motion.div className="om-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+        <CheckCircle size={48} weight="fill" className="coach-summary-check" />
+        <div className="coach-intro-title">{song.title}</div>
+        <div className="om-caption">Learned and played</div>
+        {autoAdvance ? (
+          <div className="coach-advance">
+            <span className="coach-advance-label">{nextLabel} in</span>
+            <span className="coach-advance-count">{advanceLeft}</span>
+          </div>
+        ) : (
+          <div className="om-actions">
+            <button className="practice-btn ghost" onClick={() => onClose?.()}>
+              {onNext ? 'End session' : 'Done'}
+            </button>
+            <button className="practice-btn primary" onClick={onNext ?? (() => startSession())} autoFocus>
+              {onNext ? 'Next drill' : 'Play again'} <ArrowRight size={18} weight="bold" />
+            </button>
+          </div>
+        )}
       </motion.div>
     );
   }
 
-  if (phase === 'play') {
-    const bar = bars[Math.min(barIdx, playTotal - 1)];
-    const next = barIdx + 1 < playTotal ? bars[barIdx + 1] : null;
-    const onChord = detected !== '' && detected === bar.chord;
-    const progress = playTotal > 0 ? barIdx / playTotal : 0;
-    return (
-      <>
-        <div className="song-pass is-play">Play · to the beat</div>
-        <div className="practice-mode is-chord">{bar.section}</div>
-        <div className={onChord ? 'practice-hero ct-target is-hit' : 'practice-hero ct-target'}>{bar.chord}</div>
-        <div className="song-next">{next ? <>next <strong>{next.chord}</strong></> : 'last bar'}</div>
-        <StrumRow slots={strumSlots} activeSlot={eighth} />
-        {bar.lyric && <p className="song-lyric">{bar.lyric}</p>}
-        <div className="song-progress">
-          <div className="song-progress-bar"><div className="song-progress-fill" style={{ width: `${progress * 100}%` }} /></div>
-          <span className="song-progress-count">{barIdx} / {playTotal}</span>
-        </div>
-        {TempoControl}
-        <SignalMeter quality={signal} />
-      </>
-    );
-  }
+  // --- Karaoke lane (learn / countin / play) ---
+  const cur = cells[Math.min(current, total - 1)];
+  // Active lyric: the current cell's, or the most recent one (so a phrase holds
+  // across instrumental bars instead of blinking out).
+  let activeLyric = cur.lyric;
+  for (let i = Math.min(current, total - 1); i >= 0 && !activeLyric; i--) activeLyric = cells[i].lyric;
+  const counting = phase === 'countin';
+  const laneTransition = isPlay ? 'transform 0.2s ease-out' : 'transform 0.26s cubic-bezier(0.16,1,0.3,1)';
+  const playheadFrac = total > 1 ? current / (total - 1) : 0;
 
-  // results
   return (
-    <motion.div className="om-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-      <CheckCircle size={48} weight="fill" className="coach-summary-check" />
-      <div className="coach-intro-title">{song.title}</div>
-      <div className="om-caption">Learned and played</div>
-      {autoAdvance ? (
-        <div className="coach-advance">
-          <span className="coach-advance-label">{nextLabel} in</span>
-          <span className="coach-advance-count">{advanceLeft}</span>
+    <div className="song-stage">
+      <div className="song-topline">
+        <span className={counting ? 'song-pass' : isPlay ? 'song-pass is-play' : 'song-pass'}>
+          {isPlay ? 'Play · to the beat' : counting ? 'Play · get ready' : 'Learn · your pace'}
+        </span>
+        <span className="song-section-tag">{cur.section}</span>
+      </div>
+
+      <div className="song-lane">
+        <div className={isPlay ? 'song-now-marker is-pulsing' : 'song-now-marker'} style={{ ['--beat-ms' as string]: `${60000 / bpm}ms` }} />
+        <div
+          className="song-track"
+          style={{ transform: `translateX(${-(Math.min(current, total - 1) + 0.5) * STRIDE}px)`, transition: laneTransition }}
+        >
+          {cells.map((cell, i) => {
+            const rel = i - current;
+            const correct = isPlay && i === current && detected === cell.chord;
+            const cls = [
+              'song-cell',
+              i === current ? 'is-now' : i < current ? 'is-past' : '',
+              correct ? 'is-correct' : '',
+            ].join(' ').trim();
+            return (
+              <div key={i} className={cls} aria-hidden={Math.abs(rel) > 4}>
+                <div className="song-cell-chord">{cell.chord}</div>
+                <StrumRow strum={cell.strum} />
+              </div>
+            );
+          })}
         </div>
-      ) : (
-        <div className="om-actions">
-          <button className="practice-btn ghost" onClick={() => onClose?.()}>
-            {onNext ? 'End session' : 'Done'}
+      </div>
+
+      <div className="song-lyric-line">
+        {counting ? <span className="song-countin-num">{countIn}</span> : <span>{activeLyric ?? ' '}</span>}
+      </div>
+
+      <div className="song-parts">
+        {segments.map((seg, i) => (
+          <div key={i} className="song-part" style={{ width: `${seg.widthFrac * 100}%` }} title={seg.label}>
+            <span className="song-part-label">{seg.label}</span>
+          </div>
+        ))}
+        <div className="song-parts-head" style={{ left: `${playheadFrac * 100}%`, transition: laneTransition.replace('transform', 'left') }} />
+      </div>
+
+      <div className="song-stage-foot">
+        {isPlay || counting ? TempoControl : (
+          <button className="song-skip" onClick={() => handleLearnChord(timeline[learnIdxRef.current]?.chord ?? '')}>
+            <SkipForward size={16} weight="fill" /> Skip chord
           </button>
-          <button className="practice-btn primary" onClick={onNext ?? (() => startSession())} autoFocus>
-            {onNext ? 'Next drill' : 'Play again'} <ArrowRight size={18} weight="bold" />
-          </button>
-        </div>
-      )}
-    </motion.div>
+        )}
+        <SignalMeter quality={signal} />
+      </div>
+    </div>
   );
 }
