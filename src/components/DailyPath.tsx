@@ -241,7 +241,7 @@ export function DailyPath() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.03 }}
                 >
-                  <TaskRow routineId={activeRoutine.id} taskId={task.id} title={task.title} description={task.description} duration={task.duration} drill={task.drill} index={idx} total={tasks.length} onLaunchDrill={launchDrill} />
+                  <TaskRow routineId={activeRoutine.id} taskId={task.id} title={task.title} description={task.description} duration={task.duration} drill={task.drill} blocks={task.blocks} index={idx} total={tasks.length} onLaunchDrill={launchDrill} />
                 </motion.div>
               ))}
 

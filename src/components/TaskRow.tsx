@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { useStore, getTodayString } from '../store';
-import { Check, Circle, Trash, PencilSimple, X, Waveform, ArrowUp, ArrowDown } from '@phosphor-icons/react';
+import { Check, Circle, Trash, PencilSimple, X, Waveform, ArrowUp, ArrowDown, Plus } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
 import { chordPairs, pairKey } from '../lib/pairs';
 import { sanitizeMinutes, formatDuration } from '../lib/coached';
 import { SONGS } from '../data/songs';
-import type { DrillConfig, DrillKind, Task } from '../types';
+import type { DrillConfig, DrillKind, Task, TimedBlock } from '../types';
 import './TaskRow.css';
 import './drill-fields.css';
 
@@ -23,12 +23,13 @@ interface TaskRowProps {
   description?: string;
   duration?: string;
   drill?: DrillConfig;
+  blocks?: TimedBlock[];
   index: number;
   total: number;
   onLaunchDrill?: (task: Task) => void;
 }
 
-export const TaskRow = memo(function TaskRow({ routineId, taskId, title, description, duration, drill, index, total, onLaunchDrill }: TaskRowProps) {
+export const TaskRow = memo(function TaskRow({ routineId, taskId, title, description, duration, drill, blocks, index, total, onLaunchDrill }: TaskRowProps) {
   const today = getTodayString();
   // Select each action on its own — Zustand returns the *same* function
   // reference every render, so this row no longer subscribes to the whole store
@@ -89,6 +90,13 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
     drill?.kind === 'chord-trainer' && drill.chords?.length ? drill.chords : ['A', 'D', 'E', 'G', 'C'],
   );
   const [editSongId, setEditSongId] = useState<string>(drill?.songId ?? SONGS[0].id);
+  const [editBlocks, setEditBlocks] = useState<TimedBlock[]>(blocks ?? []);
+
+  const addEditBlock = () =>
+    setEditBlocks(prev => [...prev, { id: crypto.randomUUID(), label: '', durationSec: 60 }]);
+  const updateEditBlock = (id: string, patch: Partial<TimedBlock>) =>
+    setEditBlocks(prev => prev.map(b => (b.id === id ? { ...b, ...patch } : b)));
+  const removeEditBlock = (id: string) => setEditBlocks(prev => prev.filter(b => b.id !== id));
 
   const titleInputRef = useRef<HTMLInputElement>(null);
   const taskRef = useRef<HTMLDivElement>(null);
@@ -128,11 +136,19 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
       nextDrill = { kind: 'song', songId: editSongId };
     }
 
+    const cleanBlocks =
+      editDrillKind === 'none'
+        ? editBlocks
+            .map(b => ({ ...b, label: b.label.trim() }))
+            .filter(b => b.label && b.durationSec > 0)
+        : [];
+
     updateTask(routineId, taskId, {
       title: editDraft.title.trim(),
       description: editDraft.description.trim() || undefined,
       duration: editDraft.duration.trim() || undefined,
       drill: nextDrill,
+      blocks: cleanBlocks.length ? cleanBlocks : undefined,
     });
     setIsEditing(false);
   };
@@ -145,6 +161,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
       drill?.kind === 'chord-trainer' && drill.chords?.length ? drill.chords : ['A', 'D', 'E', 'G', 'C'],
     );
     setEditSongId(drill?.songId ?? SONGS[0].id);
+    setEditBlocks(blocks ?? []);
     setIsEditing(false);
   };
 
@@ -276,6 +293,45 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
                     </option>
                   ))}
                 </select>
+              </>
+            )}
+            {editDrillKind === 'none' && (
+              <>
+                <span className="drill-hint">Timed blocks (optional) — one per pattern, each with its own minutes</span>
+                <div className="drill-blocks">
+                  {editBlocks.map(block => (
+                    <div key={block.id} className="drill-block-row">
+                      <input
+                        type="text"
+                        className="task-input"
+                        placeholder="e.g. Pattern 1"
+                        value={block.label}
+                        onChange={e => updateEditBlock(block.id, { label: e.target.value })}
+                        maxLength={40}
+                      />
+                      <div className="drill-block-mins">
+                        <input
+                          type="text"
+                          className="task-input"
+                          placeholder="Min"
+                          value={String(Math.round(block.durationSec / 60))}
+                          onChange={e => {
+                            const m = parseInt(sanitizeMinutes(e.target.value) || '0', 10);
+                            updateEditBlock(block.id, { durationSec: Math.max(1, m) * 60 });
+                          }}
+                          inputMode="numeric"
+                        />
+                        <span className="task-duration-suffix">min</span>
+                      </div>
+                      <button type="button" className="drill-block-remove" onClick={() => removeEditBlock(block.id)} title="Remove block">
+                        <Trash size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  <button type="button" className="drill-block-add" onClick={addEditBlock}>
+                    <Plus size={14} weight="bold" /> Add block
+                  </button>
+                </div>
               </>
             )}
           </div>

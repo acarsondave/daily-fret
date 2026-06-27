@@ -15,13 +15,21 @@ const SILENCE_THRESHOLD = 0.005;
 const NOISE_FLOOR_MAX = 0.03;
 const CHORD_STABLE_FRAMES = 2;
 export const CHROMA_SALIENCE_MIN = 1.2;
-// When detection is restricted to a known chord pair we can be a touch more
-// permissive on tonal salience (only two templates to confuse), but we add a
-// margin gate so an ambiguous, mid-transition chroma doesn't flap between them.
-const CHROMA_SALIENCE_MIN_RESTRICTED = 1.1;
+// Restricted mode (song / changes) used to be *lenient* on salience because
+// there are only a couple of templates — but that's exactly what lets quiet room
+// noise resolve to one of the few candidates and register a phantom chord. Hold
+// it to the same tonal-salience bar as open mode.
+const CHROMA_SALIENCE_MIN_RESTRICTED = 1.2;
 // Reject ambiguous frames more firmly: a ringing/decaying chord drifting toward
 // the other target otherwise registers phantom transitions (false counts).
 const RESTRICTED_MARGIN_MIN = 0.12;
+// A count must be backed by a strum that is clearly louder than the ambient
+// noise floor. This is the main guard against "it counted when I wasn't
+// playing": a flux blip on room noise can fire an onset, but it won't arm a
+// count unless the frame is genuinely loud. Tune if soft playing is missed
+// (lower) or silence still counts (raise).
+const STRUM_RMS_RATIO = 3;
+const MIN_STRUM_RMS = 0.02;
 
 export const NO_CHORD = 'No Chord';
 
@@ -131,8 +139,11 @@ export class ChordDetector {
 
     if (this.onsetDetector.detect(frame)) {
       this.handlers.onOnset?.({ energy: rms });
-      // A real strum re-arms counting for the chord that follows it.
-      this.onsetSinceEmit = true;
+      // Only a strum clearly above the noise floor arms a count, so a flux blip
+      // on room noise or handling can't register a phantom chord.
+      if (rms > Math.max(this.noiseFloor * STRUM_RMS_RATIO, MIN_STRUM_RMS)) {
+        this.onsetSinceEmit = true;
+      }
       // Anchor analysis to the new chord so the next chroma reflects what is
       // being played now instead of the previous chord lingering in the window.
       this.chromagram.reset();
