@@ -374,6 +374,7 @@ export function SongPlayer({
             ].join(' ').trim();
             return (
               <div key={i} className={cls} aria-hidden={Math.abs(rel) > 4}>
+                {cell.tag && <div className="song-cell-tag">{cell.tag}</div>}
                 <div className="song-cell-chord">{cell.chord}</div>
                 <StrumRow strum={cell.strum} />
               </div>

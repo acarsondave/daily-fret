@@ -18,9 +18,10 @@
 export type StrumDir = 'D' | 'U' | '-';
 
 export interface SongStepDef {
-  chord: string;
+  chord: string; // the chord we detect for this bar
   strum?: string; // overrides the song default for this bar
   lyric?: string; // word(s) sung starting on this chord (karaoke sync)
+  tag?: string; // small label above the cell, e.g. "riff"
 }
 
 export interface SongSection {
@@ -45,12 +46,19 @@ const s = (chord: string, lyric?: string, strum?: string): SongStepDef => ({
   ...(strum ? { strum } : {}),
 });
 
-// --- Wild Thing (The Troggs), faithful to the common chart ---
+// The Wild Thing turnaround riff (chart shows "G A G A"). It's played as a quick
+// open-string-into-A figure: four down-strums (open, A, open, A). We can't detect
+// the open strings, so we target A — playing the A inside the riff counts it. It
+// stays one joined cell, not separate chords.
+const riff = (): SongStepDef => ({ chord: 'A', strum: 'DDDD', tag: 'riff' });
+
+// --- Wild Thing (The Troggs) ---
+// No G chord: the "G A G A" turnaround is the open-into-A riff (see `riff`).
 const WT_CHORUS: SongStepDef[] = [
   s('A', 'Wild thing'), s('D'),
-  s('E'), s('D', 'you make my heart sing'), s('A'), s('D'),
-  s('E'), s('D', 'you make everything groovy'), s('A'), s('D'),
-  s('E'), s('D'), s('A', 'wild thing'), s('D'), s('E'), s('G'), s('A'), s('G'),
+  s('E'), s('D'), s('A', 'you make my heart sing'), s('D'),
+  s('E'), s('D'), s('A', 'you make everything groovy'), s('D'),
+  s('E'), s('D'), s('A', 'wild thing'), s('D'), s('E'), riff(),
 ];
 const WT_INTERLUDE: SongStepDef[] = [s('A'), s('D'), s('E'), s('D'), s('A'), s('D'), s('E'), s('D')];
 
@@ -61,17 +69,19 @@ const wildThing: Song = {
   level: 'Beginner',
   bpm: 100,
   strum: 'DD',
-  chords: ['A', 'D', 'E', 'G'],
+  chords: ['A', 'D', 'E'],
   sections: [
     // Prelude — played before the singing starts.
     { label: 'Intro', steps: [s('A'), s('D'), s('E', '', 'DDDDDD')] },
     { label: 'Chorus', steps: WT_CHORUS },
     {
+      // Each line is the riff, then sung over A.
       label: 'Verse 1',
       steps: [
-        s('A', 'Wild thing,'), s('G'), s('A', 'I think I love you'), s('G'),
-        s('A', 'but'), s('G'), s('A', 'I wanna know for sure'), s('G'),
-        s('A'), s('G', "so come on, hold me tight"), s('A', 'I love you'),
+        riff(), s('A', 'Wild thing, I think I love you'),
+        riff(), s('A', 'But I wanna know for sure'),
+        riff(), s('A', 'So come on, hold me tight'),
+        s('A', 'I love you'),
       ],
     },
     { label: 'Interlude', steps: WT_INTERLUDE },
@@ -80,19 +90,33 @@ const wildThing: Song = {
       label: 'Solo',
       steps: [
         s('A'), s('D'), s('E'), s('D'), s('A'), s('D'), s('E'), s('D'),
-        s('A'), s('D'), s('E'), s('D'), s('A'), s('D'), s('E'), s('G'), s('A'), s('G'),
+        s('A'), s('D'), s('E'), s('D'), s('A'), s('D'), s('E'), riff(),
       ],
     },
     {
       label: 'Verse 2',
       steps: [
-        s('A', 'Wild thing,'), s('G'), s('A', 'I think you move me'), s('G'),
-        s('A', 'but'), s('G'), s('A', 'I wanna know for sure'), s('G'),
-        s('A'), s('G', "so come on, hold me tight"), s('A', 'you move me'),
+        riff(), s('A', 'Wild thing, I think you move me'),
+        riff(), s('A', 'But I wanna know for sure'),
+        riff(), s('A', 'So come on, hold me tight'),
+        s('A', 'you move me'),
       ],
     },
     { label: 'Interlude', steps: WT_INTERLUDE },
-    { label: 'Chorus', steps: WT_CHORUS },
+    {
+      label: 'Chorus',
+      steps: [
+        s('A', 'Wild thing'), s('D'),
+        s('E'), s('D'), s('A', 'you make my heart sing'), s('D'),
+        s('E'), s('D'), s('A', 'you make everything groovy'), s('D'),
+        s('E'), s('D'), s('A', 'wild thing'), s('D'),
+        s('E'), s('D'), s('A', 'come on, come on, wild thing'), s('D'),
+      ],
+    },
+    {
+      label: 'Fade Out',
+      steps: [s('E'), s('D'), s('A', 'shake it, shake it, wild thing'), s('D'), s('E'), s('D')],
+    },
   ],
 };
 
@@ -158,6 +182,7 @@ export interface SongCell {
   strum: string;
   section: string;
   lyric?: string;
+  tag?: string;
   sectionStart: boolean; // first cell of a new section
 }
 
@@ -171,6 +196,7 @@ export function songBars(song: Song): SongCell[] {
         strum: step.strum ?? song.strum,
         section: section.label,
         lyric: step.lyric,
+        tag: step.tag,
         sectionStart: i === 0,
       });
     });
