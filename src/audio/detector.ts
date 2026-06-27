@@ -64,6 +64,11 @@ export class ChordDetector {
   private chordHistory: string[] = [];
   private silentFrameCount = 0;
   private noiseFloor = SILENCE_THRESHOLD;
+  // A counted chord must be backed by a fresh strum. After each emission this
+  // flips false and only a new onset (or a pause) re-arms it, so a chord's decay
+  // or fingers moving toward the next shape can't register a phantom count.
+  // Starts armed so the first strum of a session counts.
+  private onsetSinceEmit = true;
 
   constructor(opts: DetectorOptions) {
     this.chromagram = new Chromagram({
@@ -114,6 +119,9 @@ export class ChordDetector {
           this.lastEmittedChord = NO_CHORD;
         }
         this.chordHistory = [];
+        // A pause re-arms counting: the next chord after silence is a fresh
+        // attempt even if the onset detector is still warming up.
+        this.onsetSinceEmit = true;
       }
       this.chromagram.next(frame);
       return;
@@ -123,6 +131,8 @@ export class ChordDetector {
 
     if (this.onsetDetector.detect(frame)) {
       this.handlers.onOnset?.({ energy: rms });
+      // A real strum re-arms counting for the chord that follows it.
+      this.onsetSinceEmit = true;
       // Anchor analysis to the new chord so the next chroma reflects what is
       // being played now instead of the previous chord lingering in the window.
       this.chromagram.reset();
@@ -182,12 +192,13 @@ export class ChordDetector {
             }
           }
           if (maxCount >= Math.floor(CHORD_STABLE_FRAMES / 2) + 1) {
-            if (this.lastEmittedChord !== bestChord) {
+            if (this.lastEmittedChord !== bestChord && this.onsetSinceEmit) {
               this.handlers.onChord?.({
                 chord: bestChord,
                 confidence: match.confidence,
               });
               this.lastEmittedChord = bestChord;
+              this.onsetSinceEmit = false;
             }
           }
         }

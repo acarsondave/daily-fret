@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "names": "node scripts/fetch-drill-names.mjs",
+    "add:task": "node scripts/add-task.mjs",
     "gen:voice": "node scripts/gen-coach-voice.mjs"
   },
   "dependencies": {

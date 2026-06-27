@@ -13,6 +13,13 @@ export class OnsetDetector {
   private readonly fluxHistory: number[] = [];
   private readonly fluxHistorySize = 30;
   private readonly thresholdMultiplier = 2.5;
+  // Baseline percentile for the adaptive threshold. The median (0.5) breaks down
+  // under fast continuous strumming: once most recent frames are "active" the
+  // median sits inside the active range and no new strum can exceed
+  // median * multiplier, so onsets stop firing until you pause. A low percentile
+  // tracks the brief lulls between strums instead, so each attack still spikes
+  // above it and onsets keep firing at speed.
+  private readonly baselinePercentile = 0.35;
 
   private framesSinceLastOnset: number;
   private readonly minFramesBetweenOnsets: number;
@@ -63,8 +70,8 @@ export class OnsetDetector {
     if (this.fluxHistory.length < 5) return false;
 
     const sorted = [...this.fluxHistory].sort((a, b) => a - b);
-    const median = sorted[Math.floor(sorted.length / 2)];
-    const threshold = median * this.thresholdMultiplier;
+    const baseline = sorted[Math.floor(sorted.length * this.baselinePercentile)];
+    const threshold = baseline * this.thresholdMultiplier;
 
     if (
       flux > threshold &&
