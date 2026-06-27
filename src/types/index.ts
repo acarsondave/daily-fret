@@ -19,6 +19,7 @@ export interface TimedBlock {
   label: string;
   durationSec: number;
   note?: string;
+  pattern?: string; // optional strum pattern (D/U/- string) to show during the block
 }
 
 export interface Task {

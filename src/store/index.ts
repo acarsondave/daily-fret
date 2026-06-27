@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Routine, DailyLog, Task } from '../types';
+import type { StrumPattern } from '../data/strumPatterns';
 
 // No seeded routines — a fresh user starts from a clean, Notion-style empty
 // state and builds their own routines/tasks from scratch.
@@ -38,6 +39,8 @@ export interface UserData {
   // resetting to A/D every time.
   lastPair?: { from: string; to: string };
   coachProgress?: CoachProgress | null;
+  // User's own strum patterns (built-ins live in code; these are the custom ones).
+  strumPatterns?: StrumPattern[];
   // Epoch ms of the last local mutation to this account. Drives conflict
   // resolution against the cloud copy. Older/legacy data defaults to 0.
   updatedAt: number;
@@ -47,6 +50,7 @@ const defaultUserData: UserData = {
   routines: defaultRoutines,
   dailyLogs: {},
   activeRoutineId: '',
+  strumPatterns: [],
   updatedAt: 0,
 };
 
@@ -77,6 +81,8 @@ interface AppState {
   setLastPair: (from: string, to: string) => void;
   saveCoachProgress: (progress: CoachProgress) => void;
   clearCoachProgress: () => void;
+  addStrumPattern: (pattern: StrumPattern) => void;
+  removeStrumPattern: (id: string) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -141,6 +147,7 @@ export const useStore = create<AppState>()(
               defaultUserData.activeRoutineId,
             lastPair: data.lastPair ?? local?.lastPair,
             coachProgress: data.coachProgress ?? null,
+            strumPatterns: data.strumPatterns ?? local?.strumPatterns ?? [],
             updatedAt: remoteUpdatedAt,
           };
 
@@ -345,6 +352,14 @@ export const useStore = create<AppState>()(
 
         clearCoachProgress: () => set((state) =>
           mutate(state, (a) => ({ ...a, coachProgress: null })),
+        ),
+
+        addStrumPattern: (pattern) => set((state) =>
+          mutate(state, (a) => ({ ...a, strumPatterns: [...(a.strumPatterns ?? []), pattern] })),
+        ),
+
+        removeStrumPattern: (id) => set((state) =>
+          mutate(state, (a) => ({ ...a, strumPatterns: (a.strumPatterns ?? []).filter((p) => p.id !== id) })),
         ),
       };
     },

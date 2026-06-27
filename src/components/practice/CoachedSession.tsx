@@ -367,6 +367,7 @@ export function CoachedSession({ routine, onClose }: Props) {
             title={seg.title}
             description={seg.description}
             seconds={seg.seconds}
+            pattern={seg.pattern}
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             onFinish={() => void speak('done')}
             onDone={() => advance({ title: seg.title, value: null, unit: '' })}

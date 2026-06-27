@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Pause, Play, SkipForward } from '@phosphor-icons/react';
 import { ProgressRing } from './ProgressRing';
+import { StrumRow } from './StrumRow';
 import { sfx } from '../../audio/sfx';
 
 const AUTO_ADVANCE_SECONDS = 5;
@@ -10,6 +11,7 @@ interface Props {
   title: string;
   description?: string;
   seconds: number;
+  pattern?: string; // optional strum pattern to show as arrow art
   onDone: () => void; // advance to the next segment
   onFinish?: () => void; // fired once the moment the block completes
   nextLabel?: string; // what comes after, e.g. "Rest" or "Finishing"
@@ -24,7 +26,7 @@ function fmt(s: number): string {
 // A plain timed practice block used inside Coached mode for tasks that aren't
 // interactive drills (e.g. "Spider Exercises", a lesson). Counts down, can be
 // paused/skipped, and reports done so the session advances.
-export function TimedSegment({ title, description, seconds, onDone, onFinish, nextLabel = 'Up next' }: Props) {
+export function TimedSegment({ title, description, seconds, pattern, onDone, onFinish, nextLabel = 'Up next' }: Props) {
   const [left, setLeft] = useState(seconds);
   const [paused, setPaused] = useState(false);
   const [finished, setFinished] = useState(false);
@@ -90,6 +92,7 @@ export function TimedSegment({ title, description, seconds, onDone, onFinish, ne
   return (
     <>
       <div className="practice-mode is-chord">{title}</div>
+      {pattern && <StrumRow strum={pattern} size={18} />}
       {description && <p className="timed-desc">{description}</p>}
       <ProgressRing progress={progress} className="om-ring">
         <div className="om-ring-value">{fmt(left)}</div>

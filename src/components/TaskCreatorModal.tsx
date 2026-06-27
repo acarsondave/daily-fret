@@ -5,6 +5,7 @@ import { Plus, Trash } from '@phosphor-icons/react';
 import clsx from 'clsx';
 import { sanitizeMinutes } from '../lib/coached';
 import { SONGS } from '../data/songs';
+import { StrumPatternSelect } from './StrumPatternSelect';
 import type { DrillConfig, DrillKind, TimedBlock } from '../types';
 import './TaskCreatorModal.css';
 import './drill-fields.css';
@@ -217,37 +218,43 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
                 </span>
                 <div className="drill-blocks">
                   {blocks.map(block => (
-                    <div key={block.id} className="drill-block-row">
-                      <input
-                        type="text"
-                        className="task-input"
-                        placeholder="e.g. Pattern 1"
-                        value={block.label}
-                        onChange={e => updateBlock(block.id, { label: e.target.value })}
-                        maxLength={40}
-                      />
-                      <div className="drill-block-mins">
+                    <div key={block.id} className="drill-block">
+                      <div className="drill-block-row">
                         <input
                           type="text"
                           className="task-input"
-                          placeholder="Min"
-                          value={String(Math.round(block.durationSec / 60))}
-                          onChange={e => {
-                            const m = parseInt(sanitizeMinutes(e.target.value) || '0', 10);
-                            updateBlock(block.id, { durationSec: Math.max(1, m) * 60 });
-                          }}
-                          inputMode="numeric"
+                          placeholder="e.g. Pattern 1"
+                          value={block.label}
+                          onChange={e => updateBlock(block.id, { label: e.target.value })}
+                          maxLength={40}
                         />
-                        <span className="task-duration-suffix">min</span>
+                        <div className="drill-block-mins">
+                          <input
+                            type="text"
+                            className="task-input"
+                            placeholder="Min"
+                            value={String(Math.round(block.durationSec / 60))}
+                            onChange={e => {
+                              const m = parseInt(sanitizeMinutes(e.target.value) || '0', 10);
+                              updateBlock(block.id, { durationSec: Math.max(1, m) * 60 });
+                            }}
+                            inputMode="numeric"
+                          />
+                          <span className="task-duration-suffix">min</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="drill-block-remove"
+                          onClick={() => removeBlock(block.id)}
+                          title="Remove block"
+                        >
+                          <Trash size={16} />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className="drill-block-remove"
-                        onClick={() => removeBlock(block.id)}
-                        title="Remove block"
-                      >
-                        <Trash size={16} />
-                      </button>
+                      <StrumPatternSelect
+                        value={block.pattern ?? ''}
+                        onChange={p => updateBlock(block.id, { pattern: p || undefined })}
+                      />
                     </div>
                   ))}
                   <button type="button" className="drill-block-add" onClick={addBlock}>
