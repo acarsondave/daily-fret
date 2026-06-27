@@ -210,8 +210,8 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
             <div className="drill-segment">
               {([
                 ['none', 'None'],
-                ['one-minute-changes', '1-Min Changes'],
-                ['chord-trainer', 'Chord Trainer'],
+                ['one-minute-changes', 'Changes'],
+                ['chord-trainer', 'Trainer'],
                 ['song', 'Song'],
               ] as const).map(([value, label]) => (
                 <button

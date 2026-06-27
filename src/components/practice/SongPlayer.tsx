@@ -142,11 +142,11 @@ export function SongPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, autoAdvance]);
 
-  if (!song) {
+  if (!song || total === 0) {
     return (
       <div className="mic-gate">
         <MusicNotes size={40} weight="duotone" color="var(--text-secondary)" />
-        <p>That song isn't in the catalog.</p>
+        <p>{song ? "This song has no chords to play yet." : "That song isn't in the catalog."}</p>
         <button className="practice-btn primary" onClick={() => onClose?.()}>Done</button>
       </div>
     );
