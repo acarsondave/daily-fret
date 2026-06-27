@@ -671,16 +671,18 @@
   height: 100%;
   display: flex;
   align-items: center;
+  gap: 16px;
   will-change: transform;
 }
 .song-cell {
   flex: 0 0 76px;
-  margin: 0 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
   opacity: 0.4;
+  transform-origin: center center;
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 .song-cell.is-past { opacity: 0.18; }
@@ -806,3 +808,20 @@
 
 .song-cell.is-correct .song-cell-chord { color: var(--success-color); }
 .song-cell.is-correct .strum-arrow { color: var(--success-color); }
+
+.song-accuracy {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: clamp(2.6rem, 11vw, 3.6rem);
+  line-height: 1;
+  color: var(--accent-primary);
+}
+/* Riff cell: a small tag above the chord (e.g. the open–A riff) */
+.song-cell-tag {
+  font-family: var(--font-secondary);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.song-cell.is-now .song-cell-tag { color: var(--accent-primary); }

@@ -352,7 +352,11 @@ export function CoachedSession({ routine, onClose }: Props) {
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             detector={detector}
             onFinish={() => void speak('done')}
-            onNext={() => advance({ title: seg.title, value: null, unit: '' })}
+            onResult={(accuracy) => {
+              recordDrillResult(today, seg.taskId, accuracy, undefined, false);
+              lastValueRef.current = accuracy;
+            }}
+            onNext={() => advance({ title: seg.title, value: lastValueRef.current, unit: '%' })}
             onClose={exit}
           />
         )}

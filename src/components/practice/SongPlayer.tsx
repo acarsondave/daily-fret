@@ -24,7 +24,8 @@ const BEATS_PER_BAR = 4;
 const BPM_MIN = 50;
 const BPM_MAX = 170;
 const BPM_STEP = 4;
-const STRIDE = 92; // px between cell centers (cell width + gaps); matches CSS
+const CELL_W = 76; // cell width in px (matches CSS)
+const STRIDE = CELL_W + 16; // cell width + flex gap; matches CSS
 
 type Phase = 'intro' | 'learn' | 'countin' | 'play' | 'results';
 
@@ -37,6 +38,7 @@ interface Props {
   nextLabel?: string;
   detector?: ChordDetectorApi;
   onFinish?: () => void;
+  onResult?: (accuracy: number) => void; // % of bars where the right chord landed
 }
 
 const clampBpm = (n: number) => Math.max(BPM_MIN, Math.min(BPM_MAX, n));
@@ -76,6 +78,7 @@ export function SongPlayer({
   nextLabel = 'Up next',
   detector,
   onFinish,
+  onResult,
 }: Props) {
   const own = useChordDetector();
   const sharedMic = !!detector;
@@ -95,10 +98,13 @@ export function SongPlayer({
   const [detected, setDetected] = useState('');
   const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter();
   const [advanceLeft, setAdvanceLeft] = useState(AUTO_ADVANCE_SECONDS);
+  const [accuracy, setAccuracy] = useState(0);
 
   const learnIdxRef = useRef(0);
   const barIdxRef = useRef(0);
   const detectedRef = useRef('');
+  const hitsRef = useRef(0); // bars (in Play) where the right chord was detected
+  const hitBarRef = useRef(-1); // guards against counting one bar twice
 
   const isPlay = phase === 'play';
   const cells = isPlay || phase === 'countin' ? bars : timeline;
@@ -109,6 +115,9 @@ export function SongPlayer({
   const finish = () => {
     if (sharedMic) setHandlers({});
     else void stop();
+    const acc = playTotal > 0 ? Math.round((hitsRef.current / playTotal) * 100) : 0;
+    setAccuracy(acc);
+    onResult?.(acc);
     sfx.sessionComplete();
     onFinish?.();
     setPhase('results');
@@ -135,6 +144,11 @@ export function SongPlayer({
   const handlePlayChord = (chord: string) => {
     detectedRef.current = chord;
     setDetected(chord);
+    // Score: count each bar at most once when its chord is detected during it.
+    if (bars[barIdxRef.current]?.chord === chord && hitBarRef.current !== barIdxRef.current) {
+      hitsRef.current += 1;
+      hitBarRef.current = barIdxRef.current;
+    }
   };
 
   const startSession = async () => {
@@ -143,6 +157,8 @@ export function SongPlayer({
     learnIdxRef.current = 0;
     barIdxRef.current = 0;
     detectedRef.current = '';
+    hitsRef.current = 0;
+    hitBarRef.current = -1;
     setLearnIdx(0);
     setBarIdx(0);
     setDetected('');
@@ -277,7 +293,7 @@ export function SongPlayer({
     );
   }
 
-  if (status === 'error') {
+  if (phase !== 'results' && status === 'error') {
     return (
       <div className="mic-gate">
         <Microphone size={40} weight="duotone" color="var(--text-secondary)" />
@@ -288,7 +304,7 @@ export function SongPlayer({
       </div>
     );
   }
-  if (status !== 'running') {
+  if (phase !== 'results' && status !== 'running') {
     return (
       <div className="mic-gate">
         <Microphone size={40} weight="duotone" color="var(--accent-primary)" />
@@ -302,7 +318,8 @@ export function SongPlayer({
       <motion.div className="om-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
         <CheckCircle size={48} weight="fill" className="coach-summary-check" />
         <div className="coach-intro-title">{song.title}</div>
-        <div className="om-caption">Learned and played</div>
+        <div className="song-accuracy">{accuracy}%</div>
+        <div className="om-caption">of the song matched on the beat</div>
         {autoAdvance ? (
           <div className="coach-advance">
             <span className="coach-advance-label">{nextLabel} in</span>
@@ -345,7 +362,7 @@ export function SongPlayer({
         <div className={isPlay ? 'song-now-marker is-pulsing' : 'song-now-marker'} style={{ ['--beat-ms' as string]: `${60000 / bpm}ms` }} />
         <div
           className="song-track"
-          style={{ transform: `translateX(${-(Math.min(current, total - 1) + 0.5) * STRIDE}px)`, transition: laneTransition }}
+          style={{ transform: `translateX(${-(Math.min(current, total - 1) * STRIDE + CELL_W / 2)}px)`, transition: laneTransition }}
         >
           {cells.map((cell, i) => {
             const rel = i - current;
