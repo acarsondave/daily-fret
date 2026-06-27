@@ -21,17 +21,21 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { initializeFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 
-// The task to add. A strumming-pattern drill is a plain timed block (up/down
-// strums on muted strings can't be chord-detected), so it carries no `drill`.
-const TASK = {
-  title: 'Strumming Patterns',
-  duration: '5',
-  description:
-    'Mute the strings and keep your strumming hand moving the whole time. ' +
-    'Pattern 1: D DU D (up strum after beat 2). ' +
-    'Pattern 2: D DUDU D (up strums after beats 2 and 3). ' +
-    "Count '1 and 2 and 3 and 4 and', stay relaxed, and lock in pattern 1 before pattern 2.",
-};
+// Tasks to add. Strumming-pattern drills are plain timed blocks (up/down strums
+// on muted strings can't be chord-detected), so they carry no `drill`. One task
+// per pattern at 1 min each so coached mode runs them as separate segments.
+const TASKS = [
+  {
+    title: 'Strumming Pattern 1',
+    duration: '1',
+    description: 'Muted strings, strumming hand always moving. D DU D — up strum after beat 2.',
+  },
+  {
+    title: 'Strumming Pattern 2',
+    duration: '1',
+    description: 'Muted strings, strumming hand always moving. D DUDU D — up strums after beats 2 and 3.',
+  },
+];
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -101,18 +105,25 @@ async function main() {
   }
 
   target.tasks = target.tasks ?? [];
-  const exists = target.tasks.some(
-    (t) => (t.title ?? '').trim().toLowerCase() === TASK.title.toLowerCase(),
-  );
-  if (exists) {
-    console.log(`✓ "${TASK.title}" already in "${target.name}" — nothing to do.`);
+  const have = new Set(target.tasks.map((t) => (t.title ?? '').trim().toLowerCase()));
+
+  let added = 0;
+  for (const task of TASKS) {
+    if (have.has(task.title.toLowerCase())) {
+      console.log(`· "${task.title}" already in "${target.name}" — skipping.`);
+      continue;
+    }
+    target.tasks.push({ id: randomUUID(), ...task });
+    console.log(`✓ Added "${task.title}" to "${target.name}".`);
+    added++;
+  }
+
+  if (!added) {
+    console.log('Nothing to do.');
     process.exit(0);
   }
 
-  target.tasks.push({ id: randomUUID(), ...TASK });
   await setDoc(ref, { ...data, routines }, { merge: true });
-
-  console.log(`✓ Added "${TASK.title}" to "${target.name}".`);
   console.log('  Regenerate voice:  npm run names && ELEVENLABS_API_KEY=sk_xxx npm run gen:voice -- --force');
   process.exit(0);
 }
