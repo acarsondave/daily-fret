@@ -5,6 +5,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } f
 import { useAuthStore } from '../lib/auth';
 import { useStore } from '../store';
 import { SignOut, ArrowRight, Spinner, DownloadSimple } from '@phosphor-icons/react';
+import { MicSetting } from './MicSetting';
 import './AccountModal.css';
 
 interface AccountModalProps {
@@ -112,7 +113,9 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
           <div className="account-settings">
             <h3 className="settings-title">Account Settings</h3>
             <div className="user-email">{user.email}</div>
-            
+
+            <MicSetting />
+
             <div className="settings-actions">
               <button className="settings-action-btn" onClick={exportData}>
                 <DownloadSimple size={18} />

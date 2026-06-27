@@ -12,7 +12,6 @@ import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDet
 import { ProgressRing } from './ProgressRing';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
-import { MicPicker } from './MicPicker';
 import { useSignalMeter } from './signalQuality';
 import { sfx } from '../../audio/sfx';
 import type { DrillConfig } from '../../types';
@@ -50,7 +49,7 @@ export function ChordTrainer({
 }: Props) {
   const own = useChordDetector();
   const sharedMic = !!detector;
-  const { status, error, start, stop, setHandlers, switchDevice } = detector ?? own;
+  const { status, error, start, stop, setHandlers } = detector ?? own;
 
   const duration = config?.durationSec ?? 60;
   const [pool, setPool] = useState<string[]>(
@@ -260,10 +259,7 @@ export function ChordTrainer({
             <Hourglass size={22} /> {timeLeft}
           </span>
         </div>
-        <div className="signal-cluster">
-          <SignalMeter quality={signal} />
-          <MicPicker onSwitch={switchDevice} />
-        </div>
+        <SignalMeter quality={signal} />
       </>
     );
   }

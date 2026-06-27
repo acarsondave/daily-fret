@@ -137,3 +137,44 @@
 .spinner-icon {
   animation: spin 1s linear infinite;
 }
+
+/* Microphone preference (one-time, in settings) */
+.mic-setting {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin: var(--space-2) 0;
+}
+.mic-setting-head {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.mic-setting-select {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  font-family: var(--font-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.mic-setting-select option { background: #1a1a1d; color: var(--text-primary); }
+.mic-setting-unlock {
+  align-self: flex-start;
+  font-family: var(--font-secondary);
+  font-size: 0.75rem;
+  color: var(--accent-primary);
+  opacity: 0.9;
+}
+.mic-setting-unlock:hover { opacity: 1; }
+.mic-setting-unlock:disabled { opacity: 0.5; cursor: default; }

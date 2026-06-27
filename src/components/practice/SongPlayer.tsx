@@ -14,7 +14,6 @@ import {
 } from '@phosphor-icons/react';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { SignalMeter } from './SignalMeter';
-import { MicPicker } from './MicPicker';
 import { StrumRow } from './StrumRow';
 import { useSignalMeter } from './signalQuality';
 import { sfx } from '../../audio/sfx';
@@ -56,7 +55,7 @@ export function SongPlayer({
 }: Props) {
   const own = useChordDetector();
   const sharedMic = !!detector;
-  const { status, error, start, stop, setHandlers, switchDevice } = detector ?? own;
+  const { status, error, start, stop, setHandlers } = detector ?? own;
 
   const song = getSong(songId);
   const timeline = useMemo<SongStep[]>(() => (song ? songTimeline(song) : []), [song]);
@@ -310,10 +309,7 @@ export function SongPlayer({
           <div className="song-progress-bar"><div className="song-progress-fill" style={{ width: `${progress * 100}%` }} /></div>
           <span className="song-progress-count">{learnIdx} / {learnTotal}</span>
         </div>
-        <div className="signal-cluster">
-          <SignalMeter quality={signal} />
-          <MicPicker onSwitch={switchDevice} />
-        </div>
+        <SignalMeter quality={signal} />
         <button className="song-skip" onClick={() => handleLearnChord(timeline[learnIdxRef.current]?.chord ?? '')}>
           <SkipForward size={16} weight="fill" /> Skip chord
         </button>
@@ -352,10 +348,7 @@ export function SongPlayer({
           <span className="song-progress-count">{barIdx} / {playTotal}</span>
         </div>
         {TempoControl}
-        <div className="signal-cluster">
-          <SignalMeter quality={signal} />
-          <MicPicker onSwitch={switchDevice} />
-        </div>
+        <SignalMeter quality={signal} />
       </>
     );
   }
