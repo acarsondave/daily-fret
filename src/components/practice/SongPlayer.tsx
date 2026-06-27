@@ -202,7 +202,7 @@ export function SongPlayer({
 
     return (
       <>
-        <div className="practice-mode is-chord">{step.section} · play this chord</div>
+        <div className="practice-mode is-chord">{step.section}</div>
         <div ref={heroRef} className="practice-hero ct-target">
           {step.chord}
         </div>

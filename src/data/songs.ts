@@ -23,16 +23,21 @@ export interface Song {
 
 export const SONGS: Song[] = [
   {
+    // The chart's (G A G) fills are played as a fast open-string riff back to A,
+    // so this version stays on A, D, E throughout.
     id: 'wild-thing',
     title: 'Wild Thing',
     artist: 'The Troggs',
     level: 'Beginner',
     chords: ['A', 'D', 'E'],
     sections: [
-      { label: 'Verse', chords: ['A', 'D', 'E', 'A', 'D', 'E'] },
-      { label: 'Chorus', chords: ['A', 'D', 'E', 'A'] },
-      { label: 'Verse', chords: ['A', 'D', 'E', 'A', 'D', 'E'] },
-      { label: 'Outro', chords: ['A', 'D', 'E', 'A'] },
+      // "Wild thing, you make my heart sing… you make everything groovy… wild thing"
+      { label: 'Verse', chords: ['A', 'D', 'E', 'D', 'A', 'D', 'E', 'D', 'A', 'D', 'E', 'D', 'A', 'D', 'E'] },
+      // "Wild thing, I think I love you" — riffs over A
+      { label: 'Bridge', chords: ['A'] },
+      { label: 'Interlude', chords: ['A', 'D', 'E', 'D', 'A', 'D', 'E', 'D'] },
+      { label: 'Verse', chords: ['A', 'D', 'E', 'D', 'A', 'D', 'E', 'D', 'A', 'D', 'E', 'D', 'A', 'D', 'E'] },
+      { label: 'Outro', chords: ['A', 'D', 'E', 'D', 'A', 'D', 'E'] },
     ],
   },
   {

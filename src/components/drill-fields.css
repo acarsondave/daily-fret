@@ -124,11 +124,14 @@
   border-color: rgba(56, 189, 248, 0.4);
 }
 
-/* Song picker (drill kind = song) */
+/* Song picker (drill kind = song). Keep the native caret so it reads clearly as
+   a dropdown, with a dark menu to match the theme. */
 .drill-song-select {
-  appearance: none;
-  -webkit-appearance: none;
   cursor: pointer;
+}
+.drill-song-select option {
+  background: #1a1a1d;
+  color: var(--text-primary);
 }
 
 /* Configurable timed blocks (drill kind = none) */
