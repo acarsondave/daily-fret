@@ -232,7 +232,7 @@ export function CoachedSession({ routine, onClose }: Props) {
       : seg.kind === 'trainer'
         ? `Chord Trainer · ${seg.chords.join(' ')}`
         : seg.kind === 'song'
-          ? 'Play-along · self-paced'
+          ? 'Play-along · learn then play'
           : mins(seg.seconds);
 
   return createPortal(
