@@ -1,6 +1,25 @@
 import { useMemo } from 'react';
 import { useUserData, getTodayString } from '../store';
 import { parsePairKey } from './pairs';
+import type { DailyLog } from '../types';
+
+export interface DrillHistory {
+  best: number; // personal best across all days
+  series: number[]; // chronological, one point per day
+}
+
+// History for a drill stored under its task id (e.g. the chord trainer's score),
+// oldest first. The chord-changes drill is keyed by pair instead — see pairs.ts.
+export function taskDrillHistory(
+  dailyLogs: Record<string, DailyLog>,
+  taskId: string,
+): DrillHistory {
+  const points = Object.values(dailyLogs ?? {})
+    .filter((l) => typeof l.drillResults?.[taskId] === 'number')
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((l) => l.drillResults![taskId]);
+  return { best: points.reduce((m, v) => Math.max(m, v), 0), series: points };
+}
 
 export interface PairStat {
   key: string; // the pair storage key

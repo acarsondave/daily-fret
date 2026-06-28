@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { X } from '@phosphor-icons/react';
 import { useStore, getTodayString } from '../../store';
 import { pairKey } from '../../lib/pairs';
+import { taskDrillHistory } from '../../lib/drillStats';
 import type { Task } from '../../types';
 import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
@@ -23,17 +24,9 @@ export function PracticeOverlay({ task, onClose }: Props) {
 
   // Snapshot history once at mount so the in-session result can be compared
   // against the pre-session best (recordDrillResult mutates the store live).
-  const { personalBest, series } = useMemo(() => {
+  const { best: personalBest, series } = useMemo(() => {
     const acc = useStore.getState().accounts[useStore.getState().currentAccountId];
-    const logs = Object.values(acc?.dailyLogs ?? {});
-    const points = logs
-      .filter((l) => typeof l.drillResults?.[task.id] === 'number')
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .map((l) => l.drillResults![task.id]);
-    return {
-      personalBest: points.reduce((m, v) => Math.max(m, v), 0),
-      series: points,
-    };
+    return taskDrillHistory(acc?.dailyLogs ?? {}, task.id);
   }, [task.id]);
 
   useEffect(() => {

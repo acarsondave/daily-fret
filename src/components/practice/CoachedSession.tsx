@@ -5,6 +5,7 @@ import { X, CheckCircle, Trophy, Megaphone } from '@phosphor-icons/react';
 import { useStore, getTodayString, type CoachStepResult } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import { buildSegments } from '../../lib/coached';
+import { taskDrillHistory } from '../../lib/drillStats';
 import { sfx } from '../../audio/sfx';
 import { speak, announceDrill, preloadCoachVoice, stopVoice, isCoachVoiceEnabled, setCoachVoiceEnabled } from '../../audio/coachVoice';
 import { useChordDetector } from '../../hooks/useChordDetector';
@@ -77,6 +78,15 @@ export function CoachedSession({ routine, onClose }: Props) {
 
   const seg = segments[index];
   const isLastSegment = index >= segments.length - 1;
+  // The chord trainer compares against its own history (best/series). Snapshot it
+  // when the segment opens, before this run is recorded, so "First benchmark" only
+  // shows when there genuinely is no prior result for this task.
+  const trainerHistory = useMemo(() => {
+    if (!seg || seg.kind !== 'trainer') return { best: 0, series: [] as number[] };
+    const acc = useStore.getState().accounts[useStore.getState().currentAccountId];
+    return taskDrillHistory(acc?.dailyLogs ?? {}, seg.taskId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
   // A task can fan out into several segments (e.g. one-minute-changes → one per
   // chord pair). It only counts as "done" once its *final* segment is finished,
   // so checking off after a single pair no longer fires early.
@@ -329,6 +339,8 @@ export function CoachedSession({ routine, onClose }: Props) {
           <ChordTrainer
             key={`seg-${index}`}
             config={{ kind: 'chord-trainer', chords: seg.chords, durationSec: seg.seconds }}
+            personalBest={trainerHistory.best}
+            series={trainerHistory.series}
             autoStart
             autoAdvance
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
@@ -372,8 +384,13 @@ export function CoachedSession({ routine, onClose }: Props) {
 
         {phase === 'summary' && (
           <motion.div className="coach-summary" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-            <Trophy size={40} weight="fill" className="coach-summary-trophy" />
-            <h2 className="coach-summary-title">Session complete</h2>
+            <div className="coach-summary-head">
+              <Trophy size={36} weight="fill" className="coach-summary-trophy" />
+              <h2 className="coach-summary-title">Session complete</h2>
+              <p className="coach-summary-sub">
+                {routine.name} · {results.length} drill{results.length === 1 ? '' : 's'}
+              </p>
+            </div>
             <div className="coach-summary-list">
               {results.map((r, i) => (
                 <div key={i} className="coach-summary-row">
@@ -387,7 +404,7 @@ export function CoachedSession({ routine, onClose }: Props) {
                 </div>
               ))}
             </div>
-            <button className="practice-btn primary" onClick={onClose} autoFocus>
+            <button className="practice-btn primary coach-summary-done" onClick={onClose} autoFocus>
               Done
             </button>
           </motion.div>
