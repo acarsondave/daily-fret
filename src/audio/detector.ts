@@ -30,6 +30,13 @@ const RESTRICTED_MARGIN_MIN = 0.12;
 // (lower) or silence still counts (raise).
 const STRUM_RMS_RATIO = 3;
 const MIN_STRUM_RMS = 0.02;
+// The onset gate disarms after every counted chord and normally re-arms only on
+// a fresh strum. During continuous/fast playing the flux-based onset detector
+// misses strums (its baseline rises), which silently starves real chord changes.
+// So also re-arm once this much time has passed since the last count: longer than
+// the sub-130ms ring/transition flicker we want to suppress, short enough that
+// any genuine human chord change still registers.
+const REARM_MS = 150;
 
 export const NO_CHORD = 'No Chord';
 
@@ -77,6 +84,7 @@ export class ChordDetector {
   // or fingers moving toward the next shape can't register a phantom count.
   // Starts armed so the first strum of a session counts.
   private onsetSinceEmit = true;
+  private lastEmitAt = 0; // epoch ms of the last emitted chord (drives REARM_MS)
 
   constructor(opts: DetectorOptions) {
     this.chromagram = new Chromagram({
@@ -203,13 +211,15 @@ export class ChordDetector {
             }
           }
           if (maxCount >= Math.floor(CHORD_STABLE_FRAMES / 2) + 1) {
-            if (this.lastEmittedChord !== bestChord && this.onsetSinceEmit) {
+            const armed = this.onsetSinceEmit || Date.now() - this.lastEmitAt >= REARM_MS;
+            if (this.lastEmittedChord !== bestChord && armed) {
               this.handlers.onChord?.({
                 chord: bestChord,
                 confidence: match.confidence,
               });
               this.lastEmittedChord = bestChord;
               this.onsetSinceEmit = false;
+              this.lastEmitAt = Date.now();
             }
           }
         }
