@@ -241,7 +241,12 @@ export function SongPlayer({
   if (phase === 'realplay') {
     const videoId = (storedLink ? youtubeId(storedLink) : null) ?? song.youtubeId ?? null;
     return (
-      <div className="song-real">
+      <motion.div
+        className="song-real"
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      >
         <div className="song-topline">
           <span className="song-pass is-play">Play · the real song</span>
           <span className="song-section-tag">{song.title}</span>
@@ -286,7 +291,7 @@ export function SongPlayer({
             Done <ArrowRight size={18} weight="bold" />
           </button>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -325,7 +330,12 @@ export function SongPlayer({
   const playheadFrac = total > 1 ? current / (total - 1) : 0;
 
   return (
-    <div className="song-stage">
+    <motion.div
+      className="song-stage"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+    >
       <div className="song-topline">
         <span className="song-pass">Learn · your pace</span>
         <span className="song-section-tag">{cur.section}</span>
@@ -374,6 +384,6 @@ export function SongPlayer({
         </button>
         <SignalMeter quality={signal} />
       </div>
-    </div>
+    </motion.div>
   );
 }
