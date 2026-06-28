@@ -232,7 +232,7 @@ export function CoachedSession({ routine, onClose }: Props) {
       : seg.kind === 'trainer'
         ? `Chord Trainer · ${seg.chords.join(' ')}`
         : seg.kind === 'song'
-          ? 'Play-along · learn then play'
+          ? 'Learn the chords, then the real song'
           : mins(seg.seconds);
 
   return createPortal(
@@ -352,11 +352,7 @@ export function CoachedSession({ routine, onClose }: Props) {
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             detector={detector}
             onFinish={() => void speak('done')}
-            onResult={(accuracy) => {
-              recordDrillResult(today, seg.taskId, accuracy, undefined, false);
-              lastValueRef.current = accuracy;
-            }}
-            onNext={() => advance({ title: seg.title, value: lastValueRef.current, unit: '%' })}
+            onNext={() => advance({ title: seg.title, value: null, unit: '' })}
             onClose={exit}
           />
         )}

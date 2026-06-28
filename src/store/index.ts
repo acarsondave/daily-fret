@@ -41,6 +41,9 @@ export interface UserData {
   coachProgress?: CoachProgress | null;
   // User's own strum patterns (built-ins live in code; these are the custom ones).
   strumPatterns?: StrumPattern[];
+  // YouTube link per song id, used by the real-play pass to stream the actual
+  // recording. Set once by the user; persisted so it just plays next time.
+  songLinks?: Record<string, string>;
   // Epoch ms of the last local mutation to this account. Drives conflict
   // resolution against the cloud copy. Older/legacy data defaults to 0.
   updatedAt: number;
@@ -51,6 +54,7 @@ const defaultUserData: UserData = {
   dailyLogs: {},
   activeRoutineId: '',
   strumPatterns: [],
+  songLinks: {},
   updatedAt: 0,
 };
 
@@ -83,6 +87,7 @@ interface AppState {
   clearCoachProgress: () => void;
   addStrumPattern: (pattern: StrumPattern) => void;
   removeStrumPattern: (id: string) => void;
+  setSongLink: (songId: string, url: string) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -148,6 +153,7 @@ export const useStore = create<AppState>()(
             lastPair: data.lastPair ?? local?.lastPair,
             coachProgress: data.coachProgress ?? null,
             strumPatterns: data.strumPatterns ?? local?.strumPatterns ?? [],
+            songLinks: data.songLinks ?? local?.songLinks ?? {},
             updatedAt: remoteUpdatedAt,
           };
 
@@ -360,6 +366,10 @@ export const useStore = create<AppState>()(
 
         removeStrumPattern: (id) => set((state) =>
           mutate(state, (a) => ({ ...a, strumPatterns: (a.strumPatterns ?? []).filter((p) => p.id !== id) })),
+        ),
+
+        setSongLink: (songId, url) => set((state) =>
+          mutate(state, (a) => ({ ...a, songLinks: { ...(a.songLinks ?? {}), [songId]: url } })),
         ),
       };
     },

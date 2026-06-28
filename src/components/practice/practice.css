@@ -658,12 +658,6 @@
   pointer-events: none;
   z-index: 0;
 }
-.song-now-marker.is-pulsing { animation: now-pulse var(--beat-ms, 600ms) steps(1, end) infinite; }
-@keyframes now-pulse {
-  0% { background: rgba(56, 189, 248, 0.16); border-color: rgba(56, 189, 248, 0.7); }
-  50% { background: rgba(56, 189, 248, 0.05); border-color: rgba(56, 189, 248, 0.4); }
-  100% { background: rgba(56, 189, 248, 0.05); border-color: rgba(56, 189, 248, 0.4); }
-}
 .song-track {
   position: absolute;
   left: 50%;
@@ -703,7 +697,7 @@
 .strum-arrow.is-rest { color: rgba(255, 255, 255, 0.25); }
 .strum-rest-dot { width: 4px; height: 4px; border-radius: var(--radius-full); background: currentColor; }
 
-/* Synced lyric / count-in */
+/* Synced lyric */
 .song-lyric-line {
   min-height: 1.6em;
   text-align: center;
@@ -711,13 +705,6 @@
   font-size: 0.95rem;
   color: var(--text-secondary);
   max-width: 90%;
-}
-.song-countin-num {
-  font-family: var(--font-primary);
-  font-weight: 700;
-  font-size: clamp(2.5rem, 10vw, 3.5rem);
-  line-height: 1;
-  color: var(--accent-primary);
 }
 
 /* Parts timeline (sections + playhead) */
@@ -758,35 +745,11 @@
   box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
 }
 
-/* Foot: tempo / skip + signal */
+/* Foot: skip + signal */
 .song-stage-foot {
   display: flex;
   align-items: center;
   gap: var(--space-4);
-}
-.song-tempo { display: inline-flex; align-items: center; gap: var(--space-2); }
-.song-tempo-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-primary);
-  transition: background 0.2s ease;
-}
-.song-tempo-btn:hover { background: rgba(255, 255, 255, 0.12); }
-.song-tempo-val {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 60px;
-  justify-content: center;
-  font-family: var(--font-primary);
-  font-weight: 700;
-  font-size: 0.9rem;
-  color: var(--text-primary);
 }
 .song-skip {
   display: inline-flex;
@@ -802,20 +765,61 @@
 }
 .song-skip:hover { color: var(--text-primary); opacity: 1; }
 
-@media (prefers-reduced-motion: reduce) {
-  .song-now-marker.is-pulsing { animation: none; }
-}
-
 .song-cell.is-correct .song-cell-chord { color: var(--success-color); }
 .song-cell.is-correct .strum-arrow { color: var(--success-color); }
 
-.song-accuracy {
-  font-family: var(--font-primary);
-  font-weight: 700;
-  font-size: clamp(2.6rem, 11vw, 3.6rem);
-  line-height: 1;
-  color: var(--accent-primary);
+/* --- Real play: the actual recording (YouTube) --- */
+.song-real {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  min-height: 0;
 }
+.song-real-video {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-primary, #06141d);
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+.song-real-video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+.song-real-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: center;
+  padding: var(--space-5) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+}
+.song-real-link-row {
+  display: flex;
+  gap: var(--space-2);
+  width: 100%;
+}
+.song-real-link-row .task-input { flex: 1; min-width: 0; }
+.song-real-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex: 0 0 auto;
+}
+.song-real-foot .song-skip { margin-right: auto; }
+
 /* Riff cell: a small tag above the chord (e.g. the open–A riff) */
 .song-cell-tag {
   font-family: var(--font-secondary);

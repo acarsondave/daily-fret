@@ -1,16 +1,15 @@
 // Chord-only song catalog for the play-along drill. Playing a song runs two
-// passes: Learn (self-paced, advance when you play the chord) then Play
-// (tempo-led karaoke, the lane scrolls and bars auto-advance; detection is
-// advisory only — it lights the chord when you hit it, never grades).
+// passes: Learn (self-paced, advance when you strum the chord, following the
+// full song bar by bar) then Real play (the actual recording streams from
+// YouTube with the lyrics on screen — no grading, just play along).
 //
 // HOW TO ADD A SONG (copy an entry and edit):
 //   id/title/artist/level  display + a unique slug
-//   bpm        tempo for the Play pass (adjustable live)
 //   strum      DEFAULT strum for a bar: a string of D (down) / U (up) / - (rest),
 //              e.g. 'DD' = two downs, 'DDDD' = four downs. Per-bar overrides below.
 //   chords     distinct chords used (drives detection). Only: A C D E G Am Dm Em F
 //   sections   the song in order. Each section is { label, steps }. A step is one
-//              bar: s('A') or s('A','lyric sung here') or s('E', '', 'DDDDDD') to
+//              bar: s('A') or s('A','lyric sung here') or s('E','','DDDDDD') to
 //              override the strum for a long-held chord.
 //
 // `s(chord, lyric?, strum?)` keeps authoring terse. That's the whole job.
@@ -34,10 +33,10 @@ export interface Song {
   title: string;
   artist: string;
   level: 'Beginner' | 'Easy';
-  bpm: number;
   strum: string;
   chords: string[];
   sections: SongSection[];
+  youtubeId?: string; // default recording for the real-play pass (user can override)
 }
 
 const s = (chord: string, lyric?: string, strum?: string): SongStepDef => ({
@@ -48,51 +47,50 @@ const s = (chord: string, lyric?: string, strum?: string): SongStepDef => ({
 
 // The Wild Thing turnaround riff (chart shows "G A G A"). It's played as a quick
 // open-string-into-A figure: four down-strums (open, A, open, A). We can't detect
-// the open strings, so we target A — playing the A inside the riff counts it. It
-// stays one joined cell, not separate chords.
+// the open strings, so we target A — strumming the A inside the riff counts it. It
+// stays one joined cell, and in a verse it's played first, then you sing over A.
 const riff = (): SongStepDef => ({ chord: 'A', strum: 'DDDD', tag: 'riff' });
 
 // --- Wild Thing (The Troggs) ---
 // No G chord: the "G A G A" turnaround is the open-into-A riff (see `riff`).
 const WT_CHORUS: SongStepDef[] = [
-  s('A', 'Wild thing'), s('D'),
-  s('E'), s('D'), s('A', 'you make my heart sing'), s('D'),
-  s('E'), s('D'), s('A', 'you make everything groovy'), s('D'),
-  s('E'), s('D'), s('A', 'wild thing'), s('D'), s('E'), riff(),
+  s('A', 'Wild thing'), s('D'), s('E'), s('D'),
+  s('A', 'you make my heart sing'), s('D'), s('E'), s('D'),
+  s('D', 'you make everything'), s('A'), s('D'),
+  s('E', 'groovy'), s('D'),
+  s('A', 'wild thing'), s('D'), s('E'),
 ];
-const WT_INTERLUDE: SongStepDef[] = [s('A'), s('D'), s('E'), s('D'), s('A'), s('D'), s('E'), s('D')];
+const ade = (n: number): SongStepDef[] => {
+  const out: SongStepDef[] = [];
+  for (let i = 0; i < n; i++) out.push(s('A'), s('D'), s('E'), s('D'));
+  return out;
+};
 
 const wildThing: Song = {
   id: 'wild-thing',
   title: 'Wild Thing',
   artist: 'The Troggs',
   level: 'Beginner',
-  bpm: 100,
   strum: 'DD',
   chords: ['A', 'D', 'E'],
+  youtubeId: 'gSWInYFVksg',
   sections: [
-    // Prelude — played before the singing starts.
+    // Prelude — the A-D-E vamp played before the singing starts.
     { label: 'Intro', steps: [s('A'), s('D'), s('E', '', 'DDDDDD')] },
     { label: 'Chorus', steps: WT_CHORUS },
     {
-      // Each line is the riff, then sung over A.
+      // Each line: play the riff, then sing over A.
       label: 'Verse 1',
       steps: [
         riff(), s('A', 'Wild thing, I think I love you'),
         riff(), s('A', 'But I wanna know for sure'),
-        riff(), s('A', 'So come on, hold me tight'),
+        riff(), s('A', 'Come on, hold me tight'),
         s('A', 'I love you'),
       ],
     },
-    { label: 'Interlude', steps: WT_INTERLUDE },
+    { label: 'Interlude', steps: ade(2) },
     { label: 'Chorus', steps: WT_CHORUS },
-    {
-      label: 'Solo',
-      steps: [
-        s('A'), s('D'), s('E'), s('D'), s('A'), s('D'), s('E'), s('D'),
-        s('A'), s('D'), s('E'), s('D'), s('A'), s('D'), s('E'), riff(),
-      ],
-    },
+    { label: 'Interlude', steps: [...ade(3), s('A'), s('D'), s('E')] },
     {
       label: 'Verse 2',
       steps: [
@@ -102,20 +100,14 @@ const wildThing: Song = {
         s('A', 'you move me'),
       ],
     },
-    { label: 'Interlude', steps: WT_INTERLUDE },
+    { label: 'Interlude', steps: [...ade(1), s('A'), s('D'), s('E', '', 'DDDDDD')] },
     {
       label: 'Chorus',
       steps: [
-        s('A', 'Wild thing'), s('D'),
-        s('E'), s('D'), s('A', 'you make my heart sing'), s('D'),
-        s('E'), s('D'), s('A', 'you make everything groovy'), s('D'),
-        s('E'), s('D'), s('A', 'wild thing'), s('D'),
-        s('E'), s('D'), s('A', 'come on, come on, wild thing'), s('D'),
+        ...WT_CHORUS,
+        s('A', 'come on, come on, wild thing'), s('D'), s('E'),
+        s('A', 'shake it, shake it, wild thing'), s('D'), s('E'),
       ],
-    },
-    {
-      label: 'Fade Out',
-      steps: [s('E'), s('D'), s('A', 'shake it, shake it, wild thing'), s('D'), s('E'), s('D')],
     },
   ],
 };
@@ -125,7 +117,6 @@ const threeLittleBirds: Song = {
   title: 'Three Little Birds',
   artist: 'Bob Marley',
   level: 'Beginner',
-  bpm: 76,
   strum: 'DDUUDU',
   chords: ['A', 'D', 'E'],
   sections: [
@@ -140,7 +131,6 @@ const badMoonRising: Song = {
   title: 'Bad Moon Rising',
   artist: 'Creedence Clearwater Revival',
   level: 'Easy',
-  bpm: 120,
   strum: 'DDUUDU',
   chords: ['D', 'A', 'G'],
   sections: [
@@ -155,7 +145,6 @@ const knockinHeaven: Song = {
   title: "Knockin' on Heaven's Door",
   artist: 'Bob Dylan',
   level: 'Easy',
-  bpm: 72,
   strum: 'DDUUDU',
   chords: ['G', 'D', 'Am', 'C'],
   sections: [
@@ -186,7 +175,8 @@ export interface SongCell {
   sectionStart: boolean; // first cell of a new section
 }
 
-// Play pass: every step is one bar, in order.
+// The full song, one cell per bar, in order. The Learn lane advances through
+// this on each matching strum, so it follows the whole song faithfully.
 export function songBars(song: Song): SongCell[] {
   const cells: SongCell[] = [];
   for (const section of song.sections) {
@@ -202,20 +192,4 @@ export function songBars(song: Song): SongCell[] {
     });
   }
   return cells;
-}
-
-// Learn pass: collapse a chord that repeats the previous bar (the detector emits
-// once per change), but keep a lyric/section-start that would otherwise be lost.
-export function songTimeline(song: Song): SongCell[] {
-  const bars = songBars(song);
-  const steps: SongCell[] = [];
-  for (const bar of bars) {
-    const prev = steps[steps.length - 1];
-    if (prev && prev.chord === bar.chord) {
-      if (!prev.lyric && bar.lyric) prev.lyric = bar.lyric;
-      continue;
-    }
-    steps.push({ ...bar });
-  }
-  return steps;
 }
