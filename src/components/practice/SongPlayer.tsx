@@ -17,7 +17,7 @@ import { StrumRow } from './StrumRow';
 import { YouTubePlayer } from './YouTubePlayer';
 import { useSignalMeter } from './signalQuality';
 import { sfx } from '../../audio/sfx';
-import { getSong, songBars, type SongCell } from '../../data/songs';
+import { getSong, songTimeline, type SongCell } from '../../data/songs';
 
 const AUTO_ADVANCE_SECONDS = 5;
 const CELL_W = 76; // cell width in px (matches CSS)
@@ -94,9 +94,9 @@ export function SongPlayer({
   const { status, error, start, stop, setHandlers } = detector ?? own;
 
   const song = getSong(songId);
-  const bars = useMemo<SongCell[]>(() => (song ? songBars(song) : []), [song]);
-  const total = bars.length;
-  const segments = useMemo(() => buildSegments(bars), [bars]);
+  const timeline = useMemo<SongCell[]>(() => (song ? songTimeline(song) : []), [song]);
+  const total = timeline.length;
+  const segments = useMemo(() => buildSegments(timeline), [timeline]);
 
   const storedLink = useStore((st) => (song ? st.accounts[st.currentAccountId]?.songLinks?.[song.id] : undefined));
   const setSongLink = useStore((st) => st.setSongLink);
@@ -110,8 +110,6 @@ export function SongPlayer({
   const [editingLink, setEditingLink] = useState(false);
 
   const barIdxRef = useRef(0);
-  const lastChordRef = useRef(''); // most recent detected chord
-  const pendingOnsetRef = useRef(false); // a strum is waiting for its chord to match
 
   const releaseMic = () => {
     if (sharedMic) setHandlers({});
@@ -120,7 +118,6 @@ export function SongPlayer({
 
   const advanceTo = (next: number) => {
     barIdxRef.current = next;
-    pendingOnsetRef.current = false;
     sfx.tick();
     if (next >= total) {
       releaseMic();
@@ -130,31 +127,20 @@ export function SongPlayer({
     setBarIdx(next);
   };
 
-  // Advance the current bar when a strum (onset) lands on the expected chord.
-  const tryAdvance = () => {
-    const idx = barIdxRef.current;
-    if (idx >= total) return;
-    if (lastChordRef.current !== bars[idx].chord) return;
-    advanceTo(idx + 1);
-  };
-
+  // Self-paced: advance when the detected chord matches the current cell. The
+  // detector emits once per chord change, so the lane moves with your changes
+  // rather than every strum.
   const onLearnChord = (chord: string) => {
-    lastChordRef.current = chord;
     setDetected(chord);
-    if (pendingOnsetRef.current) tryAdvance();
-  };
-
-  const onLearnOnset = () => {
-    pendingOnsetRef.current = true;
-    tryAdvance(); // repeated chord: it already matches, advance on the strum itself
+    const idx = barIdxRef.current;
+    if (idx >= total || chord !== timeline[idx].chord) return;
+    advanceTo(idx + 1);
   };
 
   const startSession = async () => {
     if (!song) return;
     sfx.go();
     barIdxRef.current = 0;
-    lastChordRef.current = '';
-    pendingOnsetRef.current = false;
     setBarIdx(0);
     setDetected('');
     resetSignal();
@@ -162,7 +148,6 @@ export function SongPlayer({
     await start(
       {
         onChord: (ev) => onLearnChord(ev.chord),
-        onOnset: () => onLearnOnset(),
         onLevel: (ev) => pushSignal(ev),
       },
       { restrictTo: song.chords },
@@ -332,11 +317,11 @@ export function SongPlayer({
 
   // --- Learn lane ---
   const current = Math.min(barIdx, total - 1);
-  const cur = bars[current];
+  const cur = timeline[current];
   // Active lyric: the current cell's, or the most recent one, so a phrase holds
   // across instrumental bars instead of blinking out.
   let activeLyric = cur.lyric;
-  for (let i = current; i >= 0 && !activeLyric; i--) activeLyric = bars[i].lyric;
+  for (let i = current; i >= 0 && !activeLyric; i--) activeLyric = timeline[i].lyric;
   const playheadFrac = total > 1 ? current / (total - 1) : 0;
 
   return (
@@ -352,7 +337,7 @@ export function SongPlayer({
           className="song-track"
           style={{ transform: `translateX(${-(current * STRIDE + CELL_W / 2)}px)`, transition: 'transform 0.26s cubic-bezier(0.16,1,0.3,1)' }}
         >
-          {bars.map((cell, i) => {
+          {timeline.map((cell, i) => {
             const correct = i === current && detected === cell.chord;
             const cls = [
               'song-cell',

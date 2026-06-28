@@ -175,8 +175,7 @@ export interface SongCell {
   sectionStart: boolean; // first cell of a new section
 }
 
-// The full song, one cell per bar, in order. The Learn lane advances through
-// this on each matching strum, so it follows the whole song faithfully.
+// The full song, one cell per bar, in order.
 export function songBars(song: Song): SongCell[] {
   const cells: SongCell[] = [];
   for (const section of song.sections) {
@@ -192,4 +191,22 @@ export function songBars(song: Song): SongCell[] {
     });
   }
   return cells;
+}
+
+// Learn pass: collapse a chord that just repeats the previous bar (the detector
+// emits once per change, so the lane advances on each chord change rather than
+// per strum). A new section always starts a fresh cell, and a lyric that would
+// be lost in the merge is carried onto the cell you actually play.
+export function songTimeline(song: Song): SongCell[] {
+  const bars = songBars(song);
+  const steps: SongCell[] = [];
+  for (const bar of bars) {
+    const prev = steps[steps.length - 1];
+    if (prev && prev.chord === bar.chord && !bar.sectionStart) {
+      if (!prev.lyric && bar.lyric) prev.lyric = bar.lyric;
+      continue;
+    }
+    steps.push({ ...bar });
+  }
+  return steps;
 }
