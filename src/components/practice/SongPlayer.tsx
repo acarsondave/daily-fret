@@ -14,6 +14,7 @@ import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDet
 import { useStore } from '../../store';
 import { SignalMeter } from './SignalMeter';
 import { StrumRow } from './StrumRow';
+import { YouTubePlayer } from './YouTubePlayer';
 import { useSignalMeter } from './signalQuality';
 import { sfx } from '../../audio/sfx';
 import { getSong, songBars, type SongCell } from '../../data/songs';
@@ -254,7 +255,6 @@ export function SongPlayer({
 
   if (phase === 'realplay') {
     const videoId = (storedLink ? youtubeId(storedLink) : null) ?? song.youtubeId ?? null;
-    const params = 'autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&color=white';
     return (
       <div className="song-real">
         <div className="song-topline">
@@ -263,14 +263,7 @@ export function SongPlayer({
         </div>
 
         {videoId && !editingLink ? (
-          <div className="song-real-video">
-            <iframe
-              src={`https://www.youtube-nocookie.com/embed/${videoId}?${params}`}
-              title={`${song.title} — ${song.artist}`}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-            />
-          </div>
+          <YouTubePlayer videoId={videoId} onEnded={finish} />
         ) : (
           <div className="song-real-link">
             <YoutubeLogo size={32} weight="fill" color="#ff5252" />
