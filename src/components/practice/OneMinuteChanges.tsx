@@ -17,6 +17,7 @@ import { useSignalMeter } from './signalQuality';
 import { useStore } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import { sfx } from '../../audio/sfx';
+import { diag } from '../../audio/diagnostics';
 import type { DrillConfig } from '../../types';
 
 const CHORDS = ['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F'];
@@ -148,6 +149,7 @@ export function OneMinuteChanges({
 
   const finish = () => {
     clearTimer();
+    diag.mark(`one-minute finish ${from}->${to}: counted ${transitionsRef.current}`);
     // Shared mic stays live for the next segment, but detach our handlers so a
     // ringing chord during the results screen / rest can't drive this drill.
     if (sharedMic) setHandlers({});
@@ -187,6 +189,7 @@ export function OneMinuteChanges({
       { restrictTo: [from, to] },
     );
     if (!live) return; // denied / failed — the mic gate view takes over
+    diag.mark(`one-minute start ${from}->${to} (${duration}s)`);
 
     clearTimer();
     const deadline = Date.now() + duration * 1000;

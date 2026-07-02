@@ -7,6 +7,7 @@ import { pairKey } from '../../lib/pairs';
 import { buildSegments } from '../../lib/coached';
 import { taskDrillHistory } from '../../lib/drillStats';
 import { sfx } from '../../audio/sfx';
+import { diag } from '../../audio/diagnostics';
 import { speak, announceDrill, preloadCoachVoice, stopVoice, isCoachVoiceEnabled, setCoachVoiceEnabled } from '../../audio/coachVoice';
 import { useChordDetector } from '../../hooks/useChordDetector';
 import type { Routine } from '../../types';
@@ -158,6 +159,7 @@ export function CoachedSession({ routine, onClose }: Props) {
         }
       }
       if (cancelled) return;
+      diag.mark(`coached segment ${index + 1}/${segments.length}: ${seg.title}`);
       setPhase('segment');
     })();
     return () => {

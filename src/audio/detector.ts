@@ -5,6 +5,7 @@
 import { Chromagram, SEMITONES } from './chromagram';
 import { OnsetDetector } from './onset';
 import { matchChord, matchChordAmong } from './chords';
+import { diag, DIAG_CODE } from './diagnostics';
 
 export const FRAME_SIZE = 1024;
 
@@ -37,6 +38,21 @@ const MIN_STRUM_RMS = 0.02;
 // the sub-130ms ring/transition flicker we want to suppress, short enough that
 // any genuine human chord change still registers.
 const REARM_MS = 150;
+
+// Snapshot of every tuning constant, embedded in each diagnostic session so an
+// exported log is interpretable even after the constants change.
+export const DETECTOR_CONSTANTS: Record<string, number> = {
+  FRAME_SIZE,
+  SILENCE_THRESHOLD,
+  NOISE_FLOOR_MAX,
+  CHORD_STABLE_FRAMES,
+  CHROMA_SALIENCE_MIN,
+  CHROMA_SALIENCE_MIN_RESTRICTED,
+  RESTRICTED_MARGIN_MIN,
+  STRUM_RMS_RATIO,
+  MIN_STRUM_RMS,
+  REARM_MS,
+};
 
 export const NO_CHORD = 'No Chord';
 
@@ -108,6 +124,7 @@ export class ChordDetector {
 
   setRestrict(chords: string[] | null): void {
     this.restrictTo = chords && chords.length ? chords : null;
+    diag.mark(this.restrictTo ? `restrict: ${this.restrictTo.join(', ')}` : 'restrict: open');
   }
 
   /// Feed exactly one FRAME_SIZE block of mono samples.
@@ -128,6 +145,7 @@ export class ChordDetector {
         chroma: null,
       });
 
+      diag.silentFrame();
       this.silentFrameCount += 1;
       if (this.silentFrameCount > 10) {
         if (this.lastEmittedChord !== NO_CHORD) {
@@ -149,9 +167,11 @@ export class ChordDetector {
       this.handlers.onOnset?.({ energy: rms });
       // Only a strum clearly above the noise floor arms a count, so a flux blip
       // on room noise or handling can't register a phantom chord.
-      if (rms > Math.max(this.noiseFloor * STRUM_RMS_RATIO, MIN_STRUM_RMS)) {
+      const armsCount = rms > Math.max(this.noiseFloor * STRUM_RMS_RATIO, MIN_STRUM_RMS);
+      if (armsCount) {
         this.onsetSinceEmit = true;
       }
+      diag.onset(rms, armsCount);
       // Anchor analysis to the new chord so the next chroma reflects what is
       // being played now instead of the previous chord lingering in the window.
       this.chromagram.reset();
@@ -159,7 +179,10 @@ export class ChordDetector {
     }
 
     const chroma = this.chromagram.next(frame);
-    if (!chroma) return;
+    if (!chroma) {
+      diag.frame(DIAG_CODE.WINDOW_FILLING, rms, this.noiseFloor, 0, 0, null);
+      return;
+    }
 
     let peak = 0;
     let sum = 0;
@@ -186,6 +209,7 @@ export class ChordDetector {
       // In restricted mode reject ambiguous frames (the chroma is between the
       // two targets, e.g. fingers in flight) so we don't flap and over-count.
       if (match && this.restrictTo && match.margin < RESTRICTED_MARGIN_MIN) {
+        diag.frame(DIAG_CODE.AMBIGUOUS, rms, this.noiseFloor, salience, match.margin, match.chord);
         this.handlers.onLevel?.({
           rms,
           noiseFloor: this.noiseFloor,
@@ -213,6 +237,8 @@ export class ChordDetector {
           if (maxCount >= Math.floor(CHORD_STABLE_FRAMES / 2) + 1) {
             const armed = this.onsetSinceEmit || Date.now() - this.lastEmitAt >= REARM_MS;
             if (this.lastEmittedChord !== bestChord && armed) {
+              diag.frame(DIAG_CODE.EMIT, rms, this.noiseFloor, salience, match.margin, bestChord);
+              diag.emit(bestChord, match.confidence);
               this.handlers.onChord?.({
                 chord: bestChord,
                 confidence: match.confidence,
@@ -220,11 +246,25 @@ export class ChordDetector {
               this.lastEmittedChord = bestChord;
               this.onsetSinceEmit = false;
               this.lastEmitAt = Date.now();
+            } else if (this.lastEmittedChord !== bestChord) {
+              // The vote wanted a change but the arming gate blocked it. This is
+              // the starvation signature: many of these in a row = real changes
+              // being eaten.
+              diag.frame(DIAG_CODE.BLOCKED_UNARMED, rms, this.noiseFloor, salience, match.margin, bestChord);
+            } else {
+              diag.frame(DIAG_CODE.HOLD, rms, this.noiseFloor, salience, match.margin, bestChord);
             }
+          } else {
+            diag.frame(DIAG_CODE.VOTE_PENDING, rms, this.noiseFloor, salience, match.margin, match.chord);
           }
+        } else {
+          diag.frame(DIAG_CODE.VOTE_PENDING, rms, this.noiseFloor, salience, match.margin, match.chord);
         }
+      } else {
+        diag.frame(DIAG_CODE.NO_MATCH, rms, this.noiseFloor, salience, 0, null);
       }
     } else {
+      diag.frame(DIAG_CODE.LOW_SALIENCE, rms, this.noiseFloor, salience, 0, null);
       this.chordHistory = [];
     }
 

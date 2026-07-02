@@ -4,7 +4,8 @@ import { auth } from '../lib/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { useAuthStore } from '../lib/auth';
 import { useStore } from '../store';
-import { SignOut, ArrowRight, Spinner, DownloadSimple } from '@phosphor-icons/react';
+import { SignOut, ArrowRight, Spinner, DownloadSimple, Waveform } from '@phosphor-icons/react';
+import { downloadDiagnostics, storedSessionSummaries } from '../audio/diagnostics';
 import { MicSetting } from './MicSetting';
 import { PatternManager } from './PatternManager';
 import './AccountModal.css';
@@ -21,6 +22,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [diagStatus, setDiagStatus] = useState<string | null>(null);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +65,18 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  // Downloads the recorded detection sessions (per-frame gate outcomes) so a
+  // bad-detection day can be handed over for analysis instead of described.
+  const exportDiagnostics = () => {
+    const count = storedSessionSummaries().length;
+    if (!downloadDiagnostics()) {
+      setDiagStatus('No mic sessions recorded yet');
+    } else {
+      setDiagStatus(`Exported ${count} session${count === 1 ? '' : 's'}`);
+    }
+    setTimeout(() => setDiagStatus(null), 2500);
   };
 
   return (
@@ -123,6 +137,11 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
               <button className="settings-action-btn" onClick={exportData}>
                 <DownloadSimple size={18} />
                 <span>Export My Data (JSON)</span>
+              </button>
+
+              <button className="settings-action-btn" onClick={exportDiagnostics}>
+                <Waveform size={18} />
+                <span>{diagStatus ?? 'Export Detection Diagnostics'}</span>
               </button>
 
               <button className="settings-action-btn logout" onClick={handleLogout} disabled={isLoading}>

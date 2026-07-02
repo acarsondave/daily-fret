@@ -14,6 +14,7 @@ import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
 import { useSignalMeter } from './signalQuality';
 import { sfx } from '../../audio/sfx';
+import { diag } from '../../audio/diagnostics';
 import type { DrillConfig } from '../../types';
 
 const ALL_CHORDS = ['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F'];
@@ -105,10 +106,14 @@ export function ChordTrainer({
     const next = pickTarget(targetRef.current);
     targetRef.current = next;
     setTarget(next);
+    // Records what the drill is asking for, so exported frames can be read as
+    // "target was X, detector said Y".
+    diag.mark(`trainer target: ${next}`);
   };
 
   const finish = () => {
     clearTimer();
+    diag.mark(`trainer finish: nailed ${scoreRef.current}`);
     if (sharedMic) setHandlers({});
     else void stop();
     const value = scoreRef.current;
@@ -145,6 +150,7 @@ export function ChordTrainer({
       { restrictTo: pool },
     );
     if (!live) return;
+    diag.mark(`trainer start [${pool.join(', ')}] (${duration}s), target: ${first}`);
 
     clearTimer();
     const deadline = Date.now() + duration * 1000;

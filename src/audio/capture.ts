@@ -2,7 +2,8 @@
 // AudioWorklet (1024-sample frames) -> ChordDetector. Browser equivalent of
 // PantherPlay's native audio engine I/O.
 
-import { ChordDetector, type DetectorHandlers } from './detector';
+import { ChordDetector, DETECTOR_CONSTANTS, type DetectorHandlers } from './detector';
+import { diag } from './diagnostics';
 
 // Served verbatim from /public so addModule always gets a real, same-origin
 // classic script. BASE_URL keeps it correct under any deploy sub-path.
@@ -78,6 +79,16 @@ export class ChordCapture {
     await ctx.audioWorklet.addModule(WORKLET_URL);
     if (this.disposed) return this.teardown();
 
+    // Every capture records a diagnostic session (gate outcomes, onsets,
+    // emits) so "detection was off today" is answerable from an export
+    // instead of memory. See src/audio/diagnostics.ts.
+    diag.start({
+      label: 'mic session',
+      sampleRate: ctx.sampleRate,
+      restrictTo: handlers.restrictTo ?? null,
+      constants: DETECTOR_CONSTANTS,
+    });
+
     this.detector = new ChordDetector({
       sampleRate: ctx.sampleRate,
       offset: handlers.offset ?? 0,
@@ -137,6 +148,7 @@ export class ChordCapture {
 
   private async teardown(): Promise<void> {
     this.starting = false;
+    if (this.detector) diag.end();
     this.detachResume?.();
     if (this.node) {
       this.node.port.onmessage = null;

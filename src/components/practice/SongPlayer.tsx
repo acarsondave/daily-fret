@@ -17,6 +17,7 @@ import { StrumRow } from './StrumRow';
 import { YouTubePlayer } from './YouTubePlayer';
 import { useSignalMeter } from './signalQuality';
 import { sfx } from '../../audio/sfx';
+import { diag } from '../../audio/diagnostics';
 import { getSong, songTimeline, type SongCell } from '../../data/songs';
 
 const AUTO_ADVANCE_SECONDS = 5;
@@ -120,10 +121,15 @@ export function SongPlayer({
     barIdxRef.current = next;
     sfx.tick();
     if (next >= total) {
+      diag.mark('song learn finished');
       releaseMic();
       setPhase('realplay');
       return;
     }
+    // Which cell the lane now expects, so exported frames read as "waiting for
+    // X, detector said Y" (this is how the riff over-advance was diagnosed).
+    const cell = timeline[next];
+    diag.mark(`song cell ${next}: waiting for ${cell.chord}${cell.tag ? ` (${cell.tag})` : ''} [${cell.section}]`);
     setBarIdx(next);
   };
 
@@ -152,6 +158,7 @@ export function SongPlayer({
       },
       { restrictTo: song.chords },
     );
+    diag.mark(`song learn start: ${song.title}, waiting for ${timeline[0]?.chord ?? '?'}`);
   };
 
   useEffect(() => {
