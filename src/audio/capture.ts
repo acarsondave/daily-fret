@@ -69,14 +69,25 @@ export class ChordCapture {
     }
     if (this.disposed) return this.teardown();
 
-    const ctx = new AudioContext();
-    this.ctx = ctx;
-    if (ctx.state === 'suspended') {
-      await ctx.resume();
-    }
-    if (this.disposed) return this.teardown();
+    // From here on a failure (context creation, worklet fetch) must tear down
+    // the partial graph. Leaving it leaks the live mic stream and an open
+    // AudioContext per retry; browsers cap concurrent contexts, and once the
+    // tab exhausts them every sound in the app (sfx, voice, detection) goes
+    // dead until reload.
+    let ctx: AudioContext;
+    try {
+      ctx = new AudioContext();
+      this.ctx = ctx;
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+      if (this.disposed) return this.teardown();
 
-    await ctx.audioWorklet.addModule(WORKLET_URL);
+      await ctx.audioWorklet.addModule(WORKLET_URL);
+    } catch (err) {
+      await this.teardown();
+      throw err;
+    }
     if (this.disposed) return this.teardown();
 
     // Every capture records a diagnostic session (gate outcomes, onsets,

@@ -135,7 +135,9 @@ class DiagRecorder {
     s.endedAt = new Date().toISOString();
     this.session = null;
     this.ring = [];
-    persistSession(s);
+    // Persisting stringifies megabytes synchronously; deferred so mic teardown
+    // (drill finish, segment hand-off) never blocks on it.
+    setTimeout(() => persistSession(s), 0);
   }
 
   mark(label: string): void {

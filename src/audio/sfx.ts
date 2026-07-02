@@ -34,6 +34,10 @@ export function setSoundEnabled(value: boolean): void {
 function getCtx(): AudioContext | null {
   if (typeof window === 'undefined') return null;
   try {
+    // The system can close the context behind our back (iOS interruption,
+    // audio-session eviction). A closed context never plays again, so detect
+    // it and recreate instead of staying silent until reload.
+    if (ctx && ctx.state === 'closed') ctx = null;
     if (!ctx) {
       const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AC) return null;

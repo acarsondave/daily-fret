@@ -112,9 +112,14 @@ export function SongPlayer({
 
   const barIdxRef = useRef(0);
 
+  // Fully stop the mic for the real-song pass, shared or not. Keeping it live
+  // through a video means the detector spends the whole playback running FFTs
+  // on the speaker output (pure waste, and garbage in the diagnostics). The
+  // next coached segment restarts capture itself, so nothing downstream needs
+  // the shared mic to stay warm here.
   const releaseMic = () => {
-    if (sharedMic) setHandlers({});
-    else void stop();
+    setHandlers({});
+    void stop();
   };
 
   const advanceTo = (next: number) => {
