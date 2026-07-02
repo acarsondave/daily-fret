@@ -29,6 +29,9 @@ docs/TECH_STACK.md
 docs/LESSONS.md
 docs/progress.txt
 
+# Detection diagnostics exports (analysed locally, never committed).
+daily-fret-diagnostics-*.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

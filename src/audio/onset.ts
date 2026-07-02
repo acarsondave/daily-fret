@@ -36,8 +36,16 @@ export class OnsetDetector {
     this.im = new Float32Array(frameSize);
     this.prevSpectrum = new Float32Array(frameSize);
 
+    // Hard invariant: the refractory MUST exceed the chromagram's window-fill
+    // time. Each onset resets that window (~186ms to refill to MIN_FILLED before
+    // any chroma is produced) plus ~2 frames to complete the stability vote. A
+    // shorter refractory lets the sustain/decay of one strum re-fire onsets that
+    // reset the window before it can ever fill, so the detector stays blind
+    // through most of continuous playing. 220ms guarantees one strum resolves to
+    // a reading before another onset can wipe it, while still allowing >4 chord
+    // changes/sec — far above any human drill pace.
     const msPerFrame = (frameSize / sampleRate) * 1000;
-    this.minFramesBetweenOnsets = Math.ceil(60 / msPerFrame);
+    this.minFramesBetweenOnsets = Math.ceil(220 / msPerFrame);
     this.framesSinceLastOnset = this.minFramesBetweenOnsets;
   }
 
