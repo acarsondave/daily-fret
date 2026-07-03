@@ -9,6 +9,7 @@ import {
   MusicNotes,
   CheckCircle,
   YoutubeLogo,
+  HandPalm,
 } from '@phosphor-icons/react';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { useStore } from '../../store';
@@ -21,10 +22,14 @@ import { diag } from '../../audio/diagnostics';
 import { getSong, songTimeline, type SongCell } from '../../data/songs';
 
 const AUTO_ADVANCE_SECONDS = 5;
+// A fretting-hand breather between the self-paced learn pass and the tempo-led
+// real-song pass. Learning a song at your own pace already fatigues the hand;
+// dropping straight into playback with no rest is what hurts.
+const REST_SECONDS = 30;
 const CELL_W = 76; // cell width in px (matches CSS)
 const STRIDE = CELL_W + 16; // cell width + flex gap; matches CSS
 
-type Phase = 'intro' | 'learn' | 'realplay' | 'results';
+type Phase = 'intro' | 'learn' | 'rest' | 'realplay' | 'results';
 
 interface Props {
   songId: string;
@@ -107,6 +112,7 @@ export function SongPlayer({
   const [detected, setDetected] = useState('');
   const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter();
   const [advanceLeft, setAdvanceLeft] = useState(AUTO_ADVANCE_SECONDS);
+  const [restLeft, setRestLeft] = useState(REST_SECONDS);
   const [linkDraft, setLinkDraft] = useState('');
   const [editingLink, setEditingLink] = useState(false);
 
@@ -128,7 +134,10 @@ export function SongPlayer({
     if (next >= total) {
       diag.mark('song learn finished');
       releaseMic();
-      setPhase('realplay');
+      // Rest the fretting hand before the tempo-led pass rather than jumping
+      // straight into playback.
+      setRestLeft(REST_SECONDS);
+      setPhase('rest');
       return;
     }
     // Which cell the lane now expects, so exported frames read as "waiting for
@@ -180,6 +189,20 @@ export function SongPlayer({
     onFinish?.();
     setPhase('results');
   };
+
+  useEffect(() => {
+    if (phase !== 'rest') return;
+    const deadline = Date.now() + REST_SECONDS * 1000;
+    const id = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setRestLeft(remaining);
+      if (remaining <= 0) {
+        clearInterval(id);
+        setPhase('realplay');
+      }
+    }, 200);
+    return () => clearInterval(id);
+  }, [phase]);
 
   useEffect(() => {
     if (phase !== 'results' || !autoAdvance || !onNext) return;
@@ -247,6 +270,23 @@ export function SongPlayer({
         <Microphone size={40} weight="duotone" color="var(--accent-primary)" />
         <p>Allow microphone access to begin…</p>
       </div>
+    );
+  }
+
+  if (phase === 'rest') {
+    return (
+      <motion.div className="om-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+        <HandPalm size={48} weight="duotone" className="coach-summary-check" />
+        <div className="coach-intro-title">Rest your fingers</div>
+        <div className="om-caption">Shake out your hand. The real song starts next.</div>
+        <div className="coach-advance">
+          <span className="coach-advance-label">Playback in</span>
+          <span className="coach-advance-count">{restLeft}</span>
+        </div>
+        <button className="practice-btn ghost" onClick={() => setPhase('realplay')}>
+          <SkipForward size={18} weight="fill" /> Start now
+        </button>
+      </motion.div>
     );
   }
 
