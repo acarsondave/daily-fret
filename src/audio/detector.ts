@@ -16,11 +16,15 @@ const SILENCE_THRESHOLD = 0.005;
 const NOISE_FLOOR_MAX = 0.03;
 const CHORD_STABLE_FRAMES = 2;
 export const CHROMA_SALIENCE_MIN = 1.2;
-// Restricted mode (song / changes) used to be *lenient* on salience because
-// there are only a couple of templates — but that's exactly what lets quiet room
-// noise resolve to one of the few candidates and register a phantom chord. Hold
-// it to the same tonal-salience bar as open mode.
-const CHROMA_SALIENCE_MIN_RESTRICTED = 1.2;
+// Restricted mode (song / changes) sits slightly below open mode. A diagnostics
+// export (2026-07-03) showed the entire rejected-salience band packed at
+// 1.0-1.2, and ~24% of those were as loud as a median emitted chord — real
+// strums (open chords ring across many pitch classes, flattening peak/mean) that
+// the 1.2 bar was eating, producing the "played it right, didn't count" misses.
+// 1.15 recovers ~60% of that loud band as a conservative half-step; phantom room
+// noise is still stopped by the strum-loudness arming and the restricted margin
+// gate below, which open mode lacks. Drop further if misses persist next export.
+const CHROMA_SALIENCE_MIN_RESTRICTED = 1.15;
 // Reject ambiguous frames more firmly: a ringing/decaying chord drifting toward
 // the other target otherwise registers phantom transitions (false counts).
 const RESTRICTED_MARGIN_MIN = 0.12;
