@@ -117,6 +117,9 @@ export function SongPlayer({
   const [editingLink, setEditingLink] = useState(false);
 
   const barIdxRef = useRef(0);
+  // The chord currently held/emitted, read synchronously inside the onset
+  // callback (state would be stale there). Drives same-chord cell advancement.
+  const detectedRef = useRef('');
 
   // Fully stop the mic for the real-song pass, shared or not. Keeping it live
   // through a video means the detector spends the whole playback running FFTs
@@ -148,12 +151,25 @@ export function SongPlayer({
   };
 
   // Self-paced: advance when the detected chord matches the current cell. The
-  // detector emits once per chord change, so the lane moves with your changes
-  // rather than every strum.
+  // detector emits once per chord change, so a plain change moves the lane here.
   const onLearnChord = (chord: string) => {
     setDetected(chord);
+    detectedRef.current = chord;
     const idx = barIdxRef.current;
     if (idx >= total || chord !== timeline[idx].chord) return;
+    advanceTo(idx + 1);
+  };
+
+  // When two adjacent cells want the same chord (the "A (riff)" figure followed
+  // by a plain "A", or any repeated chord), the detector is already holding that
+  // chord and never fires a fresh change event, so onLearnChord alone would
+  // stall the second cell until an accidental flicker. A re-strum still fires an
+  // onset, so advance on that onset whenever the held chord already matches the
+  // cell. Distinct-chord cells are untouched: at the onset of a new chord the
+  // held chord differs from the target, so this no-ops and the change path runs.
+  const onLearnStrum = () => {
+    const idx = barIdxRef.current;
+    if (idx >= total || detectedRef.current !== timeline[idx].chord) return;
     advanceTo(idx + 1);
   };
 
@@ -163,11 +179,13 @@ export function SongPlayer({
     barIdxRef.current = 0;
     setBarIdx(0);
     setDetected('');
+    detectedRef.current = '';
     resetSignal();
     setPhase('learn');
     await start(
       {
         onChord: (ev) => onLearnChord(ev.chord),
+        onOnset: () => onLearnStrum(),
         onLevel: (ev) => pushSignal(ev),
       },
       { restrictTo: song.chords },
