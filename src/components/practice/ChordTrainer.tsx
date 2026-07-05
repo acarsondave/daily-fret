@@ -10,6 +10,7 @@ import {
 } from '@phosphor-icons/react';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
+import { usePassiveRefine } from '../../hooks/usePassiveRefine';
 import { ProgressRing } from './ProgressRing';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
@@ -51,6 +52,7 @@ export function ChordTrainer({
 }: Props) {
   const own = useChordDetector();
   const templates = useLearnedTemplates();
+  const passive = usePassiveRefine();
   const sharedMic = !!detector;
   const { status, error, start, stop, setHandlers } = detector ?? own;
 
@@ -118,6 +120,7 @@ export function ChordTrainer({
     diag.mark(`trainer finish: nailed ${scoreRef.current}`);
     if (sharedMic) setHandlers({});
     else void stop();
+    passive.commit();
     const value = scoreRef.current;
     const prevBest = runningBest;
     const celebrate = prevBest === 0 ? value > 0 : value > prevBest;
@@ -147,7 +150,10 @@ export function ChordTrainer({
     const live = await start(
       {
         onChord: (ev) => handleChord(ev.chord),
-        onLevel: (ev) => pushSignal(ev),
+        onLevel: (ev) => {
+          pushSignal(ev);
+          passive.observe(targetRef.current, ev);
+        },
       },
       { restrictTo: pool, templates },
     );

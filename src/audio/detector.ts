@@ -74,6 +74,11 @@ export interface LevelEvent {
   noiseFloor: number;
   salience: number;
   chroma: Float32Array | null;
+  // The chord this frame matched (restricted mode) and its margin to the runner
+  // up, or null/0 when the frame did not cleanly match. Lets passive calibration
+  // ingest only frames the detector already agrees with at high confidence.
+  chord: string | null;
+  margin: number;
 }
 
 export interface DetectorHandlers {
@@ -150,6 +155,8 @@ export class ChordDetector {
         noiseFloor: this.noiseFloor,
         salience: 0,
         chroma: null,
+        chord: null,
+        margin: 0,
       });
 
       diag.silentFrame();
@@ -209,10 +216,18 @@ export class ChordDetector {
       for (let i = 0; i < SEMITONES; i++) normalized[i] = chroma[i] / peak;
     }
 
+    // What this frame matched, surfaced on the level event for passive calibration.
+    let frameChord: string | null = null;
+    let frameMargin = 0;
+
     if (salient) {
       const match = this.restrictTo
         ? matchChordAmong(normalized, this.restrictTo, this.offset, this.learned)
         : matchChord(normalized, this.offset, this.learned);
+      if (match) {
+        frameChord = match.chord;
+        frameMargin = match.margin;
+      }
       // In restricted mode reject ambiguous frames (the chroma is between the
       // two targets, e.g. fingers in flight) so we don't flap and over-count.
       if (match && this.restrictTo && match.margin < RESTRICTED_MARGIN_MIN) {
@@ -222,6 +237,8 @@ export class ChordDetector {
           noiseFloor: this.noiseFloor,
           salience,
           chroma: normalized,
+          chord: frameChord,
+          margin: frameMargin,
         });
         return;
       }
@@ -280,6 +297,8 @@ export class ChordDetector {
       noiseFloor: this.noiseFloor,
       salience,
       chroma: normalized,
+      chord: frameChord,
+      margin: frameMargin,
     });
   }
 }

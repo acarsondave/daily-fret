@@ -13,6 +13,7 @@ import {
 } from '@phosphor-icons/react';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
+import { usePassiveRefine } from '../../hooks/usePassiveRefine';
 import { useStore } from '../../store';
 import { SignalMeter } from './SignalMeter';
 import { StrumRow } from './StrumRow';
@@ -98,6 +99,7 @@ export function SongPlayer({
 }: Props) {
   const own = useChordDetector();
   const templates = useLearnedTemplates();
+  const passive = usePassiveRefine();
   const sharedMic = !!detector;
   const { status, error, start, stop, setHandlers } = detector ?? own;
 
@@ -139,6 +141,7 @@ export function SongPlayer({
     if (next >= total) {
       diag.mark('song learn finished');
       releaseMic();
+      passive.commit();
       // Rest the fretting hand before the tempo-led pass rather than jumping
       // straight into playback.
       setRestLeft(REST_SECONDS);
@@ -188,7 +191,13 @@ export function SongPlayer({
       {
         onChord: (ev) => onLearnChord(ev.chord),
         onOnset: () => onLearnStrum(),
-        onLevel: (ev) => pushSignal(ev),
+        onLevel: (ev) => {
+          pushSignal(ev);
+          // Reinforce only plain-chord cells: a riff cell is not a strummed chord
+          // shape, so learning its chroma as that chord would poison the template.
+          const cell = timeline[barIdxRef.current];
+          if (cell && !cell.tag) passive.observe(cell.chord, ev);
+        },
       },
       { restrictTo: song.chords, templates },
     );

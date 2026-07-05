@@ -11,6 +11,7 @@ import {
   ArrowRight,
 } from '@phosphor-icons/react';
 import { useChordDetector } from '../../hooks/useChordDetector';
+import type { LevelEvent } from '../../audio/detector';
 import { ProgressRing } from './ProgressRing';
 import { SignalMeter } from './SignalMeter';
 import { useSignalMeter } from './signalQuality';
@@ -111,7 +112,7 @@ export function CalibrationFlow({ onClose }: Props) {
     window.setTimeout(() => setSettling(false), SETTLE_MS);
   };
 
-  const onLevel = (ev: { rms: number; noiseFloor: number; salience: number; chroma: Float32Array | null }) => {
+  const onLevel = (ev: LevelEvent) => {
     pushSignal(ev);
     if (phaseRef.current !== 'capturing') return;
     if (Date.now() < readyAtRef.current) return;
