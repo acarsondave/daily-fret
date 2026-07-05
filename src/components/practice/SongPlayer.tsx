@@ -28,12 +28,6 @@ const AUTO_ADVANCE_SECONDS = 5;
 // real-song pass. Learning a song at your own pace already fatigues the hand;
 // dropping straight into playback with no rest is what hurts.
 const REST_SECONDS = 30;
-
-// If a cell keeps getting strummed but the detector will not resolve the chord
-// (the ringing-open-A interlude can hold the detector on A for 20s+ even with
-// calibration), advance after this many strums so the learn lane never traps the
-// player. Normal cells resolve in one or two strums, well under this.
-const GRACE_STRUMS = 6;
 const CELL_W = 76; // cell width in px (matches CSS)
 const STRIDE = CELL_W + 16; // cell width + flex gap; matches CSS
 
@@ -130,8 +124,6 @@ export function SongPlayer({
   // The chord currently held/emitted, read synchronously inside the onset
   // callback (state would be stale there). Drives same-chord cell advancement.
   const detectedRef = useRef('');
-  // Strums landed on the current cell, for the grace advance below.
-  const cellStrumsRef = useRef(0);
 
   // Fully stop the mic for the real-song pass, shared or not. Keeping it live
   // through a video means the detector spends the whole playback running FFTs
@@ -145,7 +137,6 @@ export function SongPlayer({
 
   const advanceTo = (next: number) => {
     barIdxRef.current = next;
-    cellStrumsRef.current = 0;
     sfx.tick();
     if (next >= total) {
       diag.mark('song learn finished');
@@ -174,32 +165,23 @@ export function SongPlayer({
     advanceTo(idx + 1);
   };
 
-  // Handles two strum-driven advances that onLearnChord (change events only) can't:
-  // 1. Repeated-chord cells (the "A (riff)" figure into a plain "A"): the detector
-  //    is already holding that chord and never re-fires, so a re-strum on the
-  //    already-matching chord advances.
-  // 2. Grace advance: a cell the detector won't resolve (the ringing-A interlude
-  //    can lock it on A for 20s+) still gets strummed; after GRACE_STRUMS attempts
-  //    move on so the lane never traps the player. Normal cells resolve long before.
+  // When two adjacent cells want the same chord (the "A (riff)" figure followed
+  // by a plain "A", or any repeated chord), the detector is already holding that
+  // chord and never fires a fresh change event, so onLearnChord alone would
+  // stall the second cell until an accidental flicker. A re-strum still fires an
+  // onset, so advance on that onset whenever the held chord already matches the
+  // cell. Distinct-chord cells are untouched: at the onset of a new chord the
+  // held chord differs from the target, so this no-ops and the change path runs.
   const onLearnStrum = () => {
     const idx = barIdxRef.current;
-    if (idx >= total) return;
-    cellStrumsRef.current += 1;
-    if (detectedRef.current === timeline[idx].chord) {
-      advanceTo(idx + 1);
-      return;
-    }
-    if (cellStrumsRef.current >= GRACE_STRUMS) {
-      diag.mark(`song cell ${idx} grace-advanced after ${cellStrumsRef.current} strums`);
-      advanceTo(idx + 1);
-    }
+    if (idx >= total || detectedRef.current !== timeline[idx].chord) return;
+    advanceTo(idx + 1);
   };
 
   const startSession = async () => {
     if (!song) return;
     sfx.go();
     barIdxRef.current = 0;
-    cellStrumsRef.current = 0;
     setBarIdx(0);
     setDetected('');
     detectedRef.current = '';
