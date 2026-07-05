@@ -101,6 +101,10 @@ export class ChordCapture {
       restrictTo: handlers.restrictTo ?? null,
       constants: DETECTOR_CONSTANTS,
     });
+    // Record whether this session ran on learned templates, so an export can be
+    // read as "calibrated vs built-in" when comparing detection quality.
+    const learnedChords = handlers.templates ? Object.keys(handlers.templates) : [];
+    diag.mark(learnedChords.length ? `calibrated: ${learnedChords.join(', ')}` : 'calibration: built-in templates');
 
     this.detector = new ChordDetector({
       sampleRate: ctx.sampleRate,

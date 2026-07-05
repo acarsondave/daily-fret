@@ -9,7 +9,7 @@ export function CalibrationSetting() {
   const calibration = useUserData().chordCalibration;
   const [open, setOpen] = useState(false);
 
-  const chordCount = calibration ? Object.keys(calibration.chords).length : 0;
+  const chordCount = calibration ? Object.keys(calibration.chords ?? {}).length : 0;
   const status = calibration
     ? `Tuned to your guitar · ${chordCount} chords`
     : 'Using default templates';

@@ -880,3 +880,10 @@
   color: var(--text-secondary);
   margin: var(--space-1) 0 var(--space-2);
 }
+
+/* The calibration flow launches from inside the account modal (z-index 101) and
+   over the context menu (1000), so it must sit above both while staying under
+   the crash-screen fallback (9999). */
+.calibration-overlay {
+  z-index: 1200;
+}

@@ -279,7 +279,7 @@ export function CalibrationFlow({ onClose }: Props) {
 
   return createPortal(
     <motion.div
-      className="practice-overlay"
+      className="practice-overlay calibration-overlay"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

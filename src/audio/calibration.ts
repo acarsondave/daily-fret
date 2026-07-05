@@ -54,7 +54,7 @@ export interface ChordCalibration {
 // Matcher templates for a stored calibration, or undefined when there is nothing
 // usable yet (so callers pass `undefined` straight through to the detector).
 export function templatesFor(cal: ChordCalibration | undefined): LearnedTemplates | undefined {
-  if (!cal) return undefined;
+  if (!cal || !cal.chords) return undefined;
   const templates = fitTemplates(cal.chords);
   return Object.keys(templates).length ? templates : undefined;
 }
@@ -150,7 +150,9 @@ function magnitude(v: readonly number[]): number {
 // below MIN_SAMPLES, or whose template is near-null, are omitted so the matcher
 // falls back to the built-in for them.
 export function fitTemplates(data: CalibrationData): LearnedTemplates {
-  const eligible = Object.entries(data).filter(([, c]) => c.samples >= MIN_SAMPLES);
+  const eligible = Object.entries(data).filter(
+    ([, c]) => c.samples >= MIN_SAMPLES && Array.isArray(c.mean) && c.mean.length === CHROMA_BINS,
+  );
   if (eligible.length < MIN_CALIBRATED_CHORDS) return {};
 
   const grand = new Array<number>(CHROMA_BINS).fill(0);
