@@ -1,0 +1,304 @@
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
+import {
+  X,
+  Waveform,
+  Microphone,
+  ArrowClockwise,
+  SkipForward,
+  CheckCircle,
+  ArrowRight,
+} from '@phosphor-icons/react';
+import { useChordDetector } from '../../hooks/useChordDetector';
+import { ProgressRing } from './ProgressRing';
+import { SignalMeter } from './SignalMeter';
+import { useSignalMeter } from './signalQuality';
+import { sfx } from '../../audio/sfx';
+import { useStore } from '../../store';
+import {
+  CalibrationCollector,
+  fitTemplates,
+  separationReport,
+  MIN_SAMPLES,
+} from '../../audio/calibration';
+import './practice.css';
+
+// The chords we learn. A spread wider than the drilled core sharpens the
+// discriminative fit (a richer shared "grand mean" to subtract), while still
+// covering everything coached mode and the songs use.
+const CALIBRATION_CHORDS = ['A', 'D', 'E', 'Am', 'Em', 'C', 'G'];
+
+// Frames to gather per chord. Above MIN_SAMPLES so a fit stays trustworthy even
+// if a couple of frames are junk; ~1-2 seconds of held strumming.
+const CAPTURE_TARGET = 40;
+
+// A short breather when advancing to the next chord so the previous chord's ring
+// out is not captured under the new label.
+const SETTLE_MS = 1300;
+
+// Mirror the detector's strum-arming gate: only genuinely loud frames are real
+// playing. Deliberately no tonal-salience gate here — low chords (A, E) are
+// low-salience by nature and that is exactly what we need to learn, so gating on
+// salience would stall the flow on the hardest chords.
+const STRUM_RMS_RATIO = 3;
+const MIN_STRUM_RMS = 0.02;
+
+type Phase = 'intro' | 'capturing' | 'done';
+
+interface Props {
+  onClose: () => void;
+}
+
+export function CalibrationFlow({ onClose }: Props) {
+  const { status, error, start, stop } = useChordDetector();
+  const setChordCalibration = useStore((s) => s.setChordCalibration);
+  const clearChordCalibration = useStore((s) => s.clearChordCalibration);
+  const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter();
+
+  const [phase, setPhase] = useState<Phase>('intro');
+  const [idx, setIdx] = useState(0);
+  const [count, setCount] = useState(0);
+  const [settling, setSettling] = useState(false);
+  const [saved, setSaved] = useState<{ chords: number; worst: number | null } | null>(null);
+
+  // onLevel fires from the audio thread against stale closures, so the live
+  // capture state is read through refs.
+  const phaseRef = useRef<Phase>('intro');
+  const idxRef = useRef(0);
+  const countRef = useRef(0);
+  const readyAtRef = useRef(0);
+  const collectorRef = useRef(new CalibrationCollector());
+
+  const setPhaseBoth = (p: Phase) => {
+    phaseRef.current = p;
+    setPhase(p);
+  };
+
+  const releaseMic = () => {
+    void stop();
+  };
+
+  const finish = () => {
+    releaseMic();
+    const data = collectorRef.current.toData();
+    const eligible = Object.values(data).filter((c) => c.samples >= MIN_SAMPLES).length;
+    if (eligible >= 2) {
+      const rep = separationReport(fitTemplates(data));
+      setChordCalibration(data);
+      setSaved({ chords: eligible, worst: rep.worst?.cosine ?? null });
+      sfx.complete();
+    } else {
+      // Not enough clean data to fit anything discriminative; keep the previous
+      // calibration (if any) rather than storing something useless.
+      setSaved({ chords: eligible, worst: null });
+    }
+    setPhaseBoth('done');
+  };
+
+  const advance = () => {
+    const next = idxRef.current + 1;
+    if (next >= CALIBRATION_CHORDS.length) {
+      finish();
+      return;
+    }
+    idxRef.current = next;
+    countRef.current = 0;
+    readyAtRef.current = Date.now() + SETTLE_MS;
+    setIdx(next);
+    setCount(0);
+    setSettling(true);
+    window.setTimeout(() => setSettling(false), SETTLE_MS);
+  };
+
+  const onLevel = (ev: { rms: number; noiseFloor: number; salience: number; chroma: Float32Array | null }) => {
+    pushSignal(ev);
+    if (phaseRef.current !== 'capturing') return;
+    if (Date.now() < readyAtRef.current) return;
+    if (!ev.chroma) return;
+    const armed = ev.rms > Math.max(ev.noiseFloor * STRUM_RMS_RATIO, MIN_STRUM_RMS);
+    if (!armed) return;
+
+    collectorRef.current.add(CALIBRATION_CHORDS[idxRef.current], ev.chroma);
+    countRef.current += 1;
+    setCount(countRef.current);
+    if (countRef.current >= CAPTURE_TARGET) {
+      sfx.tick();
+      advance();
+    }
+  };
+
+  const begin = async () => {
+    sfx.go();
+    collectorRef.current.reset();
+    idxRef.current = 0;
+    countRef.current = 0;
+    readyAtRef.current = Date.now() + SETTLE_MS;
+    setIdx(0);
+    setCount(0);
+    setSettling(true);
+    resetSignal();
+    setPhaseBoth('capturing');
+    window.setTimeout(() => setSettling(false), SETTLE_MS);
+    // No templates here: calibration must observe the raw chroma pipeline. We read
+    // ev.chroma off onLevel, which is independent of chord matching.
+    await start({ onLevel }, {});
+  };
+
+  const redo = () => {
+    setSaved(null);
+    void begin();
+  };
+
+  const resetToDefault = () => {
+    clearChordCalibration();
+    setSaved(null);
+    onClose();
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+      void stop();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const chord = CALIBRATION_CHORDS[idx];
+  const progress = count / CAPTURE_TARGET;
+
+  const body = () => {
+    if (phase === 'intro') {
+      return (
+        <motion.div className="om-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+          <Waveform size={48} weight="duotone" className="coach-summary-check" />
+          <div className="coach-intro-title">Tune the detector to your guitar</div>
+          <div className="om-caption om-cal-blurb">
+            Play each chord when it appears and hold it steady. This teaches the
+            detector how your guitar actually sounds, so tricky changes like A to D
+            stop getting missed.
+          </div>
+          <button className="practice-btn primary" onClick={() => void begin()} autoFocus>
+            <Waveform size={20} weight="fill" /> Start calibration
+          </button>
+        </motion.div>
+      );
+    }
+
+    if (phase === 'capturing') {
+      if (status === 'error') {
+        return (
+          <div className="mic-gate">
+            <Microphone size={40} weight="duotone" color="var(--text-secondary)" />
+            <p>{error ?? 'Microphone unavailable.'}</p>
+            <button className="practice-btn primary" onClick={() => void begin()}>
+              <ArrowClockwise size={18} weight="bold" /> Try again
+            </button>
+          </div>
+        );
+      }
+      if (status !== 'running') {
+        return (
+          <div className="mic-gate">
+            <Microphone size={40} weight="duotone" color="var(--accent-primary)" />
+            <p>Allow microphone access to begin…</p>
+          </div>
+        );
+      }
+      return (
+        <motion.div className="om-results" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className="practice-mode is-chord">
+            {settling ? 'get ready' : 'play and hold'} · {idx + 1}/{CALIBRATION_CHORDS.length}
+          </div>
+          <ProgressRing progress={settling ? 0 : progress} className="om-ring">
+            <div className="practice-hero ct-target om-cal-hero">{chord}</div>
+          </ProgressRing>
+          <div className="om-caption">
+            {settling ? `Switch to ${chord}…` : `Captured ${count}/${CAPTURE_TARGET}`}
+          </div>
+          <SignalMeter quality={signal} />
+          <button className="practice-btn ghost" onClick={advance}>
+            <SkipForward size={18} weight="fill" /> Skip this chord
+          </button>
+        </motion.div>
+      );
+    }
+
+    // done
+    const ok = !!saved && saved.chords >= 2;
+    return (
+      <motion.div className="om-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+        <CheckCircle
+          size={48}
+          weight="duotone"
+          className="coach-summary-check"
+          color={ok ? 'var(--accent-primary)' : 'var(--text-secondary)'}
+        />
+        <div className="coach-intro-title">
+          {ok ? 'Detector tuned to your guitar' : 'Not enough captured'}
+        </div>
+        <div className="om-caption om-cal-blurb">
+          {ok ? (
+            <>
+              Learned {saved!.chords} chords.{' '}
+              {saved!.worst !== null && separationWord(saved!.worst)}
+            </>
+          ) : (
+            'Try again and hold each chord until the ring fills. Your previous calibration is unchanged.'
+          )}
+        </div>
+        <div className="om-actions">
+          <button className="practice-btn ghost" onClick={redo}>
+            <ArrowClockwise size={18} weight="bold" /> Redo
+          </button>
+          {ok ? (
+            <button className="practice-btn primary" onClick={onClose} autoFocus>
+              Done <ArrowRight size={18} weight="bold" />
+            </button>
+          ) : (
+            <button className="practice-btn primary" onClick={() => void begin()} autoFocus>
+              <Waveform size={18} weight="fill" /> Try again
+            </button>
+          )}
+        </div>
+        {ok && (
+          <button className="practice-btn ghost om-cal-reset" onClick={resetToDefault}>
+            Reset to default templates
+          </button>
+        )}
+      </motion.div>
+    );
+  };
+
+  return createPortal(
+    <motion.div
+      className="practice-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <div className="practice-topbar">
+        <span className="practice-eyebrow">Detector calibration</span>
+        <button className="practice-close" onClick={onClose} title="Exit (Esc)">
+          <X size={20} weight="bold" />
+        </button>
+      </div>
+      <div className="practice-body">{body()}</div>
+    </motion.div>,
+    document.body,
+  );
+}
+
+// Turn the least-separated pair's cosine (lower is better) into a plain readout.
+function separationWord(worstCosine: number): string {
+  if (worstCosine < 0.3) return 'Chords are cleanly separated.';
+  if (worstCosine < 0.6) return 'Chords are well separated.';
+  return 'A couple of chords still look alike; a redo can help.';
+}

@@ -7,6 +7,7 @@ import { useStore } from '../store';
 import { SignOut, ArrowRight, Spinner, DownloadSimple, Waveform } from '@phosphor-icons/react';
 import { downloadDiagnostics, storedSessionSummaries } from '../audio/diagnostics';
 import { MicSetting } from './MicSetting';
+import { CalibrationSetting } from './CalibrationSetting';
 import { PatternManager } from './PatternManager';
 import './AccountModal.css';
 
@@ -130,6 +131,8 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
             <div className="user-email">{user.email}</div>
 
             <MicSetting />
+
+            <CalibrationSetting />
 
             <PatternManager />
 

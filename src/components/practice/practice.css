@@ -855,3 +855,28 @@
   color: var(--text-secondary);
 }
 .song-cell.is-now .song-cell-tag { color: var(--accent-primary); }
+
+/* Detector calibration flow. Reuses the practice/coach vocabulary; these few
+   overrides size the chord glyph to sit inside the capture ring and make the
+   guidance copy readable (om-caption is an all-caps micro-label by default). */
+.om-cal-hero {
+  font-size: clamp(3rem, 12vw, 5rem);
+}
+.om-cal-blurb {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  max-width: 34ch;
+  text-align: center;
+}
+.om-cal-reset {
+  margin-top: var(--space-2);
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+.cal-setting-status {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: var(--space-1) 0 var(--space-2);
+}
