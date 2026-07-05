@@ -12,6 +12,7 @@ import {
 } from '@phosphor-icons/react';
 import { useChordDetector } from '../../hooks/useChordDetector';
 import type { LevelEvent } from '../../audio/detector';
+import { matchChordAmong } from '../../audio/chords';
 import { ProgressRing } from './ProgressRing';
 import { SignalMeter } from './SignalMeter';
 import { useSignalMeter } from './signalQuality';
@@ -117,10 +118,22 @@ export function CalibrationFlow({ onClose }: Props) {
     if (phaseRef.current !== 'capturing') return;
     if (Date.now() < readyAtRef.current) return;
     if (!ev.chroma) return;
+
+    // Must be a real strum, not room tone.
     const armed = ev.rms > Math.max(ev.noiseFloor * STRUM_RMS_RATIO, MIN_STRUM_RMS);
     if (!armed) return;
 
-    collectorRef.current.add(CALIBRATION_CHORDS[idxRef.current], ev.chroma);
+    // And it must actually sound like the chord we asked for. We match the raw
+    // chroma against the built-in templates ourselves (not via the detector's
+    // salience-gated path, which would reject the low chords we most need), and
+    // only capture when the target chord is the best interpretation. This is what
+    // stops talking / background noise from filling the ring: arbitrary sound will
+    // not repeatedly best-match the exact target chord at a real correlation.
+    const chord = CALIBRATION_CHORDS[idxRef.current];
+    const match = matchChordAmong(ev.chroma, CALIBRATION_CHORDS, 0);
+    if (!match || match.chord !== chord) return;
+
+    collectorRef.current.add(chord, ev.chroma);
     countRef.current += 1;
     setCount(countRef.current);
     if (countRef.current >= CAPTURE_TARGET) {
