@@ -9,6 +9,7 @@ import {
   Trophy,
 } from '@phosphor-icons/react';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
+import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { ProgressRing } from './ProgressRing';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
@@ -49,6 +50,7 @@ export function ChordTrainer({
   detector,
 }: Props) {
   const own = useChordDetector();
+  const templates = useLearnedTemplates();
   const sharedMic = !!detector;
   const { status, error, start, stop, setHandlers } = detector ?? own;
 
@@ -147,7 +149,7 @@ export function ChordTrainer({
         onChord: (ev) => handleChord(ev.chord),
         onLevel: (ev) => pushSignal(ev),
       },
-      { restrictTo: pool },
+      { restrictTo: pool, templates },
     );
     if (!live) return;
     diag.mark(`trainer start [${pool.join(', ')}] (${duration}s), target: ${first}`);

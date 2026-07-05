@@ -40,6 +40,25 @@ export interface ChordSamples {
 
 export type CalibrationData = Record<string, ChordSamples>;
 
+// The persisted per-account calibration. Stores raw means (see file header for
+// why) plus provenance; `label` carries the guitar name so multiple named
+// profiles are a purely additive change later, not a migration.
+export interface ChordCalibration {
+  version: 1;
+  createdAt: number;
+  updatedAt: number;
+  label?: string;
+  chords: CalibrationData;
+}
+
+// Matcher templates for a stored calibration, or undefined when there is nothing
+// usable yet (so callers pass `undefined` straight through to the detector).
+export function templatesFor(cal: ChordCalibration | undefined): LearnedTemplates | undefined {
+  if (!cal) return undefined;
+  const templates = fitTemplates(cal.chords);
+  return Object.keys(templates).length ? templates : undefined;
+}
+
 // Accumulates peak-normalized chroma frames per chord during a capture, as a
 // running sum so memory is O(chords) regardless of hold length.
 export class CalibrationCollector {

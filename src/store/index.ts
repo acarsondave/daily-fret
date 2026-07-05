@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Routine, DailyLog, Task } from '../types';
 import type { StrumPattern } from '../data/strumPatterns';
+import type { CalibrationData, ChordCalibration } from '../audio/calibration';
 
 // No seeded routines — a fresh user starts from a clean, Notion-style empty
 // state and builds their own routines/tasks from scratch.
@@ -44,6 +45,9 @@ export interface UserData {
   // YouTube link per song id, used by the real-play pass to stream the actual
   // recording. Set once by the user; persisted so it just plays next time.
   songLinks?: Record<string, string>;
+  // Per-guitar learned chord fingerprints (src/audio/calibration.ts). Absent
+  // until the user calibrates; the detector falls back to built-in templates.
+  chordCalibration?: ChordCalibration;
   // Epoch ms of the last local mutation to this account. Drives conflict
   // resolution against the cloud copy. Older/legacy data defaults to 0.
   updatedAt: number;
@@ -88,6 +92,10 @@ interface AppState {
   addStrumPattern: (pattern: StrumPattern) => void;
   removeStrumPattern: (id: string) => void;
   setSongLink: (songId: string, url: string) => void;
+  // Replace the account's chord calibration with a freshly fitted set (guided
+  // flow or a passive-refine merge). Preserves the original createdAt.
+  setChordCalibration: (chords: CalibrationData, label?: string) => void;
+  clearChordCalibration: () => void;
 }
 
 export const useStore = create<AppState>()(
@@ -154,6 +162,7 @@ export const useStore = create<AppState>()(
             coachProgress: data.coachProgress ?? null,
             strumPatterns: data.strumPatterns ?? local?.strumPatterns ?? [],
             songLinks: data.songLinks ?? local?.songLinks ?? {},
+            chordCalibration: data.chordCalibration ?? local?.chordCalibration,
             updatedAt: remoteUpdatedAt,
           };
 
@@ -370,6 +379,28 @@ export const useStore = create<AppState>()(
 
         setSongLink: (songId, url) => set((state) =>
           mutate(state, (a) => ({ ...a, songLinks: { ...(a.songLinks ?? {}), [songId]: url } })),
+        ),
+
+        setChordCalibration: (chords, label) => set((state) =>
+          mutate(state, (a) => {
+            const ts = now();
+            const calibration: ChordCalibration = {
+              version: 1,
+              createdAt: a.chordCalibration?.createdAt ?? ts,
+              updatedAt: ts,
+              label: label ?? a.chordCalibration?.label,
+              chords,
+            };
+            return { ...a, chordCalibration: calibration };
+          }),
+        ),
+
+        clearChordCalibration: () => set((state) =>
+          mutate(state, (a) => {
+            const next = { ...a };
+            delete next.chordCalibration;
+            return next;
+          }),
         ),
       };
     },

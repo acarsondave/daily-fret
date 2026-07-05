@@ -12,6 +12,7 @@ import {
   HandPalm,
 } from '@phosphor-icons/react';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
+import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { useStore } from '../../store';
 import { SignalMeter } from './SignalMeter';
 import { StrumRow } from './StrumRow';
@@ -96,6 +97,7 @@ export function SongPlayer({
   onFinish,
 }: Props) {
   const own = useChordDetector();
+  const templates = useLearnedTemplates();
   const sharedMic = !!detector;
   const { status, error, start, stop, setHandlers } = detector ?? own;
 
@@ -188,7 +190,7 @@ export function SongPlayer({
         onOnset: () => onLearnStrum(),
         onLevel: (ev) => pushSignal(ev),
       },
-      { restrictTo: song.chords },
+      { restrictTo: song.chords, templates },
     );
     diag.mark(`song learn start: ${song.title}, waiting for ${timeline[0]?.chord ?? '?'}`);
   };

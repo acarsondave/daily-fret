@@ -10,6 +10,7 @@ import {
   Trophy,
 } from '@phosphor-icons/react';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
+import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { ProgressRing } from './ProgressRing';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
@@ -54,6 +55,7 @@ export function OneMinuteChanges({
   chordPool,
 }: Props) {
   const own = useChordDetector();
+  const templates = useLearnedTemplates();
   const sharedMic = !!detector;
   const { status, error, start, stop, setHandlers } = detector ?? own;
 
@@ -186,7 +188,7 @@ export function OneMinuteChanges({
         onChord: (ev) => handleChord(ev.chord),
         onLevel: (ev) => pushSignal(ev),
       },
-      { restrictTo: [from, to] },
+      { restrictTo: [from, to], templates },
     );
     if (!live) return; // denied / failed — the mic gate view takes over
     diag.mark(`one-minute start ${from}->${to} (${duration}s)`);
