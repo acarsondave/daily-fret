@@ -4,7 +4,7 @@
 
 import { Chromagram, SEMITONES } from './chromagram';
 import { OnsetDetector } from './onset';
-import { matchChord, matchChordAmong } from './chords';
+import { matchChord, matchChordAmong, type LearnedTemplates } from './chords';
 import { diag, DIAG_CODE } from './diagnostics';
 
 export const FRAME_SIZE = 1024;
@@ -86,6 +86,7 @@ export interface DetectorOptions extends DetectorHandlers {
   sampleRate: number;
   offset?: number;
   restrictTo?: string[]; // when set, only these chord names are matched
+  templates?: LearnedTemplates; // per-chord learned overrides from calibration
 }
 
 export class ChordDetector {
@@ -94,6 +95,7 @@ export class ChordDetector {
   private readonly handlers: DetectorHandlers;
   private offset: number;
   private restrictTo: string[] | null;
+  private readonly learned: LearnedTemplates | undefined;
 
   private lastEmittedChord: string | null = null;
   private chordHistory: string[] = [];
@@ -120,6 +122,7 @@ export class ChordDetector {
     this.handlers = opts;
     this.offset = opts.offset ?? 0;
     this.restrictTo = opts.restrictTo && opts.restrictTo.length ? opts.restrictTo : null;
+    this.learned = opts.templates;
   }
 
   setOffset(offset: number): void {
@@ -208,8 +211,8 @@ export class ChordDetector {
 
     if (salient) {
       const match = this.restrictTo
-        ? matchChordAmong(normalized, this.restrictTo, this.offset)
-        : matchChord(normalized, this.offset);
+        ? matchChordAmong(normalized, this.restrictTo, this.offset, this.learned)
+        : matchChord(normalized, this.offset, this.learned);
       // In restricted mode reject ambiguous frames (the chroma is between the
       // two targets, e.g. fingers in flight) so we don't flap and over-count.
       if (match && this.restrictTo && match.margin < RESTRICTED_MARGIN_MIN) {

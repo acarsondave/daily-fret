@@ -3,6 +3,7 @@
 // PantherPlay's native audio engine I/O.
 
 import { ChordDetector, DETECTOR_CONSTANTS, type DetectorHandlers } from './detector';
+import type { LearnedTemplates } from './chords';
 import { diag } from './diagnostics';
 
 // Served verbatim from /public so addModule always gets a real, same-origin
@@ -12,6 +13,7 @@ const WORKLET_URL = `${import.meta.env.BASE_URL}pcm-worklet.js`;
 export interface CaptureHandlers extends DetectorHandlers {
   offset?: number;
   restrictTo?: string[];
+  templates?: LearnedTemplates; // per-chord learned overrides from calibration
   deviceId?: string; // specific mic to capture from; omitted = system default
 }
 
@@ -104,6 +106,7 @@ export class ChordCapture {
       sampleRate: ctx.sampleRate,
       offset: handlers.offset ?? 0,
       restrictTo: handlers.restrictTo,
+      templates: handlers.templates,
       onChord: handlers.onChord,
       onOnset: handlers.onOnset,
       onLevel: handlers.onLevel,
