@@ -302,10 +302,12 @@ export function OneMinuteChanges({
     }
     return (
       <>
-        <div className="om-pair">
-          <span className={detected === from ? 'target' : ''}>{from}</span>
-          <ArrowsLeftRight size={16} />
-          <span className={detected === to ? 'target' : ''}>{to}</span>
+        {/* Big, bold chord names with the one currently under the fingers lit up,
+            so the shape being played gets tied to its name (retention). */}
+        <div className="om-pair om-pair-live">
+          <span className={detected === from ? 'is-live' : ''}>{from}</span>
+          <ArrowsLeftRight size={22} className="om-pair-arrow" />
+          <span className={detected === to ? 'is-live' : ''}>{to}</span>
         </div>
         <div ref={countRef} className="om-count">
           {transitions}
@@ -314,7 +316,6 @@ export function OneMinuteChanges({
         <div className="om-timer">
           <Hourglass size={26} /> {timeLeft}
         </div>
-        <div className="om-detected">{detected}</div>
         <SignalMeter quality={signal} />
       </>
     );

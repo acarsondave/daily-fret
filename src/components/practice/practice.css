@@ -249,6 +249,34 @@
 .om-pair .target {
   color: var(--accent-primary);
 }
+
+/* Live drill readout: the two target chords shown large and bold, with the one
+   currently detected lit and lifted so the fretted shape binds to its name. */
+.om-pair-live {
+  font-family: var(--font-primary);
+  font-size: clamp(2.5rem, 11vw, 4rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-transform: none;
+  color: var(--text-secondary);
+  gap: var(--space-6);
+  line-height: 1;
+}
+.om-pair-live span {
+  display: inline-block;
+  transition: color 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+  opacity: 0.55;
+}
+.om-pair-live span.is-live {
+  color: var(--accent-primary);
+  opacity: 1;
+  transform: scale(1.12);
+}
+.om-pair-live .om-pair-arrow {
+  color: var(--text-secondary);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
 .om-count {
   font-family: var(--font-primary);
   font-weight: 700;

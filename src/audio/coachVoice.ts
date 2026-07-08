@@ -26,8 +26,18 @@ const STORAGE_KEY = 'daily-fret-coach-voice';
 let manifest: Manifest | null = null;
 let manifestPromise: Promise<void> | null = null;
 const lastIdx: Record<string, number> = {}; // event -> last index, to avoid immediate repeats
+
+// Serial playback core. Exactly one clip is ever audible: every clip runs
+// through a promise queue so lines never overlap. A generation counter lets a
+// hard interrupt (stopVoice, or an interrupting `speak`) invalidate anything
+// still queued or in flight, so a stale fire-and-forget line (a drill's "done",
+// a rest tip) can't jump in on top of a newer sequence. This is what prevents
+// the "voices stack up / play late over each other" failure when drills, rests
+// and count-ins fire close together.
 let current: HTMLAudioElement | null = null;
-let currentSettle: ((ok: boolean) => void) | null = null;
+let currentFinish: ((ok: boolean) => void) | null = null;
+let queueTail: Promise<void> = Promise.resolve();
+let generation = 0;
 
 function readEnabled(): boolean {
   try {
@@ -90,10 +100,14 @@ async function loadManifest(): Promise<void> {
 export function preloadCoachVoice(): void {
   void loadManifest().then(() => {
     if (!manifest) return;
-    // Warm the HTTP cache for the (few) drill-name clips so the first
-    // announcement plays immediately instead of waiting on a fetch.
-    for (const slug of manifest.names) {
-      void fetch(`${base()}coach/name-${slug}.mp3`, { cache: 'force-cache' }).catch(() => {});
+    // Warm the HTTP cache for every clip we might play this session (drill-name
+    // clips plus each event variant), so the first time a line is needed it
+    // plays immediately instead of stalling on a cold fetch — a cold fetch is
+    // what made lines occasionally "not play" or arrive late.
+    const warm = (url: string) => void fetch(url, { cache: 'force-cache' }).catch(() => {});
+    for (const slug of manifest.names) warm(`${base()}coach/name-${slug}.mp3`);
+    for (const [event, count] of Object.entries(manifest.counts)) {
+      for (let i = 1; i <= count; i++) warm(`${base()}coach/${event}-${pad(i)}.mp3`);
     }
   });
 }
@@ -108,41 +122,71 @@ function pickIndex(event: string, count: number): number {
   return idx;
 }
 
-export function stopVoice(): void {
-  if (current) {
-    current.pause();
-    current = null;
+// Stop the clip that's playing right now (if any) and resolve its awaiter as
+// false, so a chained sequence never hangs on a line we cut off.
+function stopCurrent(): void {
+  const audio = current;
+  const finish = currentFinish;
+  current = null;
+  currentFinish = null;
+  if (audio) {
+    audio.onended = null;
+    audio.onerror = null;
+    audio.pause();
+    audio.src = '';
   }
-  // Resolve any awaiter so a chained intro sequence doesn't stall on a clip we
-  // just cut off (e.g. the user muted or closed mid-line).
-  if (currentSettle) {
-    const settle = currentSettle;
-    currentSettle = null;
-    settle(false);
-  }
+  if (finish) finish(false);
 }
 
-// Play one URL to completion. Resolves true on 'ended', false on error/abort.
-function playUrl(url: string, interrupt = true): Promise<boolean> {
+export function stopVoice(): void {
+  generation += 1; // invalidate everything still queued or in flight
+  queueTail = Promise.resolve();
+  stopCurrent();
+}
+
+// Play a single clip to completion. Resolves true on 'ended', false on
+// error/abort. Only ever one of these is live at a time (see the queue below).
+function playClip(url: string): Promise<boolean> {
   return new Promise((resolve) => {
+    let audio: HTMLAudioElement;
     try {
-      if (interrupt) stopVoice();
-      const audio = new Audio(url);
-      audio.volume = 0.95;
-      current = audio;
-      currentSettle = resolve;
-      const done = (ok: boolean) => {
-        if (current === audio) current = null;
-        if (currentSettle === resolve) currentSettle = null;
-        resolve(ok);
-      };
-      audio.addEventListener('ended', () => done(true), { once: true });
-      audio.addEventListener('error', () => done(false), { once: true });
-      audio.play().catch(() => done(false));
+      audio = new Audio(url);
     } catch {
       resolve(false);
+      return;
     }
+    audio.volume = 0.95;
+    const finish = (ok: boolean) => {
+      if (current === audio) {
+        current = null;
+        currentFinish = null;
+      }
+      audio.onended = null;
+      audio.onerror = null;
+      resolve(ok);
+    };
+    current = audio;
+    currentFinish = finish;
+    audio.onended = () => finish(true);
+    audio.onerror = () => finish(false);
+    audio.play().catch(() => finish(false));
   });
+}
+
+// Queue a clip. interrupt=true (default) stops anything playing/queued and plays
+// now; interrupt=false appends so it plays seamlessly after the current clip,
+// never on top of it. Resolves true only if the clip actually reached its end.
+function playUrl(url: string, interrupt = true): Promise<boolean> {
+  if (interrupt) stopVoice();
+  const myGen = generation;
+  const started = queueTail.then(() => (myGen === generation ? playClip(url) : false));
+  // Keep the tail a never-rejecting void chain so the next clip always waits for
+  // this one, whatever it resolves to.
+  queueTail = started.then(
+    () => undefined,
+    () => undefined,
+  );
+  return started;
 }
 
 // Speak one variant of an event. Resolves true only if a clip actually played.
