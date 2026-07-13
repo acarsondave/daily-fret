@@ -39,6 +39,10 @@ let currentFinish: ((ok: boolean) => void) | null = null;
 let queueTail: Promise<void> = Promise.resolve();
 let generation = 0;
 
+// Absolute ceiling for a single line before we give up and free the queue. Coach
+// lines are only a few seconds; this trips only on a genuine stall (see playClip).
+const CLIP_TIMEOUT_MS = 10000;
+
 function readEnabled(): boolean {
   try {
     return localStorage.getItem(STORAGE_KEY) !== '0';
@@ -145,7 +149,11 @@ export function stopVoice(): void {
 }
 
 // Play a single clip to completion. Resolves true on 'ended', false on
-// error/abort. Only ever one of these is live at a time (see the queue below).
+// error/abort/stall. Only ever one of these is live at a time (see the queue
+// below). A watchdog guarantees the promise always settles: after the tab has
+// been idle an <audio> element can quietly fail to fire 'ended' or 'error', and
+// without this cap that unresolved promise would wedge queueTail and silently
+// halt every later line (the "voice just stops working" failure).
 function playClip(url: string): Promise<boolean> {
   return new Promise((resolve) => {
     let audio: HTMLAudioElement;
@@ -155,15 +163,31 @@ function playClip(url: string): Promise<boolean> {
       resolve(false);
       return;
     }
+    audio.preload = 'auto';
     audio.volume = 0.95;
+    let settled = false;
+    let watchdog: ReturnType<typeof setTimeout>;
     const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(watchdog);
       if (current === audio) {
         current = null;
         currentFinish = null;
       }
       audio.onended = null;
       audio.onerror = null;
+      audio.onloadedmetadata = null;
       resolve(ok);
+    };
+    // Hard cap first, then tighten to the real clip length once metadata loads —
+    // so a valid clip is never cut short, but a stalled one still frees the queue.
+    watchdog = setTimeout(() => finish(false), CLIP_TIMEOUT_MS);
+    audio.onloadedmetadata = () => {
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        clearTimeout(watchdog);
+        watchdog = setTimeout(() => finish(false), audio.duration * 1000 + 1500);
+      }
     };
     current = audio;
     currentFinish = finish;

@@ -92,7 +92,9 @@ export function OneMinuteChanges({
   const [view, setView] = useState<View>(autoStart ? 'playing' : 'setup');
   const [transitions, setTransitions] = useState(0);
   const [timeLeft, setTimeLeft] = useState(duration);
-  const [detected, setDetected] = useState('listening...');
+  // The chord we're cueing the player to switch to next. The lit name always
+  // means "play this now", so the brand's light reinforces the shape-to-name link.
+  const [nextCue, setNextCue] = useState(initFrom);
   const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter();
   const [result, setResult] = useState<{
     value: number;
@@ -132,7 +134,6 @@ export function OneMinuteChanges({
   };
 
   const handleChord = (chord: string) => {
-    setDetected(chord);
     const isTarget = chord === from || chord === to;
     if (!isTarget) return;
     if (lastChordRef.current !== '' && chord !== lastChordRef.current) {
@@ -147,6 +148,8 @@ export function OneMinuteChanges({
       }
     }
     lastChordRef.current = chord;
+    // Now that this chord is under the fingers, cue the other one as next to play.
+    setNextCue(chord === from ? to : from);
   };
 
   const finish = () => {
@@ -173,7 +176,7 @@ export function OneMinuteChanges({
     lastCountAtRef.current = 0;
     setTransitions(0);
     setTimeLeft(duration);
-    setDetected('listening...');
+    setNextCue(from);
     resetSignal();
     prevBestRef.current = pairBest;
     onSessionStart?.(from, to);
@@ -302,12 +305,12 @@ export function OneMinuteChanges({
     }
     return (
       <>
-        {/* Big, bold chord names with the one currently under the fingers lit up,
-            so the shape being played gets tied to its name (retention). */}
+        {/* Big, bold chord names with the one to play *next* lit up, so a lit
+            name always reads as "play this now" (drives the change + retention). */}
         <div className="om-pair om-pair-live">
-          <span className={detected === from ? 'is-live' : ''}>{from}</span>
+          <span className={nextCue === from ? 'is-live' : ''}>{from}</span>
           <ArrowsLeftRight size={22} className="om-pair-arrow" />
-          <span className={detected === to ? 'is-live' : ''}>{to}</span>
+          <span className={nextCue === to ? 'is-live' : ''}>{to}</span>
         </div>
         <div ref={countRef} className="om-count">
           {transitions}
