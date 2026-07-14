@@ -1,0 +1,21 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can only read and write their own documents
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Allow the transition matrix subcollection
+      match /transitions/{transitionId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Backlog of routine versions: a snapshot is written whenever a routine is
+      // edited or deleted, so past routines/tasks are never lost (see auth.ts).
+      match /routineArchive/{archiveId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
+}
