@@ -154,7 +154,82 @@ const knockinHeaven: Song = {
   ],
 };
 
-export const SONGS: Song[] = [wildThing, threeLittleBirds, badMoonRising, knockinHeaven];
+// --- I Belong to You (Lenny Kravitz) --- two chords, Am and Em (JustinGuitar
+// SG-026). A slow ballad, so the change is gentle: alternate Am/Em, start with a
+// couple of down-strums per bar and funk it up once it's comfortable. Played in
+// Am/Em for practice; the record sits a few frets higher (capo ~3 to match it).
+const iBelongToYou: Song = {
+  id: 'i-belong-to-you',
+  title: 'I Belong to You',
+  artist: 'Lenny Kravitz',
+  level: 'Beginner',
+  strum: 'DD',
+  chords: ['Am', 'Em'],
+  youtubeId: 'ucvLuGgsGS8',
+  sections: [
+    { label: 'Intro', steps: [s('Am'), s('Em')] },
+    {
+      label: 'Verse',
+      steps: [s('Am'), s('Em'), s('Am'), s('Em')],
+    },
+    {
+      label: 'Chorus',
+      steps: [
+        s('Am', 'You are the flame in my heart'), s('Em', 'you light my way in the dark'),
+        s('Am', 'you are the ultimate star'), s('Em'),
+        s('Am', 'your unconditional love'), s('Em', 'takes me to paradise'),
+        s('Am', 'I belong to you and you'), s('Em', 'you belong to me too'),
+      ],
+    },
+    { label: 'Verse', steps: [s('Am'), s('Em'), s('Am'), s('Em')] },
+    {
+      label: 'Chorus',
+      steps: [
+        s('Am', 'You are the flame in my heart'), s('Em', 'you light my way in the dark'),
+        s('Am', 'you are the ultimate star'), s('Em'),
+        s('Am', 'your unconditional love'), s('Em', 'takes me to paradise'),
+        s('Am', 'I belong to you and you'), s('Em', 'you belong to me too'),
+      ],
+    },
+  ],
+};
+
+// --- Sing (Ed Sheeran) --- two chords, Em and Am (JustinGuitar SG-031). Funky and
+// upbeat: start with one strum per bar, then add the DDUUDU groove. Played open in
+// Em/Am for practice; capo 4 matches the actual record's key.
+const singEdSheeran: Song = {
+  id: 'sing-ed-sheeran',
+  title: 'Sing',
+  artist: 'Ed Sheeran',
+  level: 'Easy',
+  strum: 'DDUUDU',
+  chords: ['Em', 'Am'],
+  youtubeId: 'tlYcUqEPN58',
+  sections: [
+    { label: 'Intro', steps: [s('Em'), s('Em')] },
+    { label: 'Verse', steps: [s('Em'), s('Am'), s('Em'), s('Am')] },
+    { label: 'Pre-Chorus', steps: [s('Em'), s('Am')] },
+    {
+      label: 'Chorus',
+      steps: [s('Em', 'Sing!'), s('Am', 'oh-oh, oh-oh-oh'), s('Em'), s('Am', 'oh-oh, oh-oh-oh')],
+    },
+    { label: 'Verse', steps: [s('Em'), s('Am'), s('Em'), s('Am')] },
+    { label: 'Pre-Chorus', steps: [s('Em'), s('Am')] },
+    {
+      label: 'Chorus',
+      steps: [s('Em', 'Sing!'), s('Am', 'oh-oh, oh-oh-oh'), s('Em'), s('Am', 'oh-oh, oh-oh-oh')],
+    },
+  ],
+};
+
+export const SONGS: Song[] = [
+  wildThing,
+  threeLittleBirds,
+  badMoonRising,
+  knockinHeaven,
+  iBelongToYou,
+  singEdSheeran,
+];
 
 export function getSong(id: string | undefined): Song | undefined {
   return id ? SONGS.find((song) => song.id === id) : undefined;
