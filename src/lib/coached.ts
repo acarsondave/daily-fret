@@ -8,6 +8,7 @@ import { chordPairs, routineChords } from './pairs';
 export type CoachSegment =
   | { kind: 'changes'; taskId: string; title: string; from: string; to: string; seconds: number }
   | { kind: 'trainer'; taskId: string; title: string; chords: string[]; seconds: number }
+  | { kind: 'rotation'; taskId: string; title: string; chords: string[]; seconds: number }
   | { kind: 'song'; taskId: string; title: string; songId: string; playOnly: boolean }
   | { kind: 'timed'; taskId: string; title: string; description?: string; seconds: number; pattern?: string };
 
@@ -69,6 +70,16 @@ export function buildSegments(routine: Routine | undefined): CoachSegment[] {
       for (const p of pairs) {
         segments.push({ kind: 'changes', taskId: task.id, title: task.title, from: p.from, to: p.to, seconds: drillSeconds });
       }
+    } else if (kind === 'chord-rotation') {
+      // Anchor changes: cycle the task's ordered ring (falls back to the routine's
+      // learned chords so an unconfigured rotation still runs).
+      segments.push({
+        kind: 'rotation',
+        taskId: task.id,
+        title: task.title,
+        chords: task.drill?.chords?.length ? task.drill.chords : learned,
+        seconds: drillSeconds,
+      });
     } else if (kind === 'chord-trainer') {
       // Trainer reinforces everything learned (or its own explicit pool).
       segments.push({

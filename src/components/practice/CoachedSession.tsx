@@ -13,6 +13,7 @@ import { useChordDetector } from '../../hooks/useChordDetector';
 import type { Routine } from '../../types';
 import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
+import { ChordRotation } from './ChordRotation';
 import { SongPlayer } from './SongPlayer';
 import { TimedSegment } from './TimedSegment';
 import { MicPermissionHint } from './MicPermissionHint';
@@ -49,7 +50,7 @@ export function CoachedSession({ routine, onClose }: Props) {
   // Only nudge about the mic if this routine actually listens (changes/trainer);
   // a timed-only routine never opens the mic, so the hint would be misleading.
   const needsMic = useMemo(
-    () => segments.some((s) => s.kind === 'changes' || s.kind === 'trainer' || s.kind === 'song'),
+    () => segments.some((s) => s.kind === 'changes' || s.kind === 'trainer' || s.kind === 'rotation' || s.kind === 'song'),
     [segments],
   );
   const today = getTodayString();
@@ -84,7 +85,7 @@ export function CoachedSession({ routine, onClose }: Props) {
   // when the segment opens, before this run is recorded, so "First benchmark" only
   // shows when there genuinely is no prior result for this task.
   const trainerHistory = useMemo(() => {
-    if (!seg || seg.kind !== 'trainer') return { best: 0, series: [] as number[] };
+    if (!seg || (seg.kind !== 'trainer' && seg.kind !== 'rotation')) return { best: 0, series: [] as number[] };
     const acc = useStore.getState().accounts[useStore.getState().currentAccountId];
     return taskDrillHistory(acc?.dailyLogs ?? {}, seg.taskId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -244,7 +245,9 @@ export function CoachedSession({ routine, onClose }: Props) {
       ? `${seg.from} ↔ ${seg.to}`
       : seg.kind === 'trainer'
         ? `Chord Trainer · ${seg.chords.join(' ')}`
-        : seg.kind === 'song'
+        : seg.kind === 'rotation'
+          ? seg.chords.join(' → ')
+          : seg.kind === 'song'
           ? seg.playOnly
             ? 'Play along with the real song'
             : 'Learn the chords, then the real song'
@@ -357,6 +360,25 @@ export function CoachedSession({ routine, onClose }: Props) {
               void speak('done');
             }}
             onNext={() => advance({ title: seg.title, value: lastValueRef.current, unit: 'nailed' })}
+            onClose={exit}
+          />
+        )}
+
+        {phase === 'segment' && seg.kind === 'rotation' && (
+          <ChordRotation
+            key={`seg-${index}`}
+            config={{ kind: 'chord-rotation', chords: seg.chords, durationSec: seg.seconds }}
+            personalBest={trainerHistory.best}
+            autoStart
+            autoAdvance
+            nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
+            detector={detector}
+            onResult={(score) => {
+              recordDrillResult(today, seg.taskId, score, undefined, false);
+              lastValueRef.current = score;
+              void speak('done');
+            }}
+            onNext={() => advance({ title: seg.title, value: lastValueRef.current, unit: 'changes' })}
             onClose={exit}
           />
         )}

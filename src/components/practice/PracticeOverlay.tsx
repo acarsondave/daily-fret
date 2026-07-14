@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { X } from '@phosphor-icons/react';
@@ -8,6 +8,7 @@ import { taskDrillHistory } from '../../lib/drillStats';
 import type { Task } from '../../types';
 import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
+import { ChordRotation } from './ChordRotation';
 import { SongPlayer } from './SongPlayer';
 import { Metronome } from './Metronome';
 import './practice.css';
@@ -29,6 +30,18 @@ export function PracticeOverlay({ task, onClose }: Props) {
     const acc = useStore.getState().accounts[useStore.getState().currentAccountId];
     return taskDrillHistory(acc?.dailyLogs ?? {}, task.id);
   }, [task.id]);
+
+  // A changes drill can prescribe exact pairs (Justin's Module 3 set). When it
+  // does, walk them in order here — the same experience as Coached mode — instead
+  // of the free pair-picker. Position in that walk:
+  const explicitPairs = useMemo(
+    () =>
+      drill?.kind === 'one-minute-changes'
+        ? (drill.pairs ?? []).filter((p) => p.from && p.to && p.from !== p.to)
+        : [],
+    [drill],
+  );
+  const [pairIdx, setPairIdx] = useState(0);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -63,7 +76,28 @@ export function PracticeOverlay({ task, onClose }: Props) {
       </div>
 
       <div className="practice-body">
-        {drill.kind === 'one-minute-changes' && (
+        {drill.kind === 'one-minute-changes' && explicitPairs.length > 0 && (() => {
+          const idx = Math.min(pairIdx, explicitPairs.length - 1);
+          const pair = explicitPairs[idx];
+          const isLastPair = idx >= explicitPairs.length - 1;
+          return (
+            <OneMinuteChanges
+              key={`pair-${idx}`}
+              config={{ kind: 'one-minute-changes', chordFrom: pair.from, chordTo: pair.to, durationSec: drill.durationSec }}
+              autoStart
+              autoAdvance
+              nextLabel={isLastPair ? 'Done' : 'Next pair'}
+              onSessionStart={(f, t) => setLastPair(f, t)}
+              onResult={(cpm, f, t) => {
+                recordDrillResult(getTodayString(), task.id, cpm, pairKey(f, t));
+                setLastPair(f, t);
+              }}
+              onNext={() => (isLastPair ? onClose() : setPairIdx((i) => i + 1))}
+              onClose={onClose}
+            />
+          );
+        })()}
+        {drill.kind === 'one-minute-changes' && explicitPairs.length === 0 && (
           <OneMinuteChanges
             config={{ kind: 'one-minute-changes', durationSec: drill.durationSec }}
             chordPool={
@@ -87,6 +121,14 @@ export function PracticeOverlay({ task, onClose }: Props) {
             onClose={onClose}
           />
         )}
+        {drill.kind === 'chord-rotation' && (
+          <ChordRotation
+            config={drill}
+            personalBest={personalBest}
+            onResult={(score) => recordDrillResult(getTodayString(), task.id, score)}
+            onClose={onClose}
+          />
+        )}
         {drill.kind === 'chord-trainer' && (
           <ChordTrainer
             config={drill}
@@ -97,7 +139,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
           />
         )}
         {drill.kind === 'song' && drill.songId && (
-          <SongPlayer songId={drill.songId} onClose={onClose} />
+          <SongPlayer songId={drill.songId} playOnly={drill.playOnly} onClose={onClose} />
         )}
       </div>
     </motion.div>,

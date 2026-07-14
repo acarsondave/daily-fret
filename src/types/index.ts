@@ -1,4 +1,4 @@
-export type DrillKind = 'one-minute-changes' | 'chord-trainer' | 'song';
+export type DrillKind = 'one-minute-changes' | 'chord-trainer' | 'song' | 'chord-rotation';
 
 export interface DrillConfig {
   kind: DrillKind;
@@ -7,6 +7,7 @@ export interface DrillConfig {
   durationSec?: number; // defaults to 60
   // one-minute-changes: the chords you're comfortable switching between (pairs
   // are derived from these). chord-trainer: the pool of chords to call out.
+  // chord-rotation: the ordered ring of chords to cycle through (e.g. D,A,E).
   chords?: string[];
   // one-minute-changes: exact change-pairs to drill, in order. When set these
   // override the auto-derived combinations of `chords`, so a routine can
