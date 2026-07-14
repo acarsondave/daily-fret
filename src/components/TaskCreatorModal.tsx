@@ -27,6 +27,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
   const [changesChords, setChangesChords] = useState<string[]>(['A', 'D', 'E']);
   const [trainerChords, setTrainerChords] = useState<string[]>(['A', 'D', 'E', 'G', 'C']);
   const [songId, setSongId] = useState<string>(SONGS[0].id);
+  const [songPlayOnly, setSongPlayOnly] = useState(false);
   const [blocks, setBlocks] = useState<TimedBlock[]>([]);
 
   const resetForm = () => {
@@ -37,6 +38,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
     setChangesChords(['A', 'D', 'E']);
     setTrainerChords(['A', 'D', 'E', 'G', 'C']);
     setSongId(SONGS[0].id);
+    setSongPlayOnly(false);
     setBlocks([]);
   };
 
@@ -57,6 +59,12 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
         chords: changesChords.length >= 2 ? changesChords : ['A', 'D'],
         durationSec: 60,
       };
+    } else if (drillKind === 'chord-rotation') {
+      drill = {
+        kind: 'chord-rotation',
+        chords: changesChords.length >= 2 ? changesChords : ['D', 'A', 'E'],
+        durationSec: 60,
+      };
     } else if (drillKind === 'chord-trainer') {
       drill = {
         kind: 'chord-trainer',
@@ -64,7 +72,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
         durationSec: 60,
       };
     } else if (drillKind === 'song') {
-      drill = { kind: 'song', songId };
+      drill = { kind: 'song', songId, ...(songPlayOnly ? { playOnly: true } : {}) };
     }
 
     // A "None" task can carry several named timed blocks (e.g. strumming
@@ -144,6 +152,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
               {([
                 ['none', 'None'],
                 ['one-minute-changes', 'Changes'],
+                ['chord-rotation', 'Anchor'],
                 ['chord-trainer', 'Trainer'],
                 ['song', 'Song'],
               ] as const).map(([value, label]) => (
@@ -160,6 +169,25 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
             {drillKind === 'one-minute-changes' && (
               <>
                 <span className="drill-hint">Chords to switch between (pairs are auto-made)</span>
+                <div className="drill-chip-grid">
+                  {DRILL_CHORDS.map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={clsx('drill-chip', changesChords.includes(c) && 'active')}
+                      onClick={() => setChangesChords(prev =>
+                        prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c],
+                      )}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+            {drillKind === 'chord-rotation' && (
+              <>
+                <span className="drill-hint">Chords to rotate through, in the order you tap them</span>
                 <div className="drill-chip-grid">
                   {DRILL_CHORDS.map(c => (
                     <button
@@ -209,6 +237,14 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
                     </option>
                   ))}
                 </select>
+                <label className="drill-toggle">
+                  <input
+                    type="checkbox"
+                    checked={songPlayOnly}
+                    onChange={e => setSongPlayOnly(e.target.checked)}
+                  />
+                  <span>Skip the learn pass (play-along only)</span>
+                </label>
               </>
             )}
             {drillKind === 'none' && (

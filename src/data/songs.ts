@@ -155,9 +155,9 @@ const knockinHeaven: Song = {
 };
 
 // --- I Belong to You (Lenny Kravitz) --- two chords, Am and Em (JustinGuitar
-// SG-026). A slow ballad, so the change is gentle: alternate Am/Em, start with a
-// couple of down-strums per bar and funk it up once it's comfortable. Played in
-// Am/Em for practice; the record sits a few frets higher (capo ~3 to match it).
+// SG-026). Chart transcribed from the Ultimate Guitar sheets (record is in Cm/Gm;
+// this is that pattern in open Am/Em). Slow ballad — start with a couple of downs
+// per bar and funk it up once it's comfortable. Capo 3 to match the actual record.
 const iBelongToYou: Song = {
   id: 'i-belong-to-you',
   title: 'I Belong to You',
@@ -169,34 +169,63 @@ const iBelongToYou: Song = {
   sections: [
     { label: 'Intro', steps: [s('Am'), s('Em')] },
     {
-      label: 'Verse',
-      steps: [s('Am'), s('Em'), s('Am'), s('Em')],
+      label: 'Verse 1',
+      steps: [
+        s('Am', 'You are the flame in my heart'),
+        s('Em', 'you are the ultimate star'),
+        s('Am', 'you lift me from up above'),
+        s('Em', 'takes me to paradise'),
+      ],
     },
     {
       label: 'Chorus',
       steps: [
-        s('Am', 'You are the flame in my heart'), s('Em', 'you light my way in the dark'),
-        s('Am', 'you are the ultimate star'), s('Em'),
-        s('Am', 'your unconditional love'), s('Em', 'takes me to paradise'),
-        s('Am', 'I belong to you and you'), s('Em', 'you belong to me too'),
+        s('Am', 'I belong to you and you'),
+        s('Em', 'you belong to me too'),
+        s('Am', 'you make my life complete'),
+        s('Em', 'you make me feel so'), s('Am'), s('Em', 'sweet'),
       ],
     },
-    { label: 'Verse', steps: [s('Am'), s('Em'), s('Am'), s('Em')] },
+    {
+      label: 'Verse 2',
+      steps: [
+        s('Am', 'You make me feel so divine'),
+        s('Em', 'before you I was blind'),
+        s('Am', "but since I've opened my eyes"),
+        s('Em', 'so I could open up my mind'),
+        s('Am', 'I always loved you from the start'),
+        s('Em', 'that I had to do it everyday'),
+        s('Am', 'so I put away the fight'),
+        s('Em', 'giving you the most in every way'),
+      ],
+    },
     {
       label: 'Chorus',
       steps: [
-        s('Am', 'You are the flame in my heart'), s('Em', 'you light my way in the dark'),
-        s('Am', 'you are the ultimate star'), s('Em'),
-        s('Am', 'your unconditional love'), s('Em', 'takes me to paradise'),
-        s('Am', 'I belong to you and you'), s('Em', 'you belong to me too'),
+        s('Am', 'I belong to you and you'),
+        s('Em', 'you belong to me too'),
+        s('Am', 'you make my life complete'),
+        s('Em', 'you make me feel so'), s('Am'), s('Em', 'sweet'),
       ],
     },
+    { label: 'Solo', steps: [s('Am'), s('Em'), s('Am'), s('Em')] },
+    {
+      label: 'Chorus',
+      steps: [
+        s('Am', 'I belong to you'),
+        s('Em', 'you belong to me too'),
+        s('Am', 'you make my life complete'),
+        s('Em', 'you make me feel so sweet'),
+      ],
+    },
+    { label: 'Outro', steps: [s('Em')] },
   ],
 };
 
-// --- Sing (Ed Sheeran) --- two chords, Em and Am (JustinGuitar SG-031). Funky and
-// upbeat: start with one strum per bar, then add the DDUUDU groove. Played open in
-// Em/Am for practice; capo 4 matches the actual record's key.
+// --- Sing (Ed Sheeran) --- two chords, Em and Am (JustinGuitar SG-031). Chart
+// transcribed from the Ultimate Guitar sheets, which play it open in Em/Am with a
+// capo on 4 to match the record (key G#m). Funky 120bpm groove — start one strum
+// per bar, then build toward the DDUUDU feel.
 const singEdSheeran: Song = {
   id: 'sing-ed-sheeran',
   title: 'Sing',
@@ -207,17 +236,67 @@ const singEdSheeran: Song = {
   youtubeId: 'tlYcUqEPN58',
   sections: [
     { label: 'Intro', steps: [s('Em'), s('Em')] },
-    { label: 'Verse', steps: [s('Em'), s('Am'), s('Em'), s('Am')] },
-    { label: 'Pre-Chorus', steps: [s('Em'), s('Am')] },
     {
-      label: 'Chorus',
-      steps: [s('Em', 'Sing!'), s('Am', 'oh-oh, oh-oh-oh'), s('Em'), s('Am', 'oh-oh, oh-oh-oh')],
+      label: 'Verse 1',
+      steps: [
+        s('Em', "It's late in the evening"),
+        s('Am', 'ignoring everybody here'),
+        s('Em', "I don't wanna know"),
+        s('Am', 'to hold your body close'),
+      ],
     },
-    { label: 'Verse', steps: [s('Em'), s('Am'), s('Em'), s('Am')] },
-    { label: 'Pre-Chorus', steps: [s('Em'), s('Am')] },
+    {
+      label: 'Pre-Chorus',
+      steps: [
+        s('Em', 'I need you darling'),
+        s('Am', "won't you let me know"),
+        s('Em', 'if you love me, get involved'),
+        s('Am', 'feel it rushing through you'),
+      ],
+    },
     {
       label: 'Chorus',
-      steps: [s('Em', 'Sing!'), s('Am', 'oh-oh, oh-oh-oh'), s('Em'), s('Am', 'oh-oh, oh-oh-oh')],
+      steps: [s('Em', 'Louder!'), s('Am', 'Sing!'), s('Em', 'this love is a blaze')],
+    },
+    {
+      label: 'Verse 2',
+      steps: [
+        s('Em', 'I saw flames from the stage'),
+        s('Am', 'let it go'),
+        s('Em', 'I told her my name'),
+        s('Am', 'one thing led to another'),
+      ],
+    },
+    {
+      label: 'Pre-Chorus',
+      steps: [
+        s('Em', 'I need you darling'),
+        s('Am', "won't you let me know"),
+        s('Em', 'if you love me, get involved'),
+        s('Am', 'feel it rushing through you'),
+      ],
+    },
+    {
+      label: 'Chorus',
+      steps: [s('Em', 'Louder!'), s('Am', 'Sing!'), s('Em', 'this love is a blaze')],
+    },
+    {
+      label: 'Bridge',
+      steps: [
+        s('Em', 'Can you feel it?'),
+        s('Am', 'music from the back'),
+        s('Em', 'but can you feel it?'),
+        s('Am', 'oh no no no?'),
+      ],
+    },
+    {
+      label: 'Chorus',
+      steps: [
+        s('Em', 'I need you darling'),
+        s('Am', "won't you let me know"),
+        s('Em', 'if you love me, get involved'),
+        s('Am', 'Sing!'),
+      ],
     },
   ],
 };

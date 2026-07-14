@@ -134,6 +134,24 @@
   color: var(--text-primary);
 }
 
+/* Skip-learn toggle (drill kind = song): send the session straight to play-along. */
+.drill-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.drill-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 /* Configurable timed blocks (drill kind = none) */
 .drill-blocks {
   display: flex;
