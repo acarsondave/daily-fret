@@ -42,6 +42,9 @@ interface Props {
   nextLabel?: string;
   detector?: ChordDetectorApi;
   onFinish?: () => void;
+  // Skip the self-paced Learn pass and go straight to playing along with the real
+  // recording (no mic). For a song you already know and just want to keep playing.
+  playOnly?: boolean;
 }
 
 interface Segment {
@@ -96,6 +99,7 @@ export function SongPlayer({
   nextLabel = 'Up next',
   detector,
   onFinish,
+  playOnly = false,
 }: Props) {
   const own = useChordDetector();
   const templates = useLearnedTemplates();
@@ -111,7 +115,9 @@ export function SongPlayer({
   const storedLink = useStore((st) => (song ? st.accounts[st.currentAccountId]?.songLinks?.[song.id] : undefined));
   const setSongLink = useStore((st) => st.setSongLink);
 
-  const [phase, setPhase] = useState<Phase>(autoStart ? 'learn' : 'intro');
+  const [phase, setPhase] = useState<Phase>(
+    playOnly ? 'realplay' : autoStart ? 'learn' : 'intro',
+  );
   const [barIdx, setBarIdx] = useState(0);
   const [detected, setDetected] = useState('');
   const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter();
@@ -205,7 +211,9 @@ export function SongPlayer({
   };
 
   useEffect(() => {
-    const t = autoStart ? setTimeout(() => startSession(), 0) : null;
+    // Play-only skips Learn entirely, so it never opens the mic — it renders the
+    // real-song pass straight away.
+    const t = autoStart && !playOnly ? setTimeout(() => startSession(), 0) : null;
     return () => {
       if (t) clearTimeout(t);
       if (!sharedMic) void stop();
@@ -381,7 +389,7 @@ export function SongPlayer({
       <motion.div className="om-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
         <CheckCircle size={48} weight="fill" className="coach-summary-check" />
         <div className="coach-intro-title">{song.title}</div>
-        <div className="om-caption">Nice playing. Both passes done.</div>
+        <div className="om-caption">{playOnly ? 'Nice playing.' : 'Nice playing. Both passes done.'}</div>
         {autoAdvance ? (
           <div className="coach-advance">
             <span className="coach-advance-label">{nextLabel} in</span>
@@ -392,7 +400,7 @@ export function SongPlayer({
             <button className="practice-btn ghost" onClick={() => onClose?.()}>
               {onNext ? 'End session' : 'Done'}
             </button>
-            <button className="practice-btn primary" onClick={onNext ?? (() => startSession())} autoFocus>
+            <button className="practice-btn primary" onClick={onNext ?? (() => (playOnly ? setPhase('realplay') : startSession()))} autoFocus>
               {onNext ? 'Next drill' : 'Play again'} <ArrowRight size={18} weight="bold" />
             </button>
           </div>

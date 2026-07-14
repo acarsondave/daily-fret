@@ -244,7 +244,9 @@ export function CoachedSession({ routine, onClose }: Props) {
       : seg.kind === 'trainer'
         ? `Chord Trainer · ${seg.chords.join(' ')}`
         : seg.kind === 'song'
-          ? 'Learn the chords, then the real song'
+          ? seg.playOnly
+            ? 'Play along with the real song'
+            : 'Learn the chords, then the real song'
           : mins(seg.seconds);
 
   return createPortal(
@@ -361,6 +363,7 @@ export function CoachedSession({ routine, onClose }: Props) {
           <SongPlayer
             key={`seg-${index}`}
             songId={seg.songId}
+            playOnly={seg.playOnly}
             autoStart
             autoAdvance
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}

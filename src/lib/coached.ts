@@ -8,7 +8,7 @@ import { chordPairs, routineChords } from './pairs';
 export type CoachSegment =
   | { kind: 'changes'; taskId: string; title: string; from: string; to: string; seconds: number }
   | { kind: 'trainer'; taskId: string; title: string; chords: string[]; seconds: number }
-  | { kind: 'song'; taskId: string; title: string; songId: string }
+  | { kind: 'song'; taskId: string; title: string; songId: string; playOnly: boolean }
   | { kind: 'timed'; taskId: string; title: string; description?: string; seconds: number; pattern?: string };
 
 // Parse a free-form duration label ("5 mins", "2-3 mins", "90s") into seconds.
@@ -62,7 +62,11 @@ export function buildSegments(routine: Routine | undefined): CoachSegment[] {
         : task.drill?.chordFrom && task.drill?.chordTo
           ? [task.drill.chordFrom, task.drill.chordTo]
           : learned;
-      for (const p of chordPairs(changeChords)) {
+      // Explicit pairs (when set) prescribe the exact transitions; otherwise fall
+      // back to every combination of the comfortable chord set.
+      const explicit = task.drill?.pairs?.filter((p) => p.from && p.to && p.from !== p.to);
+      const pairs = explicit?.length ? explicit : chordPairs(changeChords);
+      for (const p of pairs) {
         segments.push({ kind: 'changes', taskId: task.id, title: task.title, from: p.from, to: p.to, seconds: drillSeconds });
       }
     } else if (kind === 'chord-trainer') {
@@ -81,6 +85,7 @@ export function buildSegments(routine: Routine | undefined): CoachSegment[] {
         taskId: task.id,
         title: task.title,
         songId: task.drill.songId,
+        playOnly: task.drill.playOnly ?? false,
       });
     } else if (task.blocks?.length) {
       // Configurable timed task: each block runs as its own segment, announced

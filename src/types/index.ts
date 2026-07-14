@@ -8,7 +8,15 @@ export interface DrillConfig {
   // one-minute-changes: the chords you're comfortable switching between (pairs
   // are derived from these). chord-trainer: the pool of chords to call out.
   chords?: string[];
+  // one-minute-changes: exact change-pairs to drill, in order. When set these
+  // override the auto-derived combinations of `chords`, so a routine can
+  // prescribe specific transitions (e.g. Justin's Am↔E, Em↔D, Am↔Em) instead of
+  // every pair. `chords` is still carried as a fallback for older app builds.
+  pairs?: Array<{ from: string; to: string }>;
   songId?: string; // song-player: which song from the catalog to play along to
+  // song: skip the self-paced Learn pass and go straight to the real recording.
+  // For a song you already know and just want to keep playing in the session.
+  playOnly?: boolean;
 }
 
 // One labeled block inside a configurable timed task. Lets a single task (e.g.
