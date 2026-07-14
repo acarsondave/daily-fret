@@ -16,6 +16,7 @@ import { ChordTrainer } from './ChordTrainer';
 import { SongPlayer } from './SongPlayer';
 import { TimedSegment } from './TimedSegment';
 import { MicPermissionHint } from './MicPermissionHint';
+import { Metronome } from './Metronome';
 import './practice.css';
 
 type Phase = 'resume' | 'intro' | 'rest' | 'segment' | 'summary';
@@ -262,6 +263,7 @@ export function CoachedSession({ routine, onClose }: Props) {
           Coached · {Math.min(index + 1, segments.length)} / {segments.length}
         </span>
         <div className="practice-topbar-actions">
+          <Metronome />
           <button
             className={voiceOn ? 'practice-close' : 'practice-close is-off'}
             onClick={() => {

@@ -9,6 +9,7 @@ import type { Task } from '../../types';
 import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
 import { SongPlayer } from './SongPlayer';
+import { Metronome } from './Metronome';
 import './practice.css';
 
 interface Props {
@@ -53,9 +54,12 @@ export function PracticeOverlay({ task, onClose }: Props) {
     >
       <div className="practice-topbar">
         <span className="practice-eyebrow">{task.title}</span>
-        <button className="practice-close" onClick={onClose} title="Exit (Esc)">
-          <X size={20} weight="bold" />
-        </button>
+        <div className="practice-topbar-actions">
+          <Metronome />
+          <button className="practice-close" onClick={onClose} title="Exit (Esc)">
+            <X size={20} weight="bold" />
+          </button>
+        </div>
       </div>
 
       <div className="practice-body">
