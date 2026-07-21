@@ -265,6 +265,19 @@ export function downloadDiagnostics(): boolean {
   a.download = `daily-fret-diagnostics-${stamp}.json`;
   a.click();
   URL.revokeObjectURL(url);
+
+  // An export is a clean cut: the saved file already holds these sessions, so
+  // keeping them only bloats every later export (each was re-carrying the last
+  // 6, so a 4MB file was mostly duplicate). Drop exactly what we exported and
+  // keep anything that landed between the read and now (a drill finishing
+  // mid-export), so no session is lost.
+  const exportedIds = new Set(sessions.map((s) => s.id));
+  const remaining = loadStored().filter((s) => !exportedIds.has(s.id));
+  if (remaining.length) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(remaining));
+  } else {
+    localStorage.removeItem(STORAGE_KEY);
+  }
   return true;
 }
 
