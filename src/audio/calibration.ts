@@ -28,6 +28,18 @@ const MIN_CALIBRATED_CHORDS = 2;
 // rather than emit a near-null vector that can never win the cosine.
 const MIN_TEMPLATE_MAGNITUDE = 1e-3;
 
+// Fraction of the shared grand mean subtracted from each chord before fitting.
+// Subtracting the FULL grand mean (1.0) maximises separation but on a rig whose
+// grand mean is dominated by ringing open strings it also guts the defining note
+// of chords that share those strings: a 2026-07-13 calibration export had E's
+// self-match collapse to 0.69 under full subtraction, so real E frames scattered
+// below the 0.5 match floor and were rejected as NO_MATCH ("played it, didn't
+// count"). A partial subtraction recovers recall while keeping the shared-note
+// cancellation that makes A/D and E/Am distinguishable: at 0.6, mean self-match
+// rises 0.82 -> 0.94 (E 0.69 -> 0.90) while the worst confusable pair only moves
+// 0.42 -> 0.47 cosine — still well separated.
+const GRAND_MEAN_SUBTRACT = 0.6;
+
 // Default cap on frames backing a chord mean. Keeps a merged calibration from
 // letting one marathon session dominate, and bounds passive growth.
 export const MAX_SAMPLES_PER_CHORD = 400;
@@ -143,12 +155,13 @@ function magnitude(v: readonly number[]): number {
 }
 
 // Build matcher templates from calibration means. For each eligible chord:
-//   template = meanCenter(chordMean - grandMean)
+//   template = meanCenter(chordMean - GRAND_MEAN_SUBTRACT * grandMean)
 // The grand mean (equal-weight over eligible chords) is the component every chord
-// shares on this rig; subtracting it removes the notes common to A and D (the
-// stuck A), leaving the distinguishing roots/thirds to drive the cosine. Chords
-// below MIN_SAMPLES, or whose template is near-null, are omitted so the matcher
-// falls back to the built-in for them.
+// shares on this rig; subtracting a fraction of it removes the notes common to A
+// and D (the stuck A) while leaving enough of each chord's own signal to still
+// win the cosine — see GRAND_MEAN_SUBTRACT for why full subtraction over-corrects.
+// Chords below MIN_SAMPLES, or whose template is near-null, are omitted so the
+// matcher falls back to the built-in for them.
 export function fitTemplates(data: CalibrationData): LearnedTemplates {
   const eligible = Object.entries(data).filter(
     ([, c]) => c.samples >= MIN_SAMPLES && Array.isArray(c.mean) && c.mean.length === CHROMA_BINS,
@@ -164,7 +177,7 @@ export function fitTemplates(data: CalibrationData): LearnedTemplates {
   const out: Record<string, number[]> = {};
   for (const [name, c] of eligible) {
     const disc = new Array<number>(CHROMA_BINS);
-    for (let i = 0; i < CHROMA_BINS; i++) disc[i] = c.mean[i] - grand[i];
+    for (let i = 0; i < CHROMA_BINS; i++) disc[i] = c.mean[i] - GRAND_MEAN_SUBTRACT * grand[i];
     const template = meanCenter(disc);
     if (magnitude(template) < MIN_TEMPLATE_MAGNITUDE) continue;
     out[name] = template;

@@ -107,6 +107,31 @@ export class Chromagram {
   /// Push one audio frame. Returns the 12-bin chroma when a hop completes,
   /// otherwise null.
   next(frame: Float32Array): Float32Array | null {
+    if (!this.ingest(frame)) return null;
+
+    // Not enough real audio yet (e.g. right after an onset reset) to produce a
+    // meaningful spectrum — wait for the window to grow.
+    if (this.filled < MIN_FILLED) {
+      return null;
+    }
+
+    this.computeSpectrum();
+    this.computeChromagram();
+    return this.chroma;
+  }
+
+  /// Advance the rolling buffer by one frame WITHOUT computing a chroma. Used on
+  /// silent frames, where the detector discards the chroma anyway: running the
+  /// 8192-point FFT every silent frame (roughly a fifth of a practice session)
+  /// is pure wasted main-thread work. Buffer and hop state stay byte-identical to
+  /// next(), so detection is unchanged the instant audio resumes.
+  advance(frame: Float32Array): void {
+    this.ingest(frame);
+  }
+
+  /// Downsample the frame into the rolling buffer and update hop bookkeeping.
+  /// Returns true when a hop boundary is crossed (a chroma could be computed).
+  private ingest(frame: Float32Array): boolean {
     if (frame.length !== this.opts.frameSize) {
       throw new Error(
         `expected frame of length ${this.opts.frameSize}, got ${frame.length}`,
@@ -123,19 +148,10 @@ export class Chromagram {
 
     this.samplesSinceLast += this.opts.frameSize;
     if (this.samplesSinceLast < this.opts.hopSize) {
-      return null;
+      return false;
     }
     this.samplesSinceLast -= this.opts.hopSize;
-
-    // Not enough real audio yet (e.g. right after an onset reset) to produce a
-    // meaningful spectrum — wait for the window to grow.
-    if (this.filled < MIN_FILLED) {
-      return null;
-    }
-
-    this.computeSpectrum();
-    this.computeChromagram();
-    return this.chroma;
+    return true;
   }
 
   private downsampleFrame(input: Float32Array): void {

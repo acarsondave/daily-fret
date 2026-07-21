@@ -2,6 +2,15 @@
 // templates matched by mean-centered cosine similarity (Pearson correlation).
 
 const MATCH_SCORE_MIN = 0.5;
+// Restricted mode (song / changes drills) matches among only the 2-3 target
+// chords, so the whole class of wrong-chord snaps is already impossible and a
+// correct match beats its runner-up by a wide margin (the losers score negative).
+// That lets the absolute-score bar sit lower than open mode without admitting
+// noise: a real but slightly noisy strum that a per-frame chroma renders at ~0.45
+// is still the right chord here, and the salience gate, RESTRICTED_MARGIN_MIN,
+// strum-loudness arming and the 2-frame vote all still guard it. Recovers the
+// loud, salient NO_MATCH frames seen in diagnostics ("played it, didn't count").
+const MATCH_SCORE_MIN_RESTRICTED = 0.4;
 
 type Template = readonly [string, readonly number[]];
 
@@ -147,7 +156,7 @@ export function matchChordAmong(
   }
 
   if (bestChord === null) return matchChord(chroma, offset, learned);
-  if (best < MATCH_SCORE_MIN) return null;
+  if (best < MATCH_SCORE_MIN_RESTRICTED) return null;
   const confidence = Math.min(1, Math.max(0, (best + 1) / 2));
   const margin = second <= -999 ? 1 : best - second;
   return { chord: bestChord, confidence, margin };

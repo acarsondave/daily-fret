@@ -135,9 +135,15 @@ class DiagRecorder {
     s.endedAt = new Date().toISOString();
     this.session = null;
     this.ring = [];
-    // Persisting stringifies megabytes synchronously; deferred so mic teardown
-    // (drill finish, segment hand-off) never blocks on it.
-    setTimeout(() => persistSession(s), 0);
+    // Persisting stringifies megabytes of frames synchronously. Run it when the
+    // main thread is idle so a drill finish / segment hand-off never janks on it;
+    // fall back to a macrotask where requestIdleCallback is unavailable (Safari).
+    const persist = () => persistSession(s);
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(persist, { timeout: 2000 });
+    } else {
+      setTimeout(persist, 0);
+    }
   }
 
   mark(label: string): void {

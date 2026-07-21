@@ -171,7 +171,9 @@ export class ChordDetector {
         // attempt even if the onset detector is still warming up.
         this.onsetSinceEmit = true;
       }
-      this.chromagram.next(frame);
+      // Keep the rolling buffer current for when audio resumes, but skip the
+      // FFT/chroma compute: the result is unused on silent frames.
+      this.chromagram.advance(frame);
       return;
     }
 
