@@ -29,7 +29,11 @@ import './practice.css';
 // The chords we learn. A spread wider than the drilled core sharpens the
 // discriminative fit (a richer shared "grand mean" to subtract), while still
 // covering everything coached mode and the songs use.
-const CALIBRATION_CHORDS = ['A', 'D', 'E', 'Am', 'Em', 'C', 'G'];
+// Dm is here because a drill can only count what the detector was taught. With
+// Dm missing, a Dm/Am drill matches Dm against a built-in template while its
+// partner uses a learned one, and the two are fitted on different scales, so
+// the built-in one wins too often and the count is fiction.
+const CALIBRATION_CHORDS = ['A', 'D', 'E', 'Am', 'Dm', 'Em', 'C', 'G'];
 
 // Frames to gather per chord. Above MIN_SAMPLES so a fit stays trustworthy even
 // if a couple of frames are junk; ~1-2 seconds of held strumming.

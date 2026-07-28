@@ -14,7 +14,10 @@ export const BUILTIN_PATTERNS: StrumPattern[] = [
   { id: 'down-up', name: 'Down-up', pattern: 'DUDU' },
   { id: 'wild-1', name: 'D DU D', pattern: 'D-DUD-' },
   { id: 'wild-2', name: 'D DUDU D', pattern: 'D-DUDUD-' },
-  { id: 'old-faithful', name: 'Old faithful', pattern: 'DD-UDU' },
+  // Justin's Old Faithful, counted "1 2 + + 4": take the D-DUDUD- pattern above
+  // and drop the down strum on beat 3 while keeping the up after it. The hand
+  // still travels through the missing down, which is the whole point of it.
+  { id: 'old-faithful', name: 'Old faithful', pattern: 'D-DU-UD-' },
 ];
 
 // Find a pattern's display name by its string, across built-ins + custom.
