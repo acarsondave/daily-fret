@@ -37,6 +37,10 @@ export interface Song {
   chords: string[];
   sections: SongSection[];
   youtubeId?: string; // default recording for the real-play pass (user can override)
+  bpm?: number; // the record's tempo, used to preload the metronome
+  // Where the song actually starts in the linked video, so the real-play pass
+  // doesn't open on a minute of intro before there's anything to play.
+  startSeconds?: number;
 }
 
 const s = (chord: string, lyric?: string, strum?: string): SongStepDef => ({
@@ -301,6 +305,115 @@ const singEdSheeran: Song = {
   ],
 };
 
+// --- 505 (Arctic Monkeys) --- two chords the whole way through, Dm and Em,
+// alternating every two bars. Transcribed from the Ultimate Guitar chart. That
+// chart also prints an E diagram, but E never appears in the progression, so the
+// song is charted with what it actually plays.
+//
+// The record moves between a slow section (one strum, let it ring for two bars)
+// and a fast section (straight eighths). Verse 3 onward is the fast half, and
+// the chart's Dm*/Em* are the same two chords played up the neck; open Dm and Em
+// are the right shapes to learn them on.
+const FAST = 'DUDUDUDU';
+const dmEm = (n: number, strum?: string): SongStepDef[] => {
+  const out: SongStepDef[] = [];
+  for (let i = 0; i < n; i++) out.push(s('Dm', undefined, strum), s('Em', undefined, strum));
+  return out;
+};
+
+const fiveOhFive: Song = {
+  id: '505-arctic-monkeys',
+  title: '505',
+  artist: 'Arctic Monkeys',
+  level: 'Beginner',
+  strum: 'D',
+  chords: ['Dm', 'Em'],
+  youtubeId: 'd8CR8fSTm-Y',
+  bpm: 140,
+  startSeconds: 50,
+  sections: [
+    { label: 'Intro', steps: dmEm(2) },
+    {
+      label: 'Chorus',
+      steps: [
+        s('Dm', "I'm going back to 505"),
+        s('Em', "if it's a 7 hour flight"),
+        s('Dm', 'or a forty-five minute drive'),
+        s('Em', 'in my imagination'),
+        s('Dm', "you're waiting lying on your side"),
+        s('Em', 'with your hands between your thighs'),
+        s('Dm'), s('Em'),
+      ],
+    },
+    {
+      label: 'Verse 1',
+      steps: [
+        s('Dm', 'Stop and wait a sec'),
+        s('Em', 'when you look at me like that'),
+        s('Dm', 'my darling what did you expect?'),
+        s('Em', 'I probably still adore you'),
+        s('Dm', 'with your hands around my neck'),
+        s('Em', 'or I did last time I checked'),
+      ],
+    },
+    { label: 'Instrumental', steps: dmEm(1) },
+    {
+      label: 'Verse 2',
+      steps: [
+        s('Dm', 'Not shy of a spark'),
+        s('Em', 'the knife twists at the thought'),
+        s('Dm', 'that I should fall short of the mark'),
+        s('Em', 'frightened by the bite'),
+        s('Dm', "though it's no harsher than the bark"),
+        s('Em', 'the middle of adventure'),
+        s('Dm', 'is such a perfect place to start'),
+        s('Em'),
+      ],
+    },
+    {
+      label: 'Chorus',
+      steps: [
+        s('Dm', "I'm going back to 505"),
+        s('Em', "if it's a 7 hour flight"),
+        s('Dm', 'or a forty-five minute drive'),
+        s('Em', 'in my imagination'),
+        s('Dm', "you're waiting lying on your side"),
+        s('Em', 'with your hands between your thighs'),
+        s('Dm'), s('Em'),
+      ],
+    },
+    { label: 'Interlude', steps: dmEm(4) },
+    {
+      label: 'Verse 3 (fast)',
+      steps: [
+        s('Dm', 'But I crumble completely when you cry', FAST),
+        s('Em', 'it seems like once again', FAST),
+        s('Dm', "you've had to greet me with goodbye", FAST),
+        s('Em', "I'm always just about to go", FAST),
+        s('Dm', 'and spoil the surprise', FAST),
+        s('Em', 'take my hands off of your eyes', FAST),
+        s('Dm', 'too soon', FAST),
+        s('Em', undefined, FAST),
+      ],
+    },
+    {
+      label: 'Chorus (fast)',
+      steps: [
+        s('Dm', "I'm going back to 505", FAST),
+        s('Em', "if it's a 7 hour flight", FAST),
+        s('Dm', 'or a 45 minute drive', FAST),
+        s('Em', 'in my imagination', FAST),
+        s('Dm', "you're waiting lying on your side", FAST),
+        s('Em', 'with your hands between your thighs', FAST),
+        s('Dm', 'and a smile', FAST),
+        s('Em', undefined, FAST),
+      ],
+    },
+    { label: 'Solo', steps: dmEm(4, FAST) },
+    { label: 'Outro', steps: dmEm(2, FAST) },
+  ],
+};
+
 export const SONGS: Song[] = [
   wildThing,
   threeLittleBirds,
@@ -308,6 +421,7 @@ export const SONGS: Song[] = [
   knockinHeaven,
   iBelongToYou,
   singEdSheeran,
+  fiveOhFive,
 ];
 
 export function getSong(id: string | undefined): Song | undefined {

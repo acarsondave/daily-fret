@@ -29,6 +29,10 @@ export interface TimedBlock {
   durationSec: number;
   note?: string;
   pattern?: string; // optional strum pattern (D/U/- string) to show during the block
+  // Tempo this block should be practised at. A timed block has no measurable
+  // change rate to derive one from, so a riff or strumming pattern with a real
+  // tempo states it here; everything else falls back to the standard click.
+  bpm?: number;
 }
 
 export interface Task {
@@ -38,6 +42,7 @@ export interface Task {
   duration?: string; // e.g., "5 mins"
   drill?: DrillConfig; // when set, the task launches an interactive detector
   blocks?: TimedBlock[]; // when set (and no drill), a multi-block timed task
+  bpm?: number; // practice tempo for a plain timed task (see TimedBlock.bpm)
 }
 
 export interface Routine {

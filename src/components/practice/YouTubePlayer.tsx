@@ -4,12 +4,14 @@ import { loadYouTubeApi, type YTPlayer } from '../../lib/youtube';
 interface Props {
   videoId: string;
   onEnded: () => void; // fired when the video reaches its real end
+  // Skip a long intro so playback opens where the song actually starts.
+  startSeconds?: number;
 }
 
 // Renders the actual recording via the YouTube IFrame Player API. The player is
 // created imperatively into a child node (React only owns the wrapper) so YT can
 // swap it for its iframe without fighting React's reconciler.
-export function YouTubePlayer({ videoId, onEnded }: Props) {
+export function YouTubePlayer({ videoId, onEnded, startSeconds }: Props) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const onEndedRef = useRef(onEnded);
 
@@ -40,6 +42,7 @@ export function YouTubePlayer({ videoId, onEnded }: Props) {
           iv_load_policy: 3,
           playsinline: 1,
           color: 'white',
+          ...(startSeconds ? { start: Math.floor(startSeconds) } : {}),
         },
         events: {
           onReady: (e) => {
@@ -65,7 +68,7 @@ export function YouTubePlayer({ videoId, onEnded }: Props) {
       }
       wrapper.innerHTML = '';
     };
-  }, [videoId]);
+  }, [videoId, startSeconds]);
 
   return <div className="song-real-video" ref={wrapperRef} />;
 }

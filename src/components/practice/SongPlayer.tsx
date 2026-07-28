@@ -329,9 +329,12 @@ export function SongPlayer({
 
   if (phase === 'realplay') {
     const videoId = (storedLink ? youtubeId(storedLink) : null) ?? song.youtubeId ?? null;
+    // Nothing else is on screen during playback, so when there is a video to
+    // show it takes the whole stage instead of sitting in a 640px column.
+    const theater = !!videoId && !editingLink;
     return (
       <motion.div
-        className="song-real"
+        className={theater ? 'song-real is-theater' : 'song-real'}
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
@@ -341,8 +344,14 @@ export function SongPlayer({
           <span className="song-section-tag">{song.title}</span>
         </div>
 
-        {videoId && !editingLink ? (
-          <YouTubePlayer videoId={videoId} onEnded={finish} />
+        {theater ? (
+          <YouTubePlayer
+            videoId={videoId}
+            onEnded={finish}
+            // A stored link is the user's own pick and may not share the
+            // catalogue recording's intro, so only skip ahead on ours.
+            startSeconds={storedLink ? undefined : song.startSeconds}
+          />
         ) : (
           <div className="song-real-link">
             <YoutubeLogo size={32} weight="fill" color="#ff5252" />
@@ -371,7 +380,7 @@ export function SongPlayer({
         )}
 
         <div className="song-real-foot">
-          {videoId && !editingLink && (
+          {theater && (
             <button className="song-skip" onClick={() => { setLinkDraft(storedLink ?? ''); setEditingLink(true); }}>
               <YoutubeLogo size={16} weight="fill" /> Change link
             </button>

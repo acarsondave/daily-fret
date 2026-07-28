@@ -36,6 +36,7 @@ interface Props {
   autoAdvance?: boolean; // results auto-continue after a short countdown (no button)
   nextLabel?: string; // what the auto-advance is moving toward, e.g. "Rest"
   detector?: ChordDetectorApi;
+  onSessionStart?: () => void; // the drill is now live (drives the auto metronome)
 }
 
 export function ChordTrainer({
@@ -49,6 +50,7 @@ export function ChordTrainer({
   autoAdvance = false,
   nextLabel = 'Up next',
   detector,
+  onSessionStart,
 }: Props) {
   const own = useChordDetector();
   const templates = useLearnedTemplates();
@@ -143,6 +145,7 @@ export function ChordTrainer({
     const first = pool[Math.floor(Math.random() * pool.length)] ?? pool[0];
     targetRef.current = first;
     setTarget(first);
+    onSessionStart?.();
     setView('playing');
 
     // Wait for the mic before starting the clock so the permission prompt

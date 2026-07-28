@@ -35,6 +35,7 @@ interface Props {
   autoAdvance?: boolean;
   nextLabel?: string;
   detector?: ChordDetectorApi;
+  onSessionStart?: () => void; // the drill is now live (drives the auto metronome)
 }
 
 // Anchor-changes drill: cycle a ring of chords (e.g. D → A → E → D) at your own
@@ -51,6 +52,7 @@ export function ChordRotation({
   autoAdvance = false,
   nextLabel = 'Up next',
   detector,
+  onSessionStart,
 }: Props) {
   const own = useChordDetector();
   const templates = useLearnedTemplates();
@@ -138,6 +140,7 @@ export function ChordRotation({
     setTimeLeft(duration);
     resetSignal();
     prevBestRef.current = personalBest;
+    onSessionStart?.();
     setView('playing');
 
     const live = await start(

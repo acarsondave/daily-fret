@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, Minus, Plus } from '@phosphor-icons/react';
 import { useStore } from '../../store';
 import { metronome, MIN_BPM, MAX_BPM } from '../../audio/metronome';
+import { DEFAULT_PRACTICE_BPM, type TempoPlan } from '../../lib/tempo';
 
-const DEFAULT_BPM = 90;
-// Ignore taps more than this far apart — they belong to different attempts, not
+// Ignore taps more than this far apart: they belong to different attempts, not
 // one steady tempo.
 const TAP_RESET_MS = 2000;
 
@@ -37,15 +37,31 @@ function MetronomeMark({ swinging }: { swinging: boolean }) {
   );
 }
 
-// Shared tempo control. Owns the app's single metronome engine, remembers the
-// last tempo, and can be dropped into any practice top bar. Starts stopped.
-export function Metronome() {
+interface Props {
+  // The tempo this drill should run at, derived from the player's own history
+  // (src/lib/tempo.ts). Absent for surfaces with nothing to prescribe from.
+  plan?: TempoPlan | null;
+  // Identity of the thing `plan` was computed for. The prescription re-applies
+  // when this changes, and only then, so a mid-drill manual adjustment sticks.
+  planKey?: string;
+  // Whether this segment should start the click by itself. False where a click
+  // would fight the material (playing along to a recording).
+  autoPlay?: boolean;
+}
+
+// Shared tempo control. Owns the app's single metronome engine and, in coached
+// practice, runs it at the tempo the player's own results justify. Adjustable at
+// any time; the prescription is a starting point, never a lock.
+export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
   const storedBpm = useStore((s) => s.accounts[s.currentAccountId]?.metronomeBpm);
+  const storedAuto = useStore((s) => s.accounts[s.currentAccountId]?.metronomeAuto);
   const setMetronomeBpm = useStore((s) => s.setMetronomeBpm);
+  const setMetronomeAuto = useStore((s) => s.setMetronomeAuto);
+  const auto = storedAuto ?? true;
 
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState(false);
-  const [bpm, setBpm] = useState(storedBpm ?? DEFAULT_BPM);
+  const [bpm, setBpm] = useState(storedBpm ?? DEFAULT_PRACTICE_BPM);
   const [beat, setBeat] = useState(0);
   const tapsRef = useRef<number[]>([]);
 
@@ -63,6 +79,37 @@ export function Metronome() {
       metronome.stop();
     };
   }, []);
+
+  // Apply the prescription when the drill changes, or when auto is switched.
+  // Deliberately not keyed on `bpm`: once a drill is under way the player's own
+  // adjustment owns the tempo until the next drill.
+  useEffect(() => {
+    if (!plan) return;
+    // Deferred a tick, the same way the drills defer their auto-start: it keeps
+    // setState out of the effect body and is safe across StrictMode's
+    // mount/cleanup/mount.
+    const t = setTimeout(() => {
+      if (!auto) {
+        // Hand the click back as a plain 4/4 so a manual start isn't still
+        // accenting some earlier drill's change cycle.
+        metronome.setBeatsPerBar(4);
+        metronome.stop();
+        setRunning(false);
+        return;
+      }
+      metronome.setBeatsPerBar(plan.beatsPerChange);
+      setBpm(plan.bpm);
+      if (autoPlay) {
+        metronome.start(plan.bpm);
+        setRunning(true);
+      } else {
+        metronome.stop();
+        setRunning(false);
+      }
+    }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planKey, auto, autoPlay]);
 
   const commitBpm = (next: number) => {
     const clamped = Math.min(MAX_BPM, Math.max(MIN_BPM, Math.round(next)));
@@ -99,10 +146,11 @@ export function Metronome() {
       <button
         className={running ? 'practice-close metro-trigger is-live' : 'practice-close metro-trigger'}
         onClick={() => setOpen((o) => !o)}
-        title="Metronome"
+        title={running ? `Metronome ${bpm} BPM` : 'Metronome'}
         aria-pressed={open}
       >
         <MetronomeMark swinging={running} />
+        {running && <span className="metro-trigger-bpm">{bpm}</span>}
       </button>
 
       <AnimatePresence>
@@ -119,6 +167,8 @@ export function Metronome() {
               <span className="metro-bpm">{bpm}</span>
               <span className="metro-unit">BPM</span>
             </div>
+
+            {plan && auto && <p className="metro-reason">{plan.reason}</p>}
 
             <div className="metro-stepper">
               <button className="metro-step" onClick={() => commitBpm(bpm - 1)} aria-label="Slower">
@@ -137,6 +187,15 @@ export function Metronome() {
                 <Plus size={16} weight="bold" />
               </button>
             </div>
+
+            <label className="metro-auto">
+              <input
+                type="checkbox"
+                checked={auto}
+                onChange={(e) => setMetronomeAuto(e.target.checked)}
+              />
+              <span>Set the tempo for me</span>
+            </label>
 
             <div className="metro-actions">
               <button className="metro-tap" onClick={tap}>Tap</button>

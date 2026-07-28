@@ -291,6 +291,24 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
                         value={block.pattern ?? ''}
                         onChange={p => updateBlock(block.id, { pattern: p || undefined })}
                       />
+                      {/* A timed block has no measurable change rate to derive a
+                          tempo from, so a riff or pattern with a real tempo says
+                          it here. Blank leaves the standard practice click. */}
+                      <div className="drill-block-bpm">
+                        <input
+                          type="text"
+                          className="task-input"
+                          placeholder="Tempo"
+                          value={block.bpm ? String(block.bpm) : ''}
+                          onChange={e => {
+                            const raw = e.target.value.replace(/\D/g, '').slice(0, 3);
+                            updateBlock(block.id, { bpm: raw ? parseInt(raw, 10) : undefined });
+                          }}
+                          inputMode="numeric"
+                          aria-label="Block tempo in BPM"
+                        />
+                        <span className="task-duration-suffix">BPM</span>
+                      </div>
                     </div>
                   ))}
                   <button type="button" className="drill-block-add" onClick={addBlock}>

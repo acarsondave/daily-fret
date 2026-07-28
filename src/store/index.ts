@@ -48,9 +48,12 @@ export interface UserData {
   // Per-guitar learned chord fingerprints (src/audio/calibration.ts). Absent
   // until the user calibrates; the detector falls back to built-in templates.
   chordCalibration?: ChordCalibration;
-  // Last metronome tempo the user set, so it reopens where they left it. The
-  // metronome always starts stopped; only the tempo is remembered.
+  // Last metronome tempo the user set by hand, used as the manual fallback and
+  // whenever there is no prescription to derive a tempo from.
   metronomeBpm?: number;
+  // Whether coached drills set the tempo (and start the click) themselves from
+  // the player's own results. Defaults on; absent means never chosen.
+  metronomeAuto?: boolean;
   // Epoch ms of the last local mutation to this account. Drives conflict
   // resolution against the cloud copy. Older/legacy data defaults to 0.
   updatedAt: number;
@@ -100,6 +103,7 @@ interface AppState {
   setChordCalibration: (chords: CalibrationData, label?: string) => void;
   clearChordCalibration: () => void;
   setMetronomeBpm: (bpm: number) => void;
+  setMetronomeAuto: (auto: boolean) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -168,6 +172,7 @@ export const useStore = create<AppState>()(
             songLinks: data.songLinks ?? local?.songLinks ?? {},
             chordCalibration: data.chordCalibration ?? local?.chordCalibration,
             metronomeBpm: data.metronomeBpm ?? local?.metronomeBpm,
+            metronomeAuto: data.metronomeAuto ?? local?.metronomeAuto,
             updatedAt: remoteUpdatedAt,
           };
 
@@ -410,6 +415,10 @@ export const useStore = create<AppState>()(
 
         setMetronomeBpm: (bpm) => set((state) =>
           mutate(state, (a) => ({ ...a, metronomeBpm: bpm })),
+        ),
+
+        setMetronomeAuto: (auto) => set((state) =>
+          mutate(state, (a) => ({ ...a, metronomeAuto: auto })),
         ),
       };
     },

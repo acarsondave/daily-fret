@@ -231,3 +231,19 @@
   border-radius: var(--radius-sm);
   background: rgba(0, 0, 0, 0.18);
 }
+
+/* Optional per-block tempo, sitting under the strum pattern it belongs to. */
+.drill-block-bpm {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 108px;
+}
+.drill-block-bpm input {
+  padding-right: 3rem;
+  text-align: center;
+}
+.drill-block-bpm .task-duration-suffix {
+  position: absolute;
+  right: var(--space-2);
+}

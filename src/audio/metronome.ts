@@ -6,7 +6,7 @@
 
 const LOOKAHEAD_MS = 25; // how often the scheduler wakes to queue clicks
 const SCHEDULE_AHEAD_S = 0.12; // how far ahead of the clock clicks are queued
-const BEATS_PER_BAR = 4;
+const DEFAULT_BEATS_PER_BAR = 4;
 
 export const MIN_BPM = 40;
 export const MAX_BPM = 240;
@@ -19,6 +19,7 @@ export class Metronome {
   private nextNoteTime = 0;
   private beat = 0;
   private bpm = 90;
+  private beatsPerBar = DEFAULT_BEATS_PER_BAR;
   private running = false;
   // Fired on the main thread roughly at each audible click, so the UI can pulse
   // in time. `accent` marks beat one of the bar.
@@ -34,6 +35,18 @@ export class Metronome {
 
   setBpm(bpm: number): void {
     this.bpm = clampBpm(bpm);
+  }
+
+  // How many beats the accent cycle spans. Drills set this to the beats between
+  // chord changes, so the accented click always lands on "change now" rather
+  // than on an abstract beat one the player has to count against.
+  setBeatsPerBar(beats: number): void {
+    const next = Math.max(1, Math.round(beats));
+    if (next === this.beatsPerBar) return;
+    this.beatsPerBar = next;
+    // Restart the cycle so the next accent is a full bar away, never a stray
+    // one landing mid-figure because the old count was further along.
+    this.beat = 0;
   }
 
   start(bpm?: number): void {
@@ -78,7 +91,7 @@ export class Metronome {
         setTimeout(() => this.onBeat?.(fireAccent), delayMs);
       }
       this.nextNoteTime += secondsPerBeat;
-      this.beat = (this.beat + 1) % BEATS_PER_BAR;
+      this.beat = (this.beat + 1) % this.beatsPerBar;
     }
   }
 

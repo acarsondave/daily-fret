@@ -5,6 +5,8 @@ import { X } from '@phosphor-icons/react';
 import { useStore, getTodayString } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import { taskDrillHistory } from '../../lib/drillStats';
+import { drillSeries, planTempo, fixedTempo, type TempoPlan } from '../../lib/tempo';
+import { getSong } from '../../data/songs';
 import type { Task } from '../../types';
 import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
@@ -42,6 +44,45 @@ export function PracticeOverlay({ task, onClose }: Props) {
     [drill],
   );
   const [pairIdx, setPairIdx] = useState(0);
+  // The click only runs while a drill is actually under way, never over the
+  // setup screen or the results card.
+  const [drillLive, setDrillLive] = useState(false);
+  // Which pair the free picker settled on, so its tempo comes from that pair's
+  // own history rather than a guess.
+  const [livePair, setLivePair] = useState(lastPair);
+
+  const duration = drill?.durationSec ?? 60;
+  const tempoKey =
+    drill?.kind === 'one-minute-changes'
+      ? explicitPairs.length
+        ? `pair-${Math.min(pairIdx, explicitPairs.length - 1)}`
+        : livePair
+          ? pairKey(livePair.from, livePair.to)
+          : 'no-pair'
+      : task.id;
+
+  // Same prescription the coached session uses, so a drill run from the task
+  // list is the same practice, not a looser version of it.
+  const tempoPlan = useMemo<TempoPlan | null>(() => {
+    if (!drill) return null;
+    const logs = useStore.getState().accounts[useStore.getState().currentAccountId]?.dailyLogs ?? {};
+    if (drill.kind === 'one-minute-changes') {
+      const pair = explicitPairs.length
+        ? explicitPairs[Math.min(pairIdx, explicitPairs.length - 1)]
+        : livePair;
+      if (!pair) return fixedTempo(undefined);
+      return planTempo(drillSeries(logs, pairKey(pair.from, pair.to), duration), getTodayString());
+    }
+    if (drill.kind === 'chord-trainer' || drill.kind === 'chord-rotation') {
+      return planTempo(drillSeries(logs, task.id, duration), getTodayString());
+    }
+    const song = getSong(drill.songId);
+    return fixedTempo(
+      song?.bpm,
+      song?.bpm ? `${song.title} runs at about ${song.bpm} BPM. Tap start if you want it.` : undefined,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tempoKey]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -68,7 +109,11 @@ export function PracticeOverlay({ task, onClose }: Props) {
       <div className="practice-topbar">
         <span className="practice-eyebrow">{task.title}</span>
         <div className="practice-topbar-actions">
-          <Metronome />
+          <Metronome
+            plan={tempoPlan}
+            planKey={tempoKey}
+            autoPlay={drillLive && drill.kind !== 'song'}
+          />
           <button className="practice-close" onClick={onClose} title="Exit (Esc)">
             <X size={20} weight="bold" />
           </button>
@@ -87,10 +132,14 @@ export function PracticeOverlay({ task, onClose }: Props) {
               autoStart
               autoAdvance
               nextLabel={isLastPair ? 'Done' : 'Next pair'}
-              onSessionStart={(f, t) => setLastPair(f, t)}
+              onSessionStart={(f, t) => {
+                setLastPair(f, t);
+                setDrillLive(true);
+              }}
               onResult={(cpm, f, t) => {
                 recordDrillResult(getTodayString(), task.id, cpm, pairKey(f, t));
                 setLastPair(f, t);
+                setDrillLive(false);
               }}
               onNext={() => (isLastPair ? onClose() : setPairIdx((i) => i + 1))}
               onClose={onClose}
@@ -113,10 +162,15 @@ export function PracticeOverlay({ task, onClose }: Props) {
                 ? { from: drill.chordFrom, to: drill.chordTo }
                 : undefined)
             }
-            onSessionStart={(f, t) => setLastPair(f, t)}
+            onSessionStart={(f, t) => {
+              setLastPair(f, t);
+              setLivePair({ from: f, to: t });
+              setDrillLive(true);
+            }}
             onResult={(cpm, f, t) => {
               recordDrillResult(getTodayString(), task.id, cpm, pairKey(f, t));
               setLastPair(f, t);
+              setDrillLive(false);
             }}
             onClose={onClose}
           />
@@ -125,7 +179,11 @@ export function PracticeOverlay({ task, onClose }: Props) {
           <ChordRotation
             config={drill}
             personalBest={personalBest}
-            onResult={(score) => recordDrillResult(getTodayString(), task.id, score)}
+            onSessionStart={() => setDrillLive(true)}
+            onResult={(score) => {
+              recordDrillResult(getTodayString(), task.id, score);
+              setDrillLive(false);
+            }}
             onClose={onClose}
           />
         )}
@@ -134,7 +192,11 @@ export function PracticeOverlay({ task, onClose }: Props) {
             config={drill}
             personalBest={personalBest}
             series={series}
-            onResult={(score) => recordDrillResult(getTodayString(), task.id, score)}
+            onSessionStart={() => setDrillLive(true)}
+            onResult={(score) => {
+              recordDrillResult(getTodayString(), task.id, score);
+              setDrillLive(false);
+            }}
             onClose={onClose}
           />
         )}

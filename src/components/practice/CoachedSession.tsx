@@ -6,6 +6,8 @@ import { useStore, getTodayString, type CoachStepResult } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import { buildSegments } from '../../lib/coached';
 import { taskDrillHistory } from '../../lib/drillStats';
+import { drillSeries, planTempo, fixedTempo, type TempoPlan } from '../../lib/tempo';
+import { getSong } from '../../data/songs';
 import { sfx } from '../../audio/sfx';
 import { diag } from '../../audio/diagnostics';
 import { speak, announceDrill, preloadCoachVoice, stopVoice, isCoachVoiceEnabled, setCoachVoiceEnabled } from '../../audio/coachVoice';
@@ -90,6 +92,29 @@ export function CoachedSession({ routine, onClose }: Props) {
     return taskDrillHistory(acc?.dailyLogs ?? {}, seg.taskId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
+  // The tempo this segment should run at, read from the player's own results for
+  // this exact drill. Snapshotted per segment (like trainerHistory) so recording
+  // today's result mid-session can't move the click under the player's fingers.
+  const tempoPlan = useMemo<TempoPlan | null>(() => {
+    if (!seg) return null;
+    const logs = useStore.getState().accounts[useStore.getState().currentAccountId]?.dailyLogs ?? {};
+    if (seg.kind === 'changes') {
+      return planTempo(drillSeries(logs, pairKey(seg.from, seg.to), seg.seconds), today);
+    }
+    if (seg.kind === 'trainer' || seg.kind === 'rotation') {
+      return planTempo(drillSeries(logs, seg.taskId, seg.seconds), today);
+    }
+    if (seg.kind === 'timed') return fixedTempo(seg.bpm);
+    // Songs are played to the record, not to a click. The tempo is still loaded
+    // so one tap gives the right click if the player wants it while learning.
+    const song = getSong(seg.songId);
+    return fixedTempo(
+      song?.bpm,
+      song?.bpm ? `${song.title} runs at about ${song.bpm} BPM. Tap start if you want it.` : undefined,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
+
   // A task can fan out into several segments (e.g. one-minute-changes → one per
   // chord pair). It only counts as "done" once its *final* segment is finished,
   // so checking off after a single pair no longer fires early.
@@ -266,7 +291,14 @@ export function CoachedSession({ routine, onClose }: Props) {
           Coached · {Math.min(index + 1, segments.length)} / {segments.length}
         </span>
         <div className="practice-topbar-actions">
-          <Metronome />
+          <Metronome
+            plan={tempoPlan}
+            planKey={`${index}`}
+            // Only while the drill is actually running: a click under the coach's
+            // announcement or through a rest is noise, and over a recording it
+            // fights the track.
+            autoPlay={phase === 'segment' && seg.kind !== 'song'}
+          />
           <button
             className={voiceOn ? 'practice-close' : 'practice-close is-off'}
             onClick={() => {

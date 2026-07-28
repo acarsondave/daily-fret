@@ -10,7 +10,7 @@ export type CoachSegment =
   | { kind: 'trainer'; taskId: string; title: string; chords: string[]; seconds: number }
   | { kind: 'rotation'; taskId: string; title: string; chords: string[]; seconds: number }
   | { kind: 'song'; taskId: string; title: string; songId: string; playOnly: boolean }
-  | { kind: 'timed'; taskId: string; title: string; description?: string; seconds: number; pattern?: string };
+  | { kind: 'timed'; taskId: string; title: string; description?: string; seconds: number; pattern?: string; bpm?: number };
 
 // Parse a free-form duration label ("5 mins", "2-3 mins", "90s") into seconds.
 // Durations are now captured as plain minute numbers ("5"), but legacy labels
@@ -109,6 +109,7 @@ export function buildSegments(routine: Routine | undefined): CoachSegment[] {
           description: block.note,
           seconds: block.durationSec,
           pattern: block.pattern,
+          bpm: block.bpm ?? task.bpm,
         });
       }
     } else {
@@ -118,6 +119,7 @@ export function buildSegments(routine: Routine | undefined): CoachSegment[] {
         title: task.title,
         description: task.description,
         seconds: parseDuration(task.duration),
+        bpm: task.bpm,
       });
     }
   }
