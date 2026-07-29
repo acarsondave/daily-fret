@@ -1192,3 +1192,24 @@
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
+
+/* Muted by the browser: the click is scheduled but audio was never freed. Read
+   as a warning, not as a running click, so the control never claims a tempo the
+   player can't hear. */
+.metro-trigger.is-live.is-silent {
+  color: #FBBF24;
+  background: rgba(251, 191, 36, 0.12);
+}
+.metro-trigger.is-silent .metro-trigger-bpm {
+  text-transform: uppercase;
+  font-size: 0.62rem;
+  letter-spacing: 0.09em;
+}
+
+.metro-silent {
+  margin: calc(var(--space-3) * -1) 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #FBBF24;
+  text-align: left;
+}

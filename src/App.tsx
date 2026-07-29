@@ -4,6 +4,7 @@ import { Footer } from './components/Footer';
 import { AccountModal } from './components/AccountModal';
 import { StreakGraph } from './components/StreakGraph';
 import { initAuthListener, useAuthStore } from './lib/auth';
+import { armOutputAudioUnlock } from './audio/outputContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
 
@@ -13,6 +14,10 @@ function App() {
 
   useEffect(() => {
     initAuthListener();
+    // Practice audio (the coach's click, the cues) starts on a timer, not on a
+    // tap, and browsers only free audio inside a gesture. Claim the first tap of
+    // the visit so the click is already warm by the time a drill needs it.
+    armOutputAudioUnlock();
   }, []);
 
   useEffect(() => {

@@ -3,7 +3,8 @@
 // Sounds fire only at genuinely impactful moments (count-in, start, a new best,
 // block/session complete, rest), never per-keystroke.
 
-let ctx: AudioContext | null = null;
+import { getOutputContext } from './outputContext';
+
 const STORAGE_KEY = 'daily-fret-sound';
 
 function readEnabled(): boolean {
@@ -26,27 +27,6 @@ export function setSoundEnabled(value: boolean): void {
     localStorage.setItem(STORAGE_KEY, value ? '1' : '0');
   } catch {
     /* ignore persistence failures */
-  }
-}
-
-// Lazily create (and resume) a shared AudioContext. All triggers happen after a
-// user gesture (opening Coached, starting a drill), so it unlocks cleanly.
-function getCtx(): AudioContext | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    // The system can close the context behind our back (iOS interruption,
-    // audio-session eviction). A closed context never plays again, so detect
-    // it and recreate instead of staying silent until reload.
-    if (ctx && ctx.state === 'closed') ctx = null;
-    if (!ctx) {
-      const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!AC) return null;
-      ctx = new AC();
-    }
-    if (ctx.state === 'suspended') void ctx.resume();
-    return ctx;
-  } catch {
-    return null;
   }
 }
 
@@ -75,7 +55,7 @@ function tone(c: AudioContext, t0: number, n: Note): void {
 
 function play(notes: Note[]): void {
   if (!enabled) return;
-  const c = getCtx();
+  const c = getOutputContext();
   if (!c) return;
   const t0 = c.currentTime;
   for (const n of notes) tone(c, t0, n);

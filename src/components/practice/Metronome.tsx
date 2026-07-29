@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, Minus, Plus } from '@phosphor-icons/react';
 import { useStore } from '../../store';
 import { metronome, MIN_BPM, MAX_BPM } from '../../audio/metronome';
+import { armOutputAudioUnlock } from '../../audio/outputContext';
 import { DEFAULT_PRACTICE_BPM, type TempoPlan } from '../../lib/tempo';
 
 // Ignore taps more than this far apart: they belong to different attempts, not
@@ -61,9 +62,13 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
 
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState(false);
+  // Whether the click is actually sounding. The browser can hold audio
+  // suspended, and a tempo readout over silence is worse than no readout.
+  const [audible, setAudible] = useState(false);
   const [bpm, setBpm] = useState(storedBpm ?? DEFAULT_PRACTICE_BPM);
   const [beat, setBeat] = useState(0);
   const tapsRef = useRef<number[]>([]);
+  const silent = running && !audible;
 
   // Keep the engine's tempo in step with the slider while it plays.
   useEffect(() => {
@@ -73,9 +78,15 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
   // Drive the visual pulse from the audio clock, and tear the engine down when
   // this control unmounts so a click never outlives the drill.
   useEffect(() => {
+    // The coach starts the click on its own, seconds after the tap that opened
+    // this screen. Browsers only free audio on a gesture, so claim that tap now
+    // rather than discovering the context is frozen once the drill is running.
+    armOutputAudioUnlock();
     metronome.onBeat = () => setBeat((b) => b + 1);
+    metronome.onAudibleChange = (next) => setAudible(next);
     return () => {
       metronome.onBeat = null;
+      metronome.onAudibleChange = null;
       metronome.stop();
     };
   }, []);
@@ -118,13 +129,16 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
   };
 
   const toggle = () => {
-    if (running) {
+    if (running && audible) {
       metronome.stop();
       setRunning(false);
-    } else {
-      metronome.start(bpm);
-      setRunning(true);
+      return;
     }
+    // Running but silent means the browser never freed audio. This click is a
+    // real gesture, which is the one thing that can, so unlock and restart the
+    // count from here instead of leaving a dead click running.
+    metronome.unlockAndStart(bpm);
+    setRunning(true);
   };
 
   const tap = () => {
@@ -144,13 +158,19 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
   return (
     <div className="metro">
       <button
-        className={running ? 'practice-close metro-trigger is-live' : 'practice-close metro-trigger'}
+        className={
+          silent
+            ? 'practice-close metro-trigger is-live is-silent'
+            : running
+              ? 'practice-close metro-trigger is-live'
+              : 'practice-close metro-trigger'
+        }
         onClick={() => setOpen((o) => !o)}
-        title={running ? `Metronome ${bpm} BPM` : 'Metronome'}
+        title={silent ? 'Metronome muted by the browser — tap to turn the sound on' : running ? `Metronome ${bpm} BPM` : 'Metronome'}
         aria-pressed={open}
       >
-        <MetronomeMark swinging={running} />
-        {running && <span className="metro-trigger-bpm">{bpm}</span>}
+        <MetronomeMark swinging={audible} />
+        {running && <span className="metro-trigger-bpm">{silent ? 'muted' : bpm}</span>}
       </button>
 
       <AnimatePresence>
@@ -163,12 +183,18 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
           >
             <div className="metro-readout">
-              <span key={beat} className={running ? 'metro-pulse is-beat' : 'metro-pulse'} />
+              <span key={beat} className={audible ? 'metro-pulse is-beat' : 'metro-pulse'} />
               <span className="metro-bpm">{bpm}</span>
               <span className="metro-unit">BPM</span>
             </div>
 
-            {plan && auto && <p className="metro-reason">{plan.reason}</p>}
+            {silent && (
+              <p className="metro-silent">
+                Your browser is holding the sound. Tap below to turn the click on.
+              </p>
+            )}
+
+            {plan && auto && !silent && <p className="metro-reason">{plan.reason}</p>}
 
             <div className="metro-stepper">
               <button className="metro-step" onClick={() => commitBpm(bpm - 1)} aria-label="Slower">
@@ -200,8 +226,8 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
             <div className="metro-actions">
               <button className="metro-tap" onClick={tap}>Tap</button>
               <button className="practice-btn primary metro-play" onClick={toggle}>
-                {running ? <Pause size={18} weight="fill" /> : <Play size={18} weight="fill" />}
-                {running ? 'Stop' : 'Start'}
+                {running && audible ? <Pause size={18} weight="fill" /> : <Play size={18} weight="fill" />}
+                {silent ? 'Turn on sound' : running ? 'Stop' : 'Start'}
               </button>
             </div>
           </motion.div>
