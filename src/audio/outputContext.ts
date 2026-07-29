@@ -12,10 +12,11 @@
 const UNLOCK_EVENTS = ['pointerdown', 'touchend', 'keydown'] as const;
 const RETRY_MS = 1000;
 const RETRY_LIMIT = 20;
+const RESUME_GAP_MS = 750;
 
 let ctx: AudioContext | null = null;
 let detachUnlock: (() => void) | null = null;
-let resuming: Promise<void> | null = null;
+let lastResumeAt = 0;
 let retryTimer: ReturnType<typeof setInterval> | null = null;
 let retriesLeft = 0;
 const listeners = new Set<(ready: boolean) => void>();
@@ -64,22 +65,25 @@ export function getOutputContext(): AudioContext | null {
   }
 }
 
-// Ask the browser to free audio. Single-flight: a second call while one is in
-// flight returns the same promise, so no path can stack these up.
-export function resumeOutputAudio(): Promise<void> {
+// Ask the browser to free audio, at most once every RESUME_GAP_MS.
+//
+// Deliberately throttled by time and NOT by an in-flight promise: WebKit leaves
+// the promise from a denied resume() pending forever rather than rejecting it,
+// so gating on "one in flight" latches on the first failure and never calls
+// resume() again — including from inside the user gesture that would have been
+// allowed. `force` skips the throttle for exactly that case.
+export function resumeOutputAudio(force = false): void {
   const c = getOutputContext();
-  if (!c) return Promise.resolve();
-  if (c.state === 'running') return Promise.resolve();
-  if (resuming) return resuming;
-  const settle = () => {
-    resuming = null;
-  };
-  const started = c.resume() as Promise<void> | undefined;
-  resuming =
-    started && typeof started.then === 'function'
-      ? started.then(settle, settle)
-      : Promise.resolve().then(settle);
-  return resuming;
+  if (!c || c.state === 'running') return;
+  const now = performance.now();
+  if (!force && now - lastResumeAt < RESUME_GAP_MS) return;
+  lastResumeAt = now;
+  try {
+    void Promise.resolve(c.resume()).catch(() => {});
+  } catch {
+    // Older implementations throw instead of rejecting; state stays suspended
+    // and the caller finds out through onOutputAudioChange like everyone else.
+  }
 }
 
 // Call from inside a real user gesture. A context created outside one starts
@@ -87,7 +91,7 @@ export function resumeOutputAudio(): Promise<void> {
 export function unlockOutputAudio(): void {
   const c = getOutputContext();
   if (!c || c.state === 'running') return;
-  void resumeOutputAudio();
+  resumeOutputAudio(true); // a gesture is the one moment worth spending
   try {
     // iOS only truly frees a context once something has played through it, so
     // push one silent sample.
@@ -123,15 +127,22 @@ export function armOutputAudioUnlock(): void {
 export function requestOutputAudio(): void {
   if (isOutputAudioReady()) return;
   armOutputAudioUnlock(); // a tap is still the fastest route back
-  void resumeOutputAudio();
+  resumeOutputAudio();
   if (retryTimer) return;
   retriesLeft = RETRY_LIMIT;
   retryTimer = setInterval(() => {
-    if (isOutputAudioReady() || retriesLeft-- <= 0) {
+    if (isOutputAudioReady()) {
+      releaseOutputAudio();
+      // Announce it here too. WebKit does not always emit a statechange for a
+      // context that comes back on its own, and polling is what noticed.
+      notify();
+      return;
+    }
+    if (retriesLeft-- <= 0) {
       releaseOutputAudio();
       return;
     }
-    void resumeOutputAudio();
+    resumeOutputAudio();
   }, RETRY_MS);
 }
 

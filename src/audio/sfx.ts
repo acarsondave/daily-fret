@@ -57,7 +57,7 @@ function play(notes: Note[]): void {
   if (!enabled) return;
   const c = getOutputContext();
   if (!c) return;
-  if (c.state !== 'running') void resumeOutputAudio();
+  if (c.state !== 'running') resumeOutputAudio();
   const t0 = c.currentTime;
   for (const n of notes) tone(c, t0, n);
 }
