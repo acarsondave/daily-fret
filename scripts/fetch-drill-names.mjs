@@ -20,22 +20,13 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { initializeFirestore, doc, getDoc } from 'firebase/firestore';
 import { slugify } from './slugify.mjs';
+import { loadEnv } from './load-env.mjs';
+
+loadEnv();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..');
 
 // Minimal .env loader (no dependency): only fills vars not already in the env.
-function loadEnv() {
-  const p = path.join(ROOT, '.env');
-  if (!existsSync(p)) return;
-  for (const line of readFileSync(p, 'utf8').split('\n')) {
-    const m = line.match(/^\s*([\w.]+)\s*=\s*(.*)\s*$/);
-    if (m && process.env[m[1]] === undefined) {
-      process.env[m[1]] = m[2].replace(/^["']|["']$/g, '').trim();
-    }
-  }
-}
-loadEnv();
 
 const firebaseConfig = {
   apiKey: process.env.VITE_FIREBASE_API_KEY,
@@ -97,7 +88,7 @@ async function main() {
 
   const dest = path.join(__dirname, 'drill-names.json');
   writeFileSync(dest, JSON.stringify(list, null, 2) + '\n');
-  console.log(`\n✓ Wrote ${path.relative(ROOT, dest)}.`);
+  console.log(`\n✓ Wrote ${path.relative(process.cwd(), dest)}.`);
   console.log('  Review it, then run:  ELEVENLABS_API_KEY=sk_xxx npm run gen:voice -- --force');
   process.exit(0);
 }

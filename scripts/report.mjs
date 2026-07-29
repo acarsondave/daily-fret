@@ -7,27 +7,13 @@
 //
 // Reads the public web config from .env (VITE_FIREBASE_*).
 
-import { readFileSync, existsSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { initializeFirestore, doc, getDoc } from 'firebase/firestore';
+import { loadEnv } from './load-env.mjs';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..');
-
-function loadEnv() {
-  const p = path.join(ROOT, '.env');
-  if (!existsSync(p)) return;
-  for (const line of readFileSync(p, 'utf8').split('\n')) {
-    const m = line.match(/^\s*([\w.]+)\s*=\s*(.*)\s*$/);
-    if (m && process.env[m[1]] === undefined) {
-      process.env[m[1]] = m[2].replace(/^["']|["']$/g, '').trim();
-    }
-  }
-}
 loadEnv();
+
 
 const firebaseConfig = {
   apiKey: process.env.VITE_FIREBASE_API_KEY,

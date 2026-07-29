@@ -10,7 +10,7 @@
 //   --force   regenerate clips that already exist (otherwise existing ones are skipped)
 //
 // Env:
-//   ELEVENLABS_API_KEY  (required) your key — never commit it
+//   ELEVENLABS_API_KEY  (required) your key — from .env or the shell; never commit it
 //   ELEVEN_VOICE_ID     (optional) premade/cloned voice id; default below
 //   ELEVEN_MODEL_ID     (optional) default eleven_flash_v2_5 (0.5 credit/char)
 //
@@ -24,6 +24,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SECTIONS } from './coach-phrases.mjs';
 import { slugify } from './slugify.mjs';
+import { loadEnv } from './load-env.mjs';
+
+loadEnv();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.resolve(__dirname, '../public/coach');
