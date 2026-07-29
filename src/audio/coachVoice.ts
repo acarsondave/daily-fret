@@ -178,6 +178,12 @@ function playClip(url: string): Promise<boolean> {
       audio.onended = null;
       audio.onerror = null;
       audio.onloadedmetadata = null;
+      // Release the decoded media before dropping the reference. A finished
+      // <audio> that still holds a src keeps a media resource alive in Safari,
+      // and a coached session plays dozens of these.
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
       resolve(ok);
     };
     // Hard cap first, then tighten to the real clip length once metadata loads —

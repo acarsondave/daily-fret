@@ -56,12 +56,22 @@ export interface DiagSession {
   truncated: boolean;
 }
 
-const STORAGE_KEY = 'df-diag-v1';
-const MAX_STORED_SESSIONS = 6;
-// ~11 minutes of active (non-silent) audio at ~43 frames/sec. Beyond this the
-// buffer wraps and keeps the most recent frames; marks/emits/onsets are small
-// and always kept in full.
-const MAX_FRAMES = 30_000;
+// Sessions live in IndexedDB, not localStorage. localStorage is synchronous,
+// capped near 5MB per origin in Safari, and serialised across every tab on the
+// origin, so parking megabytes of frame telemetry there stalled the main thread
+// on every drill end and on every page load. IndexedDB is async and has room.
+const DB_NAME = 'daily-fret-diag';
+const DB_VERSION = 1;
+const STORE = 'sessions';
+// The old localStorage home. Cleared on load: it is stale telemetry, and
+// reclaiming those megabytes is the point of the move.
+const LEGACY_STORAGE_KEY = 'df-diag-v1';
+
+const MAX_STORED_SESSIONS = 4;
+// ~4.5 minutes of active (non-silent) audio at ~43 frames/sec, which covers any
+// single drill with room to spare. Beyond this the buffer wraps and keeps the
+// most recent frames; marks/emits/onsets are small and always kept in full.
+const MAX_FRAMES = 12_000;
 
 const FRAME_FIELDS = ['tMs', 'code', 'rms', 'noiseFloor', 'salience', 'margin', 'chordIdx'];
 
@@ -135,10 +145,9 @@ class DiagRecorder {
     s.endedAt = new Date().toISOString();
     this.session = null;
     this.ring = [];
-    // Persisting stringifies megabytes of frames synchronously. Run it when the
-    // main thread is idle so a drill finish / segment hand-off never janks on it;
-    // fall back to a macrotask where requestIdleCallback is unavailable (Safari).
-    const persist = () => persistSession(s);
+    // The write itself is async now, but the structured clone still runs here,
+    // so hand it to an idle moment rather than the drill's hand-off.
+    const persist = () => void persistSession(s);
     if (typeof requestIdleCallback === 'function') {
       requestIdleCallback(persist, { timeout: 2000 });
     } else {
@@ -197,45 +206,80 @@ class DiagRecorder {
 
 export const diag = new DiagRecorder();
 
-function loadStored(): DiagSession[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as DiagSession[]) : [];
-  } catch {
-    // Corrupt store is diagnostic data only; recording forward matters more
-    // than recovering it.
-    return [];
-  }
+// Reclaim the old localStorage payload as soon as this module loads. Existing
+// installs are carrying multiple megabytes there, and every synchronous touch
+// of it blocks the main thread of every tab on the origin.
+try {
+  localStorage.removeItem(LEGACY_STORAGE_KEY);
+} catch {
+  // Storage disabled (private mode); nothing to reclaim.
 }
 
-function persistSession(session: DiagSession): void {
+let dbPromise: Promise<IDBDatabase | null> | null = null;
+
+// Resolves to null rather than rejecting whenever IndexedDB is unavailable or
+// blocked. Diagnostics are an aid: they must never break a practice session.
+function openDb(): Promise<IDBDatabase | null> {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve) => {
+    let req: IDBOpenDBRequest;
+    try {
+      req = indexedDB.open(DB_NAME, DB_VERSION);
+    } catch {
+      resolve(null);
+      return;
+    }
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE, { keyPath: 'id' }).createIndex('startedAt', 'startedAt');
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => resolve(null);
+    req.onblocked = () => resolve(null);
+  });
+  return dbPromise;
+}
+
+function request<T>(make: (store: IDBObjectStore) => IDBRequest<T>, mode: IDBTransactionMode, fallback: T): Promise<T> {
+  return openDb().then(
+    (db) =>
+      new Promise<T>((resolve) => {
+        if (!db) return resolve(fallback);
+        let req: IDBRequest<T>;
+        try {
+          req = make(db.transaction(STORE, mode).objectStore(STORE));
+        } catch {
+          return resolve(fallback);
+        }
+        req.onsuccess = () => resolve(req.result ?? fallback);
+        req.onerror = () => resolve(fallback);
+      }),
+  );
+}
+
+// Oldest first, matching the order the old array-in-localStorage kept.
+function loadStored(): Promise<DiagSession[]> {
+  return request<DiagSession[]>((store) => store.index('startedAt').getAll(), 'readonly', []);
+}
+
+async function persistSession(session: DiagSession): Promise<void> {
   // Sessions with no audio activity at all (mic opened then closed) are noise.
   if (session.frames.length === 0 && session.emits.length === 0 && session.silences.length === 0) return;
-  const sessions = [...loadStored(), session].slice(-MAX_STORED_SESSIONS);
-  for (;;) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
-      return;
-    } catch {
-      if (sessions.length > 1) {
-        // Quota: drop the oldest session and retry so the newest survives.
-        sessions.shift();
-      } else if (session.frames.length > 1000) {
-        // Even alone it doesn't fit: keep the most recent frames rather than
-        // losing the session (marks/emits/onsets are small and kept whole).
-        session.frames = session.frames.slice(-Math.floor(session.frames.length / 2));
-        session.truncated = true;
-      } else {
-        return;
-      }
-    }
+  await request((store) => store.put(session) as IDBRequest<unknown>, 'readwrite', null);
+  // Keep only the newest few. No quota-shedding retry loop: this store is not
+  // fighting for a 5MB budget shared with the app's own persisted state.
+  const stored = await loadStored();
+  const stale = stored.slice(0, Math.max(0, stored.length - MAX_STORED_SESSIONS));
+  for (const s of stale) {
+    await request((store) => store.delete(s.id) as IDBRequest<unknown>, 'readwrite', null);
   }
 }
 
-export function storedSessionSummaries(): Array<{ startedAt: string; label: string; frames: number; emits: number }> {
-  return loadStored().map((s) => ({
+export async function storedSessionSummaries(): Promise<Array<{ startedAt: string; label: string; frames: number; emits: number }>> {
+  const sessions = await loadStored();
+  return sessions.map((s) => ({
     startedAt: s.startedAt,
     label: s.label,
     frames: s.frames.length,
@@ -243,12 +287,12 @@ export function storedSessionSummaries(): Array<{ startedAt: string; label: stri
   }));
 }
 
-export function clearDiagnostics(): void {
-  localStorage.removeItem(STORAGE_KEY);
+export async function clearDiagnostics(): Promise<void> {
+  await request((store) => store.clear() as IDBRequest<unknown>, 'readwrite', null);
 }
 
-export function downloadDiagnostics(): boolean {
-  const sessions = loadStored();
+export async function downloadDiagnostics(): Promise<boolean> {
+  const sessions = await loadStored();
   if (sessions.length === 0) return false;
   const payload = {
     exportedAt: new Date().toISOString(),
@@ -264,19 +308,15 @@ export function downloadDiagnostics(): boolean {
   a.href = url;
   a.download = `daily-fret-diagnostics-${stamp}.json`;
   a.click();
-  URL.revokeObjectURL(url);
+  // Safari can cancel a download whose object URL is revoked in the same tick,
+  // and this blob is megabytes. Let the download claim it first.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 
   // An export is a clean cut: the saved file already holds these sessions, so
-  // keeping them only bloats every later export (each was re-carrying the last
-  // 6, so a 4MB file was mostly duplicate). Drop exactly what we exported and
-  // keep anything that landed between the read and now (a drill finishing
-  // mid-export), so no session is lost.
-  const exportedIds = new Set(sessions.map((s) => s.id));
-  const remaining = loadStored().filter((s) => !exportedIds.has(s.id));
-  if (remaining.length) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(remaining));
-  } else {
-    localStorage.removeItem(STORAGE_KEY);
+  // keeping them only bloats every later export. Delete exactly what we
+  // exported, by id, so a drill that finished mid-export is not lost.
+  for (const s of sessions) {
+    await request((store) => store.delete(s.id) as IDBRequest<unknown>, 'readwrite', null);
   }
   return true;
 }
@@ -284,7 +324,11 @@ export function downloadDiagnostics(): boolean {
 // Console escape hatch so the data is reachable even if the UI path is broken.
 declare global {
   interface Window {
-    dailyFretDiag?: { download: () => boolean; summaries: () => ReturnType<typeof storedSessionSummaries>; clear: () => void };
+    dailyFretDiag?: {
+      download: () => Promise<boolean>;
+      summaries: () => ReturnType<typeof storedSessionSummaries>;
+      clear: () => Promise<void>;
+    };
   }
 }
 window.dailyFretDiag = {

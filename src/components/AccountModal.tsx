@@ -70,9 +70,9 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
 
   // Downloads the recorded detection sessions (per-frame gate outcomes) so a
   // bad-detection day can be handed over for analysis instead of described.
-  const exportDiagnostics = () => {
-    const count = storedSessionSummaries().length;
-    if (!downloadDiagnostics()) {
+  const exportDiagnostics = async () => {
+    const count = (await storedSessionSummaries()).length;
+    if (!(await downloadDiagnostics())) {
       setDiagStatus('No mic sessions recorded yet');
     } else {
       setDiagStatus(`Exported ${count} session${count === 1 ? '' : 's'}`);
@@ -142,7 +142,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                 <span>Export My Data (JSON)</span>
               </button>
 
-              <button className="settings-action-btn" onClick={exportDiagnostics}>
+              <button className="settings-action-btn" onClick={() => void exportDiagnostics()}>
                 <Waveform size={18} />
                 <span>{diagStatus ?? 'Export Detection Diagnostics'}</span>
               </button>
