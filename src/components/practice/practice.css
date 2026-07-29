@@ -1176,3 +1176,19 @@
   accent-color: var(--accent-primary);
   cursor: pointer;
 }
+
+/* Riff tab: monospace with its line breaks kept, so the fret columns line up
+   under the count. Scrolls on its own rather than wrapping mid-staff. */
+.timed-desc.is-tab {
+  white-space: pre;
+  overflow-x: auto;
+  max-width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}

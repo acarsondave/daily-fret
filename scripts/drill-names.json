@@ -1,5 +1,9 @@
 [
   {
+    "slug": "anchor-changes",
+    "title": "Anchor Changes"
+  },
+  {
     "slug": "chord-perfect-training",
     "title": "Chord Perfect Training"
   },
@@ -16,19 +20,47 @@
     "title": "Lauren Bateman Pushups"
   },
   {
+    "slug": "module-4-changes",
+    "title": "Module 4 Changes"
+  },
+  {
+    "slug": "old-faithful-muted",
+    "title": "Old Faithful (muted)"
+  },
+  {
+    "slug": "old-faithful-on-chords",
+    "title": "Old Faithful on chords"
+  },
+  {
+    "slug": "seven-nation-army-riff",
+    "title": "Seven Nation Army Riff"
+  },
+  {
     "slug": "song-integration",
     "title": "Song Integration"
+  },
+  {
+    "slug": "song-505",
+    "title": "Song: 505"
+  },
+  {
+    "slug": "song-wild-thing",
+    "title": "Song: Wild thing"
   },
   {
     "slug": "spider-exercises",
     "title": "Spider Exercises"
   },
   {
-    "slug": "strumming-pattern-1",
-    "title": "Strumming Pattern 1"
+    "slug": "step-2-d-dudu-d",
+    "title": "Step 2: D DUDU D"
   },
   {
-    "slug": "strumming-pattern-2",
-    "title": "Strumming Pattern 2"
+    "slug": "strumming-practice",
+    "title": "Strumming Practice"
+  },
+  {
+    "slug": "sunshine-of-your-love",
+    "title": "Sunshine Of Your Love"
   }
 ]

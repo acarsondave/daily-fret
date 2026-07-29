@@ -93,7 +93,12 @@ export function TimedSegment({ title, description, seconds, pattern, onDone, onF
     <>
       <div className="practice-mode is-chord">{title}</div>
       {pattern && <StrumRow strum={pattern} size={18} />}
-      {description && <p className="timed-desc">{description}</p>}
+      {/* A riff's description is a tab staff, which only reads correctly in a
+          monospace block with its line breaks kept. Prose descriptions are
+          untouched. */}
+      {description && (
+        <p className={description.includes('|') ? 'timed-desc is-tab' : 'timed-desc'}>{description}</p>
+      )}
       <ProgressRing progress={progress} className="om-ring">
         <div className="om-ring-value">{fmt(left)}</div>
         <div className="om-caption">remaining</div>
