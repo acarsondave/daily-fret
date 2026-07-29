@@ -13,6 +13,7 @@ const UNLOCK_EVENTS = ['pointerdown', 'touchend', 'keydown'] as const;
 
 let ctx: AudioContext | null = null;
 let detachUnlock: (() => void) | null = null;
+let resuming: Promise<void> | null = null;
 const listeners = new Set<(ready: boolean) => void>();
 
 function notify(): void {
@@ -26,6 +27,12 @@ export function isOutputAudioReady(): boolean {
   return ctx?.state === 'running';
 }
 
+// Pure getter: creates the context if needed and never resumes it. Resuming
+// belongs to resumeOutputAudio() alone. This function is called from the
+// metronome's 25ms scheduler tick, and a resume() from a hot path is not a
+// no-op when it can't succeed — it queues work on the browser's media stack
+// dozens of times a second and starves everything else playing, the coach's
+// <audio> lines included.
 export function getOutputContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -44,11 +51,28 @@ export function getOutputContext(): AudioContext | null {
         notify();
       });
     }
-    if (ctx.state !== 'running') void ctx.resume();
     return ctx;
   } catch {
     return null;
   }
+}
+
+// Ask the browser to free audio. Single-flight: a second call while one is in
+// flight returns the same promise, so no path can stack these up.
+export function resumeOutputAudio(): Promise<void> {
+  const c = getOutputContext();
+  if (!c) return Promise.resolve();
+  if (c.state === 'running') return Promise.resolve();
+  if (resuming) return resuming;
+  const settle = () => {
+    resuming = null;
+  };
+  const started = c.resume() as Promise<void> | undefined;
+  resuming =
+    started && typeof started.then === 'function'
+      ? started.then(settle, settle)
+      : Promise.resolve().then(settle);
+  return resuming;
 }
 
 // Call from inside a real user gesture. A context created outside one starts
@@ -56,6 +80,7 @@ export function getOutputContext(): AudioContext | null {
 export function unlockOutputAudio(): void {
   const c = getOutputContext();
   if (!c || c.state === 'running') return;
+  void resumeOutputAudio();
   try {
     // iOS only truly frees a context once something has played through it, so
     // push one silent sample.
@@ -65,7 +90,7 @@ export function unlockOutputAudio(): void {
     src.start(0);
   } catch {
     // A failed primer must never break the gesture handler it runs inside; the
-    // resume() in getOutputContext is the part that matters.
+    // resumeOutputAudio() above is the part that matters.
   }
 }
 

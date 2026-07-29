@@ -8,6 +8,7 @@
 import {
   getOutputContext,
   isOutputAudioReady,
+  resumeOutputAudio,
   unlockOutputAudio,
   armOutputAudioUnlock,
   onOutputAudioChange,
@@ -40,14 +41,33 @@ export class Metronome {
 
   constructor() {
     onOutputAudioChange((ready) => {
-      // The clock is frozen while audio is held, so anything already queued is
-      // stale. Start the count again just ahead of the live clock.
-      if (ready && this.running) {
-        const ctx = getOutputContext();
-        if (ctx) this.nextNoteTime = ctx.currentTime + START_OFFSET_S;
+      if (!this.running) {
+        this.emitAudible();
+        return;
       }
+      // The clock was frozen while audio was held, so anything queued is stale.
+      // Pick the count up again just ahead of the live clock.
+      if (ready) this.rebase();
+      if (ready) this.startTimer();
+      else this.stopTimer();
       this.emitAudible();
     });
+  }
+
+  private rebase(): void {
+    const ctx = getOutputContext();
+    if (ctx) this.nextNoteTime = ctx.currentTime + START_OFFSET_S;
+  }
+
+  private startTimer(): void {
+    if (this.timer) return;
+    this.timer = setInterval(() => this.schedule(), LOOKAHEAD_MS);
+  }
+
+  private stopTimer(): void {
+    if (!this.timer) return;
+    clearInterval(this.timer);
+    this.timer = null;
   }
 
   get isRunning(): boolean {
@@ -90,27 +110,29 @@ export class Metronome {
     this.running = true;
     this.beat = 0;
     this.nextNoteTime = ctx.currentTime + START_OFFSET_S;
-    this.timer = setInterval(() => this.schedule(), LOOKAHEAD_MS);
+    if (ctx.state === 'running') this.startTimer();
 
     // In coached practice the click starts on the coach's schedule, seconds
     // after the last tap. If the browser is still holding audio, arm the next
     // gesture to free it and tell the UI the click is currently silent — report
     // only once the resume has settled, so a normal start never flashes a
-    // warning on its way to running.
-    const settle = () => {
-      if (!this.isAudible) armOutputAudioUnlock();
+    // warning on its way to running. One resume attempt per start, never a
+    // retry loop, and no scheduler tick until audio is genuinely free: a click
+    // that cannot sound must cost nothing, or it starves the coach's voice.
+    void resumeOutputAudio().then(() => {
+      if (this.isAudible) {
+        this.rebase();
+        this.startTimer();
+      } else {
+        this.stopTimer();
+        armOutputAudioUnlock();
+      }
       this.emitAudible();
-    };
-    const resumed = ctx.resume() as Promise<void> | undefined;
-    if (resumed && typeof resumed.then === 'function') resumed.then(settle, settle);
-    else settle();
+    });
   }
 
   stop(): void {
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
+    this.stopTimer();
     if (!this.running) return;
     this.running = false;
     this.emitAudible();

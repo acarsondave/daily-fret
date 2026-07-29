@@ -3,7 +3,7 @@
 // Sounds fire only at genuinely impactful moments (count-in, start, a new best,
 // block/session complete, rest), never per-keystroke.
 
-import { getOutputContext } from './outputContext';
+import { getOutputContext, resumeOutputAudio } from './outputContext';
 
 const STORAGE_KEY = 'daily-fret-sound';
 
@@ -57,6 +57,7 @@ function play(notes: Note[]): void {
   if (!enabled) return;
   const c = getOutputContext();
   if (!c) return;
+  if (c.state !== 'running') void resumeOutputAudio();
   const t0 = c.currentTime;
   for (const n of notes) tone(c, t0, n);
 }
