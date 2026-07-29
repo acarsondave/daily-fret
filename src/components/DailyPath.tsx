@@ -23,6 +23,13 @@ const CoachedSession = lazy(() =>
   import('./practice/CoachedSession').then((m) => ({ default: m.CoachedSession })),
 );
 
+const INLINE_STEPS = ['title', 'description', 'duration'] as const;
+const INLINE_HINTS: Record<(typeof INLINE_STEPS)[number], string> = {
+  title: 'Name your task',
+  description: 'What is this task for? (Optional)',
+  duration: 'How many minutes? (Optional)',
+};
+
 export function DailyPath() {
   const today = getTodayString();
   const userData = useUserData();
@@ -58,6 +65,7 @@ export function DailyPath() {
   const titleInputRef = useRef<HTMLInputElement>(null);
   const descInputRef = useRef<HTMLInputElement>(null);
   const durationInputRef = useRef<HTMLInputElement>(null);
+  const inlineFormRef = useRef<HTMLFormElement>(null);
 
   const activeRoutine = useMemo(() => {
     return routines.find(r => r.id === activeRoutineId) || routines[0];
@@ -95,21 +103,37 @@ export function DailyPath() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isRoutineDropdownOpen]);
 
-  const handleInlineKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      if (inlineStep === 'title' && inlineDraft.title.trim()) {
-        setInlineStep('description');
-        setTimeout(() => descInputRef.current?.focus(), 50);
-      } else if (inlineStep === 'description') {
-        setInlineStep('duration');
-        setTimeout(() => durationInputRef.current?.focus(), 50);
-      } else if (inlineStep === 'duration') {
-        submitInlineTask();
-      }
-    } else if (e.key === 'Escape') {
-      setInlineStep(null);
-      setInlineDraft({ title: '', description: '', duration: '' });
+  // On a phone the soft keyboard covers the lower half of the screen, so keep
+  // the step the user is on (and its buttons) in view as the flow advances.
+  useEffect(() => {
+    if (!inlineStep) return;
+    inlineFormRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [inlineStep]);
+
+  // Move to the next step, or create the task on the last one. Reached by the
+  // visible button and by the form's implicit submit, so a hardware Enter and a
+  // tap are the same path.
+  const advanceInline = () => {
+    if (inlineStep === 'title') {
+      if (!inlineDraft.title.trim()) return;
+      setInlineStep('description');
+      setTimeout(() => descInputRef.current?.focus(), 50);
+    } else if (inlineStep === 'description') {
+      setInlineStep('duration');
+      setTimeout(() => durationInputRef.current?.focus(), 50);
+    } else if (inlineStep === 'duration') {
+      submitInlineTask();
     }
+  };
+
+  const cancelInline = () => {
+    setInlineStep(null);
+    setInlineDraft({ title: '', description: '', duration: '' });
+  };
+
+  // Enter is the form's job now; this only carries the desktop escape hatch.
+  const handleInlineKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') cancelInline();
   };
 
   const submitInlineTask = () => {
@@ -257,64 +281,91 @@ export function DailyPath() {
               )}
 
               {inlineStep && (
-                <motion.div 
+                <motion.form
+                  ref={inlineFormRef}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="inline-task-creator"
+                  onSubmit={e => {
+                    e.preventDefault();
+                    advanceInline();
+                  }}
                 >
-                  {inlineStep === 'title' && (
-                    <>
-                      <span className="inline-tooltip">Name your task & press Enter</span>
-                      <div className="inline-input-wrapper">
-                        <input 
-                          ref={titleInputRef}
-                          autoFocus
-                          placeholder="e.g. Spider Walk"
-                          value={inlineDraft.title}
-                          onChange={e => setInlineDraft(d => ({ ...d, title: e.target.value }))}
-                          onKeyDown={handleInlineKeyDown}
-                          className="inline-input fluid-input"
-                          maxLength={60}
+                  <div className="inline-step-head">
+                    <span className="inline-steps" aria-label={`Step ${INLINE_STEPS.indexOf(inlineStep) + 1} of ${INLINE_STEPS.length}`}>
+                      {INLINE_STEPS.map(step => (
+                        <span
+                          key={step}
+                          className={clsx('inline-step-dot', step === inlineStep && 'is-on')}
                         />
-                      </div>
-                    </>
+                      ))}
+                    </span>
+                    <span className="inline-tooltip">{INLINE_HINTS[inlineStep]}</span>
+                  </div>
+
+                  {inlineStep === 'title' && (
+                    <div className="inline-input-wrapper">
+                      <input
+                        ref={titleInputRef}
+                        autoFocus
+                        placeholder="e.g. Spider Walk"
+                        value={inlineDraft.title}
+                        onChange={e => setInlineDraft(d => ({ ...d, title: e.target.value }))}
+                        onKeyDown={handleInlineKeyDown}
+                        className="inline-input fluid-input"
+                        enterKeyHint="next"
+                        maxLength={60}
+                      />
+                    </div>
                   )}
                   {inlineStep === 'description' && (
-                    <>
-                      <span className="inline-tooltip">What is this task for? (Optional)</span>
-                      <div className="inline-input-wrapper">
-                        <input 
-                          ref={descInputRef}
-                          autoFocus
-                          placeholder="e.g. Start at 1st fret, alternate picking."
-                          value={inlineDraft.description}
-                          onChange={e => setInlineDraft(d => ({ ...d, description: e.target.value }))}
-                          onKeyDown={handleInlineKeyDown}
-                          className="inline-input fluid-input"
-                          maxLength={300}
-                        />
-                      </div>
-                    </>
+                    <div className="inline-input-wrapper">
+                      <input
+                        ref={descInputRef}
+                        autoFocus
+                        placeholder="e.g. Start at 1st fret, alternate picking."
+                        value={inlineDraft.description}
+                        onChange={e => setInlineDraft(d => ({ ...d, description: e.target.value }))}
+                        onKeyDown={handleInlineKeyDown}
+                        className="inline-input fluid-input"
+                        enterKeyHint="next"
+                        maxLength={300}
+                      />
+                    </div>
                   )}
                   {inlineStep === 'duration' && (
-                    <>
-                      <span className="inline-tooltip">How many minutes? (Optional)</span>
-                      <div className="inline-input-wrapper">
-                        <input
-                          ref={durationInputRef}
-                          autoFocus
-                          placeholder="e.g. 5"
-                          value={inlineDraft.duration}
-                          onChange={e => setInlineDraft(d => ({ ...d, duration: sanitizeMinutes(e.target.value) }))}
-                          onKeyDown={handleInlineKeyDown}
-                          className="inline-input fluid-input"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                        />
-                      </div>
-                    </>
+                    <div className="inline-input-wrapper">
+                      <input
+                        ref={durationInputRef}
+                        autoFocus
+                        placeholder="e.g. 5"
+                        value={inlineDraft.duration}
+                        onChange={e => setInlineDraft(d => ({ ...d, duration: sanitizeMinutes(e.target.value) }))}
+                        onKeyDown={handleInlineKeyDown}
+                        className="inline-input fluid-input"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        enterKeyHint="done"
+                      />
+                    </div>
                   )}
-                </motion.div>
+
+                  {/* The numeric keypad has no return key, so the last step was a
+                      dead end on a phone. These are the real controls now; Enter
+                      still works wherever the keyboard offers it. */}
+                  <div className="inline-actions">
+                    <button type="button" className="inline-action" onClick={cancelInline}>
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="inline-action is-primary"
+                      disabled={inlineStep === 'title' && !inlineDraft.title.trim()}
+                    >
+                      {inlineStep === 'duration' ? 'Add task' : 'Next'}
+                    </button>
+                  </div>
+                </motion.form>
               )}
             </AnimatePresence>
           </div>

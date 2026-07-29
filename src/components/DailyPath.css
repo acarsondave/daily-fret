@@ -268,12 +268,91 @@
   border: none;
 }
 
+.inline-step-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
 .inline-tooltip {
   font-size: 0.85rem;
   color: var(--accent-primary);
-  margin-bottom: var(--space-2);
   font-weight: 500;
   opacity: 0.8;
+}
+
+/* Three dots for three steps: enough to say "there is an end to this" without
+   adding a label to read. */
+.inline-steps {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.inline-step-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.18);
+  transition: background 0.25s ease, transform 0.25s ease;
+}
+
+.inline-step-dot.is-on {
+  background: var(--accent-primary);
+  transform: scale(1.4);
+}
+
+.inline-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.inline-action {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  transition: color 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+}
+
+.inline-action:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.inline-action.is-primary {
+  color: var(--bg-primary, #0a0a0c);
+  background: var(--accent-primary);
+}
+
+.inline-action.is-primary:hover {
+  background: var(--accent-primary);
+  filter: brightness(1.08);
+}
+
+.inline-action.is-primary:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: none;
+}
+
+/* Touch targets and thumb reach: full-width buttons with the primary action on
+   the right, where the thumb already is. */
+@media (max-width: 600px) {
+  .inline-actions {
+    width: 100%;
+    margin-top: var(--space-5);
+  }
+  .inline-action {
+    flex: 1;
+    min-height: 46px;
+    font-size: 0.95rem;
+  }
 }
 
 .inline-input-wrapper {
