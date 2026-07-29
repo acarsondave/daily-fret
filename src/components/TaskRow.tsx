@@ -91,7 +91,6 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
     drill?.kind === 'chord-trainer' && drill.chords?.length ? drill.chords : ['A', 'D', 'E', 'G', 'C'],
   );
   const [editSongId, setEditSongId] = useState<string>(drill?.songId ?? SONGS[0].id);
-  const [editSongPlayOnly, setEditSongPlayOnly] = useState<boolean>(drill?.playOnly ?? false);
   const [editBlocks, setEditBlocks] = useState<TimedBlock[]>(blocks ?? []);
 
   const addEditBlock = () =>
@@ -144,7 +143,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
         durationSec: drill?.durationSec ?? 60,
       };
     } else if (editDrillKind === 'song') {
-      nextDrill = { kind: 'song', songId: editSongId, ...(editSongPlayOnly ? { playOnly: true } : {}) };
+      nextDrill = { kind: 'song', songId: editSongId };
     }
 
     const cleanBlocks =
@@ -172,7 +171,6 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
       drill?.kind === 'chord-trainer' && drill.chords?.length ? drill.chords : ['A', 'D', 'E', 'G', 'C'],
     );
     setEditSongId(drill?.songId ?? SONGS[0].id);
-    setEditSongPlayOnly(drill?.playOnly ?? false);
     setEditBlocks(blocks ?? []);
     setIsEditing(false);
   };
@@ -325,14 +323,6 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
                     </option>
                   ))}
                 </select>
-                <label className="drill-toggle">
-                  <input
-                    type="checkbox"
-                    checked={editSongPlayOnly}
-                    onChange={e => setEditSongPlayOnly(e.target.checked)}
-                  />
-                  <span>Skip the learn pass (play-along only)</span>
-                </label>
               </>
             )}
             {editDrillKind === 'none' && (

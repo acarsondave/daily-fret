@@ -273,10 +273,8 @@ export function CoachedSession({ routine, onClose }: Props) {
         : seg.kind === 'rotation'
           ? seg.chords.join(' → ')
           : seg.kind === 'song'
-          ? seg.playOnly
             ? 'Play along with the real song'
-            : 'Learn the chords, then the real song'
-          : mins(seg.seconds);
+            : mins(seg.seconds);
 
   return createPortal(
     <motion.div
@@ -419,11 +417,9 @@ export function CoachedSession({ routine, onClose }: Props) {
           <SongPlayer
             key={`seg-${index}`}
             songId={seg.songId}
-            playOnly={seg.playOnly}
             autoStart
             autoAdvance
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
-            detector={detector}
             onFinish={() => void speak('done')}
             onNext={() => advance({ title: seg.title, value: null, unit: '' })}
             onClose={exit}

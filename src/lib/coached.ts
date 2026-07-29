@@ -9,7 +9,7 @@ export type CoachSegment =
   | { kind: 'changes'; taskId: string; title: string; from: string; to: string; seconds: number }
   | { kind: 'trainer'; taskId: string; title: string; chords: string[]; seconds: number }
   | { kind: 'rotation'; taskId: string; title: string; chords: string[]; seconds: number }
-  | { kind: 'song'; taskId: string; title: string; songId: string; playOnly: boolean }
+  | { kind: 'song'; taskId: string; title: string; songId: string }
   | { kind: 'timed'; taskId: string; title: string; description?: string; seconds: number; pattern?: string; bpm?: number };
 
 // Parse a free-form duration label ("5 mins", "2-3 mins", "90s") into seconds.
@@ -90,13 +90,12 @@ export function buildSegments(routine: Routine | undefined): CoachSegment[] {
         seconds: drillSeconds,
       });
     } else if (kind === 'song' && task.drill?.songId) {
-      // Self-paced play-along: no fixed length, it ends when the song is done.
+      // Play-along: no fixed length, it ends when the record does.
       segments.push({
         kind: 'song',
         taskId: task.id,
         title: task.title,
         songId: task.drill.songId,
-        playOnly: task.drill.playOnly ?? false,
       });
     } else if (task.blocks?.length) {
       // Configurable timed task: each block runs as its own segment, announced

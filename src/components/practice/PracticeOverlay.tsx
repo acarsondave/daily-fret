@@ -201,7 +201,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
           />
         )}
         {drill.kind === 'song' && drill.songId && (
-          <SongPlayer songId={drill.songId} playOnly={drill.playOnly} onClose={onClose} />
+          <SongPlayer songId={drill.songId} onClose={onClose} />
         )}
       </div>
     </motion.div>,

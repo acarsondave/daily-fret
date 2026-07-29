@@ -15,9 +15,6 @@ export interface DrillConfig {
   // every pair. `chords` is still carried as a fallback for older app builds.
   pairs?: Array<{ from: string; to: string }>;
   songId?: string; // song-player: which song from the catalog to play along to
-  // song: skip the self-paced Learn pass and go straight to the real recording.
-  // For a song you already know and just want to keep playing in the session.
-  playOnly?: boolean;
 }
 
 // One labeled block inside a configurable timed task. Lets a single task (e.g.

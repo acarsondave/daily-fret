@@ -34,7 +34,12 @@ const lastIdx: Record<string, number> = {}; // event -> last index, to avoid imm
 // a rest tip) can't jump in on top of a newer sequence. This is what prevents
 // the "voices stack up / play late over each other" failure when drills, rests
 // and count-ins fire close together.
-let current: HTMLAudioElement | null = null;
+// ONE element for every line, reused. A coached session speaks dozens of clips,
+// and WebKit both caps how many media elements a page may hold and reclaims them
+// lazily, so allocating one per line runs the page out partway through a session
+// and play() starts rejecting — the "voice stops working after a while" failure.
+// Reuse also keeps the playback permission the first clip earned.
+let el: HTMLAudioElement | null = null;
 let currentFinish: ((ok: boolean) => void) | null = null;
 let queueTail: Promise<void> = Promise.resolve();
 let generation = 0;
@@ -126,20 +131,28 @@ function pickIndex(event: string, count: number): number {
   return idx;
 }
 
+function element(): HTMLAudioElement | null {
+  if (el) return el;
+  try {
+    el = new Audio();
+  } catch {
+    return null;
+  }
+  el.preload = 'auto';
+  el.volume = 0.95;
+  return el;
+}
+
 // Stop the clip that's playing right now (if any) and resolve its awaiter as
 // false, so a chained sequence never hangs on a line we cut off.
 function stopCurrent(): void {
-  const audio = current;
   const finish = currentFinish;
-  current = null;
   currentFinish = null;
-  if (audio) {
-    audio.onended = null;
-    audio.onerror = null;
-    audio.pause();
-    audio.src = '';
+  if (finish) {
+    finish(false); // clears its own handlers and pauses the element
+    return;
   }
-  if (finish) finish(false);
+  el?.pause();
 }
 
 export function stopVoice(): void {
@@ -156,34 +169,24 @@ export function stopVoice(): void {
 // halt every later line (the "voice just stops working" failure).
 function playClip(url: string): Promise<boolean> {
   return new Promise((resolve) => {
-    let audio: HTMLAudioElement;
-    try {
-      audio = new Audio(url);
-    } catch {
+    const audio = element();
+    if (!audio) {
       resolve(false);
       return;
     }
-    audio.preload = 'auto';
-    audio.volume = 0.95;
     let settled = false;
     let watchdog: ReturnType<typeof setTimeout>;
     const finish = (ok: boolean) => {
       if (settled) return;
       settled = true;
       clearTimeout(watchdog);
-      if (current === audio) {
-        current = null;
-        currentFinish = null;
-      }
+      if (currentFinish === finish) currentFinish = null;
       audio.onended = null;
       audio.onerror = null;
       audio.onloadedmetadata = null;
-      // Release the decoded media before dropping the reference. A finished
-      // <audio> that still holds a src keeps a media resource alive in Safari,
-      // and a coached session plays dozens of these.
+      // Leave the src in place: the next line overwrites it, so exactly one
+      // decoded clip is ever held rather than one per line spoken.
       audio.pause();
-      audio.removeAttribute('src');
-      audio.load();
       resolve(ok);
     };
     // Hard cap first, then tighten to the real clip length once metadata loads —
@@ -195,10 +198,14 @@ function playClip(url: string): Promise<boolean> {
         watchdog = setTimeout(() => finish(false), audio.duration * 1000 + 1500);
       }
     };
-    current = audio;
     currentFinish = finish;
     audio.onended = () => finish(true);
     audio.onerror = () => finish(false);
+    // Pause before re-pointing the element, or WebKit can fire an error for the
+    // load it just abandoned and settle this clip as failed the instant it starts.
+    audio.pause();
+    audio.src = url;
+    audio.load();
     audio.play().catch(() => finish(false));
   });
 }

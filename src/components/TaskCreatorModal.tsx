@@ -27,7 +27,6 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
   const [changesChords, setChangesChords] = useState<string[]>(['A', 'D', 'E']);
   const [trainerChords, setTrainerChords] = useState<string[]>(['A', 'D', 'E', 'G', 'C']);
   const [songId, setSongId] = useState<string>(SONGS[0].id);
-  const [songPlayOnly, setSongPlayOnly] = useState(false);
   const [blocks, setBlocks] = useState<TimedBlock[]>([]);
 
   const resetForm = () => {
@@ -38,7 +37,6 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
     setChangesChords(['A', 'D', 'E']);
     setTrainerChords(['A', 'D', 'E', 'G', 'C']);
     setSongId(SONGS[0].id);
-    setSongPlayOnly(false);
     setBlocks([]);
   };
 
@@ -72,7 +70,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
         durationSec: 60,
       };
     } else if (drillKind === 'song') {
-      drill = { kind: 'song', songId, ...(songPlayOnly ? { playOnly: true } : {}) };
+      drill = { kind: 'song', songId };
     }
 
     // A "None" task can carry several named timed blocks (e.g. strumming
@@ -237,14 +235,6 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
                     </option>
                   ))}
                 </select>
-                <label className="drill-toggle">
-                  <input
-                    type="checkbox"
-                    checked={songPlayOnly}
-                    onChange={e => setSongPlayOnly(e.target.checked)}
-                  />
-                  <span>Skip the learn pass (play-along only)</span>
-                </label>
               </>
             )}
             {drillKind === 'none' && (

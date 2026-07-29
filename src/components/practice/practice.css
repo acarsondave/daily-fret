@@ -696,18 +696,6 @@
   font-weight: 600;
   font-size: 0.85rem;
 }
-
-/* Stage layout — fills the practice body, no fullscreen needed */
-.song-stage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: clamp(var(--space-3), 4vh, var(--space-6));
-  width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
-}
 .song-topline {
   display: flex;
   align-items: center;
@@ -731,121 +719,6 @@
   color: var(--text-secondary);
 }
 
-/* The scrolling lane */
-.song-lane {
-  position: relative;
-  width: 100%;
-  height: 116px;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent);
-}
-.song-now-marker {
-  position: absolute;
-  left: 50%;
-  top: 6px;
-  bottom: 6px;
-  width: 76px;
-  transform: translateX(-50%);
-  border-radius: var(--radius-md);
-  border: 1.5px solid rgba(56, 189, 248, 0.45);
-  background: rgba(56, 189, 248, 0.06);
-  pointer-events: none;
-  z-index: 0;
-}
-.song-track {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  will-change: transform;
-}
-.song-cell {
-  flex: 0 0 76px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  opacity: 0.4;
-  transform-origin: center center;
-  transition: opacity 0.25s ease, transform 0.25s ease;
-}
-.song-cell.is-past { opacity: 0.18; }
-.song-cell.is-now { opacity: 1; transform: scale(1.12); }
-.song-cell-chord {
-  font-family: var(--font-primary);
-  font-weight: 700;
-  font-size: 1.7rem;
-  line-height: 1;
-  color: var(--text-primary);
-}
-.song-cell.is-now .song-cell-chord { color: var(--accent-primary); }
-
-/* Strum arrows */
-.strum-row { display: inline-flex; align-items: center; gap: 2px; height: 18px; }
-.strum-arrow { display: inline-flex; align-items: center; justify-content: center; color: var(--text-secondary); }
-.song-cell.is-now .strum-arrow { color: var(--text-primary); }
-.strum-arrow.is-rest { color: rgba(255, 255, 255, 0.25); }
-.strum-rest-dot { width: 4px; height: 4px; border-radius: var(--radius-full); background: currentColor; }
-
-/* Synced lyric */
-.song-lyric-line {
-  min-height: 1.6em;
-  text-align: center;
-  font-family: var(--font-secondary);
-  font-size: 0.95rem;
-  color: var(--text-secondary);
-  max-width: 90%;
-}
-
-/* Parts timeline (sections + playhead) */
-.song-parts {
-  position: relative;
-  display: flex;
-  width: 100%;
-  height: 22px;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.04);
-}
-.song-part {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-  border-right: 1px solid rgba(0, 0, 0, 0.3);
-  overflow: hidden;
-}
-.song-part:last-child { border-right: none; }
-.song-part-label {
-  font-family: var(--font-secondary);
-  font-size: 0.6rem;
-  letter-spacing: 0.02em;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 0 4px;
-}
-.song-parts-head {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--accent-primary);
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
-}
-
-/* Foot: skip + signal */
-.song-stage-foot {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
 .song-skip {
   display: inline-flex;
   align-items: center;
@@ -859,9 +732,6 @@
   transition: color 0.2s ease, opacity 0.2s ease;
 }
 .song-skip:hover { color: var(--text-primary); opacity: 1; }
-
-.song-cell.is-correct .song-cell-chord { color: var(--success-color); }
-.song-cell.is-correct .strum-arrow { color: var(--success-color); }
 
 /* --- Real play: the actual recording (YouTube) --- */
 .song-real {
@@ -914,16 +784,6 @@
   flex: 0 0 auto;
 }
 .song-real-foot .song-skip { margin-right: auto; }
-
-/* Riff cell: a small tag above the chord (e.g. the open–A riff) */
-.song-cell-tag {
-  font-family: var(--font-secondary);
-  font-size: 0.58rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-.song-cell.is-now .song-cell-tag { color: var(--accent-primary); }
 
 /* Detector calibration flow. Reuses the practice/coach vocabulary; these few
    overrides size the chord glyph to sit inside the capture ring and make the
