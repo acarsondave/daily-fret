@@ -8,9 +8,10 @@
 import {
   getOutputContext,
   isOutputAudioReady,
-  resumeOutputAudio,
+  requestOutputAudio,
+  releaseOutputAudio,
   unlockOutputAudio,
-  armOutputAudioUnlock,
+  outputAudioState,
   onOutputAudioChange,
 } from './outputContext';
 
@@ -18,6 +19,7 @@ const LOOKAHEAD_MS = 25; // how often the scheduler wakes to queue clicks
 const SCHEDULE_AHEAD_S = 0.12; // how far ahead of the clock clicks are queued
 const DEFAULT_BEATS_PER_BAR = 4;
 const START_OFFSET_S = 0.08; // breathing room between "go" and the first click
+const SILENT_GRACE_MS = 700; // how long a start may take before we call it muted
 
 export const MIN_BPM = 40;
 export const MAX_BPM = 240;
@@ -45,11 +47,17 @@ export class Metronome {
         this.emitAudible();
         return;
       }
-      // The clock was frozen while audio was held, so anything queued is stale.
-      // Pick the count up again just ahead of the live clock.
-      if (ready) this.rebase();
-      if (ready) this.startTimer();
-      else this.stopTimer();
+      if (ready) {
+        // The clock was frozen while audio was held, so anything queued is
+        // stale. Pick the count up again just ahead of the live clock.
+        this.rebase();
+        this.startTimer();
+      } else {
+        // Interrupted mid-drill (a call, the session handed elsewhere). Go quiet
+        // and start asking for it back rather than ticking into a void.
+        this.stopTimer();
+        requestOutputAudio();
+      }
       this.emitAudible();
     });
   }
@@ -110,29 +118,28 @@ export class Metronome {
     this.running = true;
     this.beat = 0;
     this.nextNoteTime = ctx.currentTime + START_OFFSET_S;
-    if (ctx.state === 'running') this.startTimer();
+
+    if (this.isAudible) {
+      this.startTimer();
+      this.emitAudible();
+      return;
+    }
 
     // In coached practice the click starts on the coach's schedule, seconds
-    // after the last tap. If the browser is still holding audio, arm the next
-    // gesture to free it and tell the UI the click is currently silent — report
-    // only once the resume has settled, so a normal start never flashes a
-    // warning on its way to running. One resume attempt per start, never a
-    // retry loop, and no scheduler tick until audio is genuinely free: a click
-    // that cannot sound must cost nothing, or it starves the coach's voice.
-    void resumeOutputAudio().then(() => {
-      if (this.isAudible) {
-        this.rebase();
-        this.startTimer();
-      } else {
-        this.stopTimer();
-        armOutputAudioUnlock();
-      }
-      this.emitAudible();
-    });
+    // after the last tap, and the coach's voice may still hold the audio
+    // session. Keep asking (slowly) until it is free, and don't tick until it
+    // is: a click that cannot sound must cost nothing, or it starves the voice.
+    requestOutputAudio();
+    // Report silence only if it is still silent a moment later, so the ordinary
+    // case never flashes a warning on its way to playing.
+    setTimeout(() => {
+      if (this.running && !this.isAudible) this.emitAudible();
+    }, SILENT_GRACE_MS);
   }
 
   stop(): void {
     this.stopTimer();
+    releaseOutputAudio();
     if (!this.running) return;
     this.running = false;
     this.emitAudible();
@@ -185,3 +192,16 @@ export class Metronome {
 
 // One shared engine for the whole app.
 export const metronome = new Metronome();
+
+// Field diagnostic, alongside window.dailyFretDiag. A silent click has several
+// possible causes that look identical from the outside, and this separates them:
+// `context` is what the browser says, `running` is what the app asked for,
+// `audible` is whether those agree.
+if (typeof window !== 'undefined') {
+  (window as unknown as { dailyFretAudio: () => unknown }).dailyFretAudio = () => ({
+    ...outputAudioState(),
+    running: metronome.isRunning,
+    audible: metronome.isAudible,
+    bpm: metronome.getBpm(),
+  });
+}

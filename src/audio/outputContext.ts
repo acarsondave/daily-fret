@@ -10,10 +10,14 @@
 // playback graph makes teardown much harder to reason about.
 
 const UNLOCK_EVENTS = ['pointerdown', 'touchend', 'keydown'] as const;
+const RETRY_MS = 1000;
+const RETRY_LIMIT = 20;
 
 let ctx: AudioContext | null = null;
 let detachUnlock: (() => void) | null = null;
 let resuming: Promise<void> | null = null;
+let retryTimer: ReturnType<typeof setInterval> | null = null;
+let retriesLeft = 0;
 const listeners = new Set<(ready: boolean) => void>();
 
 function notify(): void {
@@ -47,7 +51,10 @@ export function getOutputContext(): AudioContext | null {
       if (!AC) return null;
       ctx = new AC();
       ctx.addEventListener('statechange', () => {
-        if (isOutputAudioReady()) detachUnlock?.();
+        if (isOutputAudioReady()) {
+          detachUnlock?.();
+          releaseOutputAudio();
+        }
         notify();
       });
     }
@@ -105,6 +112,39 @@ export function armOutputAudioUnlock(): void {
     UNLOCK_EVENTS.forEach((e) => document.removeEventListener(e, handler));
     detachUnlock = null;
   };
+}
+
+// Keep asking for audio while something actually wants to be heard. Safari can
+// hand the audio session to a media element (the coach's voice clips) and leave
+// this context suspended with no statechange to react to, so a single attempt at
+// start time can lose the click for the rest of the session. Once a second, at
+// most for RETRY_LIMIT tries, is enough to recover without loading the media
+// stack — the failure mode this replaced was resuming 40 times a second.
+export function requestOutputAudio(): void {
+  if (isOutputAudioReady()) return;
+  armOutputAudioUnlock(); // a tap is still the fastest route back
+  void resumeOutputAudio();
+  if (retryTimer) return;
+  retriesLeft = RETRY_LIMIT;
+  retryTimer = setInterval(() => {
+    if (isOutputAudioReady() || retriesLeft-- <= 0) {
+      releaseOutputAudio();
+      return;
+    }
+    void resumeOutputAudio();
+  }, RETRY_MS);
+}
+
+// Nothing wants to be heard any more; stop asking.
+export function releaseOutputAudio(): void {
+  if (!retryTimer) return;
+  clearInterval(retryTimer);
+  retryTimer = null;
+}
+
+// Readable state for diagnosing a silent session in the field.
+export function outputAudioState(): { context: string; asking: boolean; armed: boolean } {
+  return { context: ctx?.state ?? 'none', asking: !!retryTimer, armed: !!detachUnlock };
 }
 
 // Subscribe to audibility changes. Returns an unsubscribe.
