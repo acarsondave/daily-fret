@@ -155,6 +155,17 @@ export function CoachedSession({ routine, onClose }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Close the mic for segments that don't listen. Mic drills only hand their
+  // handlers back at the end, so without this the capture graph stayed open
+  // through every timed block and every song — running FFTs on the recording
+  // coming out of the speakers, filling the diagnostics with frames from audio
+  // nobody played, and holding an input audio session against playback.
+  useEffect(() => {
+    if (!seg) return;
+    if (seg.kind === 'timed' || seg.kind === 'song') void detector.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
+
   // Announce → count-in → start, before *every* drill. The drill only starts
   // once the coach has finished talking, so the voice never overlaps the drill.
   // When the voice is off/unavailable, a silent 3·2·1 visual count-in stands in.

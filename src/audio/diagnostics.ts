@@ -68,10 +68,13 @@ const STORE = 'sessions';
 const LEGACY_STORAGE_KEY = 'df-diag-v1';
 
 const MAX_STORED_SESSIONS = 4;
-// ~4.5 minutes of active (non-silent) audio at ~43 frames/sec, which covers any
-// single drill with room to spare. Beyond this the buffer wraps and keeps the
-// most recent frames; marks/emits/onsets are small and always kept in full.
-const MAX_FRAMES = 12_000;
+// ~7.5 minutes of audio at ~43 frames/sec. The mic is now only open during the
+// drills that listen, so this covers a whole coached session's listening time
+// rather than just its tail — at 12k the buffer wrapped mid-session and every
+// early drill was gone by export, which is exactly what you want to read.
+// Beyond this it wraps and keeps the most recent; marks/emits/onsets are small
+// and always kept in full.
+const MAX_FRAMES = 20_000;
 
 const FRAME_FIELDS = ['tMs', 'code', 'rms', 'noiseFloor', 'salience', 'margin', 'chordIdx'];
 
