@@ -176,21 +176,26 @@ export function ChordTrainer({
 
   // Move to the next chord's block, or end the drill after the last one.
   const nextChord = () => {
-    tallyRef.current = [...tallyRef.current, repsRef.current];
-    setTally(tallyRef.current);
     const next = slotRef.current + 1;
+    // The block that just ended is banked by whoever ends it: finish() appends
+    // the one on screen, so banking it here too would count the last shape twice.
     if (next >= poolRef.current.length) {
       finish();
       return;
     }
+    tallyRef.current = [...tallyRef.current, repsRef.current];
+    setTally(tallyRef.current);
     slotRef.current = next;
     setSlot(next);
     repsRef.current = 0;
     setReps(0);
     setTimeLeft(perChord);
+    // Start the block unarmed: the previous chord can still be ringing, and a
+    // half-released shape reads as its neighbour, which would hand over a free
+    // placement before the hand has done anything.
     holdRef.current = 0;
-    releaseRef.current = RELEASE_FRAMES;
-    armedRef.current = true;
+    releaseRef.current = 0;
+    armedRef.current = false;
     sfx.go();
     diag.mark(`chord-perfect chord: ${target()} (${perChord}s)`);
   };
@@ -204,9 +209,11 @@ export function ChordTrainer({
     setReps(0);
     tallyRef.current = [];
     setTally([]);
+    // Unarmed until a real release, so a shape already under the hand when the
+    // drill opens does not score before it has been placed.
     holdRef.current = 0;
-    releaseRef.current = RELEASE_FRAMES;
-    armedRef.current = true;
+    releaseRef.current = 0;
+    armedRef.current = false;
     setTimeLeft(perChord);
     resetSignal();
     onSessionStart?.();
