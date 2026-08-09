@@ -7,6 +7,7 @@ import { usePassiveRefine } from '../../hooks/usePassiveRefine';
 import { ProgressRing } from './ProgressRing';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
+import { ChordDiagram } from './ChordDiagram';
 import { useSignalMeter } from './signalQuality';
 import { sfx } from '../../audio/sfx';
 import { diag } from '../../audio/diagnostics';
@@ -96,6 +97,7 @@ export function ChordTrainer({
   const armedRef = useRef(true); // released since the last counted placement
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const heroRef = useRef<HTMLDivElement>(null);
+  const shapeRef = useRef<HTMLDivElement>(null);
   const popTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [runningBest, setRunningBest] = useState(personalBest);
@@ -106,6 +108,14 @@ export function ChordTrainer({
   const clearTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = null;
+  };
+
+  // The diagram lights when the shape is actually being held. Driven through the
+  // DOM like popHero rather than through state: this flips on every place and
+  // release, and re-rendering the whole drill for a colour change would be an
+  // absurd price for feedback that is purely visual.
+  const markHeld = (held: boolean) => {
+    shapeRef.current?.classList.toggle('is-held', held);
   };
 
   const popHero = () => {
@@ -127,6 +137,7 @@ export function ChordTrainer({
     if (chord && chord === target()) {
       releaseRef.current = 0;
       holdRef.current += 1;
+      if (holdRef.current >= CONFIRM_FRAMES) markHeld(true);
       if (armedRef.current && holdRef.current >= CONFIRM_FRAMES) {
         armedRef.current = false;
         repsRef.current += 1;
@@ -139,6 +150,7 @@ export function ChordTrainer({
     }
     holdRef.current = 0;
     releaseRef.current += 1;
+    markHeld(false);
     if (releaseRef.current >= RELEASE_FRAMES) armedRef.current = true;
   };
 
@@ -307,9 +319,14 @@ export function ChordTrainer({
               key={c}
               type="button"
               className={pool.includes(c) ? 'ct-chip is-on' : 'ct-chip'}
+              aria-pressed={pool.includes(c)}
               onClick={() => toggleChord(c)}
             >
-              {c}
+              {/* Chosen by sight, not by name. The point of the setup screen is
+                  deciding what to drill, and a shape you cannot picture is
+                  exactly the one worth picking. */}
+              <ChordDiagram chord={c} size={62} showFingers={false} className="ct-chip-shape" />
+              <span className="ct-chip-name">{c}</span>
             </button>
           ))}
         </div>
@@ -348,8 +365,16 @@ export function ChordTrainer({
     return (
       <>
         <div className="practice-mode is-chord">place · strum · lift off · place again</div>
-        <div ref={heroRef} className="practice-hero ct-target">
-          {pool[slot]}
+        <div className="ct-stage">
+          <div ref={heroRef} className="practice-hero ct-target">
+            {pool[slot]}
+          </div>
+          {/* The drill's instruction is "place the shape", so the shape is on
+              screen. It turns green while the chord is actually being held,
+              which closes the loop between the hand and the readout. */}
+          <div ref={shapeRef} className="ct-shape">
+            <ChordDiagram chord={pool[slot]} size={130} />
+          </div>
         </div>
 
         <div className="ct-blocks">

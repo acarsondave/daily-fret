@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRightIcon, CycleIcon, HourglassIcon, MicIcon, PlayIcon, RetryIcon, TrophyIcon } from '../icons';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { ProgressRing } from './ProgressRing';
 import { SignalMeter } from './SignalMeter';
+import { ChordDiagram } from './ChordDiagram';
 import { useSignalMeter } from './signalQuality';
 import { sfx } from '../../audio/sfx';
 import { diag } from '../../audio/diagnostics';
@@ -230,10 +231,13 @@ export function ChordRotation({
             as "play this now" through the whole rotation. */}
         <div className="rot-ring rot-ring-live">
           {ring.map((c, i) => (
-            <span key={`${c}-${i}`} className={i === targetIdx ? 'rot-chord is-live' : 'rot-chord'}>
-              {c}
+            <Fragment key={`${c}-${i}`}>
+              <span className={i === targetIdx ? 'rot-chord is-live' : 'rot-chord'}>
+                <span className="rot-chord-name">{c}</span>
+                <ChordDiagram chord={c} size={76} showFingers={false} className="rot-chord-shape" />
+              </span>
               {i < ring.length - 1 && <CycleIcon size={16} className="rot-sep" />}
-            </span>
+            </Fragment>
           ))}
         </div>
         <div ref={countRef} className="om-count">

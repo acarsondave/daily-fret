@@ -6,6 +6,7 @@ import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { ProgressRing } from './ProgressRing';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
+import { ChordDiagram } from './ChordDiagram';
 import { useSignalMeter } from './signalQuality';
 import { useStore } from '../../store';
 import { pairKey } from '../../lib/pairs';
@@ -302,9 +303,15 @@ export function OneMinuteChanges({
         {/* Big, bold chord names with the one to play *next* lit up, so a lit
             name always reads as "play this now" (drives the change + retention). */}
         <div className="om-pair om-pair-live">
-          <span className={nextCue === from ? 'is-live' : ''}>{from}</span>
+          <span className={nextCue === from ? 'om-side is-live' : 'om-side'}>
+            <span className="om-side-name">{from}</span>
+            <ChordDiagram chord={from} size={92} showFingers={false} className="om-side-shape" />
+          </span>
           <SwapIcon size={22} className="om-pair-arrow" />
-          <span className={nextCue === to ? 'is-live' : ''}>{to}</span>
+          <span className={nextCue === to ? 'om-side is-live' : 'om-side'}>
+            <span className="om-side-name">{to}</span>
+            <ChordDiagram chord={to} size={92} showFingers={false} className="om-side-shape" />
+          </span>
         </div>
         <div ref={countRef} className="om-count">
           {transitions}

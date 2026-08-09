@@ -1,0 +1,101 @@
+/* Chord boxes, engraved on the same pen as the icon set: hairlines for the
+   fretboard, solid marks for the hand. Every value is in the 100x124 viewBox,
+   so a caller only ever chooses a width. */
+
+.chord-diagram {
+  display: block;
+  margin: 0;
+  width: var(--cd-size, 132px);
+  color: var(--text-primary);
+  /* Which fret a dot sits on is read off these lines, so they are content, not
+     chrome, and carry the 3:1 minimum. Same weight as the tuner's strings: one
+     instrument, one line language. */
+  --cd-line: rgba(255, 255, 255, 0.38);
+}
+
+.chord-diagram svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+/* The fretboard. Deliberately quiet: it is the paper, not the writing. */
+.cd-fret {
+  stroke: var(--cd-line);
+  stroke-width: 0.8;
+}
+
+/* Strings taper from the wound low E to the plain high E, the same gauge
+   language as the tuner, so the two screens describe one instrument. */
+.cd-string {
+  stroke: var(--cd-line);
+}
+
+/* The nut is the one piece of the board that is structure rather than grid,
+   so it is drawn as a solid bar. */
+.cd-nut {
+  stroke: var(--text-secondary);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+}
+
+.cd-fret-number {
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+/* Open and muted markers. Contrast matters here: on a diagram, "do not play
+   this string" is not decoration. */
+.cd-open {
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+}
+
+.cd-mute line {
+  stroke: var(--text-secondary);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+/* The hand. Solid, and the only filled shapes in the drawing, so the eye lands
+   on where the fingers go before it reads anything else. */
+.cd-dot {
+  fill: var(--accent-primary);
+}
+
+.cd-barre {
+  stroke: var(--accent-primary);
+  stroke-width: 12.4;
+  stroke-linecap: round;
+}
+
+.cd-finger {
+  fill: var(--bg-color);
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: 8px;
+  pointer-events: none;
+}
+
+/* --- Tone variants --------------------------------------------------------- */
+
+/* Used where a diagram is a reminder beside a live drill rather than the
+   subject: the fingering stays legible, the accent stops competing with the
+   drill's own state colour. */
+.chord-diagram.is-quiet .cd-dot {
+  fill: var(--text-secondary);
+}
+.chord-diagram.is-quiet .cd-barre {
+  stroke: var(--text-secondary);
+}
+
+/* Currently being played and matched. */
+.chord-diagram.is-live .cd-dot {
+  fill: var(--success-color);
+}
+.chord-diagram.is-live .cd-barre {
+  stroke: var(--success-color);
+}

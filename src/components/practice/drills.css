@@ -70,20 +70,49 @@
   color: var(--text-secondary);
   gap: var(--space-6);
   line-height: 1;
+  /* Top aligned, so the arrow between the two chords sits on the names rather
+     than drifting down to the middle of the diagrams beneath them. */
+  align-items: flex-start;
 }
-.om-pair-live span {
-  display: inline-block;
+/* Each side is a column: the name, then the shape. The pair of them is what a
+   changes drill actually asks of the hand, and a beginner drilling Dm to Am
+   should not have to remember both shapes to practise moving between them. */
+.om-pair-live .om-side {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
   color: var(--text-muted);
   transition: color 0.15s ease, transform 0.15s ease;
 }
-.om-pair-live span.is-live {
+.om-pair-live .om-side.is-live {
   color: var(--accent-primary);
-  transform: scale(1.12);
+  transform: scale(1.08);
+}
+.om-side-name {
+  line-height: 1;
+}
+/* The shape follows the name's state: cued shapes are drawn in the accent, the
+   one you are leaving recedes so the pair never reads as two equal targets. */
+.om-side-shape .cd-dot,
+.om-side-shape .cd-barre,
+.rot-chord-shape .cd-dot,
+.rot-chord-shape .cd-barre {
+  transition: fill 0.15s ease, stroke 0.15s ease;
+}
+.om-side:not(.is-live) .om-side-shape .cd-dot,
+.rot-chord:not(.is-live) .rot-chord-shape .cd-dot {
+  fill: var(--text-muted);
+}
+.om-side:not(.is-live) .om-side-shape .cd-barre,
+.rot-chord:not(.is-live) .rot-chord-shape .cd-barre {
+  stroke: var(--text-muted);
 }
 .om-pair-live .om-pair-arrow {
   color: var(--text-secondary);
   opacity: 0.6;
   flex-shrink: 0;
+  margin-top: 0.26em;
 }
 
 .om-count {
@@ -121,6 +150,13 @@
   align-items: center;
   gap: var(--space-3);
 }
+.rot-ring-live .rot-chord {
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.rot-chord-name {
+  line-height: 1;
+}
 .rot-chord.target {
   color: var(--accent-primary);
 }
@@ -134,6 +170,10 @@
   letter-spacing: var(--tracking-tight);
   line-height: 1;
   gap: var(--space-4);
+  align-items: flex-start;
+}
+.rot-ring-live .rot-sep {
+  margin-top: 0.3em;
 }
 .rot-ring-live .rot-chord {
   color: var(--text-muted);
@@ -190,12 +230,16 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--space-2);
-  max-width: min(420px, 92vw);
+  max-width: min(460px, 94vw);
 }
 .ct-chip {
-  min-width: 52px;
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-full);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 78px;
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
@@ -204,6 +248,26 @@
   font-size: var(--text-md);
   transition: transform var(--dur-fast) ease, background var(--dur-base) ease,
     color var(--dur-base) ease, border-color var(--dur-base) ease;
+}
+.ct-chip-name {
+  line-height: 1;
+}
+/* Unselected shapes are drawn in the muted grey rather than the accent, so the
+   grid reads as "these are the ones you picked" at a glance instead of as
+   nine equally loud cards. */
+.ct-chip .cd-dot {
+  fill: var(--text-muted);
+  transition: fill var(--dur-base) ease;
+}
+.ct-chip .cd-barre {
+  stroke: var(--text-muted);
+  transition: stroke var(--dur-base) ease;
+}
+.ct-chip.is-on .cd-dot {
+  fill: var(--accent-primary);
+}
+.ct-chip.is-on .cd-barre {
+  stroke: var(--accent-primary);
 }
 .ct-chip:active { transform: scale(0.95); }
 .ct-chip.is-on {
@@ -386,5 +450,65 @@
 @media (pointer: coarse) {
   .ct-chip {
     min-height: 44px;
+  }
+}
+
+/* --- Chord Perfect: the shape beside the name ------------------------------ */
+
+/* The name says which chord, the diagram says where the fingers go. Side by
+   side rather than stacked so the pair reads as one statement and the drill's
+   timer and tally stay above the fold on a phone. */
+.ct-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.ct-stage .practice-hero {
+  font-size: clamp(4rem, 15vw, 8rem);
+}
+
+.ct-shape {
+  flex-shrink: 0;
+}
+
+/* Held right now. The same green the rest of the app uses for "that counted". */
+.ct-shape.is-held .cd-dot {
+  fill: var(--success-color);
+}
+.ct-shape.is-held .cd-barre {
+  stroke: var(--success-color);
+}
+.ct-shape .cd-dot,
+.ct-shape .cd-barre {
+  transition: fill var(--dur-fast) ease, stroke var(--dur-fast) ease;
+}
+
+@media (max-width: 420px) {
+  .ct-stage {
+    gap: var(--space-4);
+  }
+  .ct-shape .chord-diagram {
+    --cd-size: 108px;
+  }
+}
+
+
+/* On a narrow screen the shapes are the first thing to give up room: the names
+   still carry the drill, and a cramped diagram teaches nothing. */
+@media (max-width: 420px) {
+  .om-pair-live {
+    gap: var(--space-3);
+  }
+  .om-side-shape {
+    --cd-size: 76px;
+  }
+  .rot-ring-live {
+    gap: var(--space-2);
+  }
+  .rot-chord-shape {
+    --cd-size: 62px;
   }
 }
