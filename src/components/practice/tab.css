@@ -1,0 +1,168 @@
+/* Guitar tab staff.
+   The old rendering was the note text in a <p> with `white-space: pre` and a
+   1.55 line-height, which is a monospace paragraph rather than a staff: the six
+   strings floated apart instead of reading as one system, the string names
+   scrolled away with the music, and the fret numbers sat at the same visual
+   weight as the dashes they were buried in. */
+
+.tab-staff {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: min(680px, 100%);
+  margin-inline: auto;
+  text-align: left;
+}
+
+.tab-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.tab-caption {
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-primary);
+}
+
+.tab-caption.is-alone {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+/* Opaque, so the pinned gutter has something to sit on while the music scrolls
+   underneath it. It also makes the staff read as a discrete object on the
+   overlay rather than a translucent smear over the backdrop blur. */
+.tab-staff-frame {
+  position: relative;
+  border-radius: var(--radius-lg);
+  background: var(--surface-color);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+/* "There is more riff to the right." Only painted when that is true. */
+.tab-staff-frame.has-more::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 40px;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--surface-color));
+}
+
+.tab-scroll {
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  padding: var(--space-3) 0;
+  scrollbar-width: thin;
+}
+
+/* The string names stay put. This is the whole reason the component exists. */
+.tab-gutter {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--space-2) 0 var(--space-4);
+  background: var(--surface-color);
+  border-right: 1px solid var(--border-subtle);
+}
+
+.tab-lines {
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--space-4) 0 var(--space-3);
+}
+
+/* One shared metric for the gutter and the music: the string names must sit on
+   exactly the same baselines as the lines they label.
+
+   Deliberately off the prose type scale. This is a monospace grid, so its size
+   is set by how many columns of tab have to fit across the frame, not by where
+   it sits in the reading hierarchy. */
+.tab-string,
+.tab-line {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  /* Tight enough that six rows read as one system. The dashes very nearly meet,
+     which is what makes it look like a fretboard and not a list. */
+  line-height: 1.28;
+  white-space: pre;
+  font-variant-ligatures: none;
+  tab-size: 4;
+}
+
+.tab-string {
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-align: right;
+  min-width: 1ch;
+}
+
+/* The count sits in the same grid as the frets, one step back in the hierarchy:
+   it is the ruler, the notes are the music. The small gap beneath it is applied
+   to the gutter's matching blank cell too, or the string names would slide off
+   the strings they name by exactly that much. */
+.tab-line.is-timing,
+.tab-string.is-timing {
+  color: var(--text-secondary);
+  padding-bottom: 0.3em;
+}
+
+/* Figure and ground. The dashes are the staff and recede; the frets are the
+   music and carry full contrast. Color only, never weight: a weight change can
+   alter advance width and would knock the columns out of alignment.
+
+   The dashes are held at 3:1 rather than pushed as far down as they would look
+   best. They are the line you read fret positions along, so they are a
+   meaningful graphic under WCAG 1.4.11, not decoration. */
+.tab-t.is-rest {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.tab-t.is-bar {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.tab-t.is-fret {
+  color: var(--text-primary);
+}
+
+/* Hammer-ons, pull-offs, slides, bends, vibrato. Legible but clearly not a
+   fret number, so the numerals stay the thing the eye lands on. */
+.tab-t.is-technique {
+  color: var(--accent-primary);
+}
+
+@media (max-width: 600px) {
+  .tab-string,
+  .tab-line {
+    font-size: 0.82rem;
+  }
+  .tab-gutter {
+    padding-left: var(--space-3);
+  }
+  .tab-lines {
+    padding-right: var(--space-3);
+  }
+}
+
+/* A tab is fret positions. At arm's length on a laptop it can afford to be
+   bigger than body copy, which is the size it actually needs to be read at. */
+@media (min-width: 900px) {
+  .tab-string,
+  .tab-line {
+    font-size: 0.98rem;
+  }
+}

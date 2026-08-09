@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Microphone, X } from '@phosphor-icons/react';
+import { CloseIcon, MicIcon } from '../icons';
 import './micHint.css';
 
 const DISMISS_KEY = 'daily-fret-mic-hint-dismissed';
@@ -64,7 +64,7 @@ export function MicPermissionHint() {
 
   return (
     <div className="mic-hint" role="note">
-      <Microphone size={18} weight="fill" className="mic-hint-icon" />
+      <MicIcon size={18} className="mic-hint-icon" />
       <div className="mic-hint-text">
         <strong>Let the coach hear you.</strong> Allow the microphone so it can
         track your chords — and set it to <em>always allow</em> so it won't ask
@@ -72,7 +72,7 @@ export function MicPermissionHint() {
         Microphone → Allow; in Chrome, click the mic icon → “Always allow”.
       </div>
       <button className="mic-hint-close" onClick={dismiss} title="Dismiss" aria-label="Dismiss tip">
-        <X size={14} weight="bold" />
+        <CloseIcon size={14} />
       </button>
     </div>
   );

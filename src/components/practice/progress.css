@@ -1,6 +1,6 @@
 .progress-empty {
   color: var(--text-secondary);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   text-align: center;
   line-height: 1.6;
   padding: var(--space-6) var(--space-2);
@@ -36,13 +36,13 @@
 .progress-reco-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .progress-reco-label {
   font-family: var(--font-secondary);
-  font-size: 0.68rem;
+  font-size: var(--text-micro);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--accent-primary);
 }
-.progress-reco-pair { font-family: var(--font-primary); font-weight: 600; font-size: 1.05rem; }
-.progress-reco-reason { font-family: var(--font-secondary); font-weight: 500; font-size: 0.8rem; color: var(--text-secondary); }
+.progress-reco-pair { font-family: var(--font-primary); font-weight: 600; font-size: var(--text-md); }
+.progress-reco-reason { font-family: var(--font-secondary); font-weight: 500; font-size: var(--text-sm); color: var(--text-secondary); }
 .progress-reco-go {
   display: inline-flex;
   align-items: center;
@@ -76,7 +76,7 @@
 .progress-stat-value {
   font-family: var(--font-primary);
   font-weight: 700;
-  font-size: 1.8rem;
+  font-size: var(--text-xl);
   line-height: 1;
   color: var(--text-primary);
 }
@@ -84,11 +84,11 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #fb923c;
+  color: var(--warning-color);
 }
 .progress-stat-label {
   font-family: var(--font-secondary);
-  font-size: 0.7rem;
+  font-size: var(--text-micro);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-secondary);
@@ -108,10 +108,10 @@
   margin-bottom: var(--space-2);
 }
 .progress-chart-titles { display: flex; flex-direction: column; gap: 2px; }
-.progress-chart-pair { font-family: var(--font-primary); font-weight: 700; font-size: 1.1rem; color: var(--text-primary); }
+.progress-chart-pair { font-family: var(--font-primary); font-weight: 700; font-size: var(--text-lg); color: var(--text-primary); }
 .progress-chart-sub {
   font-family: var(--font-secondary);
-  font-size: 0.7rem;
+  font-size: var(--text-micro);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-secondary);
@@ -119,7 +119,7 @@
 .progress-chart-best {
   font-family: var(--font-primary);
   font-weight: 700;
-  font-size: 1.8rem;
+  font-size: var(--text-xl);
   line-height: 1;
   color: var(--accent-primary);
 }
@@ -127,7 +127,24 @@
 .chart-axis { fill: var(--text-secondary); font-size: 11px; font-family: var(--font-secondary); opacity: 0.7; }
 .chart-empty { color: var(--text-secondary); text-align: center; padding: var(--space-8) 0; }
 
-/* Per-pair selector list */
+/* Two families of measurement, each labelled. Chord changes are a speed; shape
+   drills are a count of clean placements. Putting them in one undifferentiated
+   list would imply the numbers are comparable, and they are not. */
+.progress-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.progress-section-title {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Per-drill selector list */
 .progress-pairs { display: flex; flex-direction: column; gap: var(--space-2); }
 .progress-pair-row {
   display: flex;
@@ -151,7 +168,7 @@
   flex: 1;
   font-family: var(--font-primary);
   font-weight: 600;
-  font-size: 1rem;
+  font-size: var(--text-md);
   color: var(--text-primary);
 }
 .progress-pair-best {
@@ -160,10 +177,10 @@
   gap: 3px;
   font-family: var(--font-primary);
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: var(--text-lg);
   color: var(--text-primary);
 }
-.progress-pair-unit { font-size: 0.65rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
+.progress-pair-unit { font-size: var(--text-micro); font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
 
 .progress-trend {
   display: inline-flex;
@@ -172,19 +189,19 @@
   padding: 2px var(--space-2);
   border-radius: var(--radius-full);
   font-family: var(--font-secondary);
-  font-size: 0.72rem;
+  font-size: var(--text-micro);
   font-weight: 700;
   min-width: 52px;
   justify-content: center;
 }
 .progress-trend.is-up { color: var(--success-color); background: var(--success-glow); }
-.progress-trend.is-down { color: #f87171; background: rgba(248, 113, 113, 0.12); }
+.progress-trend.is-down { color: var(--danger-color); background: var(--danger-glow); }
 .progress-trend.is-flat { color: var(--text-secondary); background: rgba(255, 255, 255, 0.05); }
 
 @media (max-width: 600px) {
   .progress-stat-value,
   .progress-chart-best {
-    font-size: 1.5rem;
+    font-size: var(--text-lg);
   }
   .progress-summary { padding: var(--space-3); }
   .progress-chart-card { padding: var(--space-3); }

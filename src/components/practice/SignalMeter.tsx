@@ -1,4 +1,4 @@
-import { Microphone } from '@phosphor-icons/react';
+import { MicIcon } from '../icons';
 import type { SignalQuality } from './signalQuality';
 import './signal.css';
 
@@ -24,7 +24,7 @@ export function SignalMeter({ quality }: Props) {
   const filled = FILLED[quality];
   return (
     <div className={`signal-meter is-${quality}`} title={COPY[quality]}>
-      <Microphone size={14} weight="fill" className="signal-mic" />
+      <MicIcon size={14} className="signal-mic" />
       <div className="signal-bars" aria-hidden="true">
         {[0, 1, 2].map((i) => (
           <span key={i} className={i < filled ? 'signal-bar is-on' : 'signal-bar'} />

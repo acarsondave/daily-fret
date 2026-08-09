@@ -1,10 +1,9 @@
-interface Point {
-  date: string;
-  cpm: number;
-}
+import type { SeriesPoint } from '../../lib/drillStats';
 
 interface Props {
-  series: Point[];
+  series: SeriesPoint[];
+  /** What the numbers are, e.g. "changes / min" or "shapes placed". */
+  unitLabel: string;
 }
 
 function shortDate(d: string): string {
@@ -13,9 +12,10 @@ function shortDate(d: string): string {
   return `${months[parseInt(m, 10)] ?? ''} ${parseInt(day, 10)}`;
 }
 
-// A labeled best-cpm-over-time chart (the Monkeytype-style view): gridlines, an
-// area-filled trend, value axis, dotted points, and the latest value called out.
-export function ProgressChart({ series }: Props) {
+// A labeled value-over-time chart: gridlines, an area-filled trend, value axis,
+// dotted points, and the latest value called out. Unit-agnostic, because it now
+// plots chord-change speed and shape-placement counts alike.
+export function ProgressChart({ series, unitLabel }: Props) {
   const W = 520;
   const H = 200;
   const padL = 34;
@@ -27,9 +27,9 @@ export function ProgressChart({ series }: Props) {
     return <div className="chart-empty">No data yet.</div>;
   }
 
-  const cpms = series.map((p) => p.cpm);
-  const max = Math.max(...cpms);
-  const min = Math.min(...cpms);
+  const values = series.map((p) => p.value);
+  const max = Math.max(...values);
+  const min = Math.min(...values);
   // Pad the value range a little so the line isn't glued to the edges.
   const top = max === min ? max + 1 : max + Math.ceil((max - min) * 0.15);
   const bottom = max === min ? Math.max(0, max - 1) : Math.max(0, min - Math.ceil((max - min) * 0.15));
@@ -42,7 +42,7 @@ export function ProgressChart({ series }: Props) {
   const x = (i: number) => padL + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW);
   const y = (v: number) => padT + innerH - ((v - bottom) / span) * innerH;
 
-  const pts = series.map((p, i) => [x(i), y(p.cpm)] as const);
+  const pts = series.map((p, i) => [x(i), y(p.value)] as const);
   const line = pts.map(([px, py], i) => `${i === 0 ? 'M' : 'L'}${px.toFixed(1)} ${py.toFixed(1)}`).join(' ');
   const area = `${line} L${pts[pts.length - 1][0].toFixed(1)} ${(padT + innerH).toFixed(1)} L${pts[0][0].toFixed(1)} ${(padT + innerH).toFixed(1)} Z`;
 
@@ -50,7 +50,7 @@ export function ProgressChart({ series }: Props) {
   const [lastX, lastY] = pts[pts.length - 1];
 
   return (
-    <svg className="progress-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Best changes per minute over time">
+    <svg className="progress-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${unitLabel} over time`}>
       <defs>
         <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="var(--accent-primary)" stopOpacity="0.28" />

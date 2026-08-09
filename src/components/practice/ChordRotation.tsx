@@ -1,14 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  Play,
-  ArrowRight,
-  Hourglass,
-  Microphone,
-  ArrowClockwise,
-  Trophy,
-  ArrowsClockwise,
-} from '@phosphor-icons/react';
+import { ArrowRightIcon, CycleIcon, HourglassIcon, MicIcon, PlayIcon, RetryIcon, TrophyIcon } from '../icons';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { ProgressRing } from './ProgressRing';
@@ -192,7 +184,7 @@ export function ChordRotation({
       <div className="om-setup">
         {personalBest > 0 && (
           <div className="om-best-badge">
-            <Trophy size={16} weight="fill" />
+            <TrophyIcon size={16} />
             <span>Best {personalBest}</span>
           </div>
         )}
@@ -200,13 +192,13 @@ export function ChordRotation({
           {ring.map((c, i) => (
             <span key={`${c}-${i}`} className="rot-chord">
               {c}
-              {i < ring.length - 1 && <ArrowRight size={16} className="rot-sep" />}
+              {i < ring.length - 1 && <ArrowRightIcon size={16} className="rot-sep" />}
             </span>
           ))}
         </div>
         <p className="om-caption">Rotate through the ring, one clean change at a time</p>
         <button className="practice-btn primary" onClick={startSession}>
-          <Play size={20} weight="fill" /> Start {duration}s
+          <PlayIcon size={20} /> Start {duration}s
         </button>
       </div>
     );
@@ -216,10 +208,10 @@ export function ChordRotation({
     if (status === 'error') {
       return (
         <div className="mic-gate">
-          <Microphone size={40} weight="duotone" color="var(--text-secondary)" />
+          <MicIcon size={40} color="var(--text-secondary)" />
           <p>{error ?? 'Microphone unavailable.'}</p>
           <button className="practice-btn primary" onClick={startSession}>
-            <ArrowClockwise size={18} weight="bold" /> Try again
+            <RetryIcon size={18} /> Try again
           </button>
         </div>
       );
@@ -227,7 +219,7 @@ export function ChordRotation({
     if (status !== 'running') {
       return (
         <div className="mic-gate">
-          <Microphone size={40} weight="duotone" color="var(--accent-primary)" />
+          <MicIcon size={40} color="var(--accent-primary)" />
           <p>Allow microphone access to begin…</p>
         </div>
       );
@@ -240,7 +232,7 @@ export function ChordRotation({
           {ring.map((c, i) => (
             <span key={`${c}-${i}`} className={i === targetIdx ? 'rot-chord is-live' : 'rot-chord'}>
               {c}
-              {i < ring.length - 1 && <ArrowsClockwise size={16} className="rot-sep" />}
+              {i < ring.length - 1 && <CycleIcon size={16} className="rot-sep" />}
             </span>
           ))}
         </div>
@@ -249,7 +241,7 @@ export function ChordRotation({
         </div>
         <div className="om-caption">changes</div>
         <div className="om-timer">
-          <Hourglass size={26} /> {timeLeft}
+          <HourglassIcon size={26} /> {timeLeft}
         </div>
         <SignalMeter quality={signal} />
       </>
@@ -278,7 +270,7 @@ export function ChordRotation({
       </ProgressRing>
 
       <div className={celebrate ? 'om-context is-pr' : 'om-context'}>
-        {celebrate && <Trophy size={16} weight="fill" />}
+        {celebrate && <TrophyIcon size={16} />}
         <span>{context}</span>
       </div>
 
@@ -287,7 +279,7 @@ export function ChordRotation({
           {ring.map((c, i) => (
             <span key={`${c}-${i}`} className="rot-chord target">
               {c}
-              {i < ring.length - 1 && <ArrowRight size={12} className="rot-sep" />}
+              {i < ring.length - 1 && <ArrowRightIcon size={12} className="rot-sep" />}
             </span>
           ))}
         </div>
@@ -306,7 +298,7 @@ export function ChordRotation({
             {onNext ? 'End session' : 'Done'}
           </button>
           <button className="practice-btn primary" onClick={onNext ?? (() => setView('setup'))} autoFocus>
-            {onNext ? 'Next drill' : 'Again'} <ArrowRight size={18} weight="bold" />
+            {onNext ? 'Next drill' : 'Again'} <ArrowRightIcon size={18} />
           </button>
         </div>
       )}

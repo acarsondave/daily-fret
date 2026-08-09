@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Pause, Play, SkipForward } from '@phosphor-icons/react';
+import { PauseIcon, PlayIcon, SkipIcon } from '../icons';
 import { ProgressRing } from './ProgressRing';
 import { StrumRow } from './StrumRow';
+import { TabStaff } from './TabStaff';
+import { looksLikeTab } from '../../lib/tab';
 import { sfx } from '../../audio/sfx';
 
 const AUTO_ADVANCE_SECONDS = 5;
@@ -93,23 +95,26 @@ export function TimedSegment({ title, description, seconds, pattern, onDone, onF
     <>
       <div className="practice-mode is-chord">{title}</div>
       {pattern && <StrumRow strum={pattern} size={18} />}
-      {/* A riff's description is a tab staff, which only reads correctly in a
-          monospace block with its line breaks kept. Prose descriptions are
-          untouched. */}
-      {description && (
-        <p className={description.includes('|') ? 'timed-desc is-tab' : 'timed-desc'}>{description}</p>
-      )}
+      {/* A riff's note is a tab staff and gets rendered as one. The old test was
+          `description.includes('|')`, which also fired on any prose containing a
+          pipe; looksLikeTab needs two actual staff lines. */}
+      {description &&
+        (looksLikeTab(description) ? (
+          <TabStaff source={description} />
+        ) : (
+          <p className="timed-desc">{description}</p>
+        ))}
       <ProgressRing progress={progress} className="om-ring">
         <div className="om-ring-value">{fmt(left)}</div>
         <div className="om-caption">remaining</div>
       </ProgressRing>
       <div className="om-actions">
         <button className="practice-btn ghost" onClick={togglePause}>
-          {paused ? <Play size={18} weight="fill" /> : <Pause size={18} weight="fill" />}
+          {paused ? <PlayIcon size={18} /> : <PauseIcon size={18} />}
           {paused ? 'Resume' : 'Pause'}
         </button>
         <button className="practice-btn primary" onClick={() => setFinished(true)}>
-          <SkipForward size={18} weight="fill" /> Skip
+          <SkipIcon size={18} /> Skip
         </button>
       </div>
     </>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, Minus, Plus } from '@phosphor-icons/react';
+import { MinusIcon, PauseIcon, PlayIcon, PlusIcon, ICON_STROKE } from '../icons';
 import { useStore } from '../../store';
 import { metronome, MIN_BPM, MAX_BPM } from '../../audio/metronome';
 import { armOutputAudioUnlock } from '../../audio/outputContext';
@@ -10,27 +10,33 @@ import { DEFAULT_PRACTICE_BPM, type TempoPlan } from '../../lib/tempo';
 // one steady tempo.
 const TAP_RESET_MS = 2000;
 
-// Custom metronome mark: the app's stroke language (2px, round caps) drawn as a
-// tapered body with a swinging pendulum, not a stock glyph.
+// The live variant of MetronomeIcon: same geometry and the same 1.75 pen as the
+// rest of the set, with the pendulum actually swinging while the click sounds.
+// The swing is deliberately not tied to the beat — at 60 to 132 BPM a synced
+// pendulum reads as a stutter, while a steady sweep reads as "this is running".
 function MetronomeMark({ swinging }: { swinging: boolean }) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M8 20 L10 5 A2 2 0 0 1 14 5 L16 20 Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-      <line x1="6.5" y1="20" x2="17.5" y2="20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    <svg
+      className="icon-glyph"
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={ICON_STROKE}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M8 20 10 5a2 2 0 0 1 4 0l2 15Z" />
+      <path d="M6.4 20h11.2" />
       <motion.line
         x1="12"
-        y1="18"
+        y1="17.6"
         x2="12"
-        y2="8"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        style={{ originX: '12px', originY: '18px' }}
+        y2="8.4"
+        style={{ originX: '12px', originY: '17.6px' }}
         animate={swinging ? { rotate: [-18, 18, -18] } : { rotate: 0 }}
         transition={swinging ? { duration: 1, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.2 }}
       />
@@ -68,7 +74,33 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
   const [bpm, setBpm] = useState(storedBpm ?? DEFAULT_PRACTICE_BPM);
   const [beat, setBeat] = useState(0);
   const tapsRef = useRef<number[]>([]);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const silent = running && !audible;
+
+  // The panel floats over a drill that is running. Escape and a tap outside
+  // both close it, so getting back to the chord on screen never costs a
+  // second, deliberate tap on the same small target.
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      // Stop the overlay's own Escape handler from ending the whole session
+      // just because a panel was open.
+      e.stopPropagation();
+      setOpen(false);
+      triggerRef.current?.focus();
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKey, true);
+    };
+  }, [open]);
 
   // Keep the engine's tempo in step with the slider while it plays.
   useEffect(() => {
@@ -156,8 +188,9 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
   };
 
   return (
-    <div className="metro">
+    <div className="metro" ref={rootRef}>
       <button
+        ref={triggerRef}
         className={
           silent
             ? 'practice-close metro-trigger is-live is-silent'
@@ -167,7 +200,14 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
         }
         onClick={() => setOpen((o) => !o)}
         title={silent ? 'Metronome muted by the browser — tap to turn the sound on' : running ? `Metronome ${bpm} BPM` : 'Metronome'}
-        aria-pressed={open}
+        aria-label={
+          silent
+            ? 'Metronome: muted by the browser. Open tempo controls.'
+            : running
+              ? `Metronome: running at ${bpm} BPM. Open tempo controls.`
+              : 'Metronome: stopped. Open tempo controls.'
+        }
+        aria-expanded={open}
       >
         <MetronomeMark swinging={audible} />
         {running && <span className="metro-trigger-bpm">{silent ? 'muted' : bpm}</span>}
@@ -198,7 +238,7 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
 
             <div className="metro-stepper">
               <button className="metro-step" onClick={() => commitBpm(bpm - 1)} aria-label="Slower">
-                <Minus size={16} weight="bold" />
+                <MinusIcon size={16} />
               </button>
               <input
                 className="metro-slider"
@@ -210,7 +250,7 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
                 aria-label="Tempo"
               />
               <button className="metro-step" onClick={() => commitBpm(bpm + 1)} aria-label="Faster">
-                <Plus size={16} weight="bold" />
+                <PlusIcon size={16} />
               </button>
             </div>
 
@@ -226,7 +266,7 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
             <div className="metro-actions">
               <button className="metro-tap" onClick={tap}>Tap</button>
               <button className="practice-btn primary metro-play" onClick={toggle}>
-                {running && audible ? <Pause size={18} weight="fill" /> : <Play size={18} weight="fill" />}
+                {running && audible ? <PauseIcon size={18} /> : <PlayIcon size={18} />}
                 {silent ? 'Turn on sound' : running ? 'Stop' : 'Start'}
               </button>
             </div>

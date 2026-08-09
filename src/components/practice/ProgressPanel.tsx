@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Target, Play, TrendUp, TrendDown, Minus, Fire } from '@phosphor-icons/react';
+import { FlameIcon, MinusIcon, PlayIcon, TargetIcon, TrendDownIcon, TrendUpIcon } from '../icons';
 import clsx from 'clsx';
-import { useDrillStats, recommendNext, type PairStat } from '../../lib/drillStats';
+import { useDrillStats } from '../../hooks/useDrillStats';
+import { recommendNext, type DrillStat } from '../../lib/drillStats';
 import { useUserData } from '../../store';
 import { ProgressChart } from './ProgressChart';
 import './progress.css';
@@ -20,30 +21,85 @@ function currentStreak(dailyLogs: Record<string, { completedTaskIds?: string[] }
   return streak;
 }
 
+// What the chart's axis is actually counting, in words.
+function unitLabel(stat: DrillStat): string {
+  if (stat.kind === 'pair') return 'changes / min';
+  return stat.unit === 'placed' ? 'shapes placed' : 'changes per drill';
+}
+
+interface RowProps {
+  stat: DrillStat;
+  isActive: boolean;
+  onSelect: () => void;
+}
+
+function StatRow({ stat, isActive, onSelect }: RowProps) {
+  const values = stat.series.map((p) => p.value);
+  const first = values[0];
+  const last = values[values.length - 1];
+  const hasTrend = values.length >= 2;
+  const deltaPct = hasTrend && first > 0 ? Math.round(((last - first) / first) * 100) : 0;
+  const dir = !hasTrend ? 'flat' : deltaPct > 0 ? 'up' : deltaPct < 0 ? 'down' : 'flat';
+
+  return (
+    <button
+      className={clsx('progress-pair-row', isActive && 'is-active')}
+      onClick={onSelect}
+      aria-pressed={isActive}
+    >
+      <span className="progress-pair-name">{stat.label}</span>
+      <span className="progress-pair-best">
+        {stat.best}
+        <span className="progress-pair-unit">{stat.unit}</span>
+      </span>
+      {hasTrend && (
+        <span className={clsx('progress-trend', `is-${dir}`)}>
+          {dir === 'up' && <TrendUpIcon size={12} />}
+          {dir === 'down' && <TrendDownIcon size={12} />}
+          {dir === 'flat' && <MinusIcon size={12} />}
+          {dir === 'up' ? '+' : ''}
+          {deltaPct}%
+        </span>
+      )}
+    </button>
+  );
+}
+
 interface Props {
   onPracticePair?: (from: string, to: string) => void;
 }
 
 export function ProgressPanel({ onPracticePair }: Props) {
-  const stats = useDrillStats();
+  const { pairs, tasks, any } = useDrillStats();
   const userData = useUserData();
 
-  const sorted = useMemo(() => [...stats].sort((a, b) => b.best - a.best), [stats]);
+  const sortedPairs = useMemo(() => [...pairs].sort((a, b) => b.best - a.best), [pairs]);
+  const sortedTasks = useMemo(() => [...tasks].sort((a, b) => b.best - a.best), [tasks]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
-  if (stats.length === 0) {
+  if (!any) {
     return (
       <p className="progress-empty">
-        Run a Chord Changes drill to start tracking your speed — each pair builds its own benchmark here.
+        Run a drill that listens — chord changes, anchor changes or Chord Perfect —
+        and its history starts building here. Each one keeps its own benchmark.
       </p>
     );
   }
 
-  const selected: PairStat = sorted.find((s) => s.key === selectedKey) ?? sorted[0];
-  const topBest = Math.max(...stats.map((s) => s.best));
-  const totalSessions = stats.reduce((sum, s) => sum + s.series.length, 0);
+  // One chart, either family. Chord changes lead, because they are the measure
+  // the app prescribes tempo from.
+  const everything: DrillStat[] = [...sortedPairs, ...sortedTasks];
+  // Open on something with a shape to it. Sorting by personal best alone put a
+  // single-session pair at the top, so the panel greeted you with a chart
+  // holding one dot — the highest number, and nothing to read from it.
+  const chartable = everything.filter((s) => s.series.length >= 2);
+  const selected: DrillStat =
+    everything.find((s) => s.key === selectedKey) ?? chartable[0] ?? everything[0];
+
+  const totalSessions = everything.reduce((sum, s) => sum + s.series.length, 0);
+  const topPair = sortedPairs.length ? sortedPairs[0].best : null;
   const streak = currentStreak(userData?.dailyLogs ?? {});
-  const recommendation = recommendNext(stats);
+  const recommendation = recommendNext(sortedPairs);
 
   return (
     <div className="progress-root">
@@ -52,7 +108,7 @@ export function ProgressPanel({ onPracticePair }: Props) {
           className="progress-reco"
           onClick={() => onPracticePair(recommendation.stat.from, recommendation.stat.to)}
         >
-          <Target size={20} weight="duotone" className="progress-reco-icon" />
+          <TargetIcon size={20} className="progress-reco-icon" />
           <span className="progress-reco-text">
             <span className="progress-reco-label">Practice next</span>
             <span className="progress-reco-pair">
@@ -61,14 +117,16 @@ export function ProgressPanel({ onPracticePair }: Props) {
             </span>
           </span>
           <span className="progress-reco-go">
-            <Play size={16} weight="fill" />
+            <PlayIcon size={16} />
           </span>
         </button>
       )}
 
       <div className="progress-summary">
         <div className="progress-stat">
-          <span className="progress-stat-value">{topBest}</span>
+          {/* An em dash rather than a 0: no chord-change history is not a score
+              of zero, and this panel must not imply one. */}
+          <span className="progress-stat-value">{topPair ?? '—'}</span>
           <span className="progress-stat-label">top cpm</span>
         </div>
         <div className="progress-stat">
@@ -77,7 +135,7 @@ export function ProgressPanel({ onPracticePair }: Props) {
         </div>
         <div className="progress-stat">
           <span className="progress-stat-value progress-stat-streak">
-            {streak > 0 && <Fire size={18} weight="fill" />}
+            {streak > 0 && <FlameIcon size={18} />}
             {streak}
           </span>
           <span className="progress-stat-label">day streak</span>
@@ -87,50 +145,48 @@ export function ProgressPanel({ onPracticePair }: Props) {
       <div className="progress-chart-card">
         <div className="progress-chart-head">
           <div className="progress-chart-titles">
-            <span className="progress-chart-pair">
-              {selected.from} ↔ {selected.to}
-            </span>
-            <span className="progress-chart-sub">best changes / min</span>
+            <span className="progress-chart-pair">{selected.label}</span>
+            <span className="progress-chart-sub">best {unitLabel(selected)}</span>
           </div>
           <span className="progress-chart-best">{selected.best}</span>
         </div>
-        <ProgressChart series={selected.series} />
+        <ProgressChart series={selected.series} unitLabel={unitLabel(selected)} />
       </div>
 
-      <div className="progress-pairs">
-        {sorted.map((s) => {
-          const cpms = s.series.map((p) => p.cpm);
-          const first = cpms[0];
-          const last = cpms[cpms.length - 1];
-          const hasTrend = cpms.length >= 2;
-          const deltaPct = hasTrend && first > 0 ? Math.round(((last - first) / first) * 100) : 0;
-          const dir = !hasTrend ? 'flat' : deltaPct > 0 ? 'up' : deltaPct < 0 ? 'down' : 'flat';
-          return (
-            <button
-              key={s.key}
-              className={clsx('progress-pair-row', s.key === selected.key && 'is-active')}
-              onClick={() => setSelectedKey(s.key)}
-            >
-              <span className="progress-pair-name">
-                {s.from} ↔ {s.to}
-              </span>
-              <span className="progress-pair-best">
-                {s.best}
-                <span className="progress-pair-unit">cpm</span>
-              </span>
-              {hasTrend && (
-                <span className={clsx('progress-trend', `is-${dir}`)}>
-                  {dir === 'up' && <TrendUp size={12} weight="bold" />}
-                  {dir === 'down' && <TrendDown size={12} weight="bold" />}
-                  {dir === 'flat' && <Minus size={12} weight="bold" />}
-                  {dir === 'up' ? '+' : ''}
-                  {deltaPct}%
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {sortedPairs.length > 0 && (
+        <section className="progress-section">
+          <h3 className="progress-section-title">Chord changes</h3>
+          <div className="progress-pairs">
+            {sortedPairs.map((s) => (
+              <StatRow
+                key={s.key}
+                stat={s}
+                isActive={s.key === selected.key}
+                onSelect={() => setSelectedKey(s.key)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Chord Perfect and the anchor rotation. Their results have always been
+          recorded and have always driven the prescribed tempo; until now they
+          had nowhere to be seen. */}
+      {sortedTasks.length > 0 && (
+        <section className="progress-section">
+          <h3 className="progress-section-title">Shape drills</h3>
+          <div className="progress-pairs">
+            {sortedTasks.map((s) => (
+              <StatRow
+                key={s.key}
+                stat={s}
+                isActive={s.key === selected.key}
+                onSelect={() => setSelectedKey(s.key)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

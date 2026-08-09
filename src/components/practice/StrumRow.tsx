@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp } from '@phosphor-icons/react';
+import { ArrowDownIcon, ArrowUpIcon } from '../icons';
 import { parseStrum } from '../../data/songs';
 
 interface Props {
@@ -14,8 +14,8 @@ export function StrumRow({ strum, size = 13 }: Props) {
     <div className="strum-row" aria-hidden="true">
       {slots.map((dir, i) => (
         <span key={i} className={dir === '-' ? 'strum-arrow is-rest' : 'strum-arrow'}>
-          {dir === 'D' && <ArrowDown size={size} weight="bold" />}
-          {dir === 'U' && <ArrowUp size={size} weight="bold" />}
+          {dir === 'D' && <ArrowDownIcon size={size} />}
+          {dir === 'U' && <ArrowUpIcon size={size} />}
           {dir === '-' && <span className="strum-rest-dot" />}
         </span>
       ))}

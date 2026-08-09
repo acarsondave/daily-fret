@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Play, ArrowRight, MusicNotes, CheckCircle, YoutubeLogo } from '@phosphor-icons/react';
+import { ArrowRightIcon, CheckCircleIcon, MusicNoteIcon, PlayIcon } from '../icons';
+import { YoutubeLogo } from '@phosphor-icons/react';
 import { useStore } from '../../store';
 import { YouTubePlayer } from './YouTubePlayer';
 import { sfx } from '../../audio/sfx';
@@ -82,7 +83,7 @@ export function SongPlayer({
   if (!song) {
     return (
       <div className="mic-gate">
-        <MusicNotes size={40} weight="duotone" color="var(--text-secondary)" />
+        <MusicNoteIcon size={40} color="var(--text-secondary)" />
         <p>That song isn't in the catalog.</p>
         <button className="practice-btn primary" onClick={() => onClose?.()}>Done</button>
       </div>
@@ -93,7 +94,7 @@ export function SongPlayer({
     return (
       <div className="om-setup">
         <div className="song-intro-head">
-          <MusicNotes size={22} weight="fill" />
+          <MusicNoteIcon size={22} />
           <div>
             <div className="song-intro-title">{song.title}</div>
             <div className="om-caption">{song.artist}</div>
@@ -106,7 +107,7 @@ export function SongPlayer({
           ))}
         </div>
         <button className="practice-btn primary" onClick={() => { sfx.go(); setPhase('play'); }}>
-          <Play size={20} weight="fill" /> Start play-along
+          <PlayIcon size={20} /> Start play-along
         </button>
       </div>
     );
@@ -139,11 +140,12 @@ export function SongPlayer({
           />
         ) : (
           <div className="song-real-link">
-            <YoutubeLogo size={32} weight="fill" color="#ff5252" />
+            <YoutubeLogo size={32} color="#ff5252" />
             <p className="om-caption">Paste a YouTube link for {song.title} to play along to the real recording.</p>
             <div className="song-real-link-row">
               <input
                 className="task-input"
+                aria-label={`YouTube link for ${song.title}`}
                 placeholder="https://youtu.be/…"
                 value={linkDraft}
                 onChange={(e) => setLinkDraft(e.target.value)}
@@ -167,11 +169,11 @@ export function SongPlayer({
         <div className="song-real-foot">
           {theater && (
             <button className="song-skip" onClick={() => { setLinkDraft(storedLink ?? ''); setEditingLink(true); }}>
-              <YoutubeLogo size={16} weight="fill" /> Change link
+              <YoutubeLogo size={16} /> Change link
             </button>
           )}
           <button className="practice-btn primary" onClick={finish}>
-            Done <ArrowRight size={18} weight="bold" />
+            Done <ArrowRightIcon size={18} />
           </button>
         </div>
       </motion.div>
@@ -180,7 +182,7 @@ export function SongPlayer({
 
   return (
     <motion.div className="om-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-      <CheckCircle size={48} weight="fill" className="coach-summary-check" />
+      <CheckCircleIcon size={48} className="coach-summary-check" />
       <div className="coach-intro-title">{song.title}</div>
       <div className="om-caption">Nice playing.</div>
       {autoAdvance ? (
@@ -194,7 +196,7 @@ export function SongPlayer({
             {onNext ? 'End session' : 'Done'}
           </button>
           <button className="practice-btn primary" onClick={onNext ?? (() => setPhase('play'))} autoFocus>
-            {onNext ? 'Next drill' : 'Play again'} <ArrowRight size={18} weight="bold" />
+            {onNext ? 'Next drill' : 'Play again'} <ArrowRightIcon size={18} />
           </button>
         </div>
       )}

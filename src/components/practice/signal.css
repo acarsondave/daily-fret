@@ -6,7 +6,7 @@
   border-radius: var(--radius-full);
   background: rgba(255, 255, 255, 0.04);
   font-family: var(--font-secondary);
-  font-size: 0.72rem;
+  font-size: var(--text-micro);
   letter-spacing: 0.04em;
   color: var(--text-secondary);
   transition: color 0.25s ease, background 0.25s ease;
@@ -40,11 +40,11 @@
 .signal-meter.is-good { color: var(--success-color); }
 .signal-meter.is-good .signal-bar.is-on { background: var(--success-color); }
 
-.signal-meter.is-weak { color: #fbbf24; }
-.signal-meter.is-weak .signal-bar.is-on { background: #fbbf24; }
+.signal-meter.is-weak { color: var(--warning-color); }
+.signal-meter.is-weak .signal-bar.is-on { background: var(--warning-color); }
 
-.signal-meter.is-loud { color: #fbbf24; }
-.signal-meter.is-loud .signal-bar.is-on { background: #fbbf24; }
+.signal-meter.is-loud { color: var(--warning-color); }
+.signal-meter.is-loud .signal-bar.is-on { background: var(--warning-color); }
 
-.signal-meter.is-silent { color: #f87171; }
-.signal-meter.is-silent .signal-bar.is-on { background: #f87171; }
+.signal-meter.is-silent { color: var(--danger-color); }
+.signal-meter.is-silent .signal-bar.is-on { background: var(--danger-color); }

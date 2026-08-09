@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { X, CheckCircle, Trophy, Megaphone } from '@phosphor-icons/react';
+import {
+  CloseIcon,
+  CheckCircleIcon,
+  TrophyIcon,
+  SpeakerIcon,
+  SpeakerOffIcon,
+  SkipIcon,
+} from '../icons';
 import { useStore, getTodayString, type CoachStepResult } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import { buildSegments } from '../../lib/coached';
@@ -49,10 +56,11 @@ export function CoachedSession({ routine, onClose }: Props) {
   const clearCoachProgress = useStore((s) => s.clearCoachProgress);
 
   const segments = useMemo(() => buildSegments(routine), [routine]);
-  // Only nudge about the mic if this routine actually listens (changes/trainer);
-  // a timed-only routine never opens the mic, so the hint would be misleading.
+  // Only nudge about the mic if this routine actually listens. Songs used to be
+  // in this list, but the play-along has had no mic since the learn pass was
+  // retired, so a song-only routine was asking for a permission it never uses.
   const needsMic = useMemo(
-    () => segments.some((s) => s.kind === 'changes' || s.kind === 'trainer' || s.kind === 'rotation' || s.kind === 'song'),
+    () => segments.some((s) => s.kind === 'changes' || s.kind === 'trainer' || s.kind === 'rotation'),
     [segments],
   );
   const today = getTodayString();
@@ -205,8 +213,17 @@ export function CoachedSession({ routine, onClose }: Props) {
     };
   }, [phase, index, seg, segments]);
 
-  // Rest timer between segments (gym-style). Fully automatic — it counts itself
-  // down and rolls into the next drill, so there's nothing to tap during a rest.
+  // Rest timer between segments (gym-style). It counts itself down and rolls
+  // into the next drill, so a hands-free session needs nothing tapped. Skipping
+  // is there for the days you are already warm: 30 seconds between every segment
+  // is several minutes of a long routine spent watching a number.
+  const skipRest = () => {
+    stopVoice();
+    restLeftRef.current = REST_SECONDS;
+    setRestLeft(REST_SECONDS);
+    setPhase('intro');
+  };
+
   useEffect(() => {
     if (phase !== 'rest') return;
     // A second, encouraging line partway through the rest (stretch reminders etc.).
@@ -232,7 +249,7 @@ export function CoachedSession({ routine, onClose }: Props) {
       <motion.div className="practice-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
         <div className="practice-topbar">
           <span className="practice-eyebrow">Coached</span>
-          <button className="practice-close" onClick={onClose}><X size={20} weight="bold" /></button>
+          <button className="practice-close" onClick={onClose} aria-label="Close"><CloseIcon size={20} /></button>
         </div>
         <div className="practice-body">
           <p className="om-caption">This routine has no drills or timed tasks yet.</p>
@@ -308,6 +325,8 @@ export function CoachedSession({ routine, onClose }: Props) {
             // fights the track.
             autoPlay={phase === 'segment' && seg.kind !== 'song'}
           />
+          {/* The muted state changes the mark, not just its opacity: a dimmed
+              icon is indistinguishable from a disabled one at practice distance. */}
           <button
             className={voiceOn ? 'practice-close' : 'practice-close is-off'}
             onClick={() => {
@@ -316,12 +335,18 @@ export function CoachedSession({ routine, onClose }: Props) {
               setVoiceOn(next);
             }}
             title={voiceOn ? 'Coach voice on' : 'Coach voice off'}
+            aria-label={voiceOn ? 'Turn the coach voice off' : 'Turn the coach voice on'}
             aria-pressed={voiceOn}
           >
-            <Megaphone size={20} weight={voiceOn ? 'fill' : 'regular'} />
+            {voiceOn ? <SpeakerIcon size={20} /> : <SpeakerOffIcon size={20} />}
           </button>
-          <button className="practice-close" onClick={exit} title="Exit (Esc) — your place is saved">
-            <X size={20} weight="bold" />
+          <button
+            className="practice-close"
+            onClick={exit}
+            title="Exit (Esc) — your place is saved"
+            aria-label="Exit the session. Your place is saved."
+          >
+            <CloseIcon size={20} />
           </button>
         </div>
       </div>
@@ -360,6 +385,9 @@ export function CoachedSession({ routine, onClose }: Props) {
             <span className="coach-up-next">Rest</span>
             <div className="coach-countdown">{restLeft}</div>
             <div className="om-caption">Next: {seg.title} · {subLabel}</div>
+            <button className="practice-btn ghost coach-skip-rest" onClick={skipRest}>
+              <SkipIcon size={16} /> Skip the rest
+            </button>
             {needsMic && <MicPermissionHint />}
           </motion.div>
         )}
@@ -453,7 +481,7 @@ export function CoachedSession({ routine, onClose }: Props) {
         {phase === 'summary' && (
           <motion.div className="coach-summary" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <div className="coach-summary-head">
-              <Trophy size={36} weight="fill" className="coach-summary-trophy" />
+              <TrophyIcon size={36} className="coach-summary-trophy" />
               <h2 className="coach-summary-title">Session complete</h2>
               <p className="coach-summary-sub">
                 {routine.name} · {results.length} drill{results.length === 1 ? '' : 's'}
@@ -462,7 +490,7 @@ export function CoachedSession({ routine, onClose }: Props) {
             <div className="coach-summary-list">
               {results.map((r, i) => (
                 <div key={i} className="coach-summary-row">
-                  <CheckCircle size={18} weight="fill" className="coach-summary-check" />
+                  <CheckCircleIcon size={18} className="coach-summary-check" />
                   <span className="coach-summary-name">{r.title}</span>
                   {r.value !== null && (
                     <span className="coach-summary-val">

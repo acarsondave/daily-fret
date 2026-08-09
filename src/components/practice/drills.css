@@ -1,0 +1,390 @@
+/* The three listening drills and the result card they share.
+   One-minute changes, anchor rotation, Chord Perfect. */
+
+/* --- Setup --------------------------------------------------------------- */
+.om-setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-8);
+  width: min(460px, 92vw);
+}
+.om-selects {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+}
+/* Native caret suppressed, so one is drawn back in: without it these read as
+   two static chord names and nothing says they can be changed. The glyph is the
+   set's own CaretDownIcon path at the same 1.75 weight. */
+.om-select {
+  appearance: none;
+  background-color: var(--surface-color);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A1A1AA' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6.5 9.5 12 15l5.5-5.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-3) center;
+  background-size: 18px 18px;
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-8) var(--space-3) var(--space-5);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-lg);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--dur-base) ease, background-color var(--dur-base) ease;
+}
+
+.om-select:hover {
+  border-color: var(--border-default);
+  background-color: var(--surface-hover);
+}
+.om-arrow {
+  color: var(--text-secondary);
+}
+
+/* --- Live readout: one-minute changes ------------------------------------- */
+.om-pair {
+  font-size: var(--text-sm);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.om-pair .target {
+  color: var(--accent-primary);
+}
+
+/* The two target chords shown large, with the one currently cued lit and
+   lifted, so a lit name always reads as "play this now". */
+.om-pair-live {
+  font-family: var(--font-primary);
+  font-size: clamp(2.5rem, 11vw, 4rem);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  text-transform: none;
+  color: var(--text-secondary);
+  gap: var(--space-6);
+  line-height: 1;
+}
+.om-pair-live span {
+  display: inline-block;
+  color: var(--text-muted);
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+.om-pair-live span.is-live {
+  color: var(--accent-primary);
+  transform: scale(1.12);
+}
+.om-pair-live .om-pair-arrow {
+  color: var(--text-secondary);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.om-count {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: clamp(5rem, 20vw, 10rem);
+  line-height: 1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.om-count.pop {
+  animation: om-pop 0.3s ease;
+}
+@keyframes om-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); color: var(--accent-primary); }
+  100% { transform: scale(1); }
+}
+
+/* --- Live readout: anchor rotation ---------------------------------------- */
+/* The ordered ring with the chord to play next lit. Base size is the setup and
+   results view; `rot-ring-live` is the in-drill cue. */
+.rot-ring {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  font-family: var(--font-primary);
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.rot-chord {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.rot-chord.target {
+  color: var(--accent-primary);
+}
+.rot-sep {
+  color: var(--text-secondary);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+.rot-ring-live {
+  font-size: clamp(2rem, 9vw, 3.4rem);
+  letter-spacing: var(--tracking-tight);
+  line-height: 1;
+  gap: var(--space-4);
+}
+.rot-ring-live .rot-chord {
+  color: var(--text-muted);
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+.rot-ring-live .rot-chord.is-live {
+  color: var(--accent-primary);
+  transform: scale(1.1);
+}
+
+/* --- Shared drill furniture ----------------------------------------------- */
+.om-caption {
+  font-size: var(--text-sm);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.om-timer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-primary);
+  font-size: var(--text-xl);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.om-results {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  width: min(420px, 92vw);
+}
+.om-saved-hint {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.om-actions {
+  display: flex;
+  gap: var(--space-4);
+  width: 100%;
+}
+.om-actions .practice-btn {
+  flex: 1;
+}
+
+/* --- Chord Perfect -------------------------------------------------------- */
+.ct-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  max-width: min(420px, 92vw);
+}
+.ct-chip {
+  min-width: 52px;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-md);
+  transition: transform var(--dur-fast) ease, background var(--dur-base) ease,
+    color var(--dur-base) ease, border-color var(--dur-base) ease;
+}
+.ct-chip:active { transform: scale(0.95); }
+.ct-chip.is-on {
+  background: var(--accent-glow);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: var(--accent-primary);
+}
+
+.practice-hero.ct-target.is-hit {
+  transform: translateZ(0) scale(1.08);
+  color: var(--success-color);
+}
+
+.ct-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+.ct-score {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The pool as blocks: which shape is up, which are done and what they scored.
+   The whole point of the drill is one shape at a time, so the sequence has to
+   read at a glance without pulling focus from the chord itself. */
+.ct-blocks {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.ct-block {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  letter-spacing: 0.04em;
+  /* Three states told by colour, not by fading text out of legibility:
+     upcoming is muted, the current one is accented, finished ones are full. */
+  color: var(--text-muted);
+  transition: color var(--dur-base) ease, border-color var(--dur-base) ease,
+    background var(--dur-base) ease;
+}
+.ct-block.is-now {
+  color: var(--accent-primary);
+  border-color: rgba(56, 189, 248, 0.45);
+  background: var(--accent-glow);
+}
+.ct-block.is-done {
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+.ct-block b {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: var(--success-color);
+}
+
+/* Results: per shape, since the total hides the one that needs the work. */
+.ct-breakdown {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  justify-content: center;
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.ct-breakdown-item b {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: var(--text-md);
+  color: var(--text-primary);
+  margin-right: 2px;
+}
+
+/* --- Personal best + results card ----------------------------------------- */
+.om-best-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--warning-glow);
+  border: 1px solid rgba(251, 191, 36, 0.22);
+  color: var(--warning-color);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.om-best-spark {
+  color: var(--warning-color);
+  opacity: 0.9;
+}
+
+.om-ring {
+  color: var(--accent-primary);
+}
+.om-ring.is-pr {
+  color: var(--warning-color);
+}
+.om-ring-value {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: clamp(3.5rem, 14vw, 5rem);
+  line-height: 1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.om-context {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-secondary);
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+.om-context.is-pr {
+  color: var(--warning-color);
+  font-weight: 600;
+}
+
+.om-result-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+.om-result-spark {
+  color: var(--accent-primary);
+}
+
+/* Results: PR celebration sparkles */
+.om-sparkles {
+  position: absolute;
+  top: 110px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.om-sparkle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--warning-color);
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.7);
+}
+
+@media (max-width: 600px) {
+  .om-selects {
+    gap: var(--space-2);
+  }
+  .om-select {
+    font-size: var(--text-md);
+    padding: var(--space-2) var(--space-4);
+  }
+  .ct-stats {
+    gap: var(--space-4);
+  }
+}
+
+/* Touch. On a coarse pointer every one of these is hit with a thumb while the
+   other hand is holding a guitar, so they get the full 44px target. Sizes are
+   raised only under this query, which keeps the mouse UI at its intended
+   density instead of inflating the whole interface for one input type. */
+@media (pointer: coarse) {
+  .ct-chip {
+    min-height: 44px;
+  }
+}

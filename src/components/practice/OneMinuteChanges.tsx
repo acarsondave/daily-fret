@@ -1,14 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  Play,
-  ArrowsLeftRight,
-  Hourglass,
-  ArrowRight,
-  Microphone,
-  ArrowClockwise,
-  Trophy,
-} from '@phosphor-icons/react';
+import { ArrowRightIcon, HourglassIcon, MicIcon, PlayIcon, RetryIcon, SwapIcon, TrophyIcon } from '../icons';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { ProgressRing } from './ProgressRing';
@@ -239,7 +231,7 @@ export function OneMinuteChanges({
       <div className="om-setup">
         {pairBest > 0 && (
           <div className="om-best-badge">
-            <Trophy size={16} weight="fill" />
+            <TrophyIcon size={16} />
             <span>Best {pairBest}</span>
             {pairSeries.length >= 2 && (
               <Sparkline values={pairSeries} className="om-best-spark" />
@@ -249,6 +241,7 @@ export function OneMinuteChanges({
         <div className="om-selects">
           <select
             className="om-select"
+            aria-label="Change from"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
           >
@@ -258,9 +251,10 @@ export function OneMinuteChanges({
               </option>
             ))}
           </select>
-          <ArrowsLeftRight className="om-arrow" size={28} />
+          <SwapIcon className="om-arrow" size={28} />
           <select
             className="om-select"
+            aria-label="Change to"
             value={to}
             onChange={(e) => setTo(e.target.value)}
           >
@@ -276,7 +270,7 @@ export function OneMinuteChanges({
           onClick={startSession}
           disabled={from === to}
         >
-          <Play size={20} weight="fill" /> Start {duration}s
+          <PlayIcon size={20} /> Start {duration}s
         </button>
         {from === to && <p className="om-caption">Pick two different chords</p>}
       </div>
@@ -287,10 +281,10 @@ export function OneMinuteChanges({
     if (status === 'error') {
       return (
         <div className="mic-gate">
-          <Microphone size={40} weight="duotone" color="var(--text-secondary)" />
+          <MicIcon size={40} color="var(--text-secondary)" />
           <p>{error ?? 'Microphone unavailable.'}</p>
           <button className="practice-btn primary" onClick={startSession}>
-            <ArrowClockwise size={18} weight="bold" /> Try again
+            <RetryIcon size={18} /> Try again
           </button>
         </div>
       );
@@ -298,7 +292,7 @@ export function OneMinuteChanges({
     if (status !== 'running') {
       return (
         <div className="mic-gate">
-          <Microphone size={40} weight="duotone" color="var(--accent-primary)" />
+          <MicIcon size={40} color="var(--accent-primary)" />
           <p>Allow microphone access to begin…</p>
         </div>
       );
@@ -309,7 +303,7 @@ export function OneMinuteChanges({
             name always reads as "play this now" (drives the change + retention). */}
         <div className="om-pair om-pair-live">
           <span className={nextCue === from ? 'is-live' : ''}>{from}</span>
-          <ArrowsLeftRight size={22} className="om-pair-arrow" />
+          <SwapIcon size={22} className="om-pair-arrow" />
           <span className={nextCue === to ? 'is-live' : ''}>{to}</span>
         </div>
         <div ref={countRef} className="om-count">
@@ -317,7 +311,7 @@ export function OneMinuteChanges({
         </div>
         <div className="om-caption">transitions</div>
         <div className="om-timer">
-          <Hourglass size={26} /> {timeLeft}
+          <HourglassIcon size={26} /> {timeLeft}
         </div>
         <SignalMeter quality={signal} />
       </>
@@ -373,14 +367,14 @@ export function OneMinuteChanges({
       </ProgressRing>
 
       <div className={celebrate ? 'om-context is-pr' : 'om-context'}>
-        {celebrate && <Trophy size={16} weight="fill" />}
+        {celebrate && <TrophyIcon size={16} />}
         <span>{context}</span>
       </div>
 
       <div className="om-result-meta">
         <div className="om-pair">
           <span className="target">{from}</span>
-          <ArrowsLeftRight size={14} />
+          <SwapIcon size={14} />
           <span className="target">{to}</span>
         </div>
       </div>
@@ -402,7 +396,7 @@ export function OneMinuteChanges({
             onClick={onNext ?? (() => setView('setup'))}
             autoFocus
           >
-            {onNext ? 'Next drill' : 'Next'} <ArrowRight size={18} weight="bold" />
+            {onNext ? 'Next drill' : 'Next'} <ArrowRightIcon size={18} />
           </button>
         </div>
       )}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { X } from '@phosphor-icons/react';
+import { CloseIcon } from '../icons';
 import { useStore, getTodayString } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import { taskDrillHistory } from '../../lib/drillStats';
@@ -114,8 +114,8 @@ export function PracticeOverlay({ task, onClose }: Props) {
             planKey={tempoKey}
             autoPlay={drillLive && drill.kind !== 'song'}
           />
-          <button className="practice-close" onClick={onClose} title="Exit (Esc)">
-            <X size={20} weight="bold" />
+          <button className="practice-close" onClick={onClose} title="Exit (Esc)" aria-label="Exit this drill">
+            <CloseIcon size={20} />
           </button>
         </div>
       </div>

@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  Play,
-  Hourglass,
-  ArrowRight,
-  Microphone,
-  ArrowClockwise,
-  Trophy,
-} from '@phosphor-icons/react';
+import { ArrowRightIcon, HourglassIcon, MicIcon, PlayIcon, RetryIcon, TrophyIcon } from '../icons';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { usePassiveRefine } from '../../hooks/usePassiveRefine';
@@ -300,7 +293,7 @@ export function ChordTrainer({
       <div className="om-setup">
         {runningBest > 0 && (
           <div className="om-best-badge">
-            <Trophy size={16} weight="fill" />
+            <TrophyIcon size={16} />
             <span>Best {runningBest}</span>
             {runningSeries.length >= 2 && (
               <Sparkline values={runningSeries} className="om-best-spark" />
@@ -325,7 +318,7 @@ export function ChordTrainer({
           onClick={startSession}
           disabled={pool.length < 2}
         >
-          <Play size={20} weight="fill" /> Start {pool.length * perChord}s
+          <PlayIcon size={20} /> Start {pool.length * perChord}s
         </button>
         {pool.length < 2 && <p className="om-caption">Pick at least two shapes</p>}
       </div>
@@ -336,10 +329,10 @@ export function ChordTrainer({
     if (status === 'error') {
       return (
         <div className="mic-gate">
-          <Microphone size={40} weight="duotone" color="var(--text-secondary)" />
+          <MicIcon size={40} color="var(--text-secondary)" />
           <p>{error ?? 'Microphone unavailable.'}</p>
           <button className="practice-btn primary" onClick={startSession}>
-            <ArrowClockwise size={18} weight="bold" /> Try again
+            <RetryIcon size={18} /> Try again
           </button>
         </div>
       );
@@ -347,7 +340,7 @@ export function ChordTrainer({
     if (status !== 'running') {
       return (
         <div className="mic-gate">
-          <Microphone size={40} weight="duotone" color="var(--accent-primary)" />
+          <MicIcon size={40} color="var(--accent-primary)" />
           <p>Allow microphone access to begin…</p>
         </div>
       );
@@ -374,7 +367,7 @@ export function ChordTrainer({
         <div className="ct-stats">
           <span className="ct-score">{reps} placed</span>
           <span className="om-timer">
-            <Hourglass size={22} /> {timeLeft}
+            <HourglassIcon size={22} /> {timeLeft}
           </span>
         </div>
         <SignalMeter quality={signal} />
@@ -409,7 +402,7 @@ export function ChordTrainer({
       </ProgressRing>
 
       <div className={celebrate ? 'om-context is-pr' : 'om-context'}>
-        {celebrate && <Trophy size={16} weight="fill" />}
+        {celebrate && <TrophyIcon size={16} />}
         <span>{context}</span>
       </div>
 
@@ -443,7 +436,7 @@ export function ChordTrainer({
             onClick={onNext ?? (() => setView('setup'))}
             autoFocus
           >
-            {onNext ? 'Next drill' : 'Next'} <ArrowRight size={18} weight="bold" />
+            {onNext ? 'Next drill' : 'Next'} <ArrowRightIcon size={18} />
           </button>
         </div>
       )}

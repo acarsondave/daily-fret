@@ -1,0 +1,188 @@
+/* Coached session: the announce / count-in / rest / summary furniture that sits
+   between drills, plus the plain timed block. */
+
+.coach-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: center;
+  width: min(420px, 92vw);
+}
+.coach-intro .om-actions {
+  margin-top: var(--space-2);
+}
+.coach-up-next {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-primary);
+}
+.coach-intro-title {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: clamp(2rem, 7vw, 3rem);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+  text-wrap: balance;
+}
+.coach-countdown {
+  margin-top: var(--space-4);
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: clamp(4rem, 16vw, 7rem);
+  line-height: 1;
+  color: var(--accent-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Shown while the coach is announcing the drill (in place of a number). */
+.coach-countdown-ready {
+  margin-top: var(--space-4);
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: clamp(1.6rem, 6vw, 2.4rem);
+  line-height: 1.1;
+  color: var(--accent-primary);
+  opacity: 0.85;
+}
+
+/* A rest is automatic, but 30 seconds between every segment is minutes of a
+   long routine spent waiting, so there is a way past it on the days you are
+   already warm. Quiet by design: it must not read as the expected action. */
+.coach-skip-rest {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border-default);
+}
+.coach-skip-rest:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Hands-free auto-advance countdown shown on coached results / finished blocks */
+.coach-advance {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+.coach-advance-label {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.coach-advance-count {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: 2.4rem;
+  line-height: 1;
+  color: var(--accent-primary);
+  font-variant-numeric: tabular-nums;
+  animation: coach-advance-pulse 1s ease-in-out infinite;
+}
+@keyframes coach-advance-pulse {
+  0%, 100% { opacity: 0.65; transform: scale(0.96); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+/* --- Timed block ---------------------------------------------------------- */
+.timed-desc {
+  max-width: min(60ch, 90vw);
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  line-height: 1.6;
+}
+
+
+/* --- Summary -------------------------------------------------------------- */
+.coach-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  width: min(440px, 92vw);
+  max-height: 100%;
+  min-height: 0;
+}
+.coach-summary-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+.coach-summary-trophy {
+  color: var(--warning-color);
+}
+.coach-summary-title {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: var(--text-xl);
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+.coach-summary-sub {
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.coach-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Soft fade at the edges so a long, scrolling list reads as "more below"
+     instead of a hard cut. */
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+  padding: 2px 0;
+}
+.coach-summary-done {
+  flex: 0 0 auto;
+}
+.coach-summary-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+}
+.coach-summary-check {
+  color: var(--success-color);
+  flex-shrink: 0;
+}
+.coach-summary-name {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-family: var(--font-primary);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.coach-summary-val {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.coach-summary-unit {
+  font-size: var(--text-micro);
+  font-weight: 600;
+  color: var(--text-secondary);
+}

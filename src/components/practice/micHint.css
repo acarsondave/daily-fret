@@ -1,32 +1,37 @@
+/* Microphone permission tip. Previously the one component still using raw pixel
+   values and a --accent-color token that has never existed, so its icon fell
+   back to a #7c9cff purple in an app whose accent is #38BDF8. */
+
 .mic-hint {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: var(--space-3);
   max-width: 460px;
-  margin: 18px auto 0;
-  padding: 12px 14px;
-  border-radius: 14px;
+  margin: var(--space-5) auto 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-default);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   text-align: left;
 }
 
 .mic-hint-icon {
   flex: 0 0 auto;
-  margin-top: 1px;
-  color: var(--accent-color, #7c9cff);
+  margin-top: 2px;
+  color: var(--accent-primary);
 }
 
 .mic-hint-text {
   flex: 1 1 auto;
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--text-secondary);
 }
 
 .mic-hint-text strong {
-  color: var(--text-primary, #fff);
+  color: var(--text-primary);
   font-weight: 600;
 }
 
@@ -35,17 +40,27 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border: none;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   background: transparent;
-  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  color: var(--text-secondary);
+  transition: background var(--dur-base) ease, color var(--dur-base) ease;
 }
 
 .mic-hint-close:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary, #fff);
+  color: var(--text-primary);
+}
+
+/* Touch. On a coarse pointer every one of these is hit with a thumb while the
+   other hand is holding a guitar, so they get the full 44px target. Sizes are
+   raised only under this query, which keeps the mouse UI at its intended
+   density instead of inflating the whole interface for one input type. */
+@media (pointer: coarse) {
+  .mic-hint-close {
+    width: 44px;
+    height: 44px;
+  }
 }

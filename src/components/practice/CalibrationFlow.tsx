@@ -1,15 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import {
-  X,
-  Waveform,
-  Microphone,
-  ArrowClockwise,
-  SkipForward,
-  CheckCircle,
-  ArrowRight,
-} from '@phosphor-icons/react';
+import { ArrowRightIcon, CheckCircleIcon, CloseIcon, MicIcon, PlectrumIcon, RetryIcon, SkipIcon } from '../icons';
 import { useChordDetector } from '../../hooks/useChordDetector';
 import type { LevelEvent } from '../../audio/detector';
 import { matchChordAmong } from '../../audio/chords';
@@ -195,7 +187,7 @@ export function CalibrationFlow({ onClose }: Props) {
     if (phase === 'intro') {
       return (
         <motion.div className="om-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-          <Waveform size={48} weight="duotone" className="coach-summary-check" />
+          <PlectrumIcon size={48} className="coach-summary-check" />
           <div className="coach-intro-title">Tune the detector to your guitar</div>
           <div className="om-caption om-cal-blurb">
             Play each chord when it appears and hold it steady. This teaches the
@@ -203,7 +195,7 @@ export function CalibrationFlow({ onClose }: Props) {
             stop getting missed.
           </div>
           <button className="practice-btn primary" onClick={() => void begin()} autoFocus>
-            <Waveform size={20} weight="fill" /> Start calibration
+            <PlectrumIcon size={20} /> Start calibration
           </button>
         </motion.div>
       );
@@ -213,10 +205,10 @@ export function CalibrationFlow({ onClose }: Props) {
       if (status === 'error') {
         return (
           <div className="mic-gate">
-            <Microphone size={40} weight="duotone" color="var(--text-secondary)" />
+            <MicIcon size={40} color="var(--text-secondary)" />
             <p>{error ?? 'Microphone unavailable.'}</p>
             <button className="practice-btn primary" onClick={() => void begin()}>
-              <ArrowClockwise size={18} weight="bold" /> Try again
+              <RetryIcon size={18} /> Try again
             </button>
           </div>
         );
@@ -224,7 +216,7 @@ export function CalibrationFlow({ onClose }: Props) {
       if (status !== 'running') {
         return (
           <div className="mic-gate">
-            <Microphone size={40} weight="duotone" color="var(--accent-primary)" />
+            <MicIcon size={40} color="var(--accent-primary)" />
             <p>Allow microphone access to begin…</p>
           </div>
         );
@@ -242,7 +234,7 @@ export function CalibrationFlow({ onClose }: Props) {
           </div>
           <SignalMeter quality={signal} />
           <button className="practice-btn ghost" onClick={advance}>
-            <SkipForward size={18} weight="fill" /> Skip this chord
+            <SkipIcon size={18} /> Skip this chord
           </button>
         </motion.div>
       );
@@ -252,9 +244,8 @@ export function CalibrationFlow({ onClose }: Props) {
     const ok = !!saved && saved.chords >= 2;
     return (
       <motion.div className="om-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-        <CheckCircle
+        <CheckCircleIcon
           size={48}
-          weight="duotone"
           className="coach-summary-check"
           color={ok ? 'var(--accent-primary)' : 'var(--text-secondary)'}
         />
@@ -273,15 +264,15 @@ export function CalibrationFlow({ onClose }: Props) {
         </div>
         <div className="om-actions">
           <button className="practice-btn ghost" onClick={redo}>
-            <ArrowClockwise size={18} weight="bold" /> Redo
+            <RetryIcon size={18} /> Redo
           </button>
           {ok ? (
             <button className="practice-btn primary" onClick={onClose} autoFocus>
-              Done <ArrowRight size={18} weight="bold" />
+              Done <ArrowRightIcon size={18} />
             </button>
           ) : (
             <button className="practice-btn primary" onClick={() => void begin()} autoFocus>
-              <Waveform size={18} weight="fill" /> Try again
+              <PlectrumIcon size={18} /> Try again
             </button>
           )}
         </div>
@@ -304,8 +295,8 @@ export function CalibrationFlow({ onClose }: Props) {
     >
       <div className="practice-topbar">
         <span className="practice-eyebrow">Detector calibration</span>
-        <button className="practice-close" onClick={onClose} title="Exit (Esc)">
-          <X size={20} weight="bold" />
+        <button className="practice-close" onClick={onClose} title="Exit (Esc)" aria-label="Exit calibration">
+          <CloseIcon size={20} />
         </button>
       </div>
       <div className="practice-body">{body()}</div>

@@ -1,0 +1,232 @@
+/* The shared tempo control: its trigger in the practice top bar and the panel
+   that opens beneath it. */
+
+.metro {
+  position: relative;
+}
+
+/* Running, the trigger glows and carries the tempo, so a click that is going
+   reads at a glance with the panel shut. */
+.metro-trigger.is-live {
+  color: var(--accent-primary);
+  background: rgba(56, 189, 248, 0.14);
+  width: auto;
+  min-width: 40px;
+  gap: 6px;
+  padding: 0 var(--space-3);
+}
+
+.metro-trigger-bpm {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+/* Scheduled but never freed by the browser. This has to read as a warning
+   rather than as a running click: the control must never claim a tempo the
+   player cannot hear. */
+.metro-trigger.is-live.is-silent {
+  color: var(--warning-color);
+  background: var(--warning-glow);
+}
+.metro-trigger.is-silent .metro-trigger-bpm {
+  text-transform: uppercase;
+  font-size: 0.62rem;
+  letter-spacing: 0.09em;
+}
+
+.metro-panel {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: 10;
+  width: 260px;
+  max-width: calc(100vw - var(--space-8));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--surface-color);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-raised);
+}
+
+.metro-readout {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.metro-pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.16);
+  align-self: center;
+  flex-shrink: 0;
+}
+.metro-pulse.is-beat {
+  animation: metro-flash 0.5s ease-out;
+}
+@keyframes metro-flash {
+  0% { background: var(--accent-primary); transform: scale(1.5); }
+  100% { background: rgba(255, 255, 255, 0.16); transform: scale(1); }
+}
+.metro-bpm {
+  font-family: var(--font-secondary);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.metro-unit {
+  font-size: var(--text-micro);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* Why this tempo. A number the player cannot interrogate is just a number. */
+.metro-reason {
+  margin: calc(var(--space-3) * -1) 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.metro-silent {
+  margin: calc(var(--space-3) * -1) 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--warning-color);
+  text-align: left;
+}
+
+.metro-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.metro-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  transition: color var(--dur-base) ease, background var(--dur-base) ease;
+}
+.metro-step:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+}
+.metro-slider {
+  flex: 1;
+  min-width: 0;
+  height: 4px;
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+}
+.metro-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+  border: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+.metro-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+}
+
+.metro-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.metro-tap {
+  flex-shrink: 0;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  transition: color var(--dur-base) ease, background var(--dur-base) ease;
+}
+.metro-tap:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+}
+.metro-tap:active {
+  color: var(--accent-primary);
+}
+.metro-play {
+  flex: 1;
+  gap: var(--space-2);
+  padding-inline: var(--space-4);
+}
+
+.metro-auto {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--dur-base) ease;
+}
+.metro-auto:hover {
+  color: var(--text-primary);
+}
+.metro-auto input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+
+/* Touch. On a coarse pointer every one of these is hit with a thumb while the
+   other hand is holding a guitar, so they get the full 44px target. Sizes are
+   raised only under this query, which keeps the mouse UI at its intended
+   density instead of inflating the whole interface for one input type. */
+@media (pointer: coarse) {
+  .metro-step {
+    width: 44px;
+    height: 44px;
+  }
+  .metro-tap,
+  .metro-play {
+    min-height: 44px;
+  }
+  /* A thumb needs something to actually grab. */
+  .metro-slider {
+    height: 6px;
+  }
+  .metro-slider::-webkit-slider-thumb {
+    width: 24px;
+    height: 24px;
+  }
+  .metro-slider::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+  }
+}
