@@ -326,9 +326,13 @@ export function byModule(
   lessonCodes: readonly string[],
 ): ModuleStanding[] {
   const modules = new Map<number, SkillStanding[]>();
+  // A Set, not the array: this runs on every Journey render against a course
+  // with several hundred lesson codes, and a scan per skill per lesson turns a
+  // lookup into a nested loop for no reason.
+  const inCourse = new Set(lessonCodes);
   for (const standing of standings) {
     for (const code of standing.skill.lessons) {
-      if (!lessonCodes.includes(code)) continue;
+      if (!inCourse.has(code)) continue;
       const number = Number(code.split('-')[1]?.[0]);
       if (!Number.isFinite(number)) continue;
       const list = modules.get(number) ?? [];

@@ -37,24 +37,65 @@ const LABEL_FORMAT: Intl.DateTimeFormatOptions = {
   month: 'long',
 };
 
-/** A drill key as something a person would recognise. */
-export function labelForKey(key: string, routines: readonly Routine[]): { label: string; unit: string } {
-  const pair = parsePairKey(key);
-  if (pair) return { label: `${pair.from} to ${pair.to}`, unit: DRILL_UNIT['one-minute-changes'] };
+interface Labelled {
+  label: string;
+  unit: string;
+}
+
+// A result whose task has since been deleted. Saying so is better than dropping
+// the row: the practice happened, and a history that quietly loses days when a
+// routine is edited is not a history.
+const REMOVED: Labelled = { label: 'A drill since removed', unit: '' };
+
+/**
+ * A labeller with the routines' tasks indexed once.
+ *
+ * Built up front rather than scanned per result: a five-year history holds
+ * thousands of results, and looking each one up by walking every task of every
+ * routine turned reading the history into a nested loop over data that never
+ * changes inside the call.
+ */
+function makeLabeller(routines: readonly Routine[]): (key: string) => Labelled {
+  const byTaskId = new Map<string, Labelled>();
   for (const routine of routines) {
-    const task = routine.tasks.find((t) => t.id === key);
-    if (task) {
-      return {
+    for (const task of routine.tasks) {
+      if (byTaskId.has(task.id)) continue;
+      byTaskId.set(task.id, {
         label: task.title,
         unit: task.drill ? DRILL_UNIT[task.drill.kind] : '',
-      };
+      });
     }
   }
-  // A result whose task has since been deleted. Saying so is better than
-  // dropping the row: the practice happened, and a history that quietly loses
-  // days when a routine is edited is not a history.
-  return { label: 'A drill since removed', unit: '' };
+  const pairs = new Map<string, Labelled>();
+  return (key) => {
+    const known = byTaskId.get(key);
+    if (known) return known;
+    const cached = pairs.get(key);
+    if (cached) return cached;
+    const pair = parsePairKey(key);
+    if (!pair) return REMOVED;
+    const labelled = {
+      label: `${pair.from} to ${pair.to}`,
+      unit: DRILL_UNIT['one-minute-changes'],
+    };
+    pairs.set(key, labelled);
+    return labelled;
+  };
 }
+
+/** A drill key as something a person would recognise. */
+export function labelForKey(key: string, routines: readonly Routine[]): Labelled {
+  return makeLabeller(routines)(key);
+}
+
+// One formatter, reused. `toLocaleDateString` builds an Intl formatter on every
+// call, and at one call per practised day that was the single most expensive
+// thing about opening the history.
+let dateFormatter: Intl.DateTimeFormat | null = null;
+const formatDate = (date: string): string => {
+  dateFormatter ??= new Intl.DateTimeFormat(undefined, LABEL_FORMAT);
+  return dateFormatter.format(new Date(`${date}T12:00:00`));
+};
 
 /**
  * The practice history, newest first.
@@ -69,16 +110,18 @@ export function buildHistory(
   const dates = Object.keys(dailyLogs).sort();
   const best = new Map<string, number>();
   const days: HistoryDay[] = [];
+  const labelFor = makeLabeller(routines);
+  const routineById = new Map(routines.map((r) => [r.id, r] as const));
 
   for (const date of dates) {
     const log = dailyLogs[date];
     if (!log) continue;
-    const routine = routines.find((r) => r.id === log.routineId) ?? null;
+    const routine = routineById.get(log.routineId) ?? null;
     const results: HistoryResult[] = [];
 
     for (const [key, value] of Object.entries(log.drillResults ?? {})) {
       if (!Number.isFinite(value) || value <= 0) continue;
-      const { label, unit } = labelForKey(key, routines);
+      const { label, unit } = labelFor(key);
       const previousBest = best.get(key) ?? null;
       const isBest = previousBest !== null && value > previousBest;
       results.push({ key, label, value, unit, previousBest, isBest });
@@ -95,7 +138,7 @@ export function buildHistory(
 
     days.push({
       date,
-      label: new Date(`${date}T12:00:00`).toLocaleDateString(undefined, LABEL_FORMAT),
+      label: formatDate(date),
       routineName: routine?.name ?? null,
       completed,
       planned: routine?.tasks.length ?? null,
