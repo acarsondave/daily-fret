@@ -64,7 +64,14 @@
   let done = 0, failed = 0, streak = 0;
   for (const slug of todo) {
     try {
-      const res = await fetch(`/guitar-lessons/${slug}`, { credentials: 'include' });
+      // Ask for HTML explicitly. fetch() defaults to `Accept: */*`, and Rails
+      // answers that with 406 Not Acceptable — it is content negotiation, not a
+      // block. A normal navigation sends this same header; we just have to say
+      // out loud what kind of thing we are asking for.
+      const res = await fetch(`/guitar-lessons/${slug}`, {
+        credentials: 'include',
+        headers: { Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = parse(await res.text());
       if (!data?.title || data.text.length < 100) throw new Error('not a lesson page');
@@ -75,7 +82,13 @@
       console.warn(`  ${slug}: ${e.message}`);
       // Something changed, or we are being asked to slow down. Either way,
       // stop rather than keep pushing.
-      if (streak >= 8) { console.error('Eight failures in a row — stopping.'); break; }
+      if (streak >= 8) {
+        console.error('Eight failures in a row — stopping.');
+        if (/HTTP 40[36]/.test(e.message)) {
+          console.error('All 403/406: the request is being refused outright. Reload the page and paste again.');
+        }
+        break;
+      }
     }
     if ((done + failed) % 25 === 0) { save(); console.log(`  ${done + failed}/${todo.length} (${failed} failed)`); }
     await new Promise((r) => setTimeout(r, DELAY));
