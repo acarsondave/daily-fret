@@ -6,6 +6,7 @@ import { Modal } from './Modal';
 import { Loader } from './Loader';
 import { TaskCreatorModal } from './TaskCreatorModal';
 import { UndoStrip } from './UndoStrip';
+import { Onboarding } from './Onboarding';
 import { useUndoStore, type TaskDeletion } from '../store/undo';
 import { RoutineManagerModal } from './RoutineManagerModal';
 import { ProgressPanel } from './practice/ProgressPanel';
@@ -68,6 +69,7 @@ export function DailyPath() {
   const [practiceTask, setPracticeTask] = useState<Task | null>(null);
   const [prevAllCompleted, setPrevAllCompleted] = useState(false);
   const [limitNotice, setLimitNotice] = useState(false);
+  const [onboardingSkipped, setOnboardingSkipped] = useState(false);
 
   const drillStats = useDrillStats();
   // Deleted tasks wait here in the list, in the gap they left, until the offer
@@ -237,6 +239,12 @@ export function DailyPath() {
     setLimitNotice(false);
     setInlineDraft({ title: '', description: '', duration: '' });
   };
+
+  // First run: no routine and never asked where they are. Dismissing it drops
+  // through to the same blank slate as before, so nobody is trapped in a wizard.
+  if (!activeRoutine && !onboardingSkipped) {
+    return <Onboarding onDone={() => setOnboardingSkipped(true)} />;
+  }
 
   if (!activeRoutine) {
     return (

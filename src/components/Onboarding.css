@@ -1,0 +1,308 @@
+/* First run. Full-bleed rather than a modal: this is the only thing happening,
+   and a dialog floating over an empty list would be pretending otherwise. */
+
+.onboarding {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  padding-top: max(var(--space-6), env(safe-area-inset-top));
+  padding-bottom: max(var(--space-6), env(safe-area-inset-bottom));
+  background: var(--bg-color);
+  overflow-y: auto;
+}
+
+.onboarding-panel {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.onboarding-steps {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.onboarding-dot {
+  width: 24px;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.12);
+  transition: background var(--dur-base) ease;
+}
+.onboarding-dot.is-on {
+  background: var(--accent-primary);
+}
+
+.onboarding-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.onboarding-title {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: clamp(1.75rem, 6vw, 2.5rem);
+  line-height: 1.1;
+  letter-spacing: var(--tracking-display);
+  color: var(--text-primary);
+}
+
+.onboarding-lead {
+  max-width: 46ch;
+  font-size: var(--text-md);
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+/* --- Course --------------------------------------------------------------- */
+
+.onboarding-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.onboarding-choice {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 60px;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+  text-align: left;
+  transition: background var(--dur-base) ease, border-color var(--dur-base) ease;
+}
+.onboarding-choice:hover,
+.onboarding-choice.is-on {
+  background: var(--accent-glow);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.onboarding-choice-name {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-md);
+  color: var(--text-primary);
+}
+
+.onboarding-choice-note {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* --- Modules -------------------------------------------------------------- */
+
+.onboarding-modules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.onboarding-module {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 52px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  text-align: left;
+  transition: background var(--dur-base) ease;
+}
+.onboarding-module:hover,
+.onboarding-module.is-on {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.onboarding-module-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.06);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  color: var(--text-secondary);
+}
+
+.onboarding-module-name {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+/* --- Chords --------------------------------------------------------------- */
+
+.onboarding-chords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.onboarding-chord {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+  transition: background var(--dur-base) ease, border-color var(--dur-base) ease;
+}
+.onboarding-chord .cd-dot {
+  fill: var(--text-muted);
+  transition: fill var(--dur-base) ease;
+}
+.onboarding-chord .cd-barre {
+  stroke: var(--text-muted);
+}
+.onboarding-chord.is-on {
+  background: var(--success-glow);
+  border-color: rgba(52, 211, 153, 0.4);
+}
+.onboarding-chord.is-on .cd-dot {
+  fill: var(--success-color);
+}
+.onboarding-chord.is-on .cd-barre {
+  stroke: var(--success-color);
+}
+
+.onboarding-chord-name {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+.onboarding-chord.is-on .onboarding-chord-name {
+  color: var(--success-color);
+}
+
+/* Marks the shapes this module is about to teach, so leaving them unticked
+   reads as expected rather than as a gap.
+   Inside the card, not floating above it: overhanging the top edge put the tag
+   in the row above and it read as labelling the wrong chord. */
+.onboarding-chord-tag {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+  font-family: var(--font-secondary);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* --- Preview -------------------------------------------------------------- */
+
+.onboarding-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: onboarding-step;
+}
+
+.onboarding-preview-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.onboarding-preview-name {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.onboarding-preview-note {
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+/* --- Controls ------------------------------------------------------------- */
+
+.onboarding-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.onboarding-back,
+.onboarding-skip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  transition: color var(--dur-base) ease;
+}
+.onboarding-back:hover,
+.onboarding-skip:hover {
+  color: var(--text-primary);
+}
+
+.onboarding-next {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(56, 189, 248, 0.32);
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-md);
+  transition: background var(--dur-base) ease;
+}
+.onboarding-next:hover {
+  background: rgba(56, 189, 248, 0.26);
+}
+.onboarding-next.is-primary {
+  border-color: rgba(52, 211, 153, 0.36);
+  background: var(--success-glow);
+  color: var(--success-color);
+}
+.onboarding-next.is-primary:hover {
+  background: rgba(52, 211, 153, 0.26);
+}
+
+.onboarding-footnote {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
