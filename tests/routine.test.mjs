@@ -5,17 +5,17 @@ let failures = 0;
 const check = (l, ok, d) => { if (!ok) failures++; console.log(`  ${ok?'ok  ':'FAIL'}  ${l}${d?' — '+d:''}`); };
 
 console.log('\nWhat each module introduces\n');
-check('module 1 brings D and A', chordsInModule('b1',1).sort().join(' ') === 'A D', chordsInModule('b1',1).join(' '));
-check('module 2 brings E', chordsInModule('b1',2).join(' ') === 'E');
-check('module 3 brings the first minors', chordsInModule('b1',3).sort().join(' ') === 'Am Em');
-check('module 4 brings Dm', chordsInModule('b1',4).join(' ') === 'Dm');
-check('module 5 brings C', chordsInModule('b1',5).join(' ') === 'C');
-check('module 6 brings G', chordsInModule('b1',6).join(' ') === 'G');
-check('module 7 brings no new shapes', chordsInModule('b1',7).length === 0);
-check('an unknown module is empty, not a crash', chordsInModule('b1', 99).length === 0);
+check('module 1 brings D and A', chordsInModule('bg1',1).sort().join(' ') === 'A D', chordsInModule('bg1',1).join(' '));
+check('module 2 brings E', chordsInModule('bg1',2).join(' ') === 'E');
+check('module 3 brings the first minors', chordsInModule('bg1',3).sort().join(' ') === 'Am Em');
+check('module 4 brings Dm', chordsInModule('bg1',4).join(' ') === 'Dm');
+check('module 5 brings C', chordsInModule('bg1',5).join(' ') === 'C');
+check('module 6 brings G', chordsInModule('bg1',6).join(' ') === 'G');
+check('module 7 brings no new shapes', chordsInModule('bg1',7).length === 0);
+check('an unknown module is empty, not a crash', chordsInModule('bg1', 99).length === 0);
 check('an unknown track is empty', chordsInModule('zz', 1).length === 0);
-check('module 4 covers more than chords', skillsInModule('b1',4).length > 1,
-  skillsInModule('b1',4).map(s=>s.id).join(' '));
+check('module 4 covers more than chords', skillsInModule('bg1',4).length > 1,
+  skillsInModule('bg1',4).map(s=>s.id).join(' '));
 
 console.log('\nWhich pairs are worth drilling\n');
 {
@@ -34,7 +34,7 @@ console.log('\nWhich pairs are worth drilling\n');
 
 console.log('\nA routine for the module the owner is on\n');
 {
-  const r = buildRoutine({ track:'b1', module:4, knownChords:['A','D','E','Am','Em'] });
+  const r = buildRoutine({ track:'bg1', module:4, knownChords:['A','D','E','Am','Em'] });
   console.log('   ', r.tasks.map(t => t.title).join(' > '));
   check('it has a name', r.name.length > 0, r.name);
   check('it warms up first', r.tasks[0].title.includes('stretch'), r.tasks[0].title);
@@ -54,7 +54,7 @@ console.log('\nA routine for the module the owner is on\n');
 
 console.log('\nA complete beginner, module 1\n');
 {
-  const r = buildRoutine({ track:'b1', module:1, knownChords:[] });
+  const r = buildRoutine({ track:'bg1', module:1, knownChords:[] });
   console.log('   ', r.tasks.map(t => t.title).join(' > '));
   check('there is still a routine', r.tasks.length >= 2);
   check('it drills the two chords the module teaches',
@@ -67,13 +67,13 @@ console.log('\nA complete beginner, module 1\n');
 
 console.log('\nEdge cases\n');
 {
-  const consolidation = buildRoutine({ track:'b1', module:7, knownChords:['A','D','E','Am','Em','Dm','C','G'] });
+  const consolidation = buildRoutine({ track:'bg1', module:7, knownChords:['A','D','E','Am','Em','Dm','C','G'] });
   check('a module with no new chords still builds', consolidation.tasks.length >= 2,
     consolidation.tasks.map(t=>t.title).join(' > '));
   check('and drills what is there', consolidation.tasks.some(t=>t.drill?.kind==='one-minute-changes'));
   const unknown = buildRoutine({ track:'zz', module:1, knownChords:[] });
   check('an unknown track builds something rather than throwing', unknown.tasks.length >= 1);
-  const named = buildRoutine({ track:'b1', module:4, knownChords:['A'], routineName:'Mornings' });
+  const named = buildRoutine({ track:'bg1', module:4, knownChords:['A'], routineName:'Mornings' });
   check('a given name is used', named.name === 'Mornings');
 }
 

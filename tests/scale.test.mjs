@@ -102,7 +102,7 @@ console.log('\nCompetence\n');
   check('chords come out proven after five years', proven.length > 0, proven.join(' '));
   const [next] = time(() => nextUp(standings, 12));
   check('next-up never exceeds what was asked for', next.length <= 12, String(next.length));
-  const codes = trackModules('b1').flatMap((m) => m.lessons.map((l) => l.code));
+  const codes = trackModules('bg1').flatMap((m) => m.lessons.map((l) => l.code));
   const [grouped, grMs] = time(() => byModule(standings, codes));
   check('grouping by module is quick', grMs < 40, `${grMs.toFixed(1)}ms`);
   check('and produces modules', grouped.length > 0, String(grouped.length));

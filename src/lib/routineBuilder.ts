@@ -20,7 +20,7 @@ const ROTATION_SECONDS = 60;
 const MAX_PAIRS = 3;
 
 export interface BuildInput {
-  /** Curriculum track, e.g. 'b1'. */
+  /** Curriculum course code, e.g. 'bg1'. */
   track: string;
   /** Module number within it. */
   module: number;

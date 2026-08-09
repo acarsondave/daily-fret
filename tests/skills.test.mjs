@@ -45,14 +45,18 @@ check('every measured skill names a drill kind that exists', badDrill.length===0
   badDrill.map(s=>`${s.id}:${s.measure.drill}`).join(' '));
 
 console.log('\nCoverage of Grade 1\n');
-const g1 = CURRICULUM.tracks.find(t => t.code === 'b1');
-const g1Lessons = g1.modules.flatMap(m => m.lessons)
+const g1 = CURRICULUM.tracks.find(t => t.code === 'bg1');
+// The numbered modules only. Justin's left-handed practice log is filed under
+// Grade 1 by the site but appears nowhere on the Grade 1 class page, and it is
+// a practice diary rather than something a skill could map to. Counting its 37
+// videos against skill coverage measured the wrong thing.
+const g1Lessons = g1.modules.filter(m => !m.companion).flatMap(m => m.lessons)
   .map(slug => CURRICULUM.lessons.find(l => l.slug === slug).code);
 const covered = new Set(ALL_SKILLS.flatMap(s => s.lessons));
 const uncovered = g1Lessons.filter(c => !covered.has(c));
-console.log(`  ${g1Lessons.length - uncovered.length} of ${g1Lessons.length} Grade 1 lessons map to a skill`);
+console.log(`  ${g1Lessons.length - uncovered.length} of ${g1Lessons.length} taught Grade 1 lessons map to a skill`);
 console.log(`  uncovered: ${uncovered.join(' ')}`);
-check('at least three quarters of Grade 1 maps to a skill',
+check('at least three quarters of the taught Grade 1 path maps to a skill',
   (g1Lessons.length - uncovered.length) / g1Lessons.length >= 0.75);
 
 console.log('\nCapability map\n');

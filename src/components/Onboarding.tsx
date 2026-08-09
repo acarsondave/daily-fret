@@ -10,7 +10,10 @@ import { buildRoutine, chordsInModule, routineMinutes } from '../lib/routineBuil
 import './Onboarding.css';
 
 /** Courses someone can start from. The rest of the catalogue is not a path. */
-const TRACKS = ['b1', 'b2'];
+// The three beginner grades, now that Grade 3 exists in the data. It was
+// absent before only because its lessons are coded BG-15xx rather than B3-xxx,
+// so the sitemap build never found them.
+const TRACKS = ['bg1', 'bg2', 'bg3'];
 /** The chords a beginner might already have. Everything Grade 1 teaches. */
 const KNOWN_CHORDS = ['D', 'A', 'E', 'Em', 'Am', 'Dm', 'C', 'G'];
 
@@ -35,7 +38,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const setSkillClaimed = useStore((s) => s.setSkillClaimed);
 
   const [step, setStep] = useState<Step>('where');
-  const [track, setTrack] = useState('b1');
+  const [track, setTrack] = useState('bg1');
   const [module, setModule] = useState<number | null>(null);
   const [known, setKnown] = useState<string[]>([]);
 

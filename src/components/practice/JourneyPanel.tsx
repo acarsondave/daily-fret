@@ -4,7 +4,7 @@ import { CheckIcon, CaretDownIcon, TargetIcon, HourglassIcon, MicIcon, PlayIcon 
 import { useStore, useUserData } from '../../store';
 import { useProgression } from '../../hooks/useProgression';
 import { nextUp, provenChords, byModule, type SkillStanding } from '../../lib/progression';
-import { CURRICULUM, getLessonByCode, lessonUrl, trackModules } from '../../data/curriculum';
+import { CURRICULUM, getLessonByCode, lessonUrl, trackModules, trackOfLesson } from '../../data/curriculum';
 import { useSongs } from '../../hooks/useSongs';
 import './journey.css';
 
@@ -21,7 +21,10 @@ export function JourneyPanel() {
   const setSkillClaimed = useStore((s) => s.setSkillClaimed);
   const [openModule, setOpenModule] = useState<number | null>(null);
 
-  const track = currentLesson?.split('-')[0] ?? 'b1';
+  // Ask the lesson which course it belongs to. Splitting the code on its first
+  // dash worked only for Grade 1: Grade 2 and 3 lessons are coded BG-1501, so
+  // the split returned 'bg' and the Journey fell back to showing Grade 1.
+  const track = (currentLesson && trackOfLesson(currentLesson)) ?? 'bg1';
   const modules = useMemo(() => trackModules(track), [track]);
   const lessonCodes = useMemo(
     () => modules.flatMap((m) => m.lessons.map((l) => l.code)),
