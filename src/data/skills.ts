@@ -37,7 +37,7 @@ export type SkillFamily =
  *                 by listening.
  */
 export type SkillMeasure =
-  | { kind: 'measured'; drill: DrillKind; metric: string }
+  | { kind: 'measured'; drill: DrillKind | 'tuner'; metric: string }
   | { kind: 'measurable'; needs: string; metric: string }
   | { kind: 'timed'; why: string }
   | { kind: 'known'; why: string };
@@ -93,7 +93,7 @@ const SKILLS: Skill[] = [
     summary: 'Get the guitar in tune before playing anything.',
     family: 'setup',
     requires: [],
-    measure: { kind: 'measured', drill: 'chord-trainer', metric: 'cents from target, per string' },
+    measure: { kind: 'measured', drill: 'tuner', metric: 'cents from target, per string' },
     lessons: ['b1-101'],
   },
   {

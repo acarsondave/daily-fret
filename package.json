@@ -11,7 +11,8 @@
     "names": "node scripts/fetch-drill-names.mjs",
     "add:task": "node scripts/add-task.mjs",
     "report": "node scripts/report.mjs",
-    "gen:voice": "node scripts/gen-coach-voice.mjs"
+    "gen:voice": "node scripts/gen-coach-voice.mjs",
+    "test": "node tests/run.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
