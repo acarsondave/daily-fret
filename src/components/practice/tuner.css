@@ -1,0 +1,463 @@
+/* The tuner.
+   Every tuner ever made is a needle on a dial. This one is the six strings
+   themselves: you look at the row you are working on, it is the thickness of the
+   string in your hand, and it moves when you play because its amplitude is the
+   real input level. Correctness is shown by a string going still, which is what
+   in tune actually looks and feels like. */
+
+.tuner-body {
+  gap: var(--space-6);
+  justify-content: safe center;
+}
+
+/* Half the string label column plus its gap. Mirrored on the right so the track
+   centre, the rail, and the note readout all land on one vertical axis. Without
+   the mirror the whole display sits visibly off its own centre line. */
+.tuner-overlay {
+  --tuner-label-w: 64px;
+  --tuner-gutter: calc(var(--tuner-label-w) + var(--space-3));
+  /* The strings are the primary object here, not chrome, so they carry the 3:1
+     minimum for meaningful graphics. --border-strong, which they started on,
+     lands at 1.6:1 over this overlay: fine for a divider, not for the thing the
+     user is reading. Same reasoning for the rail and the settled-string green. */
+  --tuner-wire: rgba(255, 255, 255, 0.38);
+  --tuner-wire-settled: rgba(52, 211, 153, 0.6);
+}
+
+/* --- Tuning picker -------------------------------------------------------- */
+
+.tuner-tuning {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.tuner-tuning-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  background: rgba(20, 20, 22, 0.4);
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  transition: color var(--dur-base) ease, background var(--dur-base) ease,
+    border-color var(--dur-base) ease;
+}
+.tuner-tuning-trigger:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-default);
+}
+
+.tuner-caret {
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.tuner-caret.is-open {
+  transform: rotate(180deg);
+}
+
+.tuner-tuning-menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  width: min(340px, calc(100vw - var(--space-8)));
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* Opaque in its own right. A menu is a surface the eye has to read against,
+     so it cannot depend on backdrop-filter, which iOS throttles under load and
+     drops entirely in some rendering paths. */
+  background: #141417;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+.tuner-tuning-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  /* Buttons centre their text by default, which turned a readable list into a
+     stack of centred paragraphs. */
+  text-align: left;
+  transition: background var(--dur-fast) ease;
+}
+.tuner-tuning-option:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.tuner-tuning-option.is-active {
+  background: var(--accent-glow);
+}
+
+.tuner-tuning-name {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-md);
+  color: var(--text-primary);
+}
+.tuner-tuning-option.is-active .tuner-tuning-name {
+  color: var(--accent-primary);
+}
+
+.tuner-tuning-note {
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+/* The active row's accent tint lifts the surface, which drops --text-muted to
+   3.7:1 against it. One step brighter puts it back over 4.5:1. */
+.tuner-tuning-option.is-active .tuner-tuning-note {
+  color: var(--text-secondary);
+}
+
+/* --- The strings ---------------------------------------------------------- */
+
+/* Scale and strings are one object. Kept in a single group so the body's gap
+   cannot open a gulf between the axis labels and the axis they label. */
+.tuner-board {
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.tuner-scale {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 var(--tuner-gutter);
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.tuner-strings {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* True pitch, running through all six. The one fixed thing on the screen, so it
+   is drawn firmly: a hairline the eye has to hunt for is not a reference. */
+.tuner-rail {
+  position: absolute;
+  /* Inset to the outer strings: the rail is a reference for the six lines, so
+     running it past them makes it a page decoration instead. */
+  top: 12px;
+  bottom: 12px;
+  left: 50%;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(255, 255, 255, 0.42) 10%,
+    rgba(255, 255, 255, 0.42) 90%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+/* The tolerance, drawn as a place. Its half-width is centsToOffset(4) scaled by
+   the puck's travel, so the band is exactly the region where the tuner will call
+   a string done, and the puck landing inside it agrees with the words below. */
+.tuner-zone {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 50%;
+  /* 2 x centsToOffset(IN_TUNE_CENTS) x the puck's 46% travel. */
+  width: calc((100% - var(--tuner-gutter) * 2) * 0.157);
+  transform: translateX(-50%);
+  /* Two boundaries, not a block. A filled band at this size becomes the loudest
+     object on screen and the six strings stop being the subject; a pair of
+     dashed edges says "anywhere in here" and then gets out of the way. */
+  border-left: 1px dashed rgba(255, 255, 255, 0.22);
+  border-right: 1px dashed rgba(255, 255, 255, 0.22);
+  transition: border-color var(--dur-base) ease, background var(--dur-base) ease;
+  pointer-events: none;
+}
+.tuner-zone.is-tuned {
+  border-color: rgba(52, 211, 153, 0.55);
+  background: rgba(52, 211, 153, 0.07);
+}
+
+.tuner-string {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 48px;
+  padding-right: var(--tuner-gutter);
+}
+
+.tuner-string-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  width: var(--tuner-label-w);
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  transition: color var(--dur-base) ease, background var(--dur-base) ease;
+}
+.tuner-string-label:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+}
+
+.tuner-string-note {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-tight);
+  color: inherit;
+}
+
+/* Doubles as string number and tuned tick, so confirmation costs no new space
+   and the eye already knows where to look for it. */
+.tuner-string-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  align-self: center;
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  color: var(--text-muted);
+  transition: color var(--dur-base) ease, background var(--dur-base) ease;
+}
+
+.tuner-string-track {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+}
+
+.tuner-string-wire {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.tuner-string-wire path {
+  fill: none;
+  stroke: var(--tuner-wire);
+  stroke-linecap: round;
+  transition: stroke var(--dur-base) ease;
+}
+
+/* --- Active string -------------------------------------------------------- */
+
+.tuner-string.is-active .tuner-string-label {
+  color: var(--text-primary);
+}
+.tuner-string.is-active .tuner-string-wire path {
+  stroke: var(--warning-color);
+}
+.tuner-string.is-active.is-tuned .tuner-string-wire path {
+  stroke: var(--success-color);
+}
+.tuner-string.is-active.is-far .tuner-string-wire path {
+  stroke: var(--text-muted);
+}
+
+.tuner-string.is-settled .tuner-string-mark {
+  color: var(--success-color);
+  background: var(--success-glow);
+}
+.tuner-string.is-settled .tuner-string-wire path {
+  stroke: var(--tuner-wire-settled);
+}
+
+/* Locked: the tuner is listening to this string only, whatever it hears. */
+.tuner-string.is-locked .tuner-string-label {
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+}
+.tuner-string.is-locked .tuner-string-mark {
+  color: var(--accent-primary);
+}
+
+.tuner-puck {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+  background: var(--warning-color);
+  box-shadow: 0 0 0 5px var(--warning-glow);
+  transform: translate(-50%, -50%);
+  transition: left 90ms linear, background var(--dur-base) ease,
+    box-shadow var(--dur-base) ease, width var(--dur-base) var(--ease-out),
+    height var(--dur-base) var(--ease-out);
+  pointer-events: none;
+}
+.tuner-string.is-tuned .tuner-puck {
+  width: 18px;
+  height: 18px;
+  background: var(--success-color);
+  box-shadow: 0 0 0 8px var(--success-glow);
+}
+.tuner-string.is-far .tuner-puck {
+  background: var(--text-muted);
+  box-shadow: none;
+}
+
+/* --- Readout -------------------------------------------------------------- */
+
+.tuner-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  transition: opacity var(--dur-slow) ease;
+}
+/* The note has died away but the number is still worth reading. Recede, do not
+   disappear: blanking the display the moment the string stops ringing is the
+   single most annoying thing a tuner can do. */
+.tuner-readout.is-fading {
+  opacity: 0.55;
+}
+
+.tuner-readout-note {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-family: var(--font-primary);
+  font-weight: 600;
+  letter-spacing: var(--tracking-display);
+  color: var(--text-primary);
+  transition: color var(--dur-base) ease;
+}
+.tuner-readout.is-tuned .tuner-readout-note {
+  color: var(--success-color);
+}
+
+.tuner-readout-name {
+  font-size: clamp(3.5rem, 16vw, 5.5rem);
+  line-height: 1;
+}
+.tuner-readout-name.is-empty {
+  color: var(--text-muted);
+}
+
+.tuner-readout-octave {
+  font-size: clamp(1.25rem, 5vw, 1.75rem);
+  line-height: 1;
+  color: var(--text-muted);
+}
+
+.tuner-readout-cents {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-height: 1.6rem;
+}
+
+.tuner-readout-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+  color: var(--warning-color);
+  transition: color var(--dur-base) ease;
+}
+.tuner-readout.is-tuned .tuner-readout-value {
+  color: var(--success-color);
+}
+/* Past half a semitone the number stops being the point, so it stops shouting.
+   The note name above it is carrying the message. */
+.tuner-readout.is-far .tuner-readout-value {
+  color: var(--text-muted);
+}
+.tuner-readout.is-far .tuner-readout-name {
+  color: var(--text-secondary);
+}
+
+.tuner-readout-unit {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.tuner-guidance {
+  max-width: 34ch;
+  font-size: var(--text-base);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* --- Blocked -------------------------------------------------------------- */
+
+.tuner-blocked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  max-width: 42ch;
+}
+
+.tuner-blocked-title {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+}
+
+.tuner-blocked-body {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+.tuner-retry {
+  min-height: 44px;
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(56, 189, 248, 0.32);
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  transition: background var(--dur-base) ease;
+}
+.tuner-retry:hover {
+  background: rgba(56, 189, 248, 0.26);
+}
+
+/* --- Narrow ---------------------------------------------------------------- */
+
+@media (max-width: 480px) {
+  .tuner-overlay {
+    --tuner-label-w: 50px;
+    --tuner-gutter: calc(var(--tuner-label-w) + var(--space-2));
+  }
+  .tuner-string {
+    gap: var(--space-2);
+  }
+}
+
+/* The vibration is the one thing here that is decoration as much as data, and
+   it is exactly the kind of continuous motion that reduced-motion asks to stop.
+   The component skips the animation loop entirely in that mode, so the wire
+   stays a straight line; the puck still moves, because its position is the
+   information. */
+@media (prefers-reduced-motion: reduce) {
+  .tuner-puck {
+    transition-duration: 120ms;
+  }
+}

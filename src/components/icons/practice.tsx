@@ -62,6 +62,15 @@ export const PlectrumIcon = (p: IconProps) => (
   </IconBase>
 );
 
+// A tuning fork. The one object in the room whose entire purpose is being
+// exactly right, which is what the tuner is claiming to be.
+export const TuningForkIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <path d="M8.5 3.4v7.1a3.5 3.5 0 0 0 7 0V3.4" />
+    <path d="M12 14v6.6" />
+  </IconBase>
+);
+
 export const MicIcon = (p: IconProps) => (
   <IconBase {...p}>
     <path d="M12 4.2a2.7 2.7 0 0 1 2.7 2.7v4.6a2.7 2.7 0 0 1-5.4 0V6.9A2.7 2.7 0 0 1 12 4.2Z" />

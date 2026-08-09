@@ -73,6 +73,13 @@ export const sfx = {
     ]),
   // Entering a rest
   rest: () => play([{ freq: 392, dur: 0.5, type: 'sine', peak: 0.06 }]),
+  // A string has settled in tune. Deliberately the quietest cue in the set: it
+  // fires six times in a row while tuning, and anything brighter would nag.
+  tuned: () =>
+    play([
+      { freq: 987.77, dur: 0.09, type: 'sine', peak: 0.05 },
+      { freq: 1318.51, start: 0.07, dur: 0.18, type: 'sine', peak: 0.05 },
+    ]),
   // A block/drill finished (no personal best)
   complete: () =>
     play([

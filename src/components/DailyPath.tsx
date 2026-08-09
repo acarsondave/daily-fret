@@ -17,6 +17,7 @@ import {
   SlidersIcon,
   ChartIcon,
   SessionIcon,
+  TuningForkIcon,
 } from './icons';
 import clsx from 'clsx';
 import './DailyPath.css';
@@ -29,6 +30,7 @@ const PracticeOverlay = lazy(() =>
 const CoachedSession = lazy(() =>
   import('./practice/CoachedSession').then((m) => ({ default: m.CoachedSession })),
 );
+const Tuner = lazy(() => import('./practice/Tuner').then((m) => ({ default: m.Tuner })));
 
 const INLINE_STEPS = ['title', 'description', 'duration'] as const;
 const INLINE_HINTS: Record<(typeof INLINE_STEPS)[number], string> = {
@@ -55,6 +57,7 @@ export function DailyPath() {
   const [isRoutineModalOpen, setIsRoutineModalOpen] = useState(false);
   const [isProgressOpen, setIsProgressOpen] = useState(false);
   const [isCoachedOpen, setIsCoachedOpen] = useState(false);
+  const [isTunerOpen, setIsTunerOpen] = useState(false);
   const [practiceTask, setPracticeTask] = useState<Task | null>(null);
   const [prevAllCompleted, setPrevAllCompleted] = useState(false);
   const [limitNotice, setLimitNotice] = useState(false);
@@ -301,6 +304,15 @@ export function DailyPath() {
           </button>
         )}
 
+        <button
+          className="progress-launch"
+          onClick={() => setIsTunerOpen(true)}
+          title="Tune up before you start"
+        >
+          <TuningForkIcon size={18} className="progress-launch-icon" />
+          <span>Tune</span>
+        </button>
+
         {hasProgress && (
           <button
             className="progress-launch"
@@ -542,6 +554,12 @@ export function DailyPath() {
               onClose={() => setPracticeTask(null)}
             />
           )}
+        </AnimatePresence>
+      </Suspense>
+
+      <Suspense fallback={isTunerOpen ? <Loader overlay label="Listening…" /> : null}>
+        <AnimatePresence>
+          {isTunerOpen && <Tuner key="tuner" onClose={() => setIsTunerOpen(false)} />}
         </AnimatePresence>
       </Suspense>
 
