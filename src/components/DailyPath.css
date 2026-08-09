@@ -117,7 +117,6 @@
   width: 250px;
   background: rgba(20, 20, 23, 0.95);
   backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border-radius: var(--radius-xl);
   padding: var(--space-2);
   display: flex;
@@ -507,4 +506,11 @@
   .add-task-btn {
     min-height: 44px;
   }
+}
+
+/* Safari before 18 only knows the prefixed form. Kept in its own block because
+   declared next to the standard property the minifier drops the standard one,
+   which no browser but Safari understands. See the note in index.css. */
+@supports not (backdrop-filter: blur(1px)) {
+  .routine-dropdown { -webkit-backdrop-filter: blur(20px); }
 }

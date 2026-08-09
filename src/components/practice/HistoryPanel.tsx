@@ -3,6 +3,7 @@ import clsx from 'clsx';
 import { CaretDownIcon, TrophyIcon } from '../icons';
 import { useUserData } from '../../store';
 import { buildHistory, weeklyTotals, type HistoryDay } from '../../lib/history';
+import { EmptyState } from './EmptyState';
 import './history.css';
 
 const PAGE = 14;
@@ -15,7 +16,11 @@ const PAGE = 14;
  * whether the practice is working. Everything here is the log read back; nothing
  * is summarised into a verdict.
  */
-export function HistoryPanel() {
+interface Props {
+  onStartSession?: () => void;
+}
+
+export function HistoryPanel({ onStartSession }: Props) {
   const data = useUserData();
   const [shown, setShown] = useState(PAGE);
   const [open, setOpen] = useState<string | null>(null);
@@ -29,10 +34,12 @@ export function HistoryPanel() {
 
   if (!days.length) {
     return (
-      <p className="history-empty">
-        Nothing logged yet. Every day you practise will be here, with what you
-        played and how it went.
-      </p>
+      <EmptyState
+        icon={<TrophyIcon size={26} />}
+        title="Nothing logged yet"
+        body="Every day you practise lands here, with what you played and how it went."
+        action={onStartSession && { label: 'Start today\u2019s session', onClick: onStartSession }}
+      />
     );
   }
 

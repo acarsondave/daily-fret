@@ -13,7 +13,6 @@
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border-default);
   backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   text-align: left;
 }
 
@@ -63,4 +62,11 @@
     width: 44px;
     height: 44px;
   }
+}
+
+/* Safari before 18 only knows the prefixed form. Kept in its own block because
+   declared next to the standard property the minifier drops the standard one,
+   which no browser but Safari understands. See the note in index.css. */
+@supports not (backdrop-filter: blur(1px)) {
+  .mic-hint { -webkit-backdrop-filter: blur(8px); }
 }

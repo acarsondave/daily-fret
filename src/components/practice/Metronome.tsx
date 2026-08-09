@@ -199,7 +199,7 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
               : 'practice-close metro-trigger'
         }
         onClick={() => setOpen((o) => !o)}
-        title={silent ? 'Metronome muted by the browser — tap to turn the sound on' : running ? `Metronome ${bpm} BPM` : 'Metronome'}
+        title={silent ? 'Metronome muted by the browser. Tap to turn the sound on.' : running ? `Metronome ${bpm} BPM` : 'Metronome'}
         aria-label={
           silent
             ? 'Metronome: muted by the browser. Open tempo controls.'

@@ -144,6 +144,13 @@ export function DailyPath() {
   // Coached mode runs every task in order (drills + timed blocks).
   const hasCoachable = tasks.length > 0;
 
+  // The way out of an empty Progress panel: close it and start practising, so
+  // the panel that says "run a drill and this fills up" can actually run one.
+  // Undefined when there is nothing to run, rather than offering a dead button.
+  const startSession = hasCoachable
+    ? () => { setIsProgressOpen(false); setIsCoachedOpen(true); }
+    : undefined;
+
   const allCompleted = !isEmpty && tasks.every(t => log?.completedTaskIds?.includes(t.id));
 
   // Open the jotter on the rising edge of completion (when no feedback yet),
@@ -639,11 +646,12 @@ export function DailyPath() {
         <Suspense fallback={<p className="progress-empty">Reading your practice…</p>}>
           {progressView === 'journey' && <JourneyPanel />}
           {progressView === 'awards' && <AchievementsPanel />}
-          {progressView === 'history' && <HistoryPanel />}
+          {progressView === 'history' && <HistoryPanel onStartSession={startSession} />}
         </Suspense>
 
         {progressView === 'numbers' && (
         <ProgressPanel
+          onStartSession={startSession}
           onPracticePair={(from, to) => {
             useStore.getState().setLastPair(from, to);
             const existing = tasks.find((t) => t.drill?.kind === 'one-minute-changes');

@@ -347,7 +347,7 @@ export function CoachedSession({ routine, onClose }: Props) {
           <button
             className="practice-close"
             onClick={exit}
-            title="Exit (Esc) — your place is saved"
+            title="Exit (Esc). Your place is saved."
             aria-label="Exit the session. Your place is saved."
           >
             <CloseIcon size={20} />

@@ -46,10 +46,13 @@
 }
 
 /* --- Live readout: one-minute changes ------------------------------------- */
+/* Not uppercased, and this is a correctness rule rather than a taste one: this
+   line names chords, and in chord notation case carries meaning. Am is A minor,
+   AM is not a chord. The same transform was turning "45s" into "45S". Reserve
+   the uppercase eyebrow treatment for fixed labels, never for content. */
 .om-pair {
   font-size: var(--text-sm);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--text-secondary);
   display: flex;
   align-items: center;
@@ -185,10 +188,11 @@
 }
 
 /* --- Shared drill furniture ----------------------------------------------- */
+/* Carries chord names too, so it follows the same rule as .om-pair. Sentence
+   case also reads faster at the distance this screen is actually read from. */
 .om-caption {
   font-size: var(--text-sm);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--text-secondary);
 }
 .om-timer {
@@ -362,15 +366,15 @@
   gap: var(--space-2);
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-full);
-  background: var(--warning-glow);
-  border: 1px solid rgba(251, 191, 36, 0.22);
-  color: var(--warning-color);
+  background: var(--record-glow);
+  border: 1px solid var(--record-edge);
+  color: var(--record-color);
   font-family: var(--font-secondary);
   font-size: var(--text-sm);
   font-weight: 600;
 }
 .om-best-spark {
-  color: var(--warning-color);
+  color: var(--record-color);
   opacity: 0.9;
 }
 
@@ -378,7 +382,7 @@
   color: var(--accent-primary);
 }
 .om-ring.is-pr {
-  color: var(--warning-color);
+  color: var(--record-color);
 }
 .om-ring-value {
   font-family: var(--font-primary);
@@ -398,7 +402,7 @@
   color: var(--text-secondary);
 }
 .om-context.is-pr {
-  color: var(--warning-color);
+  color: var(--record-color);
   font-weight: 600;
 }
 
@@ -426,8 +430,8 @@
   width: 8px;
   height: 8px;
   border-radius: var(--radius-full);
-  background: var(--warning-color);
-  box-shadow: 0 0 12px rgba(251, 191, 36, 0.7);
+  background: var(--record-color);
+  box-shadow: 0 0 12px rgba(246, 200, 96, 0.7);
 }
 
 @media (max-width: 600px) {

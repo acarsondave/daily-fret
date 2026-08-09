@@ -355,7 +355,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
             )}
             {editDrillKind === 'none' && (
               <>
-                <span className="drill-hint">Timed blocks (optional) — one per pattern, each with its own minutes</span>
+                <span className="drill-hint">Timed blocks (optional). One per pattern, each with its own minutes.</span>
                 <div className="drill-blocks">
                   {editBlocks.map(block => (
                     <div key={block.id} className="drill-block">

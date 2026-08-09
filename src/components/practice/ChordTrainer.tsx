@@ -314,7 +314,7 @@ export function ChordTrainer({
             )}
           </div>
         )}
-        <p className="om-caption">Pick the shapes to drill — each gets its own {perChord}s</p>
+        <p className="om-caption">Pick the shapes to drill. Each gets {perChord}s.</p>
         <div className="ct-chip-grid">
           {ALL_CHORDS.map((c) => (
             <button

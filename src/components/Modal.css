@@ -99,3 +99,9 @@
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.05);
 }
+
+/* Safari before 18 only knows the prefixed form. See the note in index.css. */
+@supports not (backdrop-filter: blur(1px)) {
+  .modal-backdrop { -webkit-backdrop-filter: blur(4px); }
+  .modal-content { -webkit-backdrop-filter: blur(16px); }
+}

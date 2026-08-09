@@ -5,6 +5,7 @@ import { useDrillStats } from '../../hooks/useDrillStats';
 import { recommendNext, type DrillStat } from '../../lib/drillStats';
 import { useUserData } from '../../store';
 import { ProgressChart } from './ProgressChart';
+import { EmptyState } from './EmptyState';
 import './progress.css';
 
 function currentStreak(dailyLogs: Record<string, { completedTaskIds?: string[] }>): number {
@@ -67,9 +68,11 @@ function StatRow({ stat, isActive, onSelect }: RowProps) {
 
 interface Props {
   onPracticePair?: (from: string, to: string) => void;
+  /* Absent when the routine has nothing coachable to start. */
+  onStartSession?: () => void;
 }
 
-export function ProgressPanel({ onPracticePair }: Props) {
+export function ProgressPanel({ onPracticePair, onStartSession }: Props) {
   const { pairs, tasks, any } = useDrillStats();
   const userData = useUserData();
 
@@ -79,10 +82,12 @@ export function ProgressPanel({ onPracticePair }: Props) {
 
   if (!any) {
     return (
-      <p className="progress-empty">
-        Run a drill that listens — chord changes, anchor changes or Chord Perfect —
-        and its history starts building here. Each one keeps its own benchmark.
-      </p>
+      <EmptyState
+        icon={<TargetIcon size={26} />}
+        title="No measurements yet"
+        body="Run a drill that listens and its history starts building here. Each drill keeps its own benchmark."
+        action={onStartSession && { label: 'Start today’s session', onClick: onStartSession }}
+      />
     );
   }
 

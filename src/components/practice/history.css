@@ -131,8 +131,8 @@
   gap: 3px;
   padding: 1px var(--space-2);
   border-radius: var(--radius-full);
-  background: var(--warning-glow);
-  color: var(--warning-color);
+  background: var(--record-glow);
+  color: var(--record-color);
   font-family: var(--font-mono);
   font-size: var(--text-micro);
 }
@@ -176,7 +176,7 @@
   background: rgba(255, 255, 255, 0.03);
 }
 .history-result.is-best {
-  background: var(--warning-glow);
+  background: var(--record-glow);
 }
 
 .history-result-name {
@@ -196,7 +196,7 @@
   color: var(--text-primary);
 }
 .history-result.is-best .history-result-value {
-  color: var(--warning-color);
+  color: var(--record-color);
 }
 
 .history-result-unit {
@@ -207,7 +207,7 @@
 .history-result-note {
   flex-shrink: 0;
   font-size: var(--text-micro);
-  color: var(--warning-color);
+  color: var(--record-color);
 }
 
 /* The learner's own words, kept as theirs. */

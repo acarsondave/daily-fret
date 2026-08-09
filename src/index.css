@@ -25,6 +25,14 @@
   --warning-glow: rgba(251, 191, 36, 0.12);
   --danger-color: #F87171;
   --danger-glow: rgba(248, 113, 113, 0.12);
+
+  /* Records, streaks and personal bests. These borrowed --warning-color, so
+     one swatch meant both "your best yet" and "your signal is too loud", on
+     screens where both can be visible at once. Warmer and lighter than the
+     warning amber so the two never read as the same state at arm's length. */
+  --record-color: #F6C860;
+  --record-glow: rgba(246, 200, 96, 0.13);
+  --record-edge: rgba(246, 200, 96, 0.26);
   /* Long-standing alias: three files reference --error-color and it was never
      defined, so every destructive control rendered in plain body text. */
   --error-color: var(--danger-color);
@@ -199,13 +207,27 @@ select:focus-visible {
   }
 }
 
-/* Glassmorphism utilities */
+/* Glass.
+
+   Write the standard property on its own and put the -webkit- fallback in an
+   @supports block, every time, in every file. Declared as an adjacent pair,
+   the CSS minifier treats the two as duplicates and keeps only the prefixed
+   one, and Chromium and Firefox do not support the prefixed form at all. The
+   blur silently vanished on every browser but Safari. Seven surfaces shipped
+   that way, including the full-screen practice overlay, which left the drill
+   screen readable straight through to the task list underneath.
+
+   tests/css.test.mjs fails the build if a prefix-only rule reappears. */
 .glass-panel {
   background: rgba(24, 24, 27, 0.7);
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
+}
+
+/* Safari before 18 only knows the prefixed form. */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass-panel { -webkit-backdrop-filter: blur(12px); }
 }
 
 /* Scrollbars. The old rule erased them page-wide (width: 0) and only the task
@@ -325,9 +347,12 @@ select:focus-visible {
   padding: var(--space-8);
   background: rgba(24, 24, 27, 0.7);
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .error-fallback-card { -webkit-backdrop-filter: blur(12px); }
 }
 
 .error-fallback-card h1 {

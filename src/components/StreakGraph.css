@@ -18,8 +18,8 @@
   gap: var(--space-1);
   font-size: var(--text-micro);
   font-weight: 600;
-  color: var(--warning-color);
-  background: var(--warning-glow);
+  color: var(--record-color);
+  background: var(--record-glow);
   padding: 4px 10px;
   border-radius: var(--radius-full);
   border: 1px solid rgba(251, 191, 36, 0.24);

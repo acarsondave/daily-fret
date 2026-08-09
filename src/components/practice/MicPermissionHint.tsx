@@ -66,10 +66,13 @@ export function MicPermissionHint() {
     <div className="mic-hint" role="note">
       <MicIcon size={18} className="mic-hint-icon" />
       <div className="mic-hint-text">
-        <strong>Let the coach hear you.</strong> Allow the microphone so it can
-        track your chords — and set it to <em>always allow</em> so it won't ask
-        again: in Safari, click the mic / “aA” icon in the address bar →
-        Microphone → Allow; in Chrome, click the mic icon → “Always allow”.
+        {/* This sits under a running countdown, on the one screen where both
+            hands are on the guitar. It used to recite Safari's and Chrome's
+            permission menus in prose, six lines of it, which is more reading
+            than anyone does mid-session. The instruction people actually need
+            is the one word to pick when the browser asks. */}
+        <strong>Let the coach hear you.</strong> Allow the microphone when your
+        browser asks. Choose <em>Always allow</em> so it stops asking every time.
       </div>
       <button className="mic-hint-close" onClick={dismiss} title="Dismiss" aria-label="Dismiss tip">
         <CloseIcon size={14} />

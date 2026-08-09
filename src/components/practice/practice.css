@@ -18,7 +18,6 @@
   flex-direction: column;
   background: rgba(10, 10, 12, 0.86);
   backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -200,4 +199,11 @@
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+/* Safari before 18 only knows the prefixed form. Kept in its own block because
+   declared next to the standard property the minifier drops the standard one,
+   which no browser but Safari understands. See the note in index.css. */
+@supports not (backdrop-filter: blur(1px)) {
+  .practice-overlay { -webkit-backdrop-filter: blur(20px); }
 }

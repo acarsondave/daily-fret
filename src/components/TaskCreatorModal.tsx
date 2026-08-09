@@ -240,7 +240,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
             {drillKind === 'none' && (
               <>
                 <span className="drill-hint">
-                  Timed blocks (optional) — one per pattern, each with its own minutes
+                  Timed blocks (optional). One per pattern, each with its own minutes.
                 </span>
                 <div className="drill-blocks">
                   {blocks.map(block => (

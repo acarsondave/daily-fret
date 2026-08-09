@@ -3,10 +3,10 @@ import type { SignalQuality } from './signalQuality';
 import './signal.css';
 
 const COPY: Record<SignalQuality, string> = {
-  silent: 'Too quiet — strum louder or move closer',
+  silent: 'Too quiet. Strum louder or move closer.',
   weak: 'Weak signal',
   good: 'Good signal',
-  loud: 'Too loud — back off the mic',
+  loud: 'Too loud. Back off the mic.',
 };
 
 const FILLED: Record<SignalQuality, number> = {

@@ -63,11 +63,14 @@
   color: var(--text-secondary);
 }
 
+/* Dim enough that an empty bar reads as an empty bar. At 0.1 white the track
+   alone looked like a filled one, so a brand-new player's level bar appeared
+   complete before they had played a note. */
 .ach-level-track {
   display: block;
   height: 4px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
   overflow: hidden;
 }
 
@@ -197,14 +200,16 @@
 }
 
 .ach-badge-detail {
-  font-family: var(--font-mono);
+  /* Prose, not a code sample. This rendered "Best run so far: 0 days." in a
+     monospace face in the middle of a sans column, which read as a bug. */
+  font-family: var(--font-secondary);
   font-size: var(--text-micro);
   color: var(--text-secondary);
 }
 
 .ach-badge-progress {
   flex-shrink: 0;
-  font-family: var(--font-mono);
+  font-family: var(--font-primary);
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
   color: var(--accent-primary);

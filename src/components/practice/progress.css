@@ -84,7 +84,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--warning-color);
+  color: var(--record-color);
 }
 .progress-stat-label {
   font-family: var(--font-secondary);
