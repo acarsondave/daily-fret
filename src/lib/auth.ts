@@ -65,6 +65,15 @@ export async function signUp(email: string, password: string) {
   return (await loadSync()).signUp(email, password);
 }
 
+// Routine backlog, read on demand. Goes through the facade like everything else
+// so opening the restore panel is what pulls the SDK, not loading the app.
+export async function listArchivedRoutines(limitTo?: number) {
+  const mod = await import('./firebaseSync');
+  return mod.listArchivedRoutines(limitTo);
+}
+
+export type { ArchivedRoutine } from './firebaseSync';
+
 export async function signOutUser() {
   return (await loadSync()).signOutUser();
 }

@@ -1,9 +1,10 @@
 import { useId, useState } from 'react';
 import { Modal } from './Modal';
 import { UndoStrip } from './UndoStrip';
+import { RoutineHistory } from './RoutineHistory';
 import { useUndoStore } from '../store/undo';
 import { useStore, useUserData } from '../store';
-import { ArrowLeftIcon, CheckIcon, CloseIcon, CodeIcon, PlusIcon, SlidersIcon, TrashIcon, UploadIcon } from './icons';
+import { ArrowLeftIcon, CheckIcon, CloseIcon, CodeIcon, PlusIcon, RetryIcon, SlidersIcon, TrashIcon, UploadIcon } from './icons';
 import clsx from 'clsx';
 import type { Routine } from '../types';
 import { routineChords } from '../lib/pairs';
@@ -16,7 +17,7 @@ interface RoutineManagerModalProps {
   onClose: () => void;
 }
 
-type ViewState = 'list' | 'create' | 'import';
+type ViewState = 'list' | 'create' | 'import' | 'history';
 
 export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProps) {
   const { routines } = useUserData();
@@ -162,7 +163,7 @@ export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProp
                         onBlur={saveEdit}
                         maxLength={60}
                       />
-                      <button className="icon-btn success" onClick={saveEdit}>
+                      <button className="icon-btn success" aria-label="Save routine name" onClick={saveEdit}>
                         <CheckIcon size={18} />
                       </button>
                     </div>
@@ -174,15 +175,32 @@ export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProp
                           {deletingId === r.id ? (
                             <>
                               <span className="confirm-text" style={{ fontSize: '0.8rem', color: 'var(--error-color)', marginRight: '8px' }}>Delete?</span>
-                              <button className="icon-btn danger" onClick={() => { removeRoutine(r); setDeletingId(null); }}>
+                              <button
+                                className="icon-btn danger"
+                                aria-label={`Confirm deleting ${r.name}`}
+                                onClick={() => { removeRoutine(r); setDeletingId(null); }}
+                              >
                                 <CheckIcon size={18} />
                               </button>
-                              <button className="icon-btn" onClick={() => setDeletingId(null)}>
+                              <button
+                                className="icon-btn"
+                                aria-label={`Keep ${r.name}`}
+                                onClick={() => setDeletingId(null)}
+                              >
                                 <CloseIcon size={18} />
                               </button>
                             </>
                           ) : (
-                            <button className="icon-btn danger" onClick={() => setDeletingId(r.id)} disabled={routines.length <= 1}>
+                            <button
+                              className="icon-btn danger"
+                              aria-label={
+                                routines.length <= 1
+                                  ? 'Cannot delete your only routine'
+                                  : `Delete ${r.name}`
+                              }
+                              onClick={() => setDeletingId(r.id)}
+                              disabled={routines.length <= 1}
+                            >
                               <TrashIcon size={18} />
                             </button>
                           )}
@@ -216,9 +234,14 @@ export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProp
               <button className="import-json-btn" onClick={() => setView('import')}>
                 <CodeIcon size={16} /> Import from JSON
               </button>
+              <button className="import-json-btn" onClick={() => setView('history')}>
+                <RetryIcon size={16} /> Earlier versions
+              </button>
             </div>
           </>
         )}
+
+        {view === 'history' && <RoutineHistory onBack={() => setView('list')} />}
 
         {view === 'create' && (
           <div className="slate-view">

@@ -8,7 +8,9 @@ import {
   signOut,
 } from "firebase/auth";
 import { auth, db } from "./firebase";
-import { doc, getDoc, setDoc, onSnapshot, collection, addDoc } from "firebase/firestore";
+import {
+  doc, getDoc, setDoc, onSnapshot, collection, addDoc, getDocs, query, orderBy, limit,
+} from "firebase/firestore";
 import { useStore, type UserData } from "../store";
 import { useAuthStore, rememberSession } from "./authStore";
 import type { Routine } from "../types";
@@ -20,6 +22,35 @@ export const signUp = (email: string, password: string) =>
   createUserWithEmailAndPassword(auth, email, password);
 
 export const signOutUser = () => signOut(auth);
+
+export interface ArchivedRoutine {
+  id: string;
+  routineId: string;
+  name: string;
+  reason: "edited" | "deleted";
+  archivedAt: number;
+  snapshot: Routine;
+}
+
+/**
+ * Read the routine backlog, newest first.
+ *
+ * Every edit and delete has been snapshotted here since the feature shipped and
+ * nothing has ever read it back, which made it a write-only archive: all of the
+ * storage cost and none of the point.
+ */
+export const listArchivedRoutines = async (limitTo = 40): Promise<ArchivedRoutine[]> => {
+  const user = auth.currentUser;
+  if (!user) return [];
+  const snap = await getDocs(
+    query(
+      collection(db, "users", user.uid, "routineArchive"),
+      orderBy("archivedAt", "desc"),
+      limit(limitTo),
+    ),
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ArchivedRoutine, "id">) }));
+};
 
 // Shape one routine-backlog entry: the routine as it was before this change,
 // plus why and when it was captured.
