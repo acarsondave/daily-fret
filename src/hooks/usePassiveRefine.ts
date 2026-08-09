@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useStore } from '../store';
 import { diag } from '../audio/diagnostics';
 import { CalibrationCollector, mergeCalibration } from '../audio/calibration';
+import { activeProfileOf } from '../lib/chordProfiles';
 import type { LevelEvent } from '../audio/detector';
 
 // Only reinforce frames the detector already got right, at high confidence. This
@@ -37,7 +38,10 @@ export function usePassiveRefine() {
     ingestedRef.current = 0;
 
     const state = useStore.getState();
-    const base = state.accounts[state.currentAccountId]?.chordCalibration?.chords;
+    // Refines the guitar that is actually in the room, never a stored one that
+    // is not: folding this room's frames into another instrument's fingerprints
+    // would corrupt both.
+    const base = activeProfileOf(state.accounts[state.currentAccountId])?.chords;
     // Passive refinement only SHARPENS chords the guided flow already established.
     // It never introduces a new chord on its own: a discriminative template is only
     // safe when its confusable partners were learned alongside it (so their shared

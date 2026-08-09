@@ -21,7 +21,9 @@
   opacity: 0.7;
 }
 
-.cal-setting-status {
+/* Explanatory line under a settings row. Named for the job, not for the one
+   feature that happened to introduce it — the capo row uses it too. */
+.setting-note {
   font-size: var(--text-sm);
   color: var(--text-secondary);
   margin: var(--space-1) 0 var(--space-2);

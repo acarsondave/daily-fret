@@ -1,13 +1,16 @@
 import { useMemo } from 'react';
 import { useUserData } from '../store';
 import { templatesFor } from '../audio/calibration';
+import { activeProfileOf } from '../lib/chordProfiles';
 import type { LearnedTemplates } from '../audio/chords';
 
-// The current account's fitted chord templates, or undefined when uncalibrated.
-// Pass straight into a drill's start() options so the detector matches against
-// this guitar's learned fingerprints. Memoised on the stored calibration, which
-// only changes reference when the user recalibrates.
+// Fitted chord templates for the guitar currently selected, or undefined when
+// that guitar is uncalibrated. Pass straight into a drill's start() options so
+// the detector matches against this instrument's learned fingerprints.
+// Memoised on the stored profile, which only changes reference when the user
+// recalibrates or picks up a different guitar.
 export function useLearnedTemplates(): LearnedTemplates | undefined {
-  const calibration = useUserData().chordCalibration;
-  return useMemo(() => templatesFor(calibration), [calibration]);
+  const account = useUserData();
+  const profile = useMemo(() => activeProfileOf(account), [account]);
+  return useMemo(() => templatesFor(profile), [profile]);
 }

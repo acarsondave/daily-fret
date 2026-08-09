@@ -9,7 +9,8 @@ import { ProgressRing } from './ProgressRing';
 import { SignalMeter } from './SignalMeter';
 import { useSignalMeter } from './signalQuality';
 import { sfx } from '../../audio/sfx';
-import { useStore } from '../../store';
+import { useStore, useUserData } from '../../store';
+import { activeProfileOf } from '../../lib/chordProfiles';
 import { useCapoOffset } from '../../hooks/useCapo';
 import {
   CalibrationCollector,
@@ -51,6 +52,10 @@ interface Props {
 
 export function CalibrationFlow({ onClose }: Props) {
   const { status, error, start, stop } = useChordDetector();
+  // Named throughout, because a calibration belongs to one instrument and the
+  // whole point of the profile list is that you can tell which.
+  const account = useUserData();
+  const guitar = activeProfileOf(account)?.label;
   const setChordCalibration = useStore((s) => s.setChordCalibration);
   const clearChordCalibration = useStore((s) => s.clearChordCalibration);
   const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter();
@@ -211,11 +216,13 @@ export function CalibrationFlow({ onClose }: Props) {
       return (
         <motion.div className="om-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           <PlectrumIcon size={48} className="coach-summary-check" />
-          <div className="coach-intro-title">Tune the detector to your guitar</div>
+          <div className="coach-intro-title">
+            {guitar ? `Tune the detector to ${guitar}` : 'Tune the detector to your guitar'}
+          </div>
           <div className="om-caption om-cal-blurb">
             Play each chord when it appears and hold it steady. This teaches the
-            detector how your guitar actually sounds, so tricky changes like A to D
-            stop getting missed.
+            detector how {guitar ?? 'your guitar'} actually sounds, so tricky changes
+            like A to D stop getting missed.
           </div>
           <button className="practice-btn primary" onClick={() => void begin()} autoFocus>
             <PlectrumIcon size={20} /> Start calibration
@@ -273,7 +280,7 @@ export function CalibrationFlow({ onClose }: Props) {
           color={ok ? 'var(--accent-primary)' : 'var(--text-secondary)'}
         />
         <div className="coach-intro-title">
-          {ok ? 'Detector tuned to your guitar' : 'Not enough captured'}
+          {ok ? `Detector tuned to ${guitar ?? 'your guitar'}` : 'Not enough captured'}
         </div>
         <div className="om-caption om-cal-blurb">
           {ok ? (
@@ -301,7 +308,7 @@ export function CalibrationFlow({ onClose }: Props) {
         </div>
         {ok && (
           <button className="practice-btn ghost om-cal-reset" onClick={resetToDefault}>
-            Reset to default templates
+            Forget this calibration
           </button>
         )}
       </motion.div>

@@ -38,7 +38,7 @@ export function CapoSetting() {
           </button>
         ))}
       </div>
-      <p className="cal-setting-status">
+      <p className="setting-note">
         {capo === 0
           ? 'Set this whenever you clamp one on, or the drills stop hearing you.'
           : `Drills expect a capo on fret ${capo}. Take it off and set this back to None.`}

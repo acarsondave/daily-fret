@@ -4,6 +4,14 @@ import type { Routine, DailyLog, Task } from '../types';
 import type { Song } from '../data/songs';
 import type { StrumPattern } from '../data/strumPatterns';
 import type { CalibrationData, ChordCalibration } from '../audio/calibration';
+import {
+  activeProfileOf,
+  makeProfile,
+  newProfileId,
+  nextProfileLabel,
+  profilesOf,
+  type ChordProfile,
+} from '../lib/chordProfiles';
 
 // No seeded routines — a fresh user starts from a clean, Notion-style empty
 // state and builds their own routines/tasks from scratch.
@@ -51,9 +59,15 @@ export interface UserData {
   // alongside them and every consumer reads the merged list
   // (src/lib/songCatalog.ts) rather than the constant.
   userSongs?: Song[];
+  // The single calibration this app stored before it understood that people own
+  // more than one guitar. Read once by src/lib/chordProfiles.ts to migrate it
+  // into the list below, and never written again.
+  chordCalibration?: ChordCalibration;
   // Per-guitar learned chord fingerprints (src/audio/calibration.ts). Absent
   // until the user calibrates; the detector falls back to built-in templates.
-  chordCalibration?: ChordCalibration;
+  chordProfiles?: ChordProfile[];
+  // Which guitar is in the room. Falls back to the first profile when stale.
+  activeProfileId?: string;
   // Last metronome tempo the user set by hand, used as the manual fallback and
   // whenever there is no prescription to derive a tempo from.
   metronomeBpm?: number;
@@ -126,10 +140,17 @@ interface AppState {
   // edit and a new song through one door.
   saveUserSong: (song: Song) => void;
   deleteUserSong: (songId: string) => void;
-  // Replace the account's chord calibration with a freshly fitted set (guided
-  // flow or a passive-refine merge). Preserves the original createdAt.
+  // Write a freshly fitted set (guided flow or a passive-refine merge) into the
+  // guitar currently selected, creating the first profile if there is none.
   setChordCalibration: (chords: CalibrationData, label?: string) => void;
+  // Forget the selected guitar's calibration and fall back to the next one.
   clearChordCalibration: () => void;
+  // Start a profile for another instrument and switch to it. It holds no
+  // fingerprints until that guitar is actually calibrated.
+  addChordProfile: (label?: string) => void;
+  setActiveChordProfile: (id: string) => void;
+  renameChordProfile: (id: string, label: string) => void;
+  deleteChordProfile: (id: string) => void;
   setMetronomeBpm: (bpm: number) => void;
   setMetronomeAuto: (auto: boolean) => void;
   setCapoFret: (fret: number) => void;
@@ -204,6 +225,8 @@ export const useStore = create<AppState>()(
             songLinks: data.songLinks ?? local?.songLinks ?? {},
             userSongs: data.userSongs ?? local?.userSongs ?? [],
             chordCalibration: data.chordCalibration ?? local?.chordCalibration,
+            chordProfiles: data.chordProfiles ?? local?.chordProfiles,
+            activeProfileId: data.activeProfileId ?? local?.activeProfileId,
             metronomeBpm: data.metronomeBpm ?? local?.metronomeBpm,
             metronomeAuto: data.metronomeAuto ?? local?.metronomeAuto,
             capoFret: data.capoFret ?? local?.capoFret,
@@ -480,25 +503,100 @@ export const useStore = create<AppState>()(
           })),
         ),
 
+        // Every calibration write goes through here, and every one of them
+        // normalises the account onto the profile list first. That is what
+        // retires the legacy single-calibration field: it is read on the way in
+        // and dropped on the way out, so there is only ever one source of truth
+        // for what the detector is listening with.
         setChordCalibration: (chords, label) => set((state) =>
           mutate(state, (a) => {
             const ts = now();
-            const calibration: ChordCalibration = {
-              version: 1,
-              createdAt: a.chordCalibration?.createdAt ?? ts,
-              updatedAt: ts,
-              label: label ?? a.chordCalibration?.label,
-              chords,
-            };
-            return { ...a, chordCalibration: calibration };
+            const profiles = profilesOf(a);
+            const active = activeProfileOf(a);
+            const next: ChordProfile = active
+              ? { ...active, label: label ?? active.label, updatedAt: ts, chords }
+              : makeProfile(newProfileId(profiles), label ?? nextProfileLabel(profiles), chords, ts);
+            const merged = active
+              ? profiles.map((p) => (p.id === active.id ? next : p))
+              : [...profiles, next];
+            const updated = { ...a, chordProfiles: merged, activeProfileId: next.id };
+            delete updated.chordCalibration;
+            return updated;
           }),
         ),
 
         clearChordCalibration: () => set((state) =>
           mutate(state, (a) => {
-            const next = { ...a };
-            delete next.chordCalibration;
-            return next;
+            const active = activeProfileOf(a);
+            if (!active) return a;
+            const remaining = profilesOf(a).filter((p) => p.id !== active.id);
+            const updated = {
+              ...a,
+              chordProfiles: remaining,
+              activeProfileId: remaining[0]?.id,
+            };
+            delete updated.chordCalibration;
+            return updated;
+          }),
+        ),
+
+        addChordProfile: (label) => set((state) =>
+          mutate(state, (a) => {
+            const profiles = profilesOf(a);
+            const profile = makeProfile(
+              newProfileId(profiles),
+              label?.trim() || nextProfileLabel(profiles),
+              {},
+              now(),
+            );
+            const updated = {
+              ...a,
+              chordProfiles: [...profiles, profile],
+              activeProfileId: profile.id,
+            };
+            delete updated.chordCalibration;
+            return updated;
+          }),
+        ),
+
+        setActiveChordProfile: (id) => set((state) =>
+          mutate(state, (a) => {
+            const profiles = profilesOf(a);
+            if (!profiles.some((p) => p.id === id)) return a;
+            const updated = { ...a, chordProfiles: profiles, activeProfileId: id };
+            delete updated.chordCalibration;
+            return updated;
+          }),
+        ),
+
+        renameChordProfile: (id, label) => set((state) =>
+          mutate(state, (a) => {
+            const trimmed = label.trim();
+            // A nameless guitar in a list of guitars is worse than the default
+            // name it replaced, so an empty rename is simply not a rename.
+            if (!trimmed) return a;
+            const updated = {
+              ...a,
+              chordProfiles: profilesOf(a).map((p) =>
+                p.id === id ? { ...p, label: trimmed, updatedAt: now() } : p,
+              ),
+            };
+            delete updated.chordCalibration;
+            return updated;
+          }),
+        ),
+
+        deleteChordProfile: (id) => set((state) =>
+          mutate(state, (a) => {
+            const remaining = profilesOf(a).filter((p) => p.id !== id);
+            const updated = {
+              ...a,
+              chordProfiles: remaining,
+              activeProfileId:
+                a.activeProfileId === id ? remaining[0]?.id : a.activeProfileId,
+            };
+            delete updated.chordCalibration;
+            return updated;
           }),
         ),
 
