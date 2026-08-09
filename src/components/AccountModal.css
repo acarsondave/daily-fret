@@ -12,23 +12,23 @@
 
 .auth-title, .settings-title {
   font-family: var(--font-primary);
-  font-size: 1.1rem;
+  font-size: var(--text-lg);
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 0;
 }
 
 .auth-subtitle {
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   margin-bottom: var(--space-3);
   line-height: 1.4;
 }
 
 .auth-error {
-  color: #ef4444;
-  font-size: 0.85rem;
-  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger-color);
+  font-size: var(--text-sm);
+  background: var(--danger-glow);
   padding: var(--space-3);
   border-radius: var(--radius-md);
 }
@@ -39,7 +39,7 @@
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-lg);
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   outline: none;
   transition: all 0.2s;
 }
@@ -60,7 +60,7 @@
   border-radius: var(--radius-lg);
   font-weight: 500;
   border: none;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   transition: transform 0.2s, opacity 0.2s;
 }
 
@@ -73,7 +73,7 @@
   background: transparent;
   color: var(--text-secondary);
   border: none;
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   cursor: pointer;
   transition: color 0.2s;
 }
@@ -84,7 +84,7 @@
 
 .user-email {
   color: var(--text-secondary);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   padding-bottom: var(--space-4);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   margin-bottom: var(--space-4);
@@ -105,7 +105,7 @@
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: var(--radius-lg);
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   transition: background 0.2s;
   cursor: pointer;
 }
@@ -115,13 +115,13 @@
 }
 
 .settings-action-btn.logout {
-  color: #ef4444;
+  color: var(--danger-color);
 }
 
 .settings-action-btn.logout:hover {
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--danger-glow);
   color: var(--error-color);
-  border-color: rgba(239, 68, 68, 0.2);
+  border-color: rgba(248, 113, 113, 0.28);
 }
 
 .settings-action-btn:disabled {
@@ -153,7 +153,7 @@
   align-items: center;
   gap: var(--space-2);
   font-family: var(--font-secondary);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -165,14 +165,14 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text-primary);
   font-family: var(--font-secondary);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   cursor: pointer;
 }
-.mic-setting-select option { background: #1a1a1d; color: var(--text-primary); }
+.mic-setting-select option { background: var(--surface-color); color: var(--text-primary); }
 .mic-setting-unlock {
   align-self: flex-start;
   font-family: var(--font-secondary);
-  font-size: 0.75rem;
+  font-size: var(--text-micro);
   color: var(--accent-primary);
   opacity: 0.9;
 }
@@ -204,7 +204,7 @@
 .pattern-item-name {
   flex: 1;
   font-family: var(--font-secondary);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   color: var(--text-primary);
 }
 .pattern-item-remove {
@@ -213,13 +213,13 @@
   border-radius: var(--radius-sm);
   transition: color 0.2s ease;
 }
-.pattern-item-remove:hover { color: #f87171; }
+.pattern-item-remove:hover { color: var(--danger-color); }
 .pattern-add {
   display: flex;
   gap: var(--space-2);
   align-items: center;
 }
-.pattern-add .task-input { flex: 1; padding: var(--space-2) var(--space-3); font-size: 0.85rem; }
+.pattern-add .task-input { flex: 1; padding: var(--space-2) var(--space-3); font-size: var(--text-sm); }
 .pattern-add-code { flex: 0 0 110px; text-transform: uppercase; letter-spacing: 0.08em; }
 .pattern-add-btn {
   flex: 0 0 auto;
@@ -236,7 +236,25 @@
 .pattern-add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .pattern-hint {
   font-family: var(--font-secondary);
-  font-size: 0.7rem;
+  font-size: var(--text-micro);
   color: var(--text-secondary);
   margin: 0;
+}
+
+/* Touch. On a coarse pointer every one of these is hit with a thumb while the
+   other hand is holding a guitar, so they get the full 44px target. Sizes are
+   raised only under this query, which keeps the mouse UI at its intended
+   density instead of inflating the whole interface for one input type. */
+@media (pointer: coarse) {
+  .pattern-add-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .pattern-item-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+  }
 }

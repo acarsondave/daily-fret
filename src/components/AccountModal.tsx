@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Modal } from './Modal';
-import { auth } from '../lib/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-import { useAuthStore } from '../lib/auth';
+// Through the facade, so opening this modal is what pulls the Firebase SDK
+// down rather than loading the app.
+import { useAuthStore, signIn, signUp, signOutUser } from '../lib/auth';
 import { useStore } from '../store';
-import { SignOut, ArrowRight, Spinner, DownloadSimple, Waveform } from '@phosphor-icons/react';
+import { ArrowRightIcon, DownloadIcon, PlectrumIcon, SignOutIcon, SpinnerIcon } from './icons';
 import { downloadDiagnostics, storedSessionSummaries } from '../audio/diagnostics';
 import { MicSetting } from './MicSetting';
 import { CalibrationSetting } from './CalibrationSetting';
@@ -31,9 +31,9 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
     setIsLoading(true);
     try {
       if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
+        await signIn(email, password);
       } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+        await signUp(email, password);
       }
       onClose();
     } catch (err) {
@@ -47,7 +47,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
     setIsLoading(true);
     onClose();
     setTimeout(async () => {
-      await signOut(auth);
+      await signOutUser();
       setIsLoading(false);
     }, 250); // wait for modal exit animation to prevent login form flash
   };
@@ -81,28 +81,32 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} position="top-right">
+    <Modal isOpen={isOpen} onClose={onClose} position="top-right" label="Account and settings">
       <div className="account-modal-content">
         {!user ? (
           <form onSubmit={handleAuth} className="auth-form">
-            <h3 className="auth-title">{isLogin ? 'Sign into your account' : 'Create an account'}</h3>
+            <h2 className="auth-title">{isLogin ? 'Sign into your account' : 'Create an account'}</h2>
             <p className="auth-subtitle">
               {isLogin ? 'Welcome back to your guitar journey.' : 'Save your progress securely to the cloud.'}
             </p>
             {error && <div className="auth-error">{error}</div>}
             
-            <input 
-              type="email" 
-              className="auth-input" 
+            <input
+              type="email"
+              className="auth-input"
+              aria-label="Email address"
+              autoComplete="email"
               placeholder="Email address" 
               value={email}
               onChange={e => setEmail(e.target.value)}
               required 
               maxLength={100}
             />
-            <input 
-              type="password" 
-              className="auth-input" 
+            <input
+              type="password"
+              className="auth-input"
+              aria-label="Password"
+              autoComplete={isLogin ? 'current-password' : 'new-password'}
               placeholder="Password" 
               value={password}
               onChange={e => setPassword(e.target.value)}
@@ -112,11 +116,11 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
             
             <button type="submit" className="auth-submit" disabled={isLoading}>
               {isLoading ? (
-                <Spinner size={16} className="spinner-icon" weight="bold" />
+                <SpinnerIcon size={16} className="spinner-icon" />
               ) : (
                 <>
                   <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
-                  <ArrowRight size={16} />
+                  <ArrowRightIcon size={16} />
                 </>
               )}
             </button>
@@ -127,7 +131,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
           </form>
         ) : (
           <div className="account-settings">
-            <h3 className="settings-title">Account Settings</h3>
+            <h2 className="settings-title">Account Settings</h2>
             <div className="user-email">{user.email}</div>
 
             <MicSetting />
@@ -138,17 +142,17 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
 
             <div className="settings-actions">
               <button className="settings-action-btn" onClick={exportData}>
-                <DownloadSimple size={18} />
+                <DownloadIcon size={18} />
                 <span>Export My Data (JSON)</span>
               </button>
 
               <button className="settings-action-btn" onClick={() => void exportDiagnostics()}>
-                <Waveform size={18} />
+                <PlectrumIcon size={18} />
                 <span>{diagStatus ?? 'Export Detection Diagnostics'}</span>
               </button>
 
               <button className="settings-action-btn logout" onClick={handleLogout} disabled={isLoading}>
-                {isLoading ? <Spinner size={18} className="spinner-icon" /> : <SignOut size={18} />}
+                {isLoading ? <SpinnerIcon size={18} className="spinner-icon" /> : <SignOutIcon size={18} />}
                 <span>{isLoading ? 'Logging Out...' : 'Log Out'}</span>
               </button>
             </div>

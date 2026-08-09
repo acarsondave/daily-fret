@@ -1,23 +1,25 @@
-import { onAuthStateChanged, type User } from "firebase/auth";
+// Everything that touches the Firebase SDK. This module is ONLY ever reached
+// through a dynamic import (see ./auth), which is what keeps ~250kB of Auth and
+// Firestore out of the entry chunk of an app that works fully signed out.
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+} from "firebase/auth";
 import { auth, db } from "./firebase";
 import { doc, getDoc, setDoc, onSnapshot, collection, addDoc } from "firebase/firestore";
-import { create } from "zustand";
 import { useStore, type UserData } from "../store";
+import { useAuthStore, rememberSession } from "./authStore";
 import type { Routine } from "../types";
 
-interface AuthState {
-  user: User | null;
-  loading: boolean;
-  setUser: (user: User | null) => void;
-  setLoading: (loading: boolean) => void;
-}
+export const signIn = (email: string, password: string) =>
+  signInWithEmailAndPassword(auth, email, password);
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  loading: true,
-  setUser: (user) => set({ user }),
-  setLoading: (loading) => set({ loading })
-}));
+export const signUp = (email: string, password: string) =>
+  createUserWithEmailAndPassword(auth, email, password);
+
+export const signOutUser = () => signOut(auth);
 
 // Shape one routine-backlog entry: the routine as it was before this change,
 // plus why and when it was captured.
@@ -36,9 +38,12 @@ let firestoreUnsubscribe: (() => void) | null = null;
 let storeUnsubscribe: (() => void) | null = null;
 let detachFlush: (() => void) | null = null;
 
-export const initAuthListener = () => {
+export const startAuthListener = () => {
   onAuthStateChanged(auth, async (user) => {
     useAuthStore.getState().setUser(user);
+    // Record whether this browser has a session, so the next visit knows
+    // whether first paint should wait for the cloud (see ./authStore).
+    rememberSession(!!user);
 
     // Clean up previous listeners
     if (firestoreUnsubscribe) {
