@@ -215,3 +215,15 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Permission to rest. Warm rather than alarming: this is encouragement, not a
+   warning, and it is the only place the product ever says "stop". */
+.ach-rest {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(52, 211, 153, 0.24);
+  background: var(--success-glow);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  color: var(--text-primary);
+}

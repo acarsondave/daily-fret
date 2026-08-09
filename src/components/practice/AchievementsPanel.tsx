@@ -4,6 +4,8 @@ import {
   SessionIcon, TargetIcon, TrophyIcon, TuningForkIcon,
 } from '../icons';
 import { useAchievements } from '../../hooks/useAchievements';
+import { restAdvice } from '../../lib/xp';
+import { useUserData, getTodayString } from '../../store';
 import type { EarnedAchievement } from '../../data/achievements';
 import './achievements.css';
 
@@ -33,6 +35,8 @@ const MARKS = {
 
 export function AchievementsPanel() {
   const { xp, level, achievements } = useAchievements();
+  const dailyLogs = useUserData().dailyLogs;
+  const rest = restAdvice(dailyLogs, getTodayString());
   const earned = achievements.filter((a) => a.earned);
   const pending = achievements.filter((a) => !a.earned).sort((a, b) => b.progress - a.progress);
 
@@ -58,6 +62,15 @@ export function AchievementsPanel() {
             : 'Top of the ladder. Keep playing anyway.'}
         </span>
       </section>
+
+      {/* The one place the app tells you to stop. A streak counter on its own
+          only ever says "do not break it", which is bad advice for hands six
+          days into daily practice. */}
+      {rest.earned && rest.message && (
+        <p className="ach-rest" role="note">
+          {rest.message}
+        </p>
+      )}
 
       {/* Where the points came from. A total with no breakdown is a score; a
           breakdown is a record of what you did. */}

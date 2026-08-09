@@ -1,4 +1,4 @@
-import { computeXp, levelFor, LEVELS, XP_PER_RESULT, XP_PER_BEST, MAX_STREAK_BONUS } from '../src/lib/xp.ts';
+import { computeXp, levelFor, LEVELS, XP_PER_RESULT, XP_PER_BEST, MAX_STREAK_BONUS, restAdvice, REST_EARNED_AFTER } from '../src/lib/xp.ts';
 import { evaluateAchievements, ACHIEVEMENTS } from '../src/data/achievements.ts';
 import { allStandings, readEvidence } from '../src/lib/progression.ts';
 import { pairKey } from '../src/lib/pairs.ts';
@@ -110,6 +110,30 @@ console.log('\nAchievements\n');
   check('seven days running is earned', week.find(a=>a.id==='week').earned);
   check('thirty days is not', !week.find(a=>a.id==='month').earned);
   check('progress never exceeds one', week.every(a => a.progress <= 1));
+}
+
+{
+  console.log('\nRest advice\n');
+  let f2 = 0;
+  const c2 = (l, ok, d) => { if (!ok) { f2++; failures++; } console.log(`  ${ok?'ok  ':'FAIL'}  ${l}${d?' — '+d:''}`); };
+  const run = (n, upTo) => Object.fromEntries(Array.from({length:n}, (_,i) => {
+    const d = new Date(Date.UTC(2026, 6, Number(upTo.slice(-2)) - (n - 1 - i)));
+    const date = d.toISOString().slice(0,10);
+    return [date, { date, routineId:'r1', completedTaskIds:['t1'], drillResults:{ a: 20 } }];
+  }));
+  c2('a short run is not told to rest', !restAdvice(run(3, '2026-07-10'), '2026-07-10').earned);
+  c2('a long run is', restAdvice(run(8, '2026-07-10'), '2026-07-10').earned);
+  c2('the run is counted right', restAdvice(run(8, '2026-07-10'), '2026-07-10').run === 8,
+    String(restAdvice(run(8, '2026-07-10'), '2026-07-10').run));
+  c2('today being empty does not break the run at breakfast',
+    restAdvice(run(7, '2026-07-09'), '2026-07-10').run === 7,
+    String(restAdvice(run(7, '2026-07-09'), '2026-07-10').run));
+  c2('the threshold is the threshold',
+    restAdvice(run(REST_EARNED_AFTER, '2026-07-10'), '2026-07-10').earned);
+  c2('an empty history says nothing', restAdvice({}, '2026-07-10').run === 0);
+  c2('and offers no message', restAdvice({}, '2026-07-10').message === null);
+  c2('the message never scolds',
+    !/lazy|fail|lose|broke/i.test(restAdvice(run(9, '2026-07-10'), '2026-07-10').message ?? ''));
 }
 
 console.log(failures===0?'\nALL PASS\n':`\n${failures} FAILURE(S)\n`);

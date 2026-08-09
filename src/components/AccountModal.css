@@ -306,3 +306,39 @@
   line-height: 1.5;
   color: var(--text-secondary);
 }
+
+/* Handedness, chosen by looking rather than by reading a label. */
+.handedness-options {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.handedness-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  transition: background var(--dur-base) ease, color var(--dur-base) ease,
+    border-color var(--dur-base) ease;
+}
+.handedness-option .cd-dot {
+  fill: var(--text-muted);
+  transition: fill var(--dur-base) ease;
+}
+.handedness-option.is-on {
+  background: var(--accent-glow);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: var(--accent-primary);
+}
+.handedness-option.is-on .cd-dot {
+  fill: var(--accent-primary);
+}

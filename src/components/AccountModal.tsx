@@ -9,6 +9,7 @@ import { downloadDiagnostics, storedSessionSummaries } from '../audio/diagnostic
 import { MicSetting } from './MicSetting';
 import { CalibrationSetting } from './CalibrationSetting';
 import { CapoSetting } from './CapoSetting';
+import { HandednessSetting } from './HandednessSetting';
 import { PatternManager } from './PatternManager';
 import './AccountModal.css';
 
@@ -167,6 +168,8 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
           <MicSetting />
 
           <CapoSetting />
+
+          <HandednessSetting />
 
           <CalibrationSetting />
 

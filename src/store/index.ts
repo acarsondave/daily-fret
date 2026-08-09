@@ -62,6 +62,9 @@ export interface UserData {
   // Where the learner says they are in their course, as a curriculum lesson
   // code. Set in onboarding, moved on by hand. Absent means never asked.
   currentLesson?: string;
+  // Mirrors chord diagrams. A left-handed player reading a right-handed chord
+  // box has to flip every shape in their head before their hand can use it.
+  leftHanded?: boolean;
   // Which fret the capo is on, 0 for none. The detector matches pitch-class
   // templates, so a capo transposes everything it hears and every drill would
   // silently stop counting without this. Absent means none.
@@ -119,6 +122,7 @@ interface AppState {
   setMetronomeBpm: (bpm: number) => void;
   setMetronomeAuto: (auto: boolean) => void;
   setCapoFret: (fret: number) => void;
+  setLeftHanded: (left: boolean) => void;
   setSkillClaimed: (skillId: string, claimed: boolean) => void;
   setCurrentLesson: (code: string | null) => void;
 }
@@ -192,6 +196,7 @@ export const useStore = create<AppState>()(
             metronomeAuto: data.metronomeAuto ?? local?.metronomeAuto,
             capoFret: data.capoFret ?? local?.capoFret,
             claimedSkills: data.claimedSkills ?? local?.claimedSkills ?? [],
+            leftHanded: data.leftHanded ?? local?.leftHanded,
             currentLesson: data.currentLesson ?? local?.currentLesson,
             updatedAt: remoteUpdatedAt,
           };
@@ -469,6 +474,10 @@ export const useStore = create<AppState>()(
         // Clamped rather than trusted: an out-of-range offset would shift the
         // chroma into nonsense and every drill would stop counting with no
         // visible cause.
+        setLeftHanded: (left) => set((state) =>
+          mutate(state, (a) => ({ ...a, leftHanded: left })),
+        ),
+
         setSkillClaimed: (skillId, claimed) => set((state) =>
           mutate(state, (a) => {
             const current = a.claimedSkills ?? [];

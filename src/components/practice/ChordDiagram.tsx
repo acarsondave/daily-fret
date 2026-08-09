@@ -1,5 +1,6 @@
 import { useMemo, type CSSProperties } from 'react';
 import clsx from 'clsx';
+import { useUserData } from '../../store';
 import {
   FRET_COUNT,
   fretWindow,
@@ -26,7 +27,10 @@ interface Props {
   size?: number;
   /** Show the finger number inside each dot. */
   showFingers?: boolean;
-  /** Mirror for a left-handed player. */
+  /**
+   * Mirror the box. Defaults to the player's own setting; pass it explicitly
+   * only where a diagram must be drawn in a fixed orientation regardless.
+   */
   flipped?: boolean;
   className?: string;
 }
@@ -40,11 +44,15 @@ interface Props {
  */
 export function ChordDiagram({ chord, size = 132, showFingers = true, flipped, className }: Props) {
   const shape = useMemo(() => getChordShape(chord), [chord]);
+  // Handedness is a fact about the instrument in the room, like the capo, so the
+  // diagram reads it rather than making six call sites remember to pass it.
+  const leftHanded = useUserData().leftHanded ?? false;
+  const mirrored = flipped ?? leftHanded;
   if (!shape) return null;
 
   const { start, showNut } = fretWindow(shape);
   const x = (stringIndex: number) =>
-    BOX_LEFT + (flipped ? STRINGS - 1 - stringIndex : stringIndex) * STRING_GAP;
+    BOX_LEFT + (mirrored ? STRINGS - 1 - stringIndex : stringIndex) * STRING_GAP;
   // Centre of the fret's cell, which is where a finger actually sits.
   const y = (fret: number) => BOX_TOP + (fret - start + 0.5) * FRET_GAP;
 
@@ -95,13 +103,15 @@ export function ChordDiagram({ chord, size = 132, showFingers = true, flipped, c
           />
         ))}
 
+        {/* Gauge follows the strings, so a mirrored box still has the thick low
+            E on the side the player's thumb is nearest. */}
         {Array.from({ length: STRINGS }, (_, i) => (
           <line
             key={`s${i}`}
             className="cd-string"
-            x1={BOX_LEFT + i * STRING_GAP}
+            x1={x(i)}
             y1={BOX_TOP}
-            x2={BOX_LEFT + i * STRING_GAP}
+            x2={x(i)}
             y2={BOX_BOTTOM}
             style={{ strokeWidth: 0.5 + (STRINGS - 1 - i) * 0.16 }}
           />

@@ -173,4 +173,55 @@ export function xpByKind(dailyLogs: Record<string, DailyLog>): { changes: number
   return { changes, other };
 }
 
+/** Consecutive days after which resting is the better call, not the weaker one. */
+export const REST_EARNED_AFTER = 6;
+
+export interface RestAdvice {
+  /** Days practised in a row, counting back from today or yesterday. */
+  run: number;
+  /** True once the run is long enough that a day off is the sensible move. */
+  earned: boolean;
+  message: string | null;
+}
+
+/**
+ * Whether a rest day is due.
+ *
+ * A streak counter with nothing else attached turns into pressure: the only
+ * thing it ever says is "do not stop", which is bad advice for hands that are
+ * six days into daily practice and the reason people quit rather than rest. This
+ * is the app being willing to say the opposite.
+ *
+ * Deliberately does not pause or protect the streak. A streak that survives a
+ * day off is not a streak, and quietly redefining it would be a worse lie than
+ * the pressure it was meant to relieve.
+ */
+export function restAdvice(dailyLogs: Record<string, DailyLog>, today: string): RestAdvice {
+  const practised = new Set(
+    Object.entries(dailyLogs)
+      .filter(([, log]) =>
+        Object.values(log?.drillResults ?? {}).some((v) => Number.isFinite(v) && v > 0),
+      )
+      .map(([date]) => date),
+  );
+
+  // Count back from today, allowing today itself to be empty: the day is not
+  // over yet, and telling someone their streak is broken at breakfast is absurd.
+  let cursor = practised.has(today) ? today : dayBefore(today);
+  let run = 0;
+  while (practised.has(cursor)) {
+    run += 1;
+    cursor = dayBefore(cursor);
+  }
+
+  if (run < REST_EARNED_AFTER) return { run, earned: false, message: null };
+  return {
+    run,
+    earned: true,
+    message:
+      `${run} days running. Hands build on the days off too, so taking one is ` +
+      `the stronger move, not the weaker one.`,
+  };
+}
+
 export { XP_PER_RESULT, XP_PER_BEST, XP_PER_STREAK_DAY, MAX_STREAK_BONUS };
