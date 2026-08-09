@@ -28,9 +28,7 @@ import './SongPicker.css';
 
 // The picker ships with every task row; the editor is opened by a minority of
 // sessions and carries its own stylesheet, so it stays out of the first paint.
-const SongEditorModal = lazy(() =>
-  import('./SongEditor').then((m) => ({ default: m.SongEditorModal })),
-);
+const SongEditor = lazy(() => import('./SongEditor').then((m) => ({ default: m.SongEditor })));
 
 interface Props {
   value: string;
@@ -124,8 +122,7 @@ export function SongPicker({ value, onChange }: Props) {
 
       <Suspense fallback={draft ? <Loader overlay label="Opening the chart…" /> : null}>
         {draft && (
-          <SongEditorModal
-            isOpen
+          <SongEditor
             draft={draft}
             existing={editingExisting}
             onSave={save}

@@ -10,6 +10,7 @@ import { SignalMeter } from './SignalMeter';
 import { useSignalMeter } from './signalQuality';
 import { sfx } from '../../audio/sfx';
 import { useStore, useUserData } from '../../store';
+import { pushOverlay } from '../overlayStack';
 import { activeProfileOf } from '../../lib/chordProfiles';
 import { useCapoOffset } from '../../hooks/useCapo';
 import {
@@ -174,12 +175,15 @@ export function CalibrationFlow({ onClose }: Props) {
   };
 
   useEffect(() => {
+    // Opened from the settings dialog, so it has to claim Escape or both close.
+    const overlay = pushOverlay();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && overlay.isTop()) onClose();
     };
     window.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
     return () => {
+      overlay.release();
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
       void stop();

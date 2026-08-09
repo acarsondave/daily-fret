@@ -1,5 +1,5 @@
+import { buildIcs } from '../src/lib/calendarFile.ts';
 import {
-  buildIcs,
   DEFAULT_REMINDER,
   describeDays,
   formatTime,

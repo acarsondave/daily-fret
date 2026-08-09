@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { DownloadIcon, HourglassIcon } from './icons';
 import { useStore, useUserData } from '../store';
+import { buildIcs } from '../lib/calendarFile';
 import {
-  buildIcs,
   DAY_NAMES,
   DEFAULT_REMINDER,
   describeDays,

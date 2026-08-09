@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CloseIcon } from './icons';
+import { pushOverlay } from './overlayStack';
 import './Modal.css';
 
 interface ModalProps {
@@ -39,6 +40,10 @@ export function Modal({
   useEffect(() => {
     if (!isOpen) return;
 
+    // Escape and the focus trap belong to whichever dialog is on top. Without
+    // this, a dialog opened from inside another closed both at once.
+    const overlay = pushOverlay();
+
     restoreRef.current = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -49,6 +54,7 @@ export function Modal({
     const focusTimer = setTimeout(() => panelRef.current?.focus(), 0);
 
     const onKeyDown = (e: KeyboardEvent) => {
+      if (!overlay.isTop()) return;
       if (e.key === 'Escape') {
         onClose();
         return;
@@ -78,6 +84,7 @@ export function Modal({
 
     window.addEventListener('keydown', onKeyDown);
     return () => {
+      overlay.release();
       clearTimeout(focusTimer);
       window.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = previousOverflow;
