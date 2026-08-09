@@ -42,7 +42,13 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const [module, setModule] = useState<number | null>(null);
   const [known, setKnown] = useState<string[]>([]);
 
-  const modules = useMemo(() => trackModules(track), [track]);
+  // The taught path only. A companion series (Justin's left-handed practice
+  // log) is filed under Grade 1 by the site but is not somewhere you start
+  // from, and it was being offered as an unnumbered module in the picker.
+  const modules = useMemo(
+    () => trackModules(track).filter((m) => !m.companion),
+    [track],
+  );
   const newChords = useMemo(
     () => (module === null ? [] : chordsInModule(track, module)),
     [track, module],
@@ -115,7 +121,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                   >
                     <span className="onboarding-choice-name">{t.title}</span>
                     <span className="onboarding-choice-note">
-                      {t.modules.length} modules
+                      {/* The taught modules, matching what the picker goes on
+                          to offer. Counting the companion series here promised
+                          a ninth module that the next screen did not have. */}
+                      {t.modules.filter((m) => !m.companion).length} modules
                     </span>
                   </button>
                 );

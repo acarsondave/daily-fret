@@ -73,9 +73,19 @@ for (const course of db.courses) {
     });
   });
 
+  // The site gives all three beginner grades the same title, so a picker
+  // offering them showed "Beginner Guitar Course" three times over. The grade
+  // is only in the slug (beginner-guitar-course-grade-one), so that is where
+  // the distinguishing name comes from.
+  const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+  const graded = /-grade-([a-z]+)$/.exec(course.slug ?? '');
+  const gradeWord = graded ? WORDS.indexOf(graded[1]) : -1;
+  const title = gradeWord >= 0 ? `${course.title}: Grade ${gradeWord}` : course.title;
+
   tracks.push({
     code,
-    title: course.title,
+    title,
+    siteTitle: course.title,
     grades: course.grades,
     order: course.grades[0] ?? null,
     legacy: LEGACY.test(course.title),
@@ -145,7 +155,10 @@ export interface CurriculumModule {
 
 export interface CurriculumTrack {
   code: string;
+  /** Distinguishing name. The site titles all three beginner grades alike. */
   title: string;
+  /** Exactly what the site calls it. */
+  siteTitle: string;
   /** A course can span grades; the classic beginner course spans three. */
   grades: number[];
   order: number | null;

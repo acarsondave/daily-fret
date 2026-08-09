@@ -42,7 +42,10 @@ export interface CurriculumModule {
 
 export interface CurriculumTrack {
   code: string;
+  /** Distinguishing name. The site titles all three beginner grades alike. */
   title: string;
+  /** Exactly what the site calls it. */
+  siteTitle: string;
   /** A course can span grades; the classic beginner course spans three. */
   grades: number[];
   order: number | null;
@@ -78,6 +81,7 @@ export const CURRICULUM: Curriculum = {
     {
       "code": "blim2",
       "title": "Blues Immersion",
+      "siteTitle": "Blues Immersion",
       "grades": [
         0
       ],
@@ -113,6 +117,7 @@ export const CURRICULUM: Curriculum = {
     {
       "code": "ear",
       "title": "Ear Training",
+      "siteTitle": "Ear Training",
       "grades": [
         0,
         1,
@@ -205,6 +210,7 @@ export const CURRICULUM: Curriculum = {
     {
       "code": "fun",
       "title": "Playground",
+      "siteTitle": "Playground",
       "grades": [
         0,
         1,
@@ -628,6 +634,7 @@ export const CURRICULUM: Curriculum = {
     {
       "code": "gtr",
       "title": "Guitars, Amps & Effects",
+      "siteTitle": "Guitars, Amps & Effects",
       "grades": [
         0,
         1
@@ -798,6 +805,7 @@ export const CURRICULUM: Curriculum = {
     {
       "code": "kno",
       "title": "Knowledge Base",
+      "siteTitle": "Knowledge Base",
       "grades": [
         0
       ],
@@ -881,6 +889,7 @@ export const CURRICULUM: Curriculum = {
     {
       "code": "old",
       "title": "Old Playground Modules",
+      "siteTitle": "Old Playground Modules",
       "grades": [
         0,
         1,
@@ -1030,6 +1039,7 @@ export const CURRICULUM: Curriculum = {
     {
       "code": "prd",
       "title": "Production",
+      "siteTitle": "Production",
       "grades": [
         0
       ],
@@ -1111,6 +1121,7 @@ export const CURRICULUM: Curriculum = {
     {
       "code": "sca",
       "title": "Scales & Modes",
+      "siteTitle": "Scales & Modes",
       "grades": [
         0,
         3,
@@ -1302,6 +1313,7 @@ export const CURRICULUM: Curriculum = {
     {
       "code": "tec",
       "title": "Technique Study",
+      "siteTitle": "Technique Study",
       "grades": [
         0,
         6
@@ -1460,6 +1472,7 @@ export const CURRICULUM: Curriculum = {
     {
       "code": "tra",
       "title": "Transcribing",
+      "siteTitle": "Transcribing",
       "grades": [
         0,
         5
@@ -1527,6 +1540,7 @@ export const CURRICULUM: Curriculum = {
     {
       "code": "uke",
       "title": "Ukulele",
+      "siteTitle": "Ukulele",
       "grades": [
         0,
         1
@@ -1607,6 +1621,7 @@ export const CURRICULUM: Curriculum = {
     {
       "code": "beg",
       "title": "Beginner Guitar Course [CLASSIC]",
+      "siteTitle": "Beginner Guitar Course [CLASSIC]",
       "grades": [
         1,
         2,
@@ -1826,7 +1841,8 @@ export const CURRICULUM: Curriculum = {
     },
     {
       "code": "bg1",
-      "title": "Beginner Guitar Course",
+      "title": "Beginner Guitar Course: Grade 1",
+      "siteTitle": "Beginner Guitar Course",
       "grades": [
         1
       ],
@@ -2048,7 +2064,8 @@ export const CURRICULUM: Curriculum = {
     },
     {
       "code": "bg2",
-      "title": "Beginner Guitar Course",
+      "title": "Beginner Guitar Course: Grade 2",
+      "siteTitle": "Beginner Guitar Course",
       "grades": [
         1,
         2
@@ -2248,6 +2265,7 @@ export const CURRICULUM: Curriculum = {
     {
       "code": "cho",
       "title": "Chords",
+      "siteTitle": "Chords",
       "grades": [
         1,
         2,
@@ -2336,7 +2354,8 @@ export const CURRICULUM: Curriculum = {
     },
     {
       "code": "bg3",
-      "title": "Beginner Guitar Course",
+      "title": "Beginner Guitar Course: Grade 3",
+      "siteTitle": "Beginner Guitar Course",
       "grades": [
         3
       ],
@@ -2497,6 +2516,7 @@ export const CURRICULUM: Curriculum = {
     {
       "code": "dwn",
       "title": "Downloads",
+      "siteTitle": "Downloads",
       "grades": [
         4
       ],
@@ -2529,7 +2549,8 @@ export const CURRICULUM: Curriculum = {
     },
     {
       "code": "if4",
-      "title": "Intermediate Guitar Course",
+      "title": "Intermediate Guitar Course: Grade 4",
+      "siteTitle": "Intermediate Guitar Course",
       "grades": [
         4
       ],
@@ -2698,6 +2719,7 @@ export const CURRICULUM: Curriculum = {
     {
       "code": "ifc",
       "title": "Intermediate Foundation [Classic]",
+      "siteTitle": "Intermediate Foundation [Classic]",
       "grades": [
         4,
         5
@@ -2810,7 +2832,8 @@ export const CURRICULUM: Curriculum = {
     },
     {
       "code": "if5",
-      "title": "Intermediate Guitar Course",
+      "title": "Intermediate Guitar Course: Grade 5",
+      "siteTitle": "Intermediate Guitar Course",
       "grades": [
         5
       ],
@@ -2876,7 +2899,8 @@ export const CURRICULUM: Curriculum = {
     },
     {
       "code": "inm",
-      "title": "Intermediate Guitar Course",
+      "title": "Intermediate Guitar Course: Grade 6",
+      "siteTitle": "Intermediate Guitar Course",
       "grades": [
         6
       ],
@@ -3042,7 +3066,8 @@ export const CURRICULUM: Curriculum = {
     },
     {
       "code": "adv",
-      "title": "Advanced Guitar Course",
+      "title": "Advanced Guitar Course: Grade 7",
+      "siteTitle": "Advanced Guitar Course",
       "grades": [
         7
       ],
@@ -3163,6 +3188,7 @@ export const CURRICULUM: Curriculum = {
     {
       "code": "arp",
       "title": "Arpeggios",
+      "siteTitle": "Arpeggios",
       "grades": [
         8
       ],
