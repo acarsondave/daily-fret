@@ -57,7 +57,9 @@
       title: clean(doc.querySelector('h1')?.textContent),
       crumb,
       siblings,
-      text: clean(body.innerText || body.textContent),
+      // A DOMParser document is detached and never laid out, so innerText is
+      // empty on it. textContent is the only one that yields anything here.
+      text: clean(body.textContent),
     };
   };
 
@@ -73,8 +75,13 @@
         headers: { Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = parse(await res.text());
-      if (!data?.title || data.text.length < 100) throw new Error('not a lesson page');
+      const html = await res.text();
+      const data = parse(html);
+      // Three different failures used to share one message, which made them
+      // impossible to tell apart from the console.
+      if (!data) throw new Error(`no .lesson element (${html.length} chars of HTML)`);
+      if (!data.title) throw new Error(`no h1 (${html.length} chars)`);
+      if (data.text.length < 100) throw new Error(`only ${data.text.length} chars of text`);
       store.lessons[slug] = data;
       done += 1; streak = 0;
     } catch (e) {
