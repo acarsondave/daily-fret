@@ -12,7 +12,7 @@ interface Props {
 export function StrumPatternSelect({ value, onChange }: Props) {
   const custom = useStore((s) => s.accounts[s.currentAccountId]?.strumPatterns ?? []);
   return (
-    <select className="task-input drill-song-select" value={value} onChange={(e) => onChange(e.target.value)}>
+    <select className="task-input drill-song-select" aria-label="Strum pattern" value={value} onChange={(e) => onChange(e.target.value)}>
       <option value="">No strum pattern</option>
       <optgroup label="Built-in">
         {BUILTIN_PATTERNS.map((p) => (

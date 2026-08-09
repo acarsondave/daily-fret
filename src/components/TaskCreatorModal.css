@@ -12,27 +12,10 @@
 
 .task-creator-title {
   font-family: var(--font-primary);
-  font-size: 1.25rem;
+  font-size: var(--text-lg);
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 0;
-}
-
-.task-creator-close {
-  color: var(--text-secondary);
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-full);
-  padding: var(--space-1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.task-creator-close:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
 }
 
 .task-creator-form {
@@ -48,7 +31,7 @@
 }
 
 .form-group label {
-  font-size: 0.9rem;
+  font-size: var(--text-base);
   color: var(--text-secondary);
   font-weight: 500;
 }
@@ -59,7 +42,7 @@
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-lg);
   color: var(--text-primary);
-  font-size: 1rem;
+  font-size: var(--text-md);
   outline: none;
   transition: all 0.2s;
 }

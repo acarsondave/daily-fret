@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash, MusicNote } from '@phosphor-icons/react';
+import { MusicNoteIcon, PlusIcon, TrashIcon } from './icons';
 import { useStore } from '../store';
 import { BUILTIN_PATTERNS } from '../data/strumPatterns';
 import { StrumRow } from './practice/StrumRow';
@@ -27,7 +27,7 @@ export function PatternManager() {
   return (
     <div className="pattern-manager">
       <div className="mic-setting-head">
-        <MusicNote size={18} weight="fill" />
+        <MusicNoteIcon size={18} />
         <span>Strum patterns</span>
       </div>
 
@@ -37,8 +37,8 @@ export function PatternManager() {
             <span className="pattern-item-name">{p.name}</span>
             <StrumRow strum={p.pattern} size={12} />
             {!p.builtin && (
-              <button className="pattern-item-remove" onClick={() => removeStrumPattern(p.id)} title="Remove">
-                <Trash size={14} />
+              <button className="pattern-item-remove" onClick={() => removeStrumPattern(p.id)} title="Remove" aria-label={`Remove pattern ${p.name}`}>
+                <TrashIcon size={14} />
               </button>
             )}
           </div>
@@ -48,6 +48,7 @@ export function PatternManager() {
       <div className="pattern-add">
         <input
           className="task-input"
+          aria-label="Pattern name"
           placeholder="Name"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -55,12 +56,13 @@ export function PatternManager() {
         />
         <input
           className="task-input pattern-add-code"
+          aria-label="Pattern, using D for down, U for up and - for rest"
           placeholder="e.g. DDUUDU"
           value={pattern}
           onChange={(e) => setPattern(clean(e.target.value))}
         />
         <button className="pattern-add-btn" onClick={submit} disabled={!name.trim() || !clean(pattern)} title="Add pattern">
-          <Plus size={16} weight="bold" />
+          <PlusIcon size={16} />
         </button>
       </div>
       <p className="pattern-hint">D = down, U = up, - = rest</p>

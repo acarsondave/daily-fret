@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { useStore, useUserData, getTodayString } from '../store';
-import { useDrillStats } from '../lib/drillStats';
+import { useDrillStats } from '../hooks/useDrillStats';
 import { TaskRow } from './TaskRow';
 import { Modal } from './Modal';
 import { Loader } from './Loader';
@@ -10,7 +10,14 @@ import { ProgressPanel } from './practice/ProgressPanel';
 import { sanitizeMinutes } from '../lib/coached';
 import type { Task } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lightning, Plus, CaretDown, Gear, ChartLineUp, PlayCircle } from '@phosphor-icons/react';
+import {
+  BoltIcon,
+  PlusIcon,
+  CaretDownIcon,
+  SlidersIcon,
+  ChartIcon,
+  SessionIcon,
+} from './icons';
 import clsx from 'clsx';
 import './DailyPath.css';
 
@@ -29,15 +36,16 @@ const INLINE_HINTS: Record<(typeof INLINE_STEPS)[number], string> = {
   description: 'What is this task for? (Optional)',
   duration: 'How many minutes? (Optional)',
 };
+const MAX_TASKS = 100;
 
 export function DailyPath() {
   const today = getTodayString();
   const userData = useUserData();
-  
+
   const routines = useMemo(() => userData?.routines || [], [userData]);
   const activeRoutineId = userData?.activeRoutineId;
   const dailyLogs = userData?.dailyLogs || {};
-  
+
   const setActiveRoutine = useStore(state => state.setActiveRoutine);
   const log = dailyLogs[today];
 
@@ -49,18 +57,25 @@ export function DailyPath() {
   const [isCoachedOpen, setIsCoachedOpen] = useState(false);
   const [practiceTask, setPracticeTask] = useState<Task | null>(null);
   const [prevAllCompleted, setPrevAllCompleted] = useState(false);
+  const [limitNotice, setLimitNotice] = useState(false);
 
   const drillStats = useDrillStats();
-  const hasProgress = drillStats.some((s) => s.series.length > 0);
+  const hasProgress = drillStats.any;
 
   // Stable across renders so memoized TaskRows don't re-render when the list
   // does (e.g. when another task is toggled). The row passes its own task back.
   const launchDrill = useCallback((task: Task) => setPracticeTask(task), []);
 
   const routineDropdownRef = useRef<HTMLDivElement>(null);
+  const routineTriggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const [inlineDraft, setInlineDraft] = useState({ title: '', description: '', duration: '' });
   const [inlineStep, setInlineStep] = useState<'title'|'description'|'duration'|null>(null);
+  // Which edges of the task list actually have more content past them. Drives
+  // the fade: the old mask faded the top and bottom unconditionally, so with
+  // two tasks the first one sat permanently half-dissolved for no reason.
+  const [listEdges, setListEdges] = useState({ up: false, down: false });
 
   const titleInputRef = useRef<HTMLInputElement>(null);
   const descInputRef = useRef<HTMLInputElement>(null);
@@ -71,7 +86,7 @@ export function DailyPath() {
     return routines.find(r => r.id === activeRoutineId) || routines[0];
   }, [routines, activeRoutineId]);
 
-  const tasks = activeRoutine?.tasks || [];
+  const tasks = useMemo(() => activeRoutine?.tasks || [], [activeRoutine]);
   const isEmpty = tasks.length === 0;
 
   // Coached mode runs every task in order (drills + timed blocks).
@@ -92,16 +107,46 @@ export function DailyPath() {
   }
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    if (!isRoutineDropdownOpen) return;
+    // pointerdown, not mousedown: it fires for touch and pen too, so the menu
+    // closes on a tap outside on a phone instead of waiting for a synthesised
+    // mouse event that may never arrive.
+    const handlePointerDown = (e: PointerEvent) => {
       if (routineDropdownRef.current && !routineDropdownRef.current.contains(e.target as Node)) {
         setIsRoutineDropdownOpen(false);
       }
     };
-    if (isRoutineDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setIsRoutineDropdownOpen(false);
+      routineTriggerRef.current?.focus();
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKey);
+    };
   }, [isRoutineDropdownOpen]);
+
+  // Fade an edge only when something is actually past it.
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const measure = () => {
+      const up = el.scrollTop > 4;
+      const down = el.scrollTop + el.clientHeight < el.scrollHeight - 4;
+      setListEdges((prev) => (prev.up === up && prev.down === down ? prev : { up, down }));
+    };
+    measure();
+    el.addEventListener('scroll', measure, { passive: true });
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener('scroll', measure);
+      ro.disconnect();
+    };
+  }, [tasks.length, inlineStep]);
 
   // On a phone the soft keyboard covers the lower half of the screen, so keep
   // the step the user is on (and its buttons) in view as the flow advances.
@@ -128,6 +173,7 @@ export function DailyPath() {
 
   const cancelInline = () => {
     setInlineStep(null);
+    setLimitNotice(false);
     setInlineDraft({ title: '', description: '', duration: '' });
   };
 
@@ -138,8 +184,10 @@ export function DailyPath() {
 
   const submitInlineTask = () => {
     if (!inlineDraft.title.trim()) return;
-    if (tasks.length >= 100) {
-      alert("Maximum limit of 100 tasks per routine reached.");
+    if (tasks.length >= MAX_TASKS) {
+      // Was a native alert(), which is the one piece of UI the app cannot style
+      // and the only place it spoke like a browser instead of like itself.
+      setLimitNotice(true);
       return;
     }
     const newTask = {
@@ -150,6 +198,7 @@ export function DailyPath() {
     };
     useStore.getState().addTask(activeRoutine.id, newTask);
     setInlineStep(null);
+    setLimitNotice(false);
     setInlineDraft({ title: '', description: '', duration: '' });
   };
 
@@ -157,10 +206,11 @@ export function DailyPath() {
     return (
       <div className="daily-path">
         <div className="task-container-wrapper">
-          <div className="task-container glass-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px' }}>
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
+          <div className="task-container glass-panel is-blank">
+            <motion.button
+              type="button"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               className="empty-state-placeholder"
               onClick={() => {
                 const newId = crypto.randomUUID();
@@ -174,8 +224,9 @@ export function DailyPath() {
                 setActiveRoutine(newId);
               }}
             >
-              <span className="placeholder-text">Click to create your first routine...</span>
-            </motion.div>
+              <span className="placeholder-text">Start your first routine</span>
+              <span className="placeholder-sub">A routine is the set of things you practise in a session.</span>
+            </motion.button>
           </div>
         </div>
       </div>
@@ -186,26 +237,34 @@ export function DailyPath() {
     <div className="daily-path">
       <div className="path-header-center">
         <div className="routine-selector-container" ref={routineDropdownRef}>
-          <button 
+          <button
+            ref={routineTriggerRef}
             className="routine-selector"
             onClick={() => setIsRoutineDropdownOpen(prev => !prev)}
+            aria-expanded={isRoutineDropdownOpen}
+            aria-haspopup="menu"
           >
-            <Lightning weight="duotone" className="routine-icon" />
+            <BoltIcon size={18} className="routine-icon" />
             <span className="routine-name">{activeRoutine.name}</span>
-            <CaretDown weight="bold" className="routine-caret" />
+            <CaretDownIcon size={16} className={clsx('routine-caret', isRoutineDropdownOpen && 'is-open')} />
           </button>
-          
+
           <AnimatePresence>
             {isRoutineDropdownOpen && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: -10 }}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96, y: -8 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                exit={{ opacity: 0, scale: 0.96, y: -8 }}
+                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                 className="routine-dropdown glass-panel"
+                role="menu"
+                aria-label="Choose a routine"
               >
                 {routines.map(r => (
-                  <button 
-                    key={r.id} 
+                  <button
+                    key={r.id}
+                    role="menuitemradio"
+                    aria-checked={r.id === activeRoutineId}
                     className={clsx('dropdown-item', r.id === activeRoutineId && 'active')}
                     onClick={() => {
                       setActiveRoutine(r.id);
@@ -216,14 +275,15 @@ export function DailyPath() {
                   </button>
                 ))}
                 <div className="dropdown-divider" />
-                <button 
+                <button
+                  role="menuitem"
                   className="dropdown-item manage-action"
                   onClick={() => {
                     setIsRoutineDropdownOpen(false);
                     setIsRoutineModalOpen(true);
                   }}
                 >
-                  <Gear size={16} /> Manage Routines
+                  <SlidersIcon size={16} /> Manage routines
                 </button>
               </motion.div>
             )}
@@ -232,11 +292,11 @@ export function DailyPath() {
 
         {hasCoachable && (
           <button
-            className="progress-launch"
+            className="progress-launch is-primary"
             onClick={() => setIsCoachedOpen(true)}
             title="Run this whole routine, guided"
           >
-            <PlayCircle weight="duotone" className="progress-launch-icon" />
+            <SessionIcon size={18} className="progress-launch-icon" />
             <span>Coached</span>
           </button>
         )}
@@ -247,7 +307,7 @@ export function DailyPath() {
             onClick={() => setIsProgressOpen(true)}
             title="Your change-speed progress"
           >
-            <ChartLineUp weight="duotone" className="progress-launch-icon" />
+            <ChartIcon size={18} className="progress-launch-icon" />
             <span>Progress</span>
           </button>
         )}
@@ -255,7 +315,14 @@ export function DailyPath() {
 
       <div className="task-container-wrapper">
         <div className="task-container glass-panel">
-          <div className="task-list-scrollable">
+          <div
+            ref={listRef}
+            className={clsx(
+              'task-list-scrollable',
+              listEdges.up && 'fade-up',
+              listEdges.down && 'fade-down',
+            )}
+          >
             <AnimatePresence mode="popLayout">
               {tasks.map((task, idx) => (
                 <motion.div
@@ -270,14 +337,18 @@ export function DailyPath() {
               ))}
 
               {isEmpty && !inlineStep && (
-                <motion.div 
-                  initial={{ opacity: 0 }} 
-                  animate={{ opacity: 1 }} 
+                <motion.button
+                  type="button"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
                   className="empty-state-placeholder"
                   onClick={() => setInlineStep('title')}
                 >
-                  <span className="placeholder-text">Click to add your first task...</span>
-                </motion.div>
+                  <span className="placeholder-text">Add your first task</span>
+                  <span className="placeholder-sub">
+                    A warm-up, a chord drill, a song. Anything you want to do today.
+                  </span>
+                </motion.button>
               )}
 
               {inlineStep && (
@@ -292,7 +363,7 @@ export function DailyPath() {
                   }}
                 >
                   <div className="inline-step-head">
-                    <span className="inline-steps" aria-label={`Step ${INLINE_STEPS.indexOf(inlineStep) + 1} of ${INLINE_STEPS.length}`}>
+                    <span className="inline-steps" aria-hidden="true">
                       {INLINE_STEPS.map(step => (
                         <span
                           key={step}
@@ -301,6 +372,9 @@ export function DailyPath() {
                       ))}
                     </span>
                     <span className="inline-tooltip">{INLINE_HINTS[inlineStep]}</span>
+                    <span className="sr-only">
+                      Step {INLINE_STEPS.indexOf(inlineStep) + 1} of {INLINE_STEPS.length}
+                    </span>
                   </div>
 
                   {inlineStep === 'title' && (
@@ -308,6 +382,7 @@ export function DailyPath() {
                       <input
                         ref={titleInputRef}
                         autoFocus
+                        aria-label="Task name"
                         placeholder="e.g. Spider Walk"
                         value={inlineDraft.title}
                         onChange={e => setInlineDraft(d => ({ ...d, title: e.target.value }))}
@@ -323,6 +398,7 @@ export function DailyPath() {
                       <input
                         ref={descInputRef}
                         autoFocus
+                        aria-label="Description (optional)"
                         placeholder="e.g. Start at 1st fret, alternate picking."
                         value={inlineDraft.description}
                         onChange={e => setInlineDraft(d => ({ ...d, description: e.target.value }))}
@@ -338,6 +414,7 @@ export function DailyPath() {
                       <input
                         ref={durationInputRef}
                         autoFocus
+                        aria-label="Minutes (optional)"
                         placeholder="e.g. 5"
                         value={inlineDraft.duration}
                         onChange={e => setInlineDraft(d => ({ ...d, duration: sanitizeMinutes(e.target.value) }))}
@@ -348,6 +425,13 @@ export function DailyPath() {
                         enterKeyHint="done"
                       />
                     </div>
+                  )}
+
+                  {limitNotice && (
+                    <p className="inline-notice" role="alert">
+                      This routine is full at {MAX_TASKS} tasks. Delete one, or start a
+                      second routine, to add more.
+                    </p>
                   )}
 
                   {/* The numeric keypad has no return key, so the last step was a
@@ -372,11 +456,11 @@ export function DailyPath() {
 
           {!isEmpty && (
             <div className="task-container-footer">
-               <button 
+               <button
                 className="add-task-btn"
                 onClick={() => setIsTaskModalOpen(true)}
                >
-                 <Plus size={16} />
+                 <PlusIcon size={16} />
                  <span>Add quick task</span>
                </button>
             </div>
@@ -384,26 +468,30 @@ export function DailyPath() {
         </div>
       </div>
 
-      <Modal 
-        isOpen={isJotterOpen} 
+      <Modal
+        isOpen={isJotterOpen}
         onClose={() => {
           setIsJotterOpen(false);
         }}
+        label="Today's practice note"
         position="bottom"
       >
         <div className="jotter-content">
-          <h2 className="jotter-title">You've completed today's rounds.</h2>
-          <p className="jotter-subtitle">Well done.</p>
-          <textarea 
+          <h2 className="jotter-title">That's today's practice done.</h2>
+          <p className="jotter-subtitle">
+            Anything worth remembering before you put the guitar down?
+          </p>
+          <textarea
             className="jotter-input"
-            placeholder="Have any thoughts or notes about today's experience?"
+            aria-label="Practice note"
+            placeholder="What felt better than last time? What is still fighting you?"
             value={log?.feedback || ''}
             onChange={(e) => useStore.getState().saveFeedback(today, e.target.value)}
             rows={4}
             maxLength={1000}
           />
-          <button 
-            className="jotter-done-btn" 
+          <button
+            className="jotter-done-btn"
             onClick={() => setIsJotterOpen(false)}
           >
             Done
@@ -411,13 +499,13 @@ export function DailyPath() {
         </div>
       </Modal>
 
-      <TaskCreatorModal 
+      <TaskCreatorModal
         isOpen={isTaskModalOpen}
         onClose={() => setIsTaskModalOpen(false)}
         routineId={activeRoutine.id}
       />
-      
-      <RoutineManagerModal 
+
+      <RoutineManagerModal
         isOpen={isRoutineModalOpen}
         onClose={() => setIsRoutineModalOpen(false)}
       />

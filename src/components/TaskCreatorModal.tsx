@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Modal } from './Modal';
 import { useStore } from '../store';
-import { Plus, Trash } from '@phosphor-icons/react';
+import { PlusIcon, TrashIcon } from './icons';
 import clsx from 'clsx';
 import { sanitizeMinutes } from '../lib/coached';
 import { SONGS } from '../data/songs';
@@ -20,6 +20,10 @@ interface TaskCreatorModalProps {
 
 export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModalProps) {
   const addTask = useStore(state => state.addTask);
+  // Stable per-instance ids so the visible labels above these fields are
+  // actually bound to them. They were plain <label> elements with nothing to
+  // point at, which is a label a screen reader never reads.
+  const fieldId = useId();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState('');
@@ -96,18 +100,19 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} position="center">
+    <Modal isOpen={isOpen} onClose={onClose} position="center" label="Add a task">
       <div className="task-creator-content">
         <div className="task-creator-header">
-          <h3 className="task-creator-title">Add New Task</h3>
+          <h2 className="task-creator-title">Add New Task</h2>
         </div>
 
         <form onSubmit={handleSubmit} className="task-creator-form">
           <div className="form-group">
-            <label>Task Title</label>
-            <input 
-              type="text" 
-              className="task-input" 
+            <label htmlFor={`${fieldId}-title`}>Task Title</label>
+            <input
+              id={`${fieldId}-title`}
+              type="text"
+              className="task-input"
               placeholder="e.g. Spider Exercises" 
               value={title}
               onChange={e => setTitle(e.target.value)}
@@ -118,9 +123,10 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
           </div>
 
           <div className="form-group">
-            <label>Duration</label>
+            <label htmlFor={`${fieldId}-duration`}>Duration</label>
             <div className="task-duration-field">
               <input
+                id={`${fieldId}-duration`}
                 type="text"
                 className="task-input"
                 placeholder="Minutes"
@@ -134,8 +140,9 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
           </div>
 
           <div className="form-group">
-            <label>Description (Optional)</label>
-            <textarea 
+            <label htmlFor={`${fieldId}-desc`}>Description (Optional)</label>
+            <textarea
+              id={`${fieldId}-desc`}
               className="task-input task-textarea" 
               placeholder="e.g. Start at 1st fret, alternate picking." 
               value={description}
@@ -226,6 +233,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
                 <span className="drill-hint">Play along to the chords at your own pace</span>
                 <select
                   className="task-input drill-song-select"
+                  aria-label="Song"
                   value={songId}
                   onChange={e => setSongId(e.target.value)}
                 >
@@ -249,6 +257,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
                         <input
                           type="text"
                           className="task-input"
+                          aria-label="Block name"
                           placeholder="e.g. Pattern 1"
                           value={block.label}
                           onChange={e => updateBlock(block.id, { label: e.target.value })}
@@ -258,6 +267,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
                           <input
                             type="text"
                             className="task-input"
+                            aria-label="Block minutes"
                             placeholder="Min"
                             value={String(Math.round(block.durationSec / 60))}
                             onChange={e => {
@@ -274,7 +284,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
                           onClick={() => removeBlock(block.id)}
                           title="Remove block"
                         >
-                          <Trash size={16} />
+                          <TrashIcon size={16} />
                         </button>
                       </div>
                       <StrumPatternSelect
@@ -302,7 +312,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
                     </div>
                   ))}
                   <button type="button" className="drill-block-add" onClick={addBlock}>
-                    <Plus size={14} weight="bold" /> Add block
+                    <PlusIcon size={14} /> Add block
                   </button>
                 </div>
               </>
@@ -310,7 +320,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
           </div>
 
           <button type="submit" className="task-submit-btn" disabled={!title.trim()}>
-            <Plus size={16} />
+            <PlusIcon size={16} />
             <span>Add Task</span>
           </button>
         </form>

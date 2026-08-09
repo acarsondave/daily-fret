@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Waveform } from '@phosphor-icons/react';
+import { PlectrumIcon } from './icons';
 import { useUserData } from '../store';
 import { CalibrationFlow } from './practice/CalibrationFlow';
 
@@ -17,12 +17,12 @@ export function CalibrationSetting() {
   return (
     <div className="mic-setting">
       <div className="mic-setting-head">
-        <Waveform size={18} weight="fill" />
+        <PlectrumIcon size={18} />
         <span>Detector calibration</span>
       </div>
       <div className="cal-setting-status">{status}</div>
       <button type="button" className="settings-action-btn" onClick={() => setOpen(true)}>
-        <Waveform size={18} />
+        <PlectrumIcon size={18} />
         <span>{calibration ? 'Recalibrate detection' : 'Calibrate to your guitar'}</span>
       </button>
       {open && <CalibrationFlow onClose={() => setOpen(false)} />}

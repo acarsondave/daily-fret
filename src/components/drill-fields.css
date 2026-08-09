@@ -14,7 +14,7 @@
   position: absolute;
   right: var(--space-3);
   font-family: var(--font-primary);
-  font-size: 0.9rem;
+  font-size: var(--text-base);
   color: var(--text-secondary);
   pointer-events: none;
 }
@@ -28,7 +28,7 @@
 }
 
 .drill-edit-label {
-  font-size: 0.72rem;
+  font-size: var(--text-micro);
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -49,7 +49,7 @@
   padding: var(--space-2);
   border-radius: var(--radius-sm);
   font-family: var(--font-primary);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-secondary);
   transition: color 0.2s ease, background 0.2s ease;
@@ -64,38 +64,12 @@
   background: var(--accent-primary);
 }
 
-.drill-chords {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.drill-select {
-  appearance: none;
-  flex: 1;
-  text-align: center;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
-  padding: var(--space-2);
-  border-radius: var(--radius-sm);
-  font-family: var(--font-primary);
-  font-weight: 600;
-  font-size: 0.95rem;
-  cursor: pointer;
-  transition: border-color 0.2s ease;
-}
-
-.drill-select:focus {
-  border-color: var(--accent-primary);
-}
-
 .drill-segment-btn {
-  font-size: 0.72rem;
+  font-size: var(--text-micro);
 }
 
 .drill-hint {
-  font-size: 0.75rem;
+  font-size: var(--text-micro);
   color: var(--text-secondary);
 }
 
@@ -114,7 +88,7 @@
   color: var(--text-secondary);
   font-family: var(--font-primary);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--text-base);
   transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
 
@@ -130,26 +104,8 @@
   cursor: pointer;
 }
 .drill-song-select option {
-  background: #1a1a1d;
+  background: var(--surface-color);
   color: var(--text-primary);
-}
-
-/* Skip-learn toggle (drill kind = song): send the session straight to play-along. */
-.drill-toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-.drill-toggle input {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--accent-primary);
-  cursor: pointer;
-  flex-shrink: 0;
 }
 
 /* Configurable timed blocks (drill kind = none) */
@@ -198,7 +154,7 @@
 }
 
 .drill-block-remove:hover {
-  color: #f87171;
+  color: var(--danger-color);
   background: rgba(248, 113, 113, 0.1);
 }
 
@@ -213,7 +169,7 @@
   border: 1px dashed rgba(255, 255, 255, 0.18);
   color: var(--text-secondary);
   font-family: var(--font-primary);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   transition: color 0.2s ease, border-color 0.2s ease;
 }
@@ -246,4 +202,19 @@
 .drill-block-bpm .task-duration-suffix {
   position: absolute;
   right: var(--space-2);
+}
+
+/* Touch. On a coarse pointer every one of these is hit with a thumb while the
+   other hand is holding a guitar, so they get the full 44px target. Sizes are
+   raised only under this query, which keeps the mouse UI at its intended
+   density instead of inflating the whole interface for one input type. */
+@media (pointer: coarse) {
+  .drill-block-remove {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .drill-chip,
+  .drill-segment-btn {
+    min-height: 44px;
+  }
 }

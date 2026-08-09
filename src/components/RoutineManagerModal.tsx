@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Modal } from './Modal';
 import { useStore, useUserData } from '../store';
-import { Gear, Trash, Check, Code, UploadSimple, ArrowLeft, Plus, X } from '@phosphor-icons/react';
+import { ArrowLeftIcon, CheckIcon, CloseIcon, CodeIcon, PlusIcon, SlidersIcon, TrashIcon, UploadIcon } from './icons';
 import clsx from 'clsx';
 import type { Routine } from '../types';
 import { routineChords } from '../lib/pairs';
@@ -18,6 +18,8 @@ type ViewState = 'list' | 'create' | 'import';
 
 export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProps) {
   const { routines } = useUserData();
+  // See TaskCreatorModal: the "Routine Name" label existed but was never bound.
+  const fieldId = useId();
   // Per-action selectors return stable refs — avoids subscribing to the whole store.
   const addRoutine = useStore((s) => s.addRoutine);
   const updateRoutine = useStore((s) => s.updateRoutine);
@@ -112,15 +114,15 @@ export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProp
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={resetAndClose} position="center">
+    <Modal isOpen={isOpen} onClose={resetAndClose} position="center" label="Manage routines">
       <div className="routine-manager-content">
         
         {view === 'list' && (
           <>
             <div className="routine-manager-header">
               <div className="header-title-row">
-                <Gear size={24} weight="duotone" color="var(--accent-primary)" />
-                <h3 className="routine-manager-title">Manage Routines</h3>
+                <SlidersIcon size={24} color="var(--accent-primary)" />
+                <h2 className="routine-manager-title">Manage Routines</h2>
               </div>
             </div>
 
@@ -131,6 +133,7 @@ export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProp
                     <div className="routine-edit-input-row">
                       <input
                         type="text"
+                        aria-label={`Rename routine ${r.name}`}
                         value={editName}
                         onChange={e => setEditName(e.target.value)}
                         className="routine-edit-input"
@@ -140,7 +143,7 @@ export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProp
                         maxLength={60}
                       />
                       <button className="icon-btn success" onClick={saveEdit}>
-                        <Check size={18} />
+                        <CheckIcon size={18} />
                       </button>
                     </div>
                   ) : (
@@ -152,15 +155,15 @@ export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProp
                             <>
                               <span className="confirm-text" style={{ fontSize: '0.8rem', color: 'var(--error-color)', marginRight: '8px' }}>Delete?</span>
                               <button className="icon-btn danger" onClick={() => { deleteRoutine(r.id); setDeletingId(null); }}>
-                                <Check size={18} />
+                                <CheckIcon size={18} />
                               </button>
                               <button className="icon-btn" onClick={() => setDeletingId(null)}>
-                                <X size={18} />
+                                <CloseIcon size={18} />
                               </button>
                             </>
                           ) : (
                             <button className="icon-btn danger" onClick={() => setDeletingId(r.id)} disabled={routines.length <= 1}>
-                              <Trash size={18} />
+                              <TrashIcon size={18} />
                             </button>
                           )}
                         </div>
@@ -188,10 +191,10 @@ export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProp
 
             <div className="routine-manager-actions">
               <button className="create-routine-btn" onClick={() => setView('create')}>
-                <Plus size={16} /> Create New Routine
+                <PlusIcon size={16} /> Create New Routine
               </button>
               <button className="import-json-btn" onClick={() => setView('import')}>
-                <Code size={16} /> Import from JSON
+                <CodeIcon size={16} /> Import from JSON
               </button>
             </div>
           </>
@@ -201,15 +204,16 @@ export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProp
           <div className="slate-view">
             <div className="slate-header">
               <button className="back-btn" onClick={() => setView('list')}>
-                <ArrowLeft size={18} />
+                <ArrowLeftIcon size={18} />
               </button>
-              <h3 className="slate-title">Create Routine</h3>
+              <h2 className="slate-title">Create Routine</h2>
             </div>
             <form onSubmit={handleCreateSubmit} className="slate-form">
               <div className="input-group">
-                <label>Routine Name</label>
-                <input 
-                  type="text" 
+                <label htmlFor={`${fieldId}-routine-name`}>Routine Name</label>
+                <input
+                  id={`${fieldId}-routine-name`}
+                  type="text"
                   value={createName}
                   onChange={e => setCreateName(e.target.value)}
                   placeholder="e.g. Weekend Jam"
@@ -229,22 +233,23 @@ export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProp
           <div className="slate-view">
             <div className="slate-header">
               <button className="back-btn" onClick={() => setView('list')}>
-                <ArrowLeft size={18} />
+                <ArrowLeftIcon size={18} />
               </button>
-              <h3 className="slate-title">Import JSON</h3>
+              <h2 className="slate-title">Import JSON</h2>
             </div>
             <div className="slate-form">
               <p className="json-hint">Paste an array of tasks: [{`{ "title": "...", "duration": "..." }`}]</p>
               {jsonError && <p className="json-error">{jsonError}</p>}
               <textarea
                 className="json-textarea"
+                aria-label="Tasks JSON"
                 value={jsonText}
                 onChange={e => setJsonText(e.target.value)}
                 placeholder={`[\n  { "title": "Scale Practice", "duration": "5 mins", "description": "A minor" }\n]`}
                 maxLength={50000}
               />
               <button className="slate-submit-btn" onClick={handleImport} disabled={!jsonText.trim()}>
-                <UploadSimple size={16} /> Import Tasks
+                <UploadIcon size={16} /> Import Tasks
               </button>
             </div>
           </div>

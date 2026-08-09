@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Microphone } from '@phosphor-icons/react';
+import { MicIcon } from './icons';
 import { listMicInputs, getPreferredMicId, setPreferredMicId, type MicInput } from '../audio/micDevice';
 
 // One-time microphone preference, lives in Account Settings so the choice is set
@@ -46,11 +46,12 @@ export function MicSetting() {
   return (
     <div className="mic-setting">
       <div className="mic-setting-head">
-        <Microphone size={18} weight="fill" />
-        <span>Microphone</span>
+        <MicIcon size={18} />
+        <span id="mic-setting-label">Microphone</span>
       </div>
       <select
         className="mic-setting-select"
+        aria-labelledby="mic-setting-label"
         value={devices.some((d) => d.deviceId === selected) ? selected : ''}
         onChange={(e) => handleChange(e.target.value)}
       >
