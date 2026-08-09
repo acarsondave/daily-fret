@@ -6,7 +6,8 @@ import { useStore, getTodayString } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import { taskDrillHistory } from '../../lib/drillStats';
 import { drillSeries, planTempo, fixedTempo, type TempoPlan } from '../../lib/tempo';
-import { getSong } from '../../data/songs';
+import { useSongs } from '../../hooks/useSongs';
+import { findSong } from '../../lib/songCatalog';
 import type { Task } from '../../types';
 import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
@@ -25,6 +26,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
   const recordDrillResult = useStore((s) => s.recordDrillResult);
   const setLastPair = useStore((s) => s.setLastPair);
   const lastPair = useStore((s) => s.accounts[s.currentAccountId]?.lastPair);
+  const songs = useSongs();
   const drill = task.drill;
 
   // Snapshot history once at mount so the in-session result can be compared
@@ -77,7 +79,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
     if (drill.kind === 'chord-trainer' || drill.kind === 'chord-rotation') {
       return planTempo(drillSeries(logs, task.id, duration), getTodayString());
     }
-    const song = getSong(drill.songId);
+    const song = findSong(songs, drill.songId);
     return fixedTempo(
       song?.bpm,
       song?.bpm ? `${song.title} runs at about ${song.bpm} BPM. Tap start if you want it.` : undefined,

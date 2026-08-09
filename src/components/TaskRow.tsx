@@ -20,7 +20,8 @@ import { sanitizeMinutes, formatDuration } from '../lib/coached';
 import { looksLikeTab } from '../lib/tab';
 // One definition of what each drill's number means, shared with Progress.
 import { DRILL_UNIT, DRILL_LABEL } from '../lib/drills';
-import { SONGS } from '../data/songs';
+import { SongPicker } from './SongPicker';
+import { useSongs } from '../hooks/useSongs';
 import { StrumPatternSelect } from './StrumPatternSelect';
 import type { DrillConfig, DrillKind, Task, TimedBlock } from '../types';
 import './TaskRow.css';
@@ -102,11 +103,15 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
       : drill?.chordFrom && drill?.chordTo
         ? [drill.chordFrom, drill.chordTo]
         : ['A', 'D', 'E'];
+  const songs = useSongs();
+  // The catalogue is never empty (the built-ins ship in code), but reading it as
+  // if it could be keeps a deleted-chart edge case from crashing the row.
+  const firstSongId = songs[0]?.id ?? '';
   const [editChords, setEditChords] = useState<string[]>(initialDrillChords);
   const [editTrainerChords, setEditTrainerChords] = useState<string[]>(
     drill?.kind === 'chord-trainer' && drill.chords?.length ? drill.chords : ['A', 'D', 'E', 'G', 'C'],
   );
-  const [editSongId, setEditSongId] = useState<string>(drill?.songId ?? SONGS[0].id);
+  const [editSongId, setEditSongId] = useState<string>(drill?.songId ?? firstSongId);
   const [editBlocks, setEditBlocks] = useState<TimedBlock[]>(blocks ?? []);
 
   const addEditBlock = () =>
@@ -196,7 +201,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
     setEditTrainerChords(
       drill?.kind === 'chord-trainer' && drill.chords?.length ? drill.chords : ['A', 'D', 'E', 'G', 'C'],
     );
-    setEditSongId(drill?.songId ?? SONGS[0].id);
+    setEditSongId(drill?.songId ?? firstSongId);
     setEditBlocks(blocks ?? []);
     setIsEditing(false);
   };
@@ -345,18 +350,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
             {editDrillKind === 'song' && (
               <>
                 <span className="drill-hint">Play along to the chords at your own pace</span>
-                <select
-                  className="task-input drill-song-select"
-                  aria-label="Song"
-                  value={editSongId}
-                  onChange={e => setEditSongId(e.target.value)}
-                >
-                  {SONGS.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.title} · {s.artist} ({s.chords.join(' ')})
-                    </option>
-                  ))}
-                </select>
+                <SongPicker value={editSongId} onChange={setEditSongId} />
               </>
             )}
             {editDrillKind === 'none' && (

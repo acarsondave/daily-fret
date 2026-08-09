@@ -5,7 +5,7 @@ import { YoutubeLogo } from '@phosphor-icons/react';
 import { useStore } from '../../store';
 import { YouTubePlayer } from './YouTubePlayer';
 import { sfx } from '../../audio/sfx';
-import { getSong } from '../../data/songs';
+import { useSong } from '../../hooks/useSongs';
 
 const AUTO_ADVANCE_SECONDS = 5;
 
@@ -49,7 +49,7 @@ export function SongPlayer({
   nextLabel = 'Up next',
   onFinish,
 }: Props) {
-  const song = getSong(songId);
+  const song = useSong(songId);
 
   const storedLink = useStore((st) => (song ? st.accounts[st.currentAccountId]?.songLinks?.[song.id] : undefined));
   const setSongLink = useStore((st) => st.setSongLink);

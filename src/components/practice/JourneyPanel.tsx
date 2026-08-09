@@ -5,7 +5,7 @@ import { useStore, useUserData } from '../../store';
 import { useProgression } from '../../hooks/useProgression';
 import { nextUp, provenChords, byModule, type SkillStanding } from '../../lib/progression';
 import { CURRICULUM, getLessonByCode, lessonUrl, trackModules } from '../../data/curriculum';
-import { SONGS } from '../../data/songs';
+import { useSongs } from '../../hooks/useSongs';
 import './journey.css';
 
 /**
@@ -40,9 +40,10 @@ export function JourneyPanel() {
   }, [standings]);
   const proven = useMemo(() => provenChords(standings), [standings]);
 
+  const songs = useSongs();
   const playable = useMemo(
-    () => SONGS.filter((song) => song.chords?.length && song.chords.every((c) => proven.includes(c))),
-    [proven],
+    () => songs.filter((song) => song.chords?.length && song.chords.every((c) => proven.includes(c))),
+    [songs, proven],
   );
 
   const trackTitle = CURRICULUM.tracks.find((t) => t.code === track)?.title ?? 'Your course';

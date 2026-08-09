@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Routine, DailyLog, Task } from '../types';
+import type { Song } from '../data/songs';
 import type { StrumPattern } from '../data/strumPatterns';
 import type { CalibrationData, ChordCalibration } from '../audio/calibration';
 
@@ -45,6 +46,11 @@ export interface UserData {
   // YouTube link per song id, used by the real-play pass to stream the actual
   // recording. Set once by the user; persisted so it just plays next time.
   songLinks?: Record<string, string>;
+  // Charts the user wrote themselves. The built-in seven live in code and can
+  // never cover what someone is actually learning this week, so these sit
+  // alongside them and every consumer reads the merged list
+  // (src/lib/songCatalog.ts) rather than the constant.
+  userSongs?: Song[];
   // Per-guitar learned chord fingerprints (src/audio/calibration.ts). Absent
   // until the user calibrates; the detector falls back to built-in templates.
   chordCalibration?: ChordCalibration;
@@ -80,6 +86,7 @@ const defaultUserData: UserData = {
   activeRoutineId: '',
   strumPatterns: [],
   songLinks: {},
+  userSongs: [],
   updatedAt: 0,
 };
 
@@ -115,6 +122,10 @@ interface AppState {
   addStrumPattern: (pattern: StrumPattern) => void;
   removeStrumPattern: (id: string) => void;
   setSongLink: (songId: string, url: string) => void;
+  // Insert or replace a user-written chart by id, so the editor can save an
+  // edit and a new song through one door.
+  saveUserSong: (song: Song) => void;
+  deleteUserSong: (songId: string) => void;
   // Replace the account's chord calibration with a freshly fitted set (guided
   // flow or a passive-refine merge). Preserves the original createdAt.
   setChordCalibration: (chords: CalibrationData, label?: string) => void;
@@ -191,6 +202,7 @@ export const useStore = create<AppState>()(
             coachProgress: data.coachProgress ?? null,
             strumPatterns: data.strumPatterns ?? local?.strumPatterns ?? [],
             songLinks: data.songLinks ?? local?.songLinks ?? {},
+            userSongs: data.userSongs ?? local?.userSongs ?? [],
             chordCalibration: data.chordCalibration ?? local?.chordCalibration,
             metronomeBpm: data.metronomeBpm ?? local?.metronomeBpm,
             metronomeAuto: data.metronomeAuto ?? local?.metronomeAuto,
@@ -439,6 +451,33 @@ export const useStore = create<AppState>()(
 
         setSongLink: (songId, url) => set((state) =>
           mutate(state, (a) => ({ ...a, songLinks: { ...(a.songLinks ?? {}), [songId]: url } })),
+        ),
+
+        saveUserSong: (song) => set((state) =>
+          mutate(state, (a) => {
+            const songs = a.userSongs ?? [];
+            const at = songs.findIndex((s) => s.id === song.id);
+            // Edited in place rather than appended, so a save never reorders
+            // the list under someone who is part-way through writing it.
+            if (at >= 0) {
+              const next = songs.slice();
+              next[at] = song;
+              return { ...a, userSongs: next };
+            }
+            return { ...a, userSongs: [...songs, song] };
+          }),
+        ),
+
+        deleteUserSong: (songId) => set((state) =>
+          mutate(state, (a) => ({
+            ...a,
+            userSongs: (a.userSongs ?? []).filter((s) => s.id !== songId),
+            // The link belonged to that chart. Leaving it behind would hand the
+            // next song to claim the id someone else's recording.
+            songLinks: Object.fromEntries(
+              Object.entries(a.songLinks ?? {}).filter(([id]) => id !== songId),
+            ),
+          })),
         ),
 
         setChordCalibration: (chords, label) => set((state) =>

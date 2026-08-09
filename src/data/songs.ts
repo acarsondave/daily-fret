@@ -32,7 +32,9 @@ export interface Song {
   id: string;
   title: string;
   artist: string;
-  level: 'Beginner' | 'Easy';
+  // Carried by the built-in charts, shown nowhere. Optional so a written song
+  // does not have to answer a question the app never asks.
+  level?: 'Beginner' | 'Easy';
   strum: string;
   chords: string[];
   sections: SongSection[];

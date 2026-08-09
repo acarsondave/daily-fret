@@ -1,0 +1,49 @@
+.song-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.song-picker-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Quiet by default. These sit under a select that is already the answer most of
+   the time; they are the way out when it is not, not a call to action. */
+.song-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 34px;
+  padding: 0 var(--space-3);
+  position: relative;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.18s, color 0.18s, background 0.18s;
+}
+
+/* The visible pill stays small; the target reaches 44px. */
+.song-picker-btn::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+}
+
+.song-picker-btn:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: var(--accent-glow);
+}
+
+.song-picker-btn:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}

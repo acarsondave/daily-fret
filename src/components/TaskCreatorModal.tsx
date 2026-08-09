@@ -4,7 +4,8 @@ import { useStore } from '../store';
 import { PlusIcon, TrashIcon } from './icons';
 import clsx from 'clsx';
 import { sanitizeMinutes } from '../lib/coached';
-import { SONGS } from '../data/songs';
+import { SongPicker } from './SongPicker';
+import { useSongs } from '../hooks/useSongs';
 import { StrumPatternSelect } from './StrumPatternSelect';
 import type { DrillConfig, DrillKind, TimedBlock } from '../types';
 import './TaskCreatorModal.css';
@@ -24,13 +25,15 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
   // actually bound to them. They were plain <label> elements with nothing to
   // point at, which is a label a screen reader never reads.
   const fieldId = useId();
+  const songs = useSongs();
+  const firstSongId = songs[0]?.id ?? '';
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState('');
   const [drillKind, setDrillKind] = useState<DrillKind | 'none'>('none');
   const [changesChords, setChangesChords] = useState<string[]>(['A', 'D', 'E']);
   const [trainerChords, setTrainerChords] = useState<string[]>(['A', 'D', 'E', 'G', 'C']);
-  const [songId, setSongId] = useState<string>(SONGS[0].id);
+  const [songId, setSongId] = useState<string>(firstSongId);
   const [blocks, setBlocks] = useState<TimedBlock[]>([]);
 
   const resetForm = () => {
@@ -40,7 +43,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
     setDrillKind('none');
     setChangesChords(['A', 'D', 'E']);
     setTrainerChords(['A', 'D', 'E', 'G', 'C']);
-    setSongId(SONGS[0].id);
+    setSongId(firstSongId);
     setBlocks([]);
   };
 
@@ -231,18 +234,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
             {drillKind === 'song' && (
               <>
                 <span className="drill-hint">Play along to the chords at your own pace</span>
-                <select
-                  className="task-input drill-song-select"
-                  aria-label="Song"
-                  value={songId}
-                  onChange={e => setSongId(e.target.value)}
-                >
-                  {SONGS.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.title} · {s.artist} ({s.chords.join(' ')})
-                    </option>
-                  ))}
-                </select>
+                <SongPicker value={songId} onChange={setSongId} />
               </>
             )}
             {drillKind === 'none' && (

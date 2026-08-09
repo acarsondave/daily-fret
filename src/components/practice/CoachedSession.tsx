@@ -14,7 +14,8 @@ import { pairKey } from '../../lib/pairs';
 import { buildSegments } from '../../lib/coached';
 import { taskDrillHistory } from '../../lib/drillStats';
 import { drillSeries, planTempo, fixedTempo, type TempoPlan } from '../../lib/tempo';
-import { getSong } from '../../data/songs';
+import { useSongs } from '../../hooks/useSongs';
+import { findSong } from '../../lib/songCatalog';
 import { sfx } from '../../audio/sfx';
 import { diag } from '../../audio/diagnostics';
 import { speak, announceDrill, preloadCoachVoice, stopVoice, isCoachVoiceEnabled, setCoachVoiceEnabled } from '../../audio/coachVoice';
@@ -56,6 +57,7 @@ export function CoachedSession({ routine, onClose }: Props) {
   const saveCoachProgress = useStore((s) => s.saveCoachProgress);
   const clearCoachProgress = useStore((s) => s.clearCoachProgress);
 
+  const songs = useSongs();
   const segments = useMemo(() => buildSegments(routine), [routine]);
   // Only nudge about the mic if this routine actually listens. Songs used to be
   // in this list, but the play-along has had no mic since the learn pass was
@@ -116,7 +118,7 @@ export function CoachedSession({ routine, onClose }: Props) {
     if (seg.kind === 'timed') return fixedTempo(seg.bpm);
     // Songs are played to the record, not to a click. The tempo is still loaded
     // so one tap gives the right click if the player wants it while learning.
-    const song = getSong(seg.songId);
+    const song = findSong(songs, seg.songId);
     return fixedTempo(
       song?.bpm,
       song?.bpm ? `${song.title} runs at about ${song.bpm} BPM. Tap start if you want it.` : undefined,

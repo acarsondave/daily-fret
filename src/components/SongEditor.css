@@ -1,0 +1,630 @@
+/* The editor reads as a chart being written, not a form being filled. The title
+   is set in display type and the bars are laid out in a row like a real chord
+   sheet, so what you are looking at while you type is already the thing you will
+   play from. */
+
+/* A chart needs the width of a chart. The dialog's own `wide` is sized for a
+   panel of prose. */
+.modal-content:has(.song-editor) {
+  max-width: 780px;
+}
+
+.song-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* --- header --- */
+
+.se-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-right: var(--space-6); /* clears the dialog close button */
+}
+
+.se-title-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  padding: var(--space-1) 0;
+  font-family: var(--font-primary);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: var(--tracking-display);
+  color: var(--text-primary);
+  transition: border-color 0.2s;
+}
+
+.se-artist-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  /* Reads as a subtitle, taps like a field. Height comes from padding rather
+     than a box so the header still looks like a title block. */
+  padding: var(--space-2) 0;
+  min-height: 40px;
+  font-family: var(--font-secondary);
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  transition: border-color 0.2s;
+}
+
+.se-title-input::placeholder,
+.se-artist-input::placeholder {
+  color: var(--text-placeholder);
+}
+
+.se-title-input:focus,
+.se-artist-input:focus {
+  outline: none;
+  border-bottom-color: var(--accent-primary);
+}
+
+/* --- meta row --- */
+
+.se-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.se-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 84px;
+}
+
+.se-field.is-wide {
+  flex: 1;
+  min-width: 180px;
+}
+
+.se-field-label {
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.se-input {
+  width: 100%;
+  background: var(--bg-color);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 10px var(--space-3);
+  font-family: var(--font-secondary);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.se-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  background: var(--surface-color);
+}
+
+.se-input::placeholder {
+  color: var(--text-placeholder);
+}
+
+.se-input.is-mono {
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+}
+
+.se-input.is-chord {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  text-align: center;
+}
+
+/* --- sections --- */
+
+.se-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.se-section {
+  background: var(--bg-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.se-section-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.se-section-label {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  padding: var(--space-2) 0;
+  min-height: 40px;
+  font-family: var(--font-primary);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: border-color 0.2s;
+}
+
+.se-section-label:focus {
+  outline: none;
+  border-bottom-color: var(--accent-primary);
+}
+
+.se-section-count {
+  font-size: var(--text-micro);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.se-section-tools {
+  display: flex;
+  gap: 2px;
+}
+
+/* 44px hit area on a 15px glyph: the visual mark stays small so the section
+   header does not turn into a toolbar, but the target is still a thumb target. */
+.se-tool {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.18s, background 0.18s;
+}
+
+.se-tool::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
+.se-tool:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+
+.se-tool.is-danger:hover:not(:disabled) {
+  color: var(--danger-color);
+  background: var(--danger-glow);
+}
+
+.se-tool:disabled {
+  color: var(--text-muted);
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* --- the bar grid --- */
+
+.se-grid {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+}
+
+.se-bar {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 68px;
+  min-height: 62px;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, transform 0.18s;
+}
+
+.se-bar:hover {
+  border-color: var(--border-strong);
+}
+
+.se-bar.is-selected {
+  border-color: var(--accent-primary);
+  background: var(--accent-glow);
+}
+
+/* A chart is walked with the keyboard as readily as tapped, and the selected
+   bar and the focused bar are not the same thing. */
+.se-bar:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.se-bar-chord {
+  font-family: var(--font-primary);
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+}
+
+.se-bar-lyric {
+  font-size: var(--text-micro);
+  color: var(--text-secondary);
+  max-width: 88px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.se-bar-strum {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  letter-spacing: 0.1em;
+  color: var(--accent-primary);
+}
+
+.se-bar-tag {
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: var(--surface-hover);
+  border: 1px solid var(--border-default);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.se-grid-empty {
+  margin: 0;
+  padding: var(--space-4) 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* --- the chord line --- */
+
+.se-line {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.se-line-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface-color);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 10px var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+  transition: border-color 0.2s;
+}
+
+.se-line-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.se-line-input::placeholder {
+  color: var(--text-placeholder);
+  letter-spacing: 0.08em;
+}
+
+.se-line-add {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-4);
+  min-height: 44px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-color);
+  color: var(--text-primary);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.18s, background 0.18s, color 0.18s;
+}
+
+.se-line-add:hover:not(:disabled) {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.se-line-add:disabled {
+  color: var(--text-muted);
+  opacity: 0.5;
+  cursor: default;
+}
+
+.se-add-section {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.18s, color 0.18s;
+}
+
+.se-add-section:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+/* --- quick chords --- */
+
+.se-quick {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.se-quick-label {
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.se-quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.se-quick-chip {
+  min-width: 44px;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  position: relative;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: var(--surface-color);
+  color: var(--text-primary);
+  font-family: var(--font-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, color 0.18s;
+}
+
+.se-quick-chip::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+}
+
+.se-quick-chip:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: var(--accent-glow);
+}
+
+/* --- inspector --- */
+
+/* The outer element animates height only, so nothing inside it is laid out
+   against a collapsing box mid-transition. */
+.se-inspector {
+  overflow: hidden;
+}
+
+.se-inspector-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-color);
+  border: 1px solid var(--accent-primary);
+  border-radius: var(--radius-md);
+}
+
+.se-inspector-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.se-inspector-title {
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--accent-primary);
+}
+
+.se-inspector-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.se-inspector-actions {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  padding-bottom: 2px;
+}
+
+/* --- footer --- */
+
+.se-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.se-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--warning-color);
+}
+
+.se-problems {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  background: var(--danger-glow);
+  border: 1px solid var(--danger-color);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.se-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.se-actions-right {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+/* The editor styles its own buttons rather than borrowing `.practice-btn`.
+   That class lives in practice.css, which only loads with the drill components,
+   so reaching for it here rendered Save and Cancel as bare 17px text — the
+   primary action of the whole screen, invisible as a button. */
+.se-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-secondary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, color 0.18s, transform 0.12s;
+}
+
+.se-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+.se-btn:active {
+  transform: scale(0.98);
+}
+
+.se-btn.is-primary {
+  border-color: transparent;
+  background: var(--accent-primary);
+  color: #0b1220;
+  box-shadow: var(--shadow-glow);
+}
+
+.se-btn.is-primary:hover {
+  background: #5cc9fa;
+  border-color: transparent;
+}
+
+.se-btn:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.se-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: color 0.18s, background 0.18s;
+}
+
+.se-delete:hover {
+  color: var(--danger-color);
+  background: var(--danger-glow);
+}
+
+@media (max-width: 560px) {
+  .se-field,
+  .se-field.is-wide {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+
+  .se-inspector-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .se-actions-right {
+    width: 100%;
+  }
+
+  .se-actions-right .se-btn {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-grid {
+    scroll-behavior: auto;
+  }
+}
