@@ -12,7 +12,8 @@
     "add:task": "node scripts/add-task.mjs",
     "report": "node scripts/report.mjs",
     "gen:voice": "node scripts/gen-coach-voice.mjs",
-    "test": "node tests/run.mjs"
+    "test": "node tests/run.mjs",
+    "test:browser": "node tests/browser/smoke.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
