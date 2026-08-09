@@ -2,8 +2,7 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 16px;
-  margin: 0;
+  gap: var(--space-4);
 }
 
 .streak-header-info {
@@ -11,16 +10,22 @@
   align-items: center;
 }
 
+/* Previously referenced --bg-secondary and --border-color, neither of which has
+   ever existed, so the pill silently lost both its background and its border. */
 .streak-count {
-  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-micro);
   font-weight: 600;
-  color: var(--text-primary);
-  background: var(--bg-secondary);
-  padding: 4px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-  letter-spacing: 0.5px;
+  color: var(--warning-color);
+  background: var(--warning-glow);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(251, 191, 36, 0.24);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .streak-graph {
@@ -41,38 +46,70 @@
   width: 14px;
   height: 14px;
   border-radius: 4px;
-  background-color: var(--bg-tertiary, #2c2c2c);
-  transition: all 0.3s ease;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--border-subtle);
+  transition: background-color var(--dur-slow) ease, opacity var(--dur-slow) ease;
 }
 
+/* The glows here were rgba(0, 255, 170, ...) — a green left over from a palette
+   this app has not used in a long time, sitting under blue blocks. Each step
+   now carries the accent it is actually tinted with, and the shadow has a real
+   offset instead of being a flat halo. */
+/* The lowest step used to sit at 0.35, which measured 1.75:1 against an empty
+   day — the one distinction this graph exists to draw. Every step now clears
+   3:1 against the page and reads apart from its neighbours. */
 .streak-block.intensity-1 {
   background-color: var(--accent-primary);
-  opacity: 0.4;
-  box-shadow: 0 0 8px rgba(0, 255, 170, 0.1);
+  opacity: 0.6;
 }
 
 .streak-block.intensity-2 {
   background-color: var(--accent-primary);
-  opacity: 0.6;
-  box-shadow: 0 0 10px rgba(0, 255, 170, 0.2);
+  opacity: 0.75;
 }
 
 .streak-block.intensity-3 {
   background-color: var(--accent-primary);
-  opacity: 0.8;
-  box-shadow: 0 0 12px rgba(0, 255, 170, 0.3);
+  opacity: 0.88;
+  box-shadow: 0 2px 8px -2px rgba(56, 189, 248, 0.5);
 }
 
 .streak-block.intensity-4 {
   background-color: var(--accent-primary);
   opacity: 1;
-  box-shadow: 0 0 15px rgba(0, 255, 170, 0.4);
+  box-shadow: 0 2px 12px -2px rgba(56, 189, 248, 0.7);
+}
+
+/* Today reads as the live edge of the streak rather than just another block. */
+.streak-day-col.is-today .streak-block {
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
+.streak-day-col.is-today .streak-day-label {
+  color: var(--text-primary);
 }
 
 .streak-day-label {
-  font-size: 0.55rem;
+  font-size: 0.58rem;
   color: var(--text-secondary);
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 600px) {
+  .streak-container {
+    gap: var(--space-2);
+  }
+  /* The seven blocks are the information; the count repeats what they show. */
+  .streak-header-info {
+    display: none;
+  }
+  .streak-block {
+    width: 11px;
+    height: 11px;
+  }
+  .streak-day-label {
+    display: none;
+  }
 }

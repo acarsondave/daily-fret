@@ -1,5 +1,5 @@
 import { Component, type ReactNode } from 'react';
-import { ArrowClockwise } from '@phosphor-icons/react';
+import { RetryIcon } from './icons';
 
 interface Props {
   children: ReactNode;
@@ -36,7 +36,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <p>The app hit an unexpected error. Your saved progress is safe.</p>
           <div className="error-fallback-actions">
             <button className="error-fallback-btn primary" onClick={() => window.location.reload()}>
-              <ArrowClockwise size={18} weight="bold" /> Reload
+              <RetryIcon size={18} /> Reload
             </button>
             <button className="error-fallback-btn" onClick={this.reset}>
               Try to continue

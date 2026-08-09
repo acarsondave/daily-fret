@@ -3,35 +3,61 @@
   bottom: 0;
   left: 0;
   padding: var(--space-4) var(--space-6);
+  padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
   display: flex;
-  opacity: 0.5;
-  transition: opacity 0.3s;
   z-index: 50;
 }
 
 .footer-content {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
-.app-footer:hover {
+.footer-mark {
+  font-family: var(--font-primary);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  transition: color var(--dur-slow) ease;
+}
+
+.app-footer:hover .footer-mark,
+.app-footer:focus-within .footer-mark {
+  color: var(--text-secondary);
+}
+
+.footer-mark-accent {
+  color: var(--accent-primary);
+  opacity: 0.75;
+}
+
+.app-footer:hover .footer-mark-accent,
+.app-footer:focus-within .footer-mark-accent {
   opacity: 1;
 }
 
-.footer-quote {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  font-style: italic;
-  font-weight: 400;
-  letter-spacing: 0.02em;
-}
-
 .footer-link {
-  color: var(--text-secondary);
-  transition: color 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1);
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+  transition: color var(--dur-base) ease;
 }
 
 .footer-link:hover {
   color: var(--text-primary);
+}
+
+/* On a phone the task panel reaches the bottom of the screen, and this sits on
+   top of it: an absolutely-positioned wordmark over live content. It is
+   decoration, so it yields the space rather than overlapping the tasks. */
+@media (max-width: 600px) {
+  .app-footer {
+    display: none;
+  }
 }

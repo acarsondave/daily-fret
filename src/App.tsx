@@ -5,12 +5,23 @@ import { AccountModal } from './components/AccountModal';
 import { StreakGraph } from './components/StreakGraph';
 import { initAuthListener, useAuthStore } from './lib/auth';
 import { armOutputAudioUnlock } from './audio/outputContext';
+import { CloudIcon, DeviceIcon } from './components/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
 
 function App() {
   const { loading, user } = useAuthStore();
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+
+  // Read once per mount rather than on every render: the heading is a fixed
+  // fact about this session, not something that should re-derive on each paint.
+  const [displayDate] = useState(() =>
+    new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    }),
+  );
 
   useEffect(() => {
     initAuthListener();
@@ -31,44 +42,44 @@ function App() {
     }
   }, [loading]);
 
-  const displayDate = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric'
-  });
-
   return (
     <>
-      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: -1 }}>
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-sky-500/10 blur-[100px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-500/10 blur-[100px]" />
+      {/* The room the app sits in. Two slow radial fields and a faint horizon,
+          painted as gradients rather than blurred elements so the drift stays
+          on the compositor. */}
+      <div className="app-ambient" aria-hidden="true">
+        <span className="app-ambient-field is-sky" />
+        <span className="app-ambient-field is-moss" />
+        <span className="app-ambient-horizon" />
       </div>
 
       <AnimatePresence mode="wait">
         {loading ? null : (
-          <motion.main 
+          <motion.main
             key="app"
             initial={{ opacity: 0, filter: 'blur(10px)' }}
             animate={{ opacity: 1, filter: 'blur(0px)' }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
             className="app-layout"
           >
-            {/* Top Navigation */}
             <header className="app-header">
-              <div className="header-date">{displayDate}</div>
-              <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+              <h1 className="header-date">{displayDate}</h1>
+              <div className="header-actions">
                 <StreakGraph />
-                <div className="header-account">
-                  {!user ? (
-                    <button className="account-btn local-mode" onClick={() => setIsAccountModalOpen(true)}>
-                      <span>Local Mode</span>
-                    </button>
-                  ) : (
-                    <button className="account-btn active-mode" onClick={() => setIsAccountModalOpen(true)}>
-                      <span>Cloud Mode</span>
-                    </button>
-                  )}
-                </div>
+                <button
+                  className={user ? 'account-btn is-synced' : 'account-btn'}
+                  onClick={() => setIsAccountModalOpen(true)}
+                  aria-label={
+                    user
+                      ? 'Account. Your practice is synced to the cloud.'
+                      : 'Account. Your practice is saved on this device only.'
+                  }
+                >
+                  {user ? <CloudIcon size={16} /> : <DeviceIcon size={16} />}
+                  {/* Says where the data actually lives. "Local Mode" named a
+                      mode; this names the consequence. */}
+                  <span>{user ? 'Synced' : 'This device'}</span>
+                </button>
               </div>
             </header>
 
@@ -78,9 +89,9 @@ function App() {
 
             <Footer />
 
-            <AccountModal 
-              isOpen={isAccountModalOpen} 
-              onClose={() => setIsAccountModalOpen(false)} 
+            <AccountModal
+              isOpen={isAccountModalOpen}
+              onClose={() => setIsAccountModalOpen(false)}
             />
           </motion.main>
         )}

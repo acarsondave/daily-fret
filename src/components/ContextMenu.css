@@ -4,13 +4,13 @@
   background: rgba(20, 20, 23, 0.95);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   padding: var(--space-2);
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-panel);
   transform-origin: var(--radix-context-menu-content-transform-origin);
   animation: contextMenuFadeIn 0.15s ease-out;
 }
@@ -34,10 +34,10 @@
   border: none;
   border-radius: var(--radius-md);
   color: var(--text-primary);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background var(--dur-base) ease, color var(--dur-base) ease;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -63,5 +63,5 @@
 .context-menu-item.danger:focus,
 .context-menu-item.danger[data-highlighted] {
   outline: none;
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--danger-glow);
 }

@@ -7,10 +7,82 @@
   overflow: hidden; /* Prevent body scroll */
 }
 
+/* --- Ambient room ---------------------------------------------------------
+   This layer used to be two divs carrying Tailwind utility classes in a project
+   that has never had Tailwind installed, so it painted nothing at all and the
+   app sat on flat #0F0F11. Rebuilt as real CSS: two wide radial fields and a
+   low horizon, so the dark has a direction and the panels have something to
+   float above.
+
+   Gradients rather than `filter: blur()` on purpose. A 100px blur over a
+   viewport-sized element is re-rasterised on every frame of the drift; a radial
+   gradient is already soft, so the animation stays a pure compositor transform. */
+.app-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--bg-color);
+}
+
+.app-ambient-field {
+  position: absolute;
+  width: 78vmax;
+  height: 78vmax;
+  border-radius: 50%;
+  will-change: transform;
+}
+
+.app-ambient-field.is-sky {
+  top: -32vmax;
+  left: -24vmax;
+  background: radial-gradient(
+    circle at center,
+    rgba(56, 189, 248, 0.14) 0%,
+    rgba(56, 189, 248, 0.06) 38%,
+    transparent 68%
+  );
+  animation: ambient-drift-sky 34s var(--ease-out) infinite alternate;
+}
+
+.app-ambient-field.is-moss {
+  bottom: -34vmax;
+  right: -26vmax;
+  background: radial-gradient(
+    circle at center,
+    rgba(52, 211, 153, 0.1) 0%,
+    rgba(52, 211, 153, 0.04) 40%,
+    transparent 70%
+  );
+  animation: ambient-drift-moss 41s var(--ease-out) infinite alternate;
+}
+
+/* A single soft band low in the frame. It reads as the floor of the room and
+   stops the two fields from looking like stickers on a void. */
+.app-ambient-horizon {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 46vh;
+  background: linear-gradient(to top, rgba(56, 189, 248, 0.05), transparent 70%);
+}
+
+@keyframes ambient-drift-sky {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(6vmax, 4vmax, 0) scale(1.08); }
+}
+
+@keyframes ambient-drift-moss {
+  from { transform: translate3d(0, 0, 0) scale(1.06); }
+  to   { transform: translate3d(-5vmax, -3vmax, 0) scale(1); }
+}
+
+/* --- Header --------------------------------------------------------------- */
 .app-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--space-4);
   padding: var(--space-6) var(--space-8);
   position: absolute;
   top: 0;
@@ -21,36 +93,49 @@
 
 .header-date {
   font-family: var(--font-primary);
-  font-size: 1.1rem;
+  font-size: var(--text-md);
   font-weight: 500;
   color: var(--text-secondary);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
-.header-account {
+.header-actions {
   display: flex;
   align-items: center;
+  gap: var(--space-6);
+  min-width: 0;
 }
 
 .account-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-full);
   background: transparent;
   color: var(--text-secondary);
-  font-size: 1rem;
-  transition: color 0.2s;
-  border: none;
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  transition: color var(--dur-base) ease, background var(--dur-base) ease,
+    border-color var(--dur-base) ease;
 }
 
 .account-btn:hover {
   color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border-subtle);
 }
 
-.account-btn.active-mode {
+.account-btn.is-synced {
   color: var(--text-primary);
+}
+
+.account-btn.is-synced .icon-glyph {
+  color: var(--accent-primary);
 }
 
 .center-content {
@@ -72,13 +157,22 @@
 @media (max-width: 600px) {
   .app-header {
     padding: var(--space-4);
+    gap: var(--space-3);
   }
   .header-date {
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
     letter-spacing: 0.03em;
   }
   .header-actions {
-    gap: var(--space-3) !important;
+    gap: var(--space-3);
+  }
+  /* At this width the label is the first thing to go: the icon already carries
+     the meaning and the button keeps its accessible name. */
+  .account-btn span {
+    display: none;
+  }
+  .account-btn {
+    padding: var(--space-2);
   }
   .center-content {
     padding-top: 92px;
