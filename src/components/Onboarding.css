@@ -23,6 +23,22 @@
   gap: var(--space-6);
 }
 
+/* Set in the display face at the app's own tracking, so it reads as a mark
+   rather than as a line of text that happens to be first. */
+.onboarding-brand {
+  font-family: var(--font-primary);
+  font-size: var(--text-micro);
+  font-weight: 700;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: calc(var(--space-2) * -1);
+}
+
+.onboarding-brand span {
+  color: var(--accent-primary);
+}
+
 .onboarding-steps {
   display: flex;
   gap: var(--space-2);

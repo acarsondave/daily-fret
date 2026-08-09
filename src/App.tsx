@@ -20,13 +20,13 @@ function App() {
 
   // Read once per mount rather than on every render: the heading is a fixed
   // fact about this session, not something that should re-derive on each paint.
-  const [displayDate] = useState(() =>
-    new Date().toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-    }),
-  );
+  // Two lengths of the same date. A phone header has to hold the date, the
+  // streak and the storage state at once, and the long form was crowding the
+  // other two off the row until both lost their labels. CSS picks one.
+  const [displayDate] = useState(() => ({
+    long: new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+    short: new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+  }));
 
   useEffect(() => {
     initAuthListener();
@@ -68,7 +68,10 @@ function App() {
             className="app-layout"
           >
             <header className="app-header">
-              <h1 className="header-date">{displayDate}</h1>
+              <h1 className="header-date">
+                <span className="header-date-long">{displayDate.long}</span>
+                <span className="header-date-short">{displayDate.short}</span>
+              </h1>
               <div className="header-actions">
                 <StreakGraph />
                 <button

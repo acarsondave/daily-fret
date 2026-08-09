@@ -91,6 +91,13 @@
   z-index: 50;
 }
 
+.header-date-short { display: none; }
+
+@media (max-width: 600px) {
+  .header-date-long { display: none; }
+  .header-date-short { display: inline; }
+}
+
 .header-date {
   font-family: var(--font-primary);
   font-size: var(--text-md);
@@ -166,13 +173,15 @@
   .header-actions {
     gap: var(--space-3);
   }
-  /* At this width the label is the first thing to go: the icon already carries
-     the meaning and the button keeps its accessible name. */
+  /* The label stays. A phone glyph on its own reads as "mobile" or "install
+     the app", not as "your practice is saved here and nowhere else", and
+     where the data lives is something this app states rather than implies.
+     Shortening the date above is what makes room for it. */
   .account-btn span {
-    display: none;
+    font-size: var(--text-micro);
   }
   .account-btn {
-    padding: var(--space-2);
+    padding: var(--space-2) var(--space-3);
   }
   .center-content {
     padding-top: 92px;

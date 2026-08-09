@@ -76,6 +76,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       aria-label="Set up your practice"
     >
       <div className="onboarding-panel">
+        {/* The first screen a stranger sees said nothing about what they had
+            opened. A wordmark is not decoration here: it is the only thing on
+            the screen that answers "what is this". */}
+        <p className="onboarding-brand">Daily<span>Fret</span></p>
         <div className="onboarding-steps" aria-hidden="true">
           {(['where', 'module', 'chords', 'ready'] as Step[]).map((s) => (
             <span key={s} className={clsx('onboarding-dot', s === step && 'is-on')} />

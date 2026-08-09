@@ -109,7 +109,9 @@
     width: 11px;
     height: 11px;
   }
+  /* Kept. The seven blocks only mean anything against the days they stand for;
+     without the letters they are seven anonymous dots. */
   .streak-day-label {
-    display: none;
+    font-size: 9px;
   }
 }

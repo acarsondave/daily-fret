@@ -19,12 +19,16 @@ export function Sparkline({
   const max = Math.max(...values);
   const min = Math.min(...values);
   const span = max - min || 1;
-  const stepX = width / (values.length - 1);
+  // Inset on both axes, not just the vertical one. The last point used to land
+  // at exactly x = width, so half its stroke fell outside the viewBox and the
+  // line appeared to run into whatever was drawn around it. Inside the "Best"
+  // pill that read as the trend leaking through the border.
   const pad = 3;
+  const stepX = (width - pad * 2) / (values.length - 1);
   const usableH = height - pad * 2;
 
   const points = values.map((v, i) => {
-    const x = i * stepX;
+    const x = pad + i * stepX;
     const y = pad + usableH - ((v - min) / span) * usableH;
     return [x, y] as const;
   });
