@@ -42,3 +42,5 @@ daily-fret-diagnostics-*.json
 *.njsproj
 *.sln
 *.sw?
+curriculum/.browser-profile/
+curriculum/lessons/
