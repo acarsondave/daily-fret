@@ -33,7 +33,7 @@
   const GAP_MS = 200;
   const DB = 'jg-capture';
   const STORE = 'lessons';
-  const EXTRACTOR = 4;
+  const EXTRACTOR = 5;
   const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -128,9 +128,24 @@
       throw err;
     }
 
-    const included = store.entity.included ?? [];
-    const group = included.find((i) => i.type === 'group')?.attributes;
-    const grade = included.find((i) => i.type === 'grade')?.attributes;
+    // Find the sideloaded records by walking for them rather than by path.
+    // They live at entity.lesson.included, and reading entity.included instead
+    // silently dropped the module and the grade from all 1276 lessons: every
+    // field still populated, so nothing looked wrong until the totals were
+    // counted. Searching by type cannot be wrong about where they sit.
+    const typed = (type) => {
+      const seen = [];
+      const walk = (node, depth) => {
+        if (!node || typeof node !== 'object' || depth > 6) return;
+        if (Array.isArray(node)) { node.forEach((n) => walk(n, depth + 1)); return; }
+        if (node.type === type && node.attributes) { seen.push(node.attributes); return; }
+        Object.values(node).forEach((v) => walk(v, depth + 1));
+      };
+      walk(store.entity, 0);
+      return seen[0];
+    };
+    const group = typed('group');
+    const grade = typed('grade');
 
     return {
       v: EXTRACTOR,
