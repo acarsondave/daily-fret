@@ -10,6 +10,7 @@ import { MicSetting } from './MicSetting';
 import { CalibrationSetting } from './CalibrationSetting';
 import { CapoSetting } from './CapoSetting';
 import { HandednessSetting } from './HandednessSetting';
+import { ReminderSetting } from './ReminderSetting';
 import { PatternManager } from './PatternManager';
 import './AccountModal.css';
 
@@ -164,6 +165,8 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
               <div className="user-email">{user.email}</div>
             </>
           )}
+
+          <ReminderSetting />
 
           <MicSetting />
 

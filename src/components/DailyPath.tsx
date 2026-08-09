@@ -6,6 +6,7 @@ import { Modal } from './Modal';
 import { Loader } from './Loader';
 import { TaskCreatorModal } from './TaskCreatorModal';
 import { UndoStrip } from './UndoStrip';
+import { PracticeNudge } from './PracticeNudge';
 import { useUndoStore, type TaskDeletion } from '../store/undo';
 import { RoutineManagerModal } from './RoutineManagerModal';
 import { ProgressPanel } from './practice/ProgressPanel';
@@ -388,6 +389,9 @@ export function DailyPath() {
 
       <div className="task-container-wrapper">
         <div className="task-container glass-panel">
+          {/* Above the list, not over it: the thing it is asking you to do is
+              right there underneath. */}
+          <PracticeNudge onStart={() => setIsCoachedOpen(true)} />
           <div
             ref={listRef}
             className={clsx(

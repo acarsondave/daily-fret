@@ -490,3 +490,100 @@
   outline: 2px solid var(--accent-primary);
   outline-offset: 2px;
 }
+
+/* --- Practice reminder --------------------------------------------------- */
+
+.reminder-when {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.reminder-time {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.reminder-label {
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.reminder-input {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-color);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  color-scheme: dark; /* so the native time picker is not a white slab */
+}
+
+.reminder-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.reminder-summary {
+  margin: 0 0 10px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* A grid, not a flex row. Seven fixed 40px chips plus gaps overflow a 360px
+   phone once the panel padding is taken out, and flex answered that by
+   shrinking them to 38px and wrapping the last one onto its own line. Seven
+   equal columns always fit on one row, at whatever width is going. */
+.reminder-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-1);
+}
+
+.reminder-day {
+  width: 100%;
+  min-height: 44px;
+  position: relative;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, color 0.18s;
+}
+
+/* Seven chips cannot each be 44px wide inside a dialog on a 360px phone: the
+   panel gives about 274px, so the painted chip lands near 40. The hit areas are
+   grown to tile edge to edge over the gaps, which recovers the target width
+   without shrinking the gap to nothing and jamming the row together. */
+.reminder-day::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+}
+
+.reminder-day.is-on {
+  border-color: var(--accent-primary);
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+}
+
+.reminder-day:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.reminder-error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--danger-color);
+}

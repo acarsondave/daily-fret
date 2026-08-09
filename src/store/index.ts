@@ -4,6 +4,7 @@ import type { Routine, DailyLog, Task } from '../types';
 import type { Song } from '../data/songs';
 import type { StrumPattern } from '../data/strumPatterns';
 import type { CalibrationData, ChordCalibration } from '../audio/calibration';
+import type { ReminderSettings } from '../lib/reminders';
 import {
   activeProfileOf,
   makeProfile,
@@ -89,6 +90,10 @@ export interface UserData {
   // templates, so a capo transposes everything it hears and every drill would
   // silently stop counting without this. Absent means none.
   capoFret?: number;
+  // When to be reminded to practise, and how. Absent until the user sets one;
+  // there is no default reminder, because an app that starts notifying you
+  // without being asked is one you turn off rather than tune.
+  reminder?: ReminderSettings;
   // Epoch ms of the last local mutation to this account. Drives conflict
   // resolution against the cloud copy. Older/legacy data defaults to 0.
   updatedAt: number;
@@ -157,6 +162,10 @@ interface AppState {
   setLeftHanded: (left: boolean) => void;
   setSkillClaimed: (skillId: string, claimed: boolean) => void;
   setCurrentLesson: (code: string | null) => void;
+  setReminder: (reminder: ReminderSettings | null) => void;
+  // Records that today's nudge has been shown, so a missed day is mentioned
+  // once rather than on every visit.
+  markNudged: (date: string) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -233,6 +242,7 @@ export const useStore = create<AppState>()(
             claimedSkills: data.claimedSkills ?? local?.claimedSkills ?? [],
             leftHanded: data.leftHanded ?? local?.leftHanded,
             currentLesson: data.currentLesson ?? local?.currentLesson,
+            reminder: data.reminder ?? local?.reminder,
             updatedAt: remoteUpdatedAt,
           };
 
@@ -635,6 +645,21 @@ export const useStore = create<AppState>()(
             else delete next.currentLesson;
             return next;
           }),
+        ),
+
+        setReminder: (reminder) => set((state) =>
+          mutate(state, (a) => {
+            const next = { ...a };
+            if (reminder) next.reminder = reminder;
+            else delete next.reminder;
+            return next;
+          }),
+        ),
+
+        markNudged: (date) => set((state) =>
+          mutate(state, (a) =>
+            a.reminder ? { ...a, reminder: { ...a.reminder, lastNudge: date } } : a,
+          ),
         ),
 
         setCapoFret: (fret) => set((state) =>

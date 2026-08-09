@@ -1,0 +1,91 @@
+/* Sits above the task list, in the same visual family as the undo strip: a
+   quiet inline band rather than a banner. A missed practice day is not an
+   error, and styling it like one is how an app starts feeling like a nag. */
+
+.nudge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-color);
+}
+
+.nudge-icon {
+  flex: 0 0 auto;
+  color: var(--accent-primary);
+}
+
+.nudge-text {
+  flex: 1;
+  min-width: 140px;
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.nudge-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.nudge-dismiss,
+.nudge-start {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, color 0.18s;
+}
+
+/* Leaving is as easy as starting. A dismiss that has to be hunted for is the
+   thing people remember about an app that nagged them. */
+.nudge-dismiss {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.nudge-dismiss:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+
+.nudge-start {
+  border: 1px solid transparent;
+  background: var(--accent-primary);
+  color: #0b1220;
+}
+
+.nudge-start:hover {
+  background: #5cc9fa;
+}
+
+.nudge-dismiss:focus-visible,
+.nudge-start:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .nudge-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .nudge-actions button {
+    flex: 1;
+    justify-content: center;
+  }
+}
