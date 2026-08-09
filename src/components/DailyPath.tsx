@@ -12,6 +12,7 @@ import { RoutineManagerModal } from './RoutineManagerModal';
 import { ProgressPanel } from './practice/ProgressPanel';
 import { JourneyPanel } from './practice/JourneyPanel';
 import { AchievementsPanel } from './practice/AchievementsPanel';
+import { HistoryPanel } from './practice/HistoryPanel';
 import { sanitizeMinutes } from '../lib/coached';
 import type { Task } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -64,7 +65,7 @@ export function DailyPath() {
   // Progress answers "how fast", Journey answers "where am I". They are two
   // views of the same question and live behind one button rather than adding a
   // fourth thing to the header.
-  const [progressView, setProgressView] = useState<'journey' | 'numbers' | 'awards'>('journey');
+  const [progressView, setProgressView] = useState<'journey' | 'numbers' | 'awards' | 'history'>('journey');
   const [isCoachedOpen, setIsCoachedOpen] = useState(false);
   const [isTunerOpen, setIsTunerOpen] = useState(false);
   const [practiceTask, setPracticeTask] = useState<Task | null>(null);
@@ -605,7 +606,18 @@ export function DailyPath() {
           >
             Awards
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={progressView === 'history'}
+            className={clsx('progress-tab', progressView === 'history' && 'is-on')}
+            onClick={() => setProgressView('history')}
+          >
+            History
+          </button>
         </div>
+
+        {progressView === 'history' && <HistoryPanel />}
 
         {progressView === 'awards' && <AchievementsPanel />}
 

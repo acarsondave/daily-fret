@@ -1,0 +1,239 @@
+/* The practice log, read back. Nothing here is a verdict: it is what happened. */
+
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  text-align: left;
+}
+
+.history-empty {
+  font-size: var(--text-base);
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.history-title {
+  margin-bottom: var(--space-3);
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* --- Weeks ----------------------------------------------------------------- */
+
+.history-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 72px;
+  margin: 0;
+  padding-bottom: var(--space-2);
+  padding-left: 0;
+  list-style: none;
+  /* A baseline, so a short bar reads as short rather than as floating. */
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Capped rather than stretched: with nine weeks of history, flexible slots
+   made each bar a hundred pixels wide and the chart read as a row of blocks. */
+.history-bar-slot {
+  display: flex;
+  align-items: flex-end;
+  flex: 1 1 auto;
+  max-width: 20px;
+  min-width: 5px;
+  height: 100%;
+}
+
+.history-bar {
+  display: block;
+  width: 100%;
+  min-height: 3px;
+  border-radius: 2px 2px 0 0;
+  background: var(--accent-primary);
+  opacity: 0.8;
+}
+
+.history-scale {
+  display: block;
+  margin-top: var(--space-2);
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* --- Days ------------------------------------------------------------------ */
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-day {
+  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  transition: border-color var(--dur-base) ease, background var(--dur-base) ease;
+}
+.history-day.is-open {
+  border-color: var(--border-subtle);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.history-day-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  text-align: left;
+  transition: background var(--dur-base) ease;
+}
+.history-day-head:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.history-day-date {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-day-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.history-day-bests {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--warning-glow);
+  color: var(--warning-color);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+}
+
+.history-caret {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.history-caret.is-open {
+  transform: rotate(180deg);
+}
+
+.history-day-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0 var(--space-3) var(--space-4);
+}
+
+.history-day-routine {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.history-results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-result {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+}
+.history-result.is-best {
+  background: var(--warning-glow);
+}
+
+.history-result-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-result-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.history-result.is-best .history-result-value {
+  color: var(--warning-color);
+}
+
+.history-result-unit {
+  font-size: var(--text-micro);
+  color: var(--text-muted);
+}
+
+.history-result-note {
+  flex-shrink: 0;
+  font-size: var(--text-micro);
+  color: var(--warning-color);
+}
+
+/* The learner's own words, kept as theirs. */
+.history-note {
+  margin: 0;
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--border-default);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.history-more {
+  align-self: flex-start;
+  margin-top: var(--space-3);
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  transition: color var(--dur-base) ease, background var(--dur-base) ease;
+}
+.history-more:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
