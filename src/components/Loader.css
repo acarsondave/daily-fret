@@ -61,7 +61,7 @@
 
 .app-loader-label {
   font-family: var(--font-secondary);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   letter-spacing: 0.08em;
   color: var(--text-secondary);
 }
