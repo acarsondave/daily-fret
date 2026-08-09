@@ -1,0 +1,80 @@
+/* Sits in the gap a deleted row left behind, so it says where as well as what. */
+
+.undo-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin: var(--space-1) 0;
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border-default);
+  background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+}
+
+.undo-strip-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.undo-strip-text strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* How long is left. Drawn rather than counted: a shrinking bar is read without
+   being looked at, which is the whole point of a window this short. */
+.undo-strip-track {
+  flex-shrink: 0;
+  width: 48px;
+  height: 2px;
+  border-radius: var(--radius-full);
+  background: var(--border-default);
+  overflow: hidden;
+}
+
+.undo-strip-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  background: var(--text-muted);
+  animation: undo-drain linear forwards;
+}
+
+@keyframes undo-drain {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+.undo-strip-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  color: var(--accent-primary);
+  background: var(--accent-glow);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  transition: background var(--dur-base) ease;
+}
+.undo-strip-action:hover {
+  background: rgba(56, 189, 248, 0.26);
+}
+
+/* The drain is a timer, and reduced motion asks for looping and decorative
+   movement to stop, not for information to disappear. The bar holds at full
+   width; the offer still expires on its own timer either way. */
+@media (prefers-reduced-motion: reduce) {
+  .undo-strip-fill {
+    animation: none;
+  }
+}

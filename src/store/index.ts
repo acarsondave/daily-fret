@@ -54,6 +54,10 @@ export interface UserData {
   // Whether coached drills set the tempo (and start the click) themselves from
   // the player's own results. Defaults on; absent means never chosen.
   metronomeAuto?: boolean;
+  // Which fret the capo is on, 0 for none. The detector matches pitch-class
+  // templates, so a capo transposes everything it hears and every drill would
+  // silently stop counting without this. Absent means none.
+  capoFret?: number;
   // Epoch ms of the last local mutation to this account. Drives conflict
   // resolution against the cloud copy. Older/legacy data defaults to 0.
   updatedAt: number;
@@ -82,6 +86,8 @@ interface AppState {
   addTask: (routineId: string, task: Task) => void;
   updateTask: (routineId: string, taskId: string, updates: Partial<Task>) => void;
   deleteTask: (routineId: string, taskId: string) => void;
+  restoreTask: (routineId: string, task: Task, index: number) => void;
+  restoreRoutine: (routine: Routine, index: number) => void;
   moveTask: (routineId: string, taskId: string, direction: 'up' | 'down') => void;
 
   toggleTaskCompletion: (date: string, taskId: string) => void;
@@ -104,6 +110,7 @@ interface AppState {
   clearChordCalibration: () => void;
   setMetronomeBpm: (bpm: number) => void;
   setMetronomeAuto: (auto: boolean) => void;
+  setCapoFret: (fret: number) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -173,6 +180,7 @@ export const useStore = create<AppState>()(
             chordCalibration: data.chordCalibration ?? local?.chordCalibration,
             metronomeBpm: data.metronomeBpm ?? local?.metronomeBpm,
             metronomeAuto: data.metronomeAuto ?? local?.metronomeAuto,
+            capoFret: data.capoFret ?? local?.capoFret,
             updatedAt: remoteUpdatedAt,
           };
 
@@ -245,6 +253,31 @@ export const useStore = create<AppState>()(
                   },
             ),
           })),
+        ),
+
+        // Put a task back where it was, not on the end. A routine's order is
+        // the sequence Coached mode plays, so restoring to the wrong position
+        // has quietly rewritten the session rather than undone a delete.
+        restoreTask: (routineId, task, index) => set((state) =>
+          mutate(state, (a) => ({
+            ...a,
+            routines: a.routines.map((r) => {
+              if (r.id !== routineId) return r;
+              if (r.tasks.some((t) => t.id === task.id)) return r;
+              const tasks = [...r.tasks];
+              tasks.splice(Math.max(0, Math.min(index, tasks.length)), 0, task);
+              return { ...r, tasks };
+            }),
+          })),
+        ),
+
+        restoreRoutine: (routine, index) => set((state) =>
+          mutate(state, (a) => {
+            if (a.routines.some((r) => r.id === routine.id)) return a;
+            const routines = [...a.routines];
+            routines.splice(Math.max(0, Math.min(index, routines.length)), 0, routine);
+            return { ...a, routines };
+          }),
         ),
 
         deleteTask: (routineId, taskId) => set((state) =>
@@ -419,6 +452,13 @@ export const useStore = create<AppState>()(
 
         setMetronomeAuto: (auto) => set((state) =>
           mutate(state, (a) => ({ ...a, metronomeAuto: auto })),
+        ),
+
+        // Clamped rather than trusted: an out-of-range offset would shift the
+        // chroma into nonsense and every drill would stop counting with no
+        // visible cause.
+        setCapoFret: (fret) => set((state) =>
+          mutate(state, (a) => ({ ...a, capoFret: Math.max(0, Math.min(11, Math.round(fret))) })),
         ),
       };
     },

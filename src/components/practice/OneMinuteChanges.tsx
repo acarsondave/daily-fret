@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowRightIcon, HourglassIcon, MicIcon, PlayIcon, RetryIcon, SwapIcon, TrophyIcon } from '../icons';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
+import { useCapoOffset } from '../../hooks/useCapo';
 import { ProgressRing } from './ProgressRing';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
@@ -49,6 +50,7 @@ export function OneMinuteChanges({
 }: Props) {
   const own = useChordDetector();
   const templates = useLearnedTemplates();
+  const capo = useCapoOffset();
   const sharedMic = !!detector;
   const { status, error, start, stop, setHandlers } = detector ?? own;
 
@@ -184,7 +186,7 @@ export function OneMinuteChanges({
         onChord: (ev) => handleChord(ev.chord),
         onLevel: (ev) => pushSignal(ev),
       },
-      { restrictTo: [from, to], templates },
+      { restrictTo: [from, to], templates, offset: capo },
     );
     if (!live) return; // denied / failed — the mic gate view takes over
     diag.mark(`one-minute start ${from}->${to} (${duration}s)`);

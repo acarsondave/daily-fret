@@ -10,6 +10,7 @@ import { SignalMeter } from './SignalMeter';
 import { useSignalMeter } from './signalQuality';
 import { sfx } from '../../audio/sfx';
 import { useStore } from '../../store';
+import { useCapoOffset } from '../../hooks/useCapo';
 import {
   CalibrationCollector,
   fitTemplates,
@@ -54,6 +55,7 @@ export function CalibrationFlow({ onClose }: Props) {
   const clearChordCalibration = useStore((s) => s.clearChordCalibration);
   const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter();
 
+  const capo = useCapoOffset();
   const [phase, setPhase] = useState<Phase>('intro');
   const [idx, setIdx] = useState(0);
   const [count, setCount] = useState(0);
@@ -185,6 +187,27 @@ export function CalibrationFlow({ onClose }: Props) {
 
   const body = () => {
     if (phase === 'intro') {
+      // Calibration learns this guitar's chord fingerprints. Through a capo it
+      // would learn transposed ones that only work with the capo on, so the flow
+      // refuses rather than quietly recording something wrong. This is the one
+      // place the capo has to come off.
+      if (capo > 0) {
+        return (
+          <motion.div className="om-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+            <PlectrumIcon size={48} className="coach-summary-check" />
+            <div className="coach-intro-title">Take the capo off first</div>
+            <div className="om-caption om-cal-blurb">
+              Calibration learns how your guitar sounds on open shapes. With the
+              capo on fret {capo} it would learn the wrong ones, and every drill
+              afterwards would inherit the mistake. Take it off, set the capo back
+              to None in settings, then come back.
+            </div>
+            <button className="practice-btn primary" onClick={onClose} autoFocus>
+              Got it
+            </button>
+          </motion.div>
+        );
+      }
       return (
         <motion.div className="om-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           <PlectrumIcon size={48} className="coach-summary-check" />

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowRightIcon, HourglassIcon, MicIcon, PlayIcon, RetryIcon, TrophyIcon } from '../icons';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
+import { useCapoOffset } from '../../hooks/useCapo';
 import { usePassiveRefine } from '../../hooks/usePassiveRefine';
 import { ProgressRing } from './ProgressRing';
 import { Sparkline } from './Sparkline';
@@ -67,6 +68,7 @@ export function ChordTrainer({
 }: Props) {
   const own = useChordDetector();
   const templates = useLearnedTemplates();
+  const capo = useCapoOffset();
   const passive = usePassiveRefine();
   const sharedMic = !!detector;
   const { status, error, start, stop, setHandlers } = detector ?? own;
@@ -237,7 +239,7 @@ export function ChordTrainer({
       // Restricted to the whole pool, not to the one chord on screen: with a
       // single candidate every match wins by default and a wrong shape would
       // score. The neighbours are what make a correct placement mean something.
-      { restrictTo: pool, templates },
+      { restrictTo: pool, templates, offset: capo },
     );
     if (!live) return;
     diag.mark(`chord-perfect start [${pool.join(', ')}] ${perChord}s each`);

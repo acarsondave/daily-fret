@@ -71,6 +71,16 @@ export const TuningForkIcon = (p: IconProps) => (
   </IconBase>
 );
 
+// A capo: the bar, clamped across the strings. Reads as the object itself
+// rather than as an abstract "transpose", which is what it actually is.
+export const CapoIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <path d="M5 9.4h14a2.3 2.3 0 0 1 0 4.6H5a2.3 2.3 0 0 1 0-4.6Z" />
+    <path d="M8.4 4.4v4M12 4.4v4M15.6 4.4v4" />
+    <path d="M8.4 15.6v4M12 15.6v4M15.6 15.6v4" />
+  </IconBase>
+);
+
 export const MicIcon = (p: IconProps) => (
   <IconBase {...p}>
     <path d="M12 4.2a2.7 2.7 0 0 1 2.7 2.7v4.6a2.7 2.7 0 0 1-5.4 0V6.9A2.7 2.7 0 0 1 12 4.2Z" />

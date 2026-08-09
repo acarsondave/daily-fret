@@ -8,6 +8,7 @@ import { ArrowRightIcon, DownloadIcon, PlectrumIcon, SignOutIcon, SpinnerIcon } 
 import { downloadDiagnostics, storedSessionSummaries } from '../audio/diagnostics';
 import { MicSetting } from './MicSetting';
 import { CalibrationSetting } from './CalibrationSetting';
+import { CapoSetting } from './CapoSetting';
 import { PatternManager } from './PatternManager';
 import './AccountModal.css';
 
@@ -24,6 +25,11 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [diagStatus, setDiagStatus] = useState<string | null>(null);
+  // Signed-out visitors get the sign-in form folded away behind a prompt. The
+  // settings underneath are about the microphone and the guitar, not about an
+  // account, and they used to be unreachable without one: a first-run user could
+  // not pick an input device, calibrate, or say they had a capo on.
+  const [authOpen, setAuthOpen] = useState(false);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +89,21 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} position="top-right" label="Account and settings">
       <div className="account-modal-content">
-        {!user ? (
+        {!user && !authOpen ? (
+          <div className="auth-prompt">
+            <h2 className="settings-title">Your practice</h2>
+            <p className="auth-prompt-body">
+              Saved on this device. Sign in to keep it if you clear your browser or
+              switch to your phone.
+            </p>
+            <button type="button" className="settings-action-btn" onClick={() => setAuthOpen(true)}>
+              <ArrowRightIcon size={18} />
+              <span>Sign in or create an account</span>
+            </button>
+          </div>
+        ) : null}
+
+        {!user && authOpen ? (
           <form onSubmit={handleAuth} className="auth-form">
             <h2 className="auth-title">{isLogin ? 'Sign into your account' : 'Create an account'}</h2>
             <p className="auth-subtitle">
@@ -128,36 +148,49 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
             <button type="button" className="auth-switch" onClick={() => setIsLogin(!isLogin)}>
               {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
             </button>
+            <button type="button" className="auth-switch" onClick={() => setAuthOpen(false)}>
+              Not now
+            </button>
           </form>
-        ) : (
-          <div className="account-settings">
-            <h2 className="settings-title">Account Settings</h2>
-            <div className="user-email">{user.email}</div>
+        ) : null}
 
-            <MicSetting />
+        {/* Everything below is about the room and the instrument, not the
+            account, so it is here whether or not anyone has signed in. */}
+        <div className="account-settings">
+          {user && (
+            <>
+              <h2 className="settings-title">Account</h2>
+              <div className="user-email">{user.email}</div>
+            </>
+          )}
 
-            <CalibrationSetting />
+          <MicSetting />
 
-            <PatternManager />
+          <CapoSetting />
 
-            <div className="settings-actions">
-              <button className="settings-action-btn" onClick={exportData}>
-                <DownloadIcon size={18} />
-                <span>Export My Data (JSON)</span>
-              </button>
+          <CalibrationSetting />
 
-              <button className="settings-action-btn" onClick={() => void exportDiagnostics()}>
-                <PlectrumIcon size={18} />
-                <span>{diagStatus ?? 'Export Detection Diagnostics'}</span>
-              </button>
+          <PatternManager />
 
+          <div className="settings-actions">
+            <button className="settings-action-btn" onClick={exportData}>
+              <DownloadIcon size={18} />
+              <span>Export My Data (JSON)</span>
+            </button>
+
+            <button className="settings-action-btn" onClick={() => void exportDiagnostics()}>
+              <PlectrumIcon size={18} />
+              <span>{diagStatus ?? 'Export Detection Diagnostics'}</span>
+            </button>
+
+            {user && (
               <button className="settings-action-btn logout" onClick={handleLogout} disabled={isLoading}>
                 {isLoading ? <SpinnerIcon size={18} className="spinner-icon" /> : <SignOutIcon size={18} />}
                 <span>{isLoading ? 'Logging Out...' : 'Log Out'}</span>
               </button>
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </Modal>
   );

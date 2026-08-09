@@ -1,5 +1,7 @@
 import { useId, useState } from 'react';
 import { Modal } from './Modal';
+import { UndoStrip } from './UndoStrip';
+import { useUndoStore } from '../store/undo';
 import { useStore, useUserData } from '../store';
 import { ArrowLeftIcon, CheckIcon, CloseIcon, CodeIcon, PlusIcon, SlidersIcon, TrashIcon, UploadIcon } from './icons';
 import clsx from 'clsx';
@@ -24,6 +26,21 @@ export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProp
   const addRoutine = useStore((s) => s.addRoutine);
   const updateRoutine = useStore((s) => s.updateRoutine);
   const deleteRoutine = useStore((s) => s.deleteRoutine);
+  const routineUndo = useUndoStore((s) => s.pending).filter((d) => d.kind === 'routine');
+
+  // A routine is a session's worth of structure. Deleting one without an undo
+  // was the most expensive irreversible action in the app.
+  const removeRoutine = (routine: Routine) => {
+    const before = useStore.getState().accounts[useStore.getState().currentAccountId]?.routines ?? [];
+    const position = before.findIndex((r) => r.id === routine.id);
+    deleteRoutine(routine.id);
+    const after = useStore.getState().accounts[useStore.getState().currentAccountId]?.routines ?? [];
+    // deleteRoutine refuses to remove the last routine. Only offer to undo
+    // something that actually happened.
+    if (after.length < before.length && position >= 0) {
+      useUndoStore.getState().offer({ kind: 'routine', routine, index: position, label: routine.name });
+    }
+  };
   
   const [view, setView] = useState<ViewState>('list');
   
@@ -127,6 +144,9 @@ export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProp
             </div>
 
             <div className="routines-list">
+              {routineUndo.map((d) => (
+                <UndoStrip key={d.id} deletion={d} />
+              ))}
               {routines.map(r => (
                 <div key={r.id} className="routine-edit-item">
                   {editingId === r.id ? (
@@ -154,7 +174,7 @@ export function RoutineManagerModal({ isOpen, onClose }: RoutineManagerModalProp
                           {deletingId === r.id ? (
                             <>
                               <span className="confirm-text" style={{ fontSize: '0.8rem', color: 'var(--error-color)', marginRight: '8px' }}>Delete?</span>
-                              <button className="icon-btn danger" onClick={() => { deleteRoutine(r.id); setDeletingId(null); }}>
+                              <button className="icon-btn danger" onClick={() => { removeRoutine(r); setDeletingId(null); }}>
                                 <CheckIcon size={18} />
                               </button>
                               <button className="icon-btn" onClick={() => setDeletingId(null)}>

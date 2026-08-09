@@ -1,13 +1,19 @@
 import { useState } from 'react';
 import { MusicNoteIcon, PlusIcon, TrashIcon } from './icons';
 import { useStore } from '../store';
-import { BUILTIN_PATTERNS } from '../data/strumPatterns';
+import { BUILTIN_PATTERNS, type StrumPattern } from '../data/strumPatterns';
 import { StrumRow } from './practice/StrumRow';
+
+// A selector must return a stable reference: building `?? []` inline hands React
+// a new array on every read, which reads as a change every render and spins the
+// component into an update loop. Only bites accounts saved before strumPatterns
+// existed, which is the oldest data there is.
+const NO_PATTERNS: StrumPattern[] = [];
 
 // Manage your own strum patterns. Built-ins are shown for reference; you add and
 // remove your own. Patterns are a string of D (down), U (up), - (rest).
 export function PatternManager() {
-  const custom = useStore((s) => s.accounts[s.currentAccountId]?.strumPatterns ?? []);
+  const custom = useStore((s) => s.accounts[s.currentAccountId]?.strumPatterns ?? NO_PATTERNS);
   const addStrumPattern = useStore((s) => s.addStrumPattern);
   const removeStrumPattern = useStore((s) => s.removeStrumPattern);
 

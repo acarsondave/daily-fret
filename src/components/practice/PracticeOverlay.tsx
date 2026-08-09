@@ -13,6 +13,7 @@ import { ChordTrainer } from './ChordTrainer';
 import { ChordRotation } from './ChordRotation';
 import { SongPlayer } from './SongPlayer';
 import { Metronome } from './Metronome';
+import { CapoBadge } from './CapoBadge';
 import './practice.css';
 
 interface Props {
@@ -108,6 +109,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
     >
       <div className="practice-topbar">
         <span className="practice-eyebrow">{task.title}</span>
+        <CapoBadge />
         <div className="practice-topbar-actions">
           <Metronome
             plan={tempoPlan}

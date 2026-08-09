@@ -258,3 +258,51 @@
     min-height: 44px;
   }
 }
+
+/* Capo frets. A row rather than a stepper: choosing "3" is one tap, and the
+   whole range is visible, which matters for a control that silently governs
+   whether any drill can hear you. */
+.capo-frets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.capo-fret {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  transition: background var(--dur-base) ease, color var(--dur-base) ease,
+    border-color var(--dur-base) ease;
+}
+.capo-fret:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+.capo-fret.is-on {
+  background: var(--accent-glow);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: var(--accent-primary);
+}
+
+/* Signed-out header. Folds the sign-in form away so the settings underneath are
+   not buried behind a form nobody asked for. */
+.auth-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+}
+
+.auth-prompt-body {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}

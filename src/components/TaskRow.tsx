@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, memo } from 'react';
+import { useUndoStore } from '../store/undo';
 import { useStore, getTodayString } from '../store';
 import {
   CheckIcon,
@@ -125,7 +126,17 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
   }, [isEditing]);
 
   const handleDelete = () => {
+    // Capture the whole task and its position first: once the store has removed
+    // it, the only record of what a routine's third task used to be is gone.
+    const routine = useStore
+      .getState()
+      .accounts[useStore.getState().currentAccountId]?.routines.find((r) => r.id === routineId);
+    const task = routine?.tasks.find((t) => t.id === taskId);
+    const position = routine?.tasks.findIndex((t) => t.id === taskId) ?? -1;
     deleteTask(routineId, taskId);
+    if (task && position >= 0) {
+      useUndoStore.getState().offer({ kind: 'task', routineId, task, index: position, label: task.title });
+    }
   };
 
   const handleEditClick = () => {

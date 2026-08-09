@@ -1,5 +1,11 @@
 import { useStore } from '../store';
-import { BUILTIN_PATTERNS } from '../data/strumPatterns';
+import { BUILTIN_PATTERNS, type StrumPattern } from '../data/strumPatterns';
+
+// A selector must return a stable reference: building `?? []` inline hands React
+// a new array on every read, which reads as a change every render and spins the
+// component into an update loop. Only bites accounts saved before strumPatterns
+// existed, which is the oldest data there is.
+const NO_PATTERNS: StrumPattern[] = [];
 
 interface Props {
   value: string; // the pattern string ('' = none)
@@ -10,7 +16,7 @@ interface Props {
 // Stores the pattern string directly, so deleting a saved pattern can't break a
 // task that already uses it.
 export function StrumPatternSelect({ value, onChange }: Props) {
-  const custom = useStore((s) => s.accounts[s.currentAccountId]?.strumPatterns ?? []);
+  const custom = useStore((s) => s.accounts[s.currentAccountId]?.strumPatterns ?? NO_PATTERNS);
   return (
     <select className="task-input drill-song-select" aria-label="Strum pattern" value={value} onChange={(e) => onChange(e.target.value)}>
       <option value="">No strum pattern</option>

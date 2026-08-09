@@ -5,6 +5,8 @@ import { TaskRow } from './TaskRow';
 import { Modal } from './Modal';
 import { Loader } from './Loader';
 import { TaskCreatorModal } from './TaskCreatorModal';
+import { UndoStrip } from './UndoStrip';
+import { useUndoStore, type TaskDeletion } from '../store/undo';
 import { RoutineManagerModal } from './RoutineManagerModal';
 import { ProgressPanel } from './practice/ProgressPanel';
 import { sanitizeMinutes } from '../lib/coached';
@@ -63,6 +65,16 @@ export function DailyPath() {
   const [limitNotice, setLimitNotice] = useState(false);
 
   const drillStats = useDrillStats();
+  // Deleted tasks wait here in the list, in the gap they left, until the offer
+  // expires. Routine deletions have their own strip inside the manager.
+  const pendingUndo = useUndoStore((s) => s.pending);
+  const taskUndo = useMemo(
+    () =>
+      pendingUndo.filter(
+        (d): d is TaskDeletion => d.kind === 'task' && d.routineId === activeRoutineId,
+      ),
+    [pendingUndo, activeRoutineId],
+  );
   const hasProgress = drillStats.any;
 
   // Stable across renders so memoized TaskRows don't re-render when the list
@@ -91,6 +103,22 @@ export function DailyPath() {
 
   const tasks = useMemo(() => activeRoutine?.tasks || [], [activeRoutine]);
   const isEmpty = tasks.length === 0;
+
+  // Tasks and undo offers as one ordered list. An offer is placed at the index
+  // the task was deleted from, so the strip appears in the gap rather than at
+  // the bottom: where it sits is half of what it is telling you. Highest index
+  // first, so inserting an earlier one cannot displace a later one.
+  const rows = useMemo(() => {
+    const merged: Array<
+      { kind: 'task'; task: Task; index: number } | { kind: 'undo'; deletion: TaskDeletion }
+    > = tasks.map((task, index) => ({ kind: 'task' as const, task, index }));
+    [...taskUndo]
+      .sort((a, b) => b.index - a.index)
+      .forEach((deletion) => {
+        merged.splice(Math.min(deletion.index, merged.length), 0, { kind: 'undo', deletion });
+      });
+    return merged;
+  }, [tasks, taskUndo]);
 
   // Coached mode runs every task in order (drills + timed blocks).
   const hasCoachable = tasks.length > 0;
@@ -336,19 +364,23 @@ export function DailyPath() {
             )}
           >
             <AnimatePresence mode="popLayout">
-              {tasks.map((task, idx) => (
-                <motion.div
-                  layout
-                  key={task.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.03 }}
-                >
-                  <TaskRow routineId={activeRoutine.id} taskId={task.id} title={task.title} description={task.description} duration={task.duration} drill={task.drill} blocks={task.blocks} index={idx} total={tasks.length} onLaunchDrill={launchDrill} />
-                </motion.div>
-              ))}
+              {rows.map((row) =>
+                row.kind === 'undo' ? (
+                  <UndoStrip key={row.deletion.id} deletion={row.deletion} />
+                ) : (
+                  <motion.div
+                    layout
+                    key={row.task.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: row.index * 0.03 }}
+                  >
+                    <TaskRow routineId={activeRoutine.id} taskId={row.task.id} title={row.task.title} description={row.task.description} duration={row.task.duration} drill={row.task.drill} blocks={row.task.blocks} index={row.index} total={tasks.length} onLaunchDrill={launchDrill} />
+                  </motion.div>
+                ),
+              )}
 
-              {isEmpty && !inlineStep && (
+              {isEmpty && !inlineStep && !taskUndo.length && (
                 <motion.button
                   type="button"
                   initial={{ opacity: 0 }}

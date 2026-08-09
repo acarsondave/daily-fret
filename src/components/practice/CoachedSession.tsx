@@ -27,6 +27,7 @@ import { SongPlayer } from './SongPlayer';
 import { TimedSegment } from './TimedSegment';
 import { MicPermissionHint } from './MicPermissionHint';
 import { Metronome } from './Metronome';
+import { CapoBadge } from './CapoBadge';
 import './practice.css';
 
 type Phase = 'resume' | 'intro' | 'rest' | 'segment' | 'summary';
@@ -316,6 +317,7 @@ export function CoachedSession({ routine, onClose }: Props) {
         <span className="practice-eyebrow">
           Coached · {Math.min(index + 1, segments.length)} / {segments.length}
         </span>
+        <CapoBadge />
         <div className="practice-topbar-actions">
           <Metronome
             plan={tempoPlan}

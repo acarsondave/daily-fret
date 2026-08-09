@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowRightIcon, CycleIcon, HourglassIcon, MicIcon, PlayIcon, RetryIcon, TrophyIcon } from '../icons';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
+import { useCapoOffset } from '../../hooks/useCapo';
 import { ProgressRing } from './ProgressRing';
 import { SignalMeter } from './SignalMeter';
 import { ChordDiagram } from './ChordDiagram';
@@ -49,6 +50,7 @@ export function ChordRotation({
 }: Props) {
   const own = useChordDetector();
   const templates = useLearnedTemplates();
+  const capo = useCapoOffset();
   const sharedMic = !!detector;
   const { status, error, start, stop, setHandlers } = detector ?? own;
 
@@ -141,7 +143,7 @@ export function ChordRotation({
         onChord: (ev) => handleChord(ev.chord),
         onLevel: (ev) => pushSignal(ev),
       },
-      { restrictTo: ring, templates },
+      { restrictTo: ring, templates, offset: capo },
     );
     if (!live) return;
     diag.mark(`rotation start ${ring.join('>')} (${duration}s)`);
