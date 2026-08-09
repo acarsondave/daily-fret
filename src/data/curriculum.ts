@@ -1296,31 +1296,30 @@ export const CURRICULUM: Curriculum = {
   ],
   "lessons": [
     {
-      "slug": "5-blues-licks-from-pattern-2-bl-408",
-      "track": "bl",
-      "code": "bl-408",
-      "module": 4,
-      "position": 8,
-      "title": "5 Blues Licks from Pattern 2",
-      "videoId": "Ni6cU7hH5ts"
+      "slug": "the-major-pentatonic-in-blues-mt-564",
+      "track": "mt",
+      "code": "mt-564",
+      "module": 5,
+      "position": 64,
+      "title": "The Major Pentatonic In Blues",
+      "videoId": "KW35LLP1USg"
     },
     {
-      "slug": "blues-licks-linking-patterns-1-2-bl-412",
-      "track": "bl",
-      "code": "bl-412",
-      "module": 4,
-      "position": 12,
-      "title": "Blues Licks Linking Patterns 1 & 2",
-      "videoId": "YdC31_20V3Q"
+      "slug": "deeper-into-arpeggios-mt-580",
+      "track": "mt",
+      "code": "mt-580",
+      "module": 5,
+      "position": 80,
+      "title": "Deeper Into Arpeggios",
+      "fromSlug": true
     },
     {
-      "slug": "jimi-hendrix-style-ru-400",
-      "track": "ru",
-      "code": "ru-400",
-      "module": 4,
-      "position": 0,
-      "title": "Jimi Hendrix Style",
-      "videoId": "_PVjcIO4MT4"
+      "slug": "the-minor-pentatonic-scale-mt-561",
+      "track": "mt",
+      "code": "mt-561",
+      "module": 5,
+      "position": 61,
+      "title": "The Minor Pentatonic Scale"
     },
     {
       "slug": "song-references-for-interval-ear-training-et-099",
@@ -1340,6 +1339,14 @@ export const CURRICULUM: Curriculum = {
       "title": "Adding Notes And Function"
     },
     {
+      "slug": "the-natural-minor-mt-571",
+      "track": "mt",
+      "code": "mt-571",
+      "module": 5,
+      "position": 71,
+      "title": "The Natural Minor"
+    },
+    {
       "slug": "how-to-best-use-these-solos-ru-061",
       "track": "ru",
       "code": "ru-061",
@@ -1347,60 +1354,6 @@ export const CURRICULUM: Curriculum = {
       "position": 61,
       "title": "How to Best Use These Solos",
       "fromSlug": true
-    },
-    {
-      "slug": "strumming-patterns-with-ups-b1-307",
-      "track": "b1",
-      "code": "b1-307",
-      "module": 3,
-      "position": 7,
-      "title": "Strumming Patterns With Ups",
-      "videoId": "IXL1bG_ao3c"
-    },
-    {
-      "slug": "minor-pentatonic-pattern-2-bl-407",
-      "track": "bl",
-      "code": "bl-407",
-      "module": 4,
-      "position": 7,
-      "title": "Minor Pentatonic Pattern 2",
-      "videoId": "DCbqWevnhuo"
-    },
-    {
-      "slug": "eric-clapton-style-ru-200",
-      "track": "ru",
-      "code": "ru-200",
-      "module": 2,
-      "position": 0,
-      "title": "Eric Clapton Style",
-      "videoId": "-_gC2V_nbK8"
-    },
-    {
-      "slug": "minor-pentatonic-pattern-1-bl-402",
-      "track": "bl",
-      "code": "bl-402",
-      "module": 4,
-      "position": 2,
-      "title": "Minor Pentatonic Pattern 1",
-      "videoId": "7xGqV6Wx_LY"
-    },
-    {
-      "slug": "blues-vibrato-bl-405",
-      "track": "bl",
-      "code": "bl-405",
-      "module": 4,
-      "position": 5,
-      "title": "Blues Vibrato",
-      "videoId": "__lTYlYlaCI"
-    },
-    {
-      "slug": "stevie-ray-vaughan-style-ru-500",
-      "track": "ru",
-      "code": "ru-500",
-      "module": 5,
-      "position": 0,
-      "title": "Stevie Ray Vaughan Style",
-      "videoId": "kfjXp4KTTY8"
     },
     {
       "slug": "e-shape-sus4-chords-mt-623",
@@ -1419,49 +1372,13 @@ export const CURRICULUM: Curriculum = {
       "title": "Recognising Keys by Chord Sequences"
     },
     {
-      "slug": "albert-king-style-ru-100",
-      "track": "ru",
-      "code": "ru-100",
+      "slug": "triplet-rhythms-bc-155",
+      "track": "bc",
+      "code": "bc-155",
       "module": 1,
-      "position": 0,
-      "title": "Albert King Style",
-      "videoId": "SyVhBfIFbiQ"
-    },
-    {
-      "slug": "the-blues-curl-on-the-flat-3rd-bl-409",
-      "track": "bl",
-      "code": "bl-409",
-      "module": 4,
-      "position": 9,
-      "title": "The Blues Curl on the Flat 3rd",
-      "videoId": "e9IxxZ-hlbA"
-    },
-    {
-      "slug": "5-blues-licks-from-pattern-1-bl-404",
-      "track": "bl",
-      "code": "bl-404",
-      "module": 4,
-      "position": 4,
-      "title": "5 Blues Licks from Pattern 1",
-      "videoId": "Gu2esZ-PzFM"
-    },
-    {
-      "slug": "introducing-the-blues-scale-bl-410",
-      "track": "bl",
-      "code": "bl-410",
-      "module": 4,
-      "position": 10,
-      "title": "Introducing The Blues Scale",
-      "videoId": "jlgq0yamjuY"
-    },
-    {
-      "slug": "exploring-melodic-sequences-mt-013",
-      "track": "mt",
-      "code": "mt-013",
-      "module": 0,
-      "position": 13,
-      "title": "Exploring Melodic Sequences",
-      "videoId": "L2Ryrr6txwA"
+      "position": 55,
+      "title": "Triplet Rhythms",
+      "videoId": "fP_2IApL9zQ"
     },
     {
       "slug": "melodic-minor-pattern-2-sc-602",
@@ -1473,21 +1390,30 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
-      "slug": "the-blues-language-bl-401",
-      "track": "bl",
-      "code": "bl-401",
-      "module": 4,
-      "position": 1,
-      "title": "The Blues Language",
-      "videoId": "V4DeCHI-tDQ"
-    },
-    {
       "slug": "diminished-whole-half-essential-info-sc-725",
       "track": "sc",
       "code": "sc-725",
       "module": 7,
       "position": 25,
       "title": "Diminished Whole Half Essential Info",
+      "fromSlug": true
+    },
+    {
+      "slug": "capo-the-chords-to-best-suit-your-voice-ch-701",
+      "track": "ch",
+      "code": "ch-701",
+      "module": 7,
+      "position": 1,
+      "title": "Capo The Chords To Best Suit Your Voice",
+      "videoId": "Ky8uOOfI2tY"
+    },
+    {
+      "slug": "software-advantages-tr-103",
+      "track": "tr",
+      "code": "tr-103",
+      "module": 1,
+      "position": 3,
+      "title": "Software Advantages",
       "fromSlug": true
     },
     {
@@ -1500,13 +1426,31 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
-      "slug": "software-advantages-tr-103",
-      "track": "tr",
-      "code": "tr-103",
+      "slug": "jam-the-blues-in-every-key-bl-413",
+      "track": "bl",
+      "code": "bl-413",
+      "module": 4,
+      "position": 13,
+      "title": "Jam The Blues In Every Key",
+      "videoId": "_JP17mPWq7M"
+    },
+    {
+      "slug": "introducing-the-blues-scale-bl-410",
+      "track": "bl",
+      "code": "bl-410",
+      "module": 4,
+      "position": 10,
+      "title": "Introducing The Blues Scale",
+      "videoId": "jlgq0yamjuY"
+    },
+    {
+      "slug": "all-down-4-to-a-bar-strumming-bc-116",
+      "track": "bc",
+      "code": "bc-116",
       "module": 1,
-      "position": 3,
-      "title": "Software Advantages",
-      "fromSlug": true
+      "position": 16,
+      "title": "All Down 4 to a Bar Strumming",
+      "videoId": "NNl9OpLQzmk"
     },
     {
       "slug": "how-to-practice-modes-mt-729",
@@ -1551,15 +1495,6 @@ export const CURRICULUM: Curriculum = {
       "title": "Diatonic Chord Revision"
     },
     {
-      "slug": "cheapest-acoustic-guitar-on-amazon-vs-7500-froggy-bottom-b0-070",
-      "track": "b0",
-      "code": "b0-070",
-      "module": 0,
-      "position": 70,
-      "title": "£32 Acoustic Guitar vs my $7500 Froggy",
-      "videoId": "4Dtct1Xdfgk"
-    },
-    {
       "slug": "major-pentatonic-essential-information-sc-401",
       "track": "sc",
       "code": "sc-401",
@@ -1586,30 +1521,12 @@ export const CURRICULUM: Curriculum = {
       "title": "Non Diatonic Chords"
     },
     {
-      "slug": "foundation-2-practice-schedule-im-129",
-      "track": "im",
-      "code": "im-129",
+      "slug": "superimposing-arpeggios-ar-111",
+      "track": "ar",
+      "code": "ar-111",
       "module": 1,
-      "position": 29,
-      "title": "Foundation 2 Practice Schedule",
-      "videoId": "A7qtngmwh6Y"
-    },
-    {
-      "slug": "ukulele-shuffle-strum-get-your-groove-on-uk-004",
-      "track": "uk",
-      "code": "uk-004",
-      "module": 0,
-      "position": 4,
-      "title": "Ukulele Shuffle Strum, Get Your Groove On!",
-      "videoId": "PxVuPIAcnr4"
-    },
-    {
-      "slug": "songs-for-intermediate-foundation-2-im-127",
-      "track": "im",
-      "code": "im-127",
-      "module": 1,
-      "position": 27,
-      "title": "Songs for Intermediate Foundation 2",
+      "position": 11,
+      "title": "Superimposing Arpeggios",
       "fromSlug": true
     },
     {
@@ -1621,57 +1538,12 @@ export const CURRICULUM: Curriculum = {
       "title": "Diatonic Intervals: Perfect Worksheet"
     },
     {
-      "slug": "superimposing-arpeggios-ar-111",
-      "track": "ar",
-      "code": "ar-111",
-      "module": 1,
-      "position": 11,
-      "title": "Superimposing Arpeggios",
-      "fromSlug": true
-    },
-    {
-      "slug": "playing-scales-with-a-metronome-im-124",
-      "track": "im",
-      "code": "im-124",
-      "module": 1,
-      "position": 24,
-      "title": "Playing Scales With A Metronome",
-      "videoId": "FLgq5VPRT6k"
-    },
-    {
-      "slug": "intermediate-rhythm-guitar-2-im-125",
-      "track": "im",
-      "code": "im-125",
-      "module": 1,
-      "position": 25,
-      "title": "Intermediate Rhythm Guitar 2",
-      "videoId": "J2VEgdhWHxk"
-    },
-    {
       "slug": "intervals-on-the-fretboard-mt-508",
       "track": "mt",
       "code": "mt-508",
       "module": 5,
       "position": 8,
       "title": "Intervals On The Fretboard"
-    },
-    {
-      "slug": "jam-the-blues-in-every-key-bl-413",
-      "track": "bl",
-      "code": "bl-413",
-      "module": 4,
-      "position": 13,
-      "title": "Jam The Blues In Every Key",
-      "videoId": "_JP17mPWq7M"
-    },
-    {
-      "slug": "five-licks-using-the-blue-note-bl-411",
-      "track": "bl",
-      "code": "bl-411",
-      "module": 4,
-      "position": 11,
-      "title": "Five Licks Using The Blue Note",
-      "videoId": "Hjp87ZyEqQw"
     },
     {
       "slug": "harmonic-minor-essential-information-sc-701",
@@ -1691,31 +1563,13 @@ export const CURRICULUM: Curriculum = {
       "title": "All About Suspended Chords"
     },
     {
-      "slug": "using-blues-licks-effectively-bl-406",
-      "track": "bl",
-      "code": "bl-406",
-      "module": 4,
-      "position": 6,
-      "title": "Using Blues Licks Effectively",
-      "videoId": "z9RSUG9I20A"
-    },
-    {
-      "slug": "top-10-tips-for-buying-a-guitar-b0-030",
+      "slug": "what-guitar-accessories-do-you-need-b0-040",
       "track": "b0",
-      "code": "b0-030",
+      "code": "b0-040",
       "module": 0,
-      "position": 30,
-      "title": "Top 10 Tips for Buying a Guitar B0 030",
-      "fromSlug": true
-    },
-    {
-      "slug": "i-to-iv-blues-climb-bl-302",
-      "track": "bl",
-      "code": "bl-302",
-      "module": 3,
-      "position": 2,
-      "title": "I to IV Blues Climb",
-      "videoId": "mOSHkmDhoeo"
+      "position": 40,
+      "title": "What guitar accessories do you need?",
+      "videoId": "2qrbKIL80xk"
     },
     {
       "slug": "minor-keys-mt-426",
@@ -1726,168 +1580,6 @@ export const CURRICULUM: Curriculum = {
       "title": "Minor Keys"
     },
     {
-      "slug": "guitar-anatomy-b0-010",
-      "track": "b0",
-      "code": "b0-010",
-      "module": 0,
-      "position": 10,
-      "title": "Guitar Anatomy",
-      "videoId": "zpRoq0jcWfQ"
-    },
-    {
-      "slug": "what-guitar-accessories-do-you-need-b0-040",
-      "track": "b0",
-      "code": "b0-040",
-      "module": 0,
-      "position": 40,
-      "title": "What guitar accessories do you need?",
-      "videoId": "2qrbKIL80xk"
-    },
-    {
-      "slug": "transcribing-neil-young-s-don-t-let-it-bring-you-down-tr-610",
-      "track": "tr",
-      "code": "tr-610",
-      "module": 6,
-      "position": 10,
-      "title": "Transcribing - Neil Young's Don't Let It Bring You Down",
-      "videoId": "bYeQ1YAQ3No"
-    },
-    {
-      "slug": "beginner-electric-guitar-buyers-guide-b0-035",
-      "track": "b0",
-      "code": "b0-035",
-      "module": 0,
-      "position": 35,
-      "title": "Beginner Electric Guitar Buyers Guide",
-      "videoId": "tCluTk2ety4"
-    },
-    {
-      "slug": "what-s-the-best-guitar-for-beginners-b0-020",
-      "track": "b0",
-      "code": "b0-020",
-      "module": 0,
-      "position": 20,
-      "title": "What's the best guitar for beginners?",
-      "videoId": "7m4H8aIsTBQ"
-    },
-    {
-      "slug": "e-chord-anchors-tricks-b1-202",
-      "track": "b1",
-      "code": "b1-202",
-      "module": 2,
-      "position": 2,
-      "title": "E Chord Anchors & Tricks",
-      "videoId": "McSfLPmXcLw"
-    },
-    {
-      "slug": "transcribing-this-charming-man-tr-604",
-      "track": "tr",
-      "code": "tr-604",
-      "module": 6,
-      "position": 4,
-      "title": "Transcribing: This Charming Man",
-      "videoId": "rr8xLvYCKzE"
-    },
-    {
-      "slug": "ear-training-exercises-f2-im-128",
-      "track": "im",
-      "code": "im-128",
-      "module": 1,
-      "position": 28,
-      "title": "Ear Training Exercises (F2)",
-      "videoId": "2IZtN-ih2KI"
-    },
-    {
-      "slug": "beginner-guide-to-effects-pedals-b0-050",
-      "track": "b0",
-      "code": "b0-050",
-      "module": 0,
-      "position": 50,
-      "title": "Beginner Guide To Effects Pedals",
-      "videoId": "XcmIbuYHahw"
-    },
-    {
-      "slug": "sneak-peak-at-justin-s-studio-bl-003",
-      "track": "bl",
-      "code": "bl-003",
-      "module": 0,
-      "position": 3,
-      "title": "Sneak Peak At Justin's Studio",
-      "videoId": "-f0haqaKqrg"
-    },
-    {
-      "slug": "using-octaves-to-find-notes-im-116",
-      "track": "im",
-      "code": "im-116",
-      "module": 1,
-      "position": 16,
-      "title": "Using Octaves To Find Notes",
-      "videoId": "wElX3v3POWU"
-    },
-    {
-      "slug": "introducing-16th-note-strumming-im-115",
-      "track": "im",
-      "code": "im-115",
-      "module": 1,
-      "position": 15,
-      "title": "Introducing 16th Note Strumming",
-      "videoId": "hyi4htExE9E"
-    },
-    {
-      "slug": "beginner-guitar-amp-buyers-guide-b0-037",
-      "track": "b0",
-      "code": "b0-037",
-      "module": 0,
-      "position": 37,
-      "title": "Beginner Guitar Amp Buyers Guide",
-      "videoId": "CrM4oHr71D0"
-    },
-    {
-      "slug": "62-electric-guitar-vs-my-custom-fender-b0-060",
-      "track": "b0",
-      "code": "b0-060",
-      "module": 0,
-      "position": 60,
-      "title": "£62 Electric Guitar vs My Custom Fender",
-      "videoId": "yni-J0Lhhls"
-    },
-    {
-      "slug": "tapping-your-foot-b1-203",
-      "track": "b1",
-      "code": "b1-203",
-      "module": 2,
-      "position": 3,
-      "title": "Tapping Your Foot",
-      "videoId": "RPBtKqD6ddQ"
-    },
-    {
-      "slug": "transcribing-couldn-t-stand-the-weather-tr-606",
-      "track": "tr",
-      "code": "tr-606",
-      "module": 6,
-      "position": 6,
-      "title": "Transcribing: Couldn't Stand The Weather",
-      "videoId": "B4mpahVKbQY"
-    },
-    {
-      "slug": "transcribing-gravity-tr-605",
-      "track": "tr",
-      "code": "tr-605",
-      "module": 6,
-      "position": 5,
-      "title": "Transcribing: Gravity",
-      "videoId": "YTvf_f9aB7c"
-    },
-    {
-      "slug": "live-chat-somebody-that-i-used-to-know-gotye-experiments-tr-609",
-      "track": "tr",
-      "code": "tr-609",
-      "module": 6,
-      "position": 9,
-      "title": "Live Chat - Somebody that I used to know (Gotye) experiments",
-      "videoId": "o9kS7ojgxqw"
-    },
-    {
       "slug": "melodic-minor-pattern-3-sc-603",
       "track": "sc",
       "code": "sc-603",
@@ -1895,96 +1587,6 @@ export const CURRICULUM: Curriculum = {
       "position": 3,
       "title": "Melodic Minor Pattern 3",
       "fromSlug": true
-    },
-    {
-      "slug": "transcribing-the-chain-tr-603",
-      "track": "tr",
-      "code": "tr-603",
-      "module": 6,
-      "position": 3,
-      "title": "Transcribing: The Chain",
-      "videoId": "nGIraIWfHpc"
-    },
-    {
-      "slug": "transcribing-moonlight-shadow-tr-601",
-      "track": "tr",
-      "code": "tr-601",
-      "module": 6,
-      "position": 1,
-      "title": "Transcribing: Moonlight Shadow",
-      "videoId": "_oSCDsyp1i4"
-    },
-    {
-      "slug": "backbeat-groove-2-4-hit-strums-uk-005",
-      "track": "uk",
-      "code": "uk-005",
-      "module": 0,
-      "position": 5,
-      "title": "Backbeat Groove, 2 & 4 Hit Strums",
-      "videoId": "S9QDmoRhG-I"
-    },
-    {
-      "slug": "ukulele-movable-chords-shape-1-uk-011",
-      "track": "uk",
-      "code": "uk-011",
-      "module": 0,
-      "position": 11,
-      "title": "Ukulele Movable Chords: Shape 1",
-      "videoId": "R78oMs_J-6g"
-    },
-    {
-      "slug": "notes-on-the-ukulele-fretboard-uk-010",
-      "track": "uk",
-      "code": "uk-010",
-      "module": 0,
-      "position": 10,
-      "title": "Notes On The Ukulele Fretboard",
-      "videoId": "viOxc62C3HY"
-    },
-    {
-      "slug": "names-of-open-strings-bc-133",
-      "track": "bc",
-      "code": "bc-133",
-      "module": 1,
-      "position": 33,
-      "title": "Names Of Open Strings",
-      "videoId": "rZovoQ_3Jho"
-    },
-    {
-      "slug": "songs-for-module-2-b1-208",
-      "track": "b1",
-      "code": "b1-208",
-      "module": 2,
-      "position": 8,
-      "title": "Songs For Module 2",
-      "videoId": "p5Ln39q8cj4"
-    },
-    {
-      "slug": "justin-ear-training-exercises-s3-bc-138",
-      "track": "bc",
-      "code": "bc-138",
-      "module": 1,
-      "position": 38,
-      "title": "Justin Ear Training Exercises S3",
-      "fromSlug": true
-    },
-    {
-      "slug": "grade-1-ear-training-test-et-105",
-      "track": "et",
-      "code": "et-105",
-      "module": 1,
-      "position": 5,
-      "title": "Grade 1 Ear Training Test",
-      "videoId": "oFGXN7ZA8WU"
-    },
-    {
-      "slug": "the-perfect-4th-interval-et-102",
-      "track": "et",
-      "code": "et-102",
-      "module": 1,
-      "position": 2,
-      "title": "The Perfect 4th Interval",
-      "videoId": "2ks4XIqWRys"
     },
     {
       "slug": "melodic-minor-essential-information-sc-600",
@@ -2002,15 +1604,6 @@ export const CURRICULUM: Curriculum = {
       "module": 6,
       "position": 53,
       "title": "Extension or Addition"
-    },
-    {
-      "slug": "start-with-mp3-downloads-ru-041",
-      "track": "ru",
-      "code": "ru-041",
-      "module": 0,
-      "position": 41,
-      "title": "Start with Mp3 Downloads",
-      "fromSlug": true
     },
     {
       "slug": "g-shape-quadads-mt-716",
@@ -2037,13 +1630,40 @@ export const CURRICULUM: Curriculum = {
       "title": "Major Triad Grips Memory Exercises"
     },
     {
-      "slug": "one-minute-changes-stage-3-bc-134",
+      "slug": "guitar-anatomy-b0-010",
+      "track": "b0",
+      "code": "b0-010",
+      "module": 0,
+      "position": 10,
+      "title": "Guitar Anatomy",
+      "videoId": "zpRoq0jcWfQ"
+    },
+    {
+      "slug": "anchor-fingers-for-a-d-and-e-bc-114",
       "track": "bc",
-      "code": "bc-134",
+      "code": "bc-114",
       "module": 1,
-      "position": 34,
-      "title": "One Minute Changes - Stage 3",
-      "videoId": "Ck73R_GjowE"
+      "position": 14,
+      "title": "Anchor Fingers for A, D and E",
+      "videoId": "pBacbX9yefA"
+    },
+    {
+      "slug": "food-for-chord-thought-mt-207",
+      "track": "mt",
+      "code": "mt-207",
+      "module": 2,
+      "position": 7,
+      "title": "Food For Chord Thought",
+      "videoId": "jYuPyxIpc80"
+    },
+    {
+      "slug": "how-to-use-the-beginner-song-course-bc-997",
+      "track": "bc",
+      "code": "bc-997",
+      "module": 9,
+      "position": 97,
+      "title": "How To Use The Beginner Song Course",
+      "videoId": "90CXPYsg7qI"
     },
     {
       "slug": "dorian-2-sc-652",
@@ -2053,6 +1673,15 @@ export const CURRICULUM: Curriculum = {
       "position": 52,
       "title": "Dorian 2",
       "fromSlug": true
+    },
+    {
+      "slug": "finger-rolling-te-108",
+      "track": "te",
+      "code": "te-108",
+      "module": 1,
+      "position": 8,
+      "title": "Finger Rolling",
+      "videoId": "P_7Rf2wqPy8"
     },
     {
       "slug": "power-chords-ch-380",
@@ -2072,6 +1701,15 @@ export const CURRICULUM: Curriculum = {
       "title": "CAGED: E and A Shapes"
     },
     {
+      "slug": "muting-strings-deliberately-b2-804",
+      "track": "b2",
+      "code": "b2-804",
+      "module": 8,
+      "position": 4,
+      "title": "Muting Strings Deliberately",
+      "videoId": "4SPgTAAiPw4"
+    },
+    {
       "slug": "dominant-7th-chords-mt-523",
       "track": "mt",
       "code": "mt-523",
@@ -2080,13 +1718,13 @@ export const CURRICULUM: Curriculum = {
       "title": "Dominant 7th Chords"
     },
     {
-      "slug": "songs-for-foundation-1-im-117",
-      "track": "im",
-      "code": "im-117",
-      "module": 1,
-      "position": 17,
-      "title": "Songs for Foundation 1",
-      "fromSlug": true
+      "slug": "module-8-practice-b2-810",
+      "track": "b2",
+      "code": "b2-810",
+      "module": 8,
+      "position": 10,
+      "title": "Module 8 Practice",
+      "videoId": "YnHo_L5d9YQ"
     },
     {
       "slug": "e-shape-sus2-chords-mt-624",
@@ -2097,49 +1735,49 @@ export const CURRICULUM: Curriculum = {
       "title": "E Shape Sus2 Chords"
     },
     {
-      "slug": "one-minute-changes-f5-im-152",
-      "track": "im",
-      "code": "im-152",
-      "module": 1,
-      "position": 52,
-      "title": "One Minute Changes (F5)",
-      "videoId": "ZC_8yaoM4j4"
+      "slug": "all-down-8th-note-strumming-b2-805",
+      "track": "b2",
+      "code": "b2-805",
+      "module": 8,
+      "position": 5,
+      "title": "All Down 8th Note Strumming",
+      "videoId": "ImPcqr6w6zM"
     },
     {
-      "slug": "songs-for-intermediate-foundation-5-im-157",
-      "track": "im",
-      "code": "im-157",
-      "module": 1,
-      "position": 57,
-      "title": "Songs for Intermediate Foundation 5",
-      "fromSlug": true
+      "slug": "pick-manipulation-b2-806",
+      "track": "b2",
+      "code": "b2-806",
+      "module": 8,
+      "position": 6,
+      "title": "Pick Manipulation",
+      "videoId": "XsLrZpdQHlw"
     },
     {
-      "slug": "best-chord-changes-to-work-on-b1-702",
-      "track": "b1",
-      "code": "b1-702",
-      "module": 7,
-      "position": 2,
-      "title": "Best Chord Changes To Work On",
-      "videoId": "SNYMRZqopi8"
-    },
-    {
-      "slug": "memorize-easy-songs-b1-707",
-      "track": "b1",
-      "code": "b1-707",
-      "module": 7,
+      "slug": "songs-for-module-8-b2-807",
+      "track": "b2",
+      "code": "b2-807",
+      "module": 8,
       "position": 7,
-      "title": "Memorize Easy Songs",
-      "videoId": "Rkke83Gvndk"
+      "title": "Songs For Module 8",
+      "videoId": "WMPpiwWq3Yg"
     },
     {
-      "slug": "2020-ukulele-buyers-guide-uk-667",
-      "track": "uk",
-      "code": "uk-667",
-      "module": 6,
-      "position": 67,
-      "title": "2020 Ukulele Buyers Guide",
-      "videoId": "AcRVyQQ0IxY"
+      "slug": "open-e-minor-pentatonic-scale-b2-803",
+      "track": "b2",
+      "code": "b2-803",
+      "module": 8,
+      "position": 3,
+      "title": "Open E Minor Pentatonic Scale",
+      "videoId": "eEJpypexUDg"
+    },
+    {
+      "slug": "the-dreaded-f-chord-bc-161",
+      "track": "bc",
+      "code": "bc-161",
+      "module": 1,
+      "position": 61,
+      "title": "The Dreaded F Chord",
+      "videoId": "ecPzu9sTKbo"
     },
     {
       "slug": "melodic-minor-pattern-5-sc-605",
@@ -2160,49 +1798,13 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
-      "slug": "air-changes-aspire-to-this-b1-703",
-      "track": "b1",
-      "code": "b1-703",
-      "module": 7,
-      "position": 3,
-      "title": "Air Changes (aspire to this!)",
-      "videoId": "9CsY2PRzt94"
-    },
-    {
-      "slug": "a7-d7-e7-chords-bc-151",
-      "track": "bc",
-      "code": "bc-151",
+      "slug": "finger-gym-te-110",
+      "track": "te",
+      "code": "te-110",
       "module": 1,
-      "position": 51,
-      "title": "A7, D7, E7 Chords",
-      "videoId": "DtPbCSZgKMM"
-    },
-    {
-      "slug": "intermediate-revision-im-160",
-      "track": "im",
-      "code": "im-160",
-      "module": 1,
-      "position": 60,
-      "title": "Intermediate Revision",
-      "videoId": "r8S0sNavJC4"
-    },
-    {
-      "slug": "stage-5-practice-schedule-bc-159",
-      "track": "bc",
-      "code": "bc-159",
-      "module": 1,
-      "position": 59,
-      "title": "Stage 5 Practice Schedule",
-      "videoId": "OdMDgFEgvLk"
-    },
-    {
-      "slug": "justin-ear-training-exercises-s5-bc-158",
-      "track": "bc",
-      "code": "bc-158",
-      "module": 1,
-      "position": 58,
-      "title": "Justin Ear Training Exercises S5",
-      "fromSlug": true
+      "position": 10,
+      "title": "Finger Gym",
+      "videoId": "XDt_4ha9Xjs"
     },
     {
       "slug": "major-breakthroughs-with-minor-changes-mt-602",
@@ -2222,121 +1824,31 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
-      "slug": "all-stop-mute-b2-903",
-      "track": "b2",
-      "code": "b2-903",
-      "module": 9,
-      "position": 3,
-      "title": "All Stop Mute",
-      "videoId": "Xhg6xXD8lR8"
-    },
-    {
-      "slug": "module-9-practice-schedule-b2-911",
-      "track": "b2",
-      "code": "b2-911",
-      "module": 9,
-      "position": 11,
-      "title": "Module 9 Practice Schedule",
-      "videoId": "8sxiIhOXQiQ"
-    },
-    {
-      "slug": "air-changes-bc-153",
-      "track": "bc",
-      "code": "bc-153",
-      "module": 1,
-      "position": 53,
-      "title": "Air Changes",
-      "videoId": "gn3tR6ODaBs"
-    },
-    {
-      "slug": "chords-in-keys-b2-910",
-      "track": "b2",
-      "code": "b2-910",
-      "module": 9,
-      "position": 10,
-      "title": "Chords In Keys",
-      "videoId": "q_0X6b_MFGw"
-    },
-    {
-      "slug": "your-chord-book-b2-904",
-      "track": "b2",
-      "code": "b2-904",
-      "module": 9,
-      "position": 4,
-      "title": "YOUR Chord Book",
-      "videoId": "nkn7i3shkKk"
-    },
-    {
-      "slug": "songs-for-module-9-b2-909",
-      "track": "b2",
-      "code": "b2-909",
-      "module": 9,
-      "position": 9,
-      "title": "Songs For Module 9",
-      "videoId": "dmqsX8tQRHY"
-    },
-    {
-      "slug": "pinky-workout-b2-907",
-      "track": "b2",
-      "code": "b2-907",
-      "module": 9,
-      "position": 7,
-      "title": "Pinky Workout",
-      "videoId": "xWAgPIQhNg0"
-    },
-    {
-      "slug": "ups-to-the-all-down-16ths-b2-906",
-      "track": "b2",
-      "code": "b2-906",
-      "module": 9,
-      "position": 6,
-      "title": "Ups To The All Down (16ths)",
-      "videoId": "NEVXie3LRaU"
-    },
-    {
-      "slug": "the-f-chord-b2-901",
-      "track": "b2",
-      "code": "b2-901",
-      "module": 9,
-      "position": 1,
-      "title": "The F Chord",
-      "videoId": "4cR1sa1_d_8"
-    },
-    {
-      "slug": "c-major-scale-b2-905",
-      "track": "b2",
-      "code": "b2-905",
-      "module": 9,
-      "position": 5,
-      "title": "C Major Scale",
-      "videoId": "i4zGDoRvn5o"
-    },
-    {
-      "slug": "f-chord-cheats-b2-902",
-      "track": "b2",
-      "code": "b2-902",
-      "module": 9,
-      "position": 2,
-      "title": "F Chord Cheats",
-      "videoId": "DcIXL7IU7Ko"
-    },
-    {
-      "slug": "triplet-rhythms-bc-155",
-      "track": "bc",
-      "code": "bc-155",
-      "module": 1,
-      "position": 55,
-      "title": "Triplet Rhythms",
-      "videoId": "fP_2IApL9zQ"
-    },
-    {
-      "slug": "mini-blues-7th-chord-grips-bl-208",
+      "slug": "dominant-7th-chord-grips-bl-205",
       "track": "bl",
-      "code": "bl-208",
+      "code": "bl-205",
       "module": 2,
-      "position": 8,
-      "title": "Mini Blues 7th Chord Grips",
-      "videoId": "jEhozS3oKX4"
+      "position": 5,
+      "title": "Dominant 7th Chord Grips",
+      "videoId": "8KwBfqLOokU"
+    },
+    {
+      "slug": "blues-gospel-slide-chords-bl-207",
+      "track": "bl",
+      "code": "bl-207",
+      "module": 2,
+      "position": 7,
+      "title": "Blues Gospel Slide Chords",
+      "videoId": "hSRcmGmgDhY"
+    },
+    {
+      "slug": "how-to-tune-a-guitar-for-beginners-b1-101",
+      "track": "b1",
+      "code": "b1-101",
+      "module": 1,
+      "position": 1,
+      "title": "How To Tune A Guitar For Beginners",
+      "videoId": "X2EmpWr9vUc"
     },
     {
       "slug": "the-melodic-minor-mt-573",
@@ -2355,31 +1867,13 @@ export const CURRICULUM: Curriculum = {
       "title": "Octave Shapes"
     },
     {
-      "slug": "minimum-movement-exercise-old-im-114",
-      "track": "im",
-      "code": "im-114",
-      "module": 1,
-      "position": 14,
-      "title": "Minimum Movement Exercise (OLD)",
-      "videoId": "jDHaLMj4Oic"
-    },
-    {
-      "slug": "ear-training-exercises-f1-im-118",
-      "track": "im",
-      "code": "im-118",
-      "module": 1,
-      "position": 18,
-      "title": "Ear Training Exercises (F1)",
-      "videoId": "1usL7U7a_QA"
-    },
-    {
-      "slug": "the-major-pentatonic-in-blues-mt-564",
-      "track": "mt",
-      "code": "mt-564",
+      "slug": "exploring-strumming-b1-503",
+      "track": "b1",
+      "code": "b1-503",
       "module": 5,
-      "position": 64,
-      "title": "The Major Pentatonic In Blues",
-      "videoId": "KW35LLP1USg"
+      "position": 3,
+      "title": "Exploring Strumming",
+      "videoId": "0EbliWAtnw0"
     },
     {
       "slug": "triad-chord-theory-mt-401",
@@ -2399,15 +1893,6 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
-      "slug": "e-shape-barre-chord-grips-im-111",
-      "track": "im",
-      "code": "im-111",
-      "module": 1,
-      "position": 11,
-      "title": "E Shape Barre Chord Grips",
-      "videoId": "-uJP2rWbMig"
-    },
-    {
       "slug": "the-big-deal-of-chord-theory-mt-524",
       "track": "mt",
       "code": "mt-524",
@@ -2416,31 +1901,22 @@ export const CURRICULUM: Curriculum = {
       "title": "The Big Deal Of Chord Theory"
     },
     {
-      "slug": "stage-1-practice-schedule-bc-119",
-      "track": "bc",
-      "code": "bc-119",
-      "module": 1,
-      "position": 19,
-      "title": "Stage 1 Practice Schedule",
-      "videoId": "TnCQiY-BhXs"
+      "slug": "5-blues-licks-from-pattern-4-bl-606",
+      "track": "bl",
+      "code": "bl-606",
+      "module": 6,
+      "position": 6,
+      "title": "5 Blues Licks from Pattern 4",
+      "videoId": "mPD0AaqkAxc"
     },
     {
-      "slug": "blues-turnarounds-last-2-bars-bl-209",
-      "track": "bl",
-      "code": "bl-209",
-      "module": 2,
-      "position": 9,
-      "title": "Blues Turnarounds (Last 2 Bars!)",
-      "videoId": "bTVAFfbkKqU"
-    },
-    {
-      "slug": "12-bar-riff-ideas-approach-chords-bl-204",
-      "track": "bl",
-      "code": "bl-204",
-      "module": 2,
-      "position": 4,
-      "title": "12 Bar Riff Ideas & Approach Chords",
-      "videoId": "WtKIA6I5Blg"
+      "slug": "your-own-songbook-b1-505",
+      "track": "b1",
+      "code": "b1-505",
+      "module": 5,
+      "position": 5,
+      "title": "Your Own Songbook",
+      "videoId": "0GTuvZmVDUY"
     },
     {
       "slug": "chords-in-keys-on-the-neck-mt-423",
@@ -2451,13 +1927,12 @@ export const CURRICULUM: Curriculum = {
       "title": "Chords In Keys On The Neck"
     },
     {
-      "slug": "dominant-7th-chord-grips-bl-205",
-      "track": "bl",
-      "code": "bl-205",
-      "module": 2,
-      "position": 5,
-      "title": "Dominant 7th Chord Grips",
-      "videoId": "8KwBfqLOokU"
+      "slug": "diatonic-quadad-chord-sequence-mt-529",
+      "track": "mt",
+      "code": "mt-529",
+      "module": 5,
+      "position": 29,
+      "title": "Diatonic Quadad Chord Sequence"
     },
     {
       "slug": "playing-the-minor-pentatonic-mt-562",
@@ -2468,14 +1943,6 @@ export const CURRICULUM: Curriculum = {
       "title": "Playing The Minor Pentatonic"
     },
     {
-      "slug": "diatonic-quadad-chord-sequence-mt-529",
-      "track": "mt",
-      "code": "mt-529",
-      "module": 5,
-      "position": 29,
-      "title": "Diatonic Quadad Chord Sequence"
-    },
-    {
       "slug": "major-scale-intervals-worksheet-mt-505",
       "track": "mt",
       "code": "mt-505",
@@ -2484,12 +1951,30 @@ export const CURRICULUM: Curriculum = {
       "title": "Major Scale Intervals Worksheet"
     },
     {
+      "slug": "module-5-practice-b1-508",
+      "track": "b1",
+      "code": "b1-508",
+      "module": 5,
+      "position": 8,
+      "title": "Module 5 Practice",
+      "videoId": "7rQGeJwWfe0"
+    },
+    {
       "slug": "e-shape-minor-7th-chords-mt-605",
       "track": "mt",
       "code": "mt-605",
       "module": 6,
       "position": 5,
       "title": "E Shape Minor 7th Chords"
+    },
+    {
+      "slug": "understanding-music-notes-b1-504",
+      "track": "b1",
+      "code": "b1-504",
+      "module": 5,
+      "position": 4,
+      "title": "Understanding Music Notes",
+      "videoId": "Ah-brqdByAY"
     },
     {
       "slug": "common-diatonic-chord-sequences-mt-530",
@@ -2516,66 +2001,12 @@ export const CURRICULUM: Curriculum = {
       "title": "E Shape Minor 7b5 Chords"
     },
     {
-      "slug": "justin-ear-training-exercises-s8-bc-188",
-      "track": "bc",
-      "code": "bc-188",
-      "module": 1,
-      "position": 88,
-      "title": "Justin Ear Training Exercises S8",
-      "fromSlug": true
-    },
-    {
-      "slug": "stage-8-practice-schedule-bc-189",
-      "track": "bc",
-      "code": "bc-189",
-      "module": 1,
-      "position": 89,
-      "title": "Stage 8 Practice Schedule",
-      "videoId": "fRR4NRacNC8"
-    },
-    {
       "slug": "finding-your-own-chords-mt-616",
       "track": "mt",
       "code": "mt-616",
       "module": 6,
       "position": 16,
       "title": "Finding Your Own Chords!"
-    },
-    {
-      "slug": "one-minute-changes-stage-8-bc-182",
-      "track": "bc",
-      "code": "bc-182",
-      "module": 1,
-      "position": 82,
-      "title": "One Minute Changes (Stage 8)",
-      "videoId": "0lSd3QEy2do"
-    },
-    {
-      "slug": "power-chords-2-bc-186",
-      "track": "bc",
-      "code": "bc-186",
-      "module": 1,
-      "position": 86,
-      "title": "Power Chords 2",
-      "videoId": "gV7l9AsGa7M"
-    },
-    {
-      "slug": "basic-fingerstyle-exercise-bc-184",
-      "track": "bc",
-      "code": "bc-184",
-      "module": 1,
-      "position": 84,
-      "title": "Basic Fingerstyle Exercise",
-      "videoId": "V6ZqKjH0G78"
-    },
-    {
-      "slug": "mixing-major-minor-pentatonics-bl-804",
-      "track": "bl",
-      "code": "bl-804",
-      "module": 8,
-      "position": 4,
-      "title": "Mixing Major & Minor Pentatonics",
-      "videoId": "Fi1BWmg3JUk"
     },
     {
       "slug": "name-that-chord-mt-615",
@@ -2594,58 +2025,40 @@ export const CURRICULUM: Curriculum = {
       "title": "Diatonic Intervals: Perfect"
     },
     {
-      "slug": "dominant-7-arpeggio-blues-licks-bl-806",
-      "track": "bl",
-      "code": "bl-806",
-      "module": 8,
-      "position": 6,
-      "title": "Dominant 7 Arpeggio Blues Licks",
-      "videoId": "Oa7wQLjpuA8"
+      "slug": "one-minute-changes-stage-4-bc-144",
+      "track": "bc",
+      "code": "bc-144",
+      "module": 1,
+      "position": 44,
+      "title": "One Minute Changes - Stage 4",
+      "videoId": "p_zzSYEtY-U"
     },
     {
-      "slug": "starting-arpeggios-in-the-blues-bl-805",
-      "track": "bl",
-      "code": "bl-805",
-      "module": 8,
-      "position": 5,
-      "title": "Starting Arpeggios In The Blues",
-      "videoId": "D-GpiMgq-EU"
+      "slug": "melodic-percussive-fingerstyle-backbeat-te-751",
+      "track": "te",
+      "code": "te-751",
+      "module": 7,
+      "position": 51,
+      "title": "Melodic Percussive Fingerstyle BackBeat",
+      "videoId": "k8_ldh4lJk8"
     },
     {
-      "slug": "the-arpeggiator-be-afraid-bl-808",
-      "track": "bl",
-      "code": "bl-808",
-      "module": 8,
-      "position": 8,
-      "title": "The Arpeggiator [be afraid!]",
-      "videoId": "soHoP9ECmj4"
+      "slug": "the-f-maj7-chord-bc-142",
+      "track": "bc",
+      "code": "bc-142",
+      "module": 1,
+      "position": 42,
+      "title": "The F Maj7 Chord",
+      "videoId": "TZ4ITPLIzBc"
     },
     {
-      "slug": "major-pentatonic-study-lick-2-bl-803",
+      "slug": "sneak-peak-at-justin-s-studio-bl-003",
       "track": "bl",
-      "code": "bl-803",
-      "module": 8,
+      "code": "bl-003",
+      "module": 0,
       "position": 3,
-      "title": "Major Pentatonic Study Lick 2",
-      "videoId": "BPFclO1_oNU"
-    },
-    {
-      "slug": "the-iv-chord-arpeggio-bl-807",
-      "track": "bl",
-      "code": "bl-807",
-      "module": 8,
-      "position": 7,
-      "title": "The IV Chord Arpeggio",
-      "videoId": "TAQkuJjfYxo"
-    },
-    {
-      "slug": "major-pentatonic-study-lick-1-bl-802",
-      "track": "bl",
-      "code": "bl-802",
-      "module": 8,
-      "position": 2,
-      "title": "Major Pentatonic Study Lick 1",
-      "videoId": "7gTntt9IpSk"
+      "title": "Sneak Peak At Justin's Studio",
+      "videoId": "-f0haqaKqrg"
     },
     {
       "slug": "major-pentatonic-in-the-blues-bl-801",
@@ -2657,22 +2070,22 @@ export const CURRICULUM: Curriculum = {
       "videoId": "KW35LLP1USg"
     },
     {
-      "slug": "10-very-easy-songs-to-play-on-the-ukulele-uk-300",
-      "track": "uk",
-      "code": "uk-300",
-      "module": 3,
-      "position": 0,
-      "title": "10 Very Easy Songs to Play on the Ukulele",
-      "videoId": "SpeVF75HZqY"
+      "slug": "the-7-amazing-benefits-of-ear-training-et-001",
+      "track": "et",
+      "code": "et-001",
+      "module": 0,
+      "position": 1,
+      "title": "The 7 Amazing Benefits of Ear Training",
+      "videoId": "wMQCdE2Pepc"
     },
     {
-      "slug": "12-bar-blues-style-bc-183",
-      "track": "bc",
-      "code": "bc-183",
+      "slug": "the-pause-tr-104",
+      "track": "tr",
+      "code": "tr-104",
       "module": 1,
-      "position": 83,
-      "title": "12 Bar Blues Style",
-      "videoId": "0TxlHjPK0yk"
+      "position": 4,
+      "title": "The Pause",
+      "videoId": "ISRujlvFho8"
     },
     {
       "slug": "static-and-functioning-dominants-mt-596",
@@ -2701,15 +2114,6 @@ export const CURRICULUM: Curriculum = {
       "title": "The Cycle Of 5ths"
     },
     {
-      "slug": "your-own-chord-book-mt-204",
-      "track": "mt",
-      "code": "mt-204",
-      "module": 2,
-      "position": 4,
-      "title": "Your Own Chord Book",
-      "videoId": "2o3w2gvhYPM"
-    },
-    {
       "slug": "the-aeolian-mode-mt-735",
       "track": "mt",
       "code": "mt-735",
@@ -2728,13 +2132,13 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
-      "slug": "food-for-chord-thought-mt-207",
-      "track": "mt",
-      "code": "mt-207",
-      "module": 2,
-      "position": 7,
-      "title": "Food For Chord Thought",
-      "videoId": "jYuPyxIpc80"
+      "slug": "the-amin-chord-bc-121",
+      "track": "bc",
+      "code": "bc-121",
+      "module": 1,
+      "position": 21,
+      "title": "The Amin Chord",
+      "videoId": "kV_EABwevy4"
     },
     {
       "slug": "mixolydian-6-sc-655",
@@ -2754,31 +2158,13 @@ export const CURRICULUM: Curriculum = {
       "title": "E Shape Dominant 7th Chords"
     },
     {
-      "slug": "the-dreaded-f-chord-bc-161",
+      "slug": "foot-tapping-bc-126",
       "track": "bc",
-      "code": "bc-161",
+      "code": "bc-126",
       "module": 1,
-      "position": 61,
-      "title": "The Dreaded F Chord",
-      "videoId": "ecPzu9sTKbo"
-    },
-    {
-      "slug": "consolidation-putting-it-together-bl-613",
-      "track": "bl",
-      "code": "bl-613",
-      "module": 6,
-      "position": 13,
-      "title": "Consolidation Putting It Together",
-      "fromSlug": true
-    },
-    {
-      "slug": "adding-vibrato-to-string-bends-bl-604",
-      "track": "bl",
-      "code": "bl-604",
-      "module": 6,
-      "position": 4,
-      "title": "Adding Vibrato to String Bends",
-      "videoId": "ck2uxWh4qvo"
+      "position": 26,
+      "title": "Foot tapping",
+      "videoId": "1c8UdW8qokI"
     },
     {
       "slug": "suspended-breakdown-on-ivsus4-mt-551",
@@ -2789,22 +2175,13 @@ export const CURRICULUM: Curriculum = {
       "title": "Suspended Breakdown on IVsus4?"
     },
     {
-      "slug": "using-a-capo-bc-163",
-      "track": "bc",
-      "code": "bc-163",
-      "module": 1,
-      "position": 63,
-      "title": "Using a Capo",
-      "videoId": "Y22MT3etzwM"
-    },
-    {
-      "slug": "stage-7-practice-schedule-bc-179",
-      "track": "bc",
-      "code": "bc-179",
-      "module": 1,
-      "position": 79,
-      "title": "Stage 7 Practice Schedule",
-      "videoId": "XLxL9kWYygI"
+      "slug": "a-6-8-strumming-pattern-b1-604",
+      "track": "b1",
+      "code": "b1-604",
+      "module": 6,
+      "position": 4,
+      "title": "A 6:8 Strumming Pattern",
+      "videoId": "bKOmcPTHYpA"
     },
     {
       "slug": "chromatic-intervals-worksheet-mt-507",
@@ -2815,49 +2192,40 @@ export const CURRICULUM: Curriculum = {
       "title": "Chromatic Intervals Worksheet"
     },
     {
-      "slug": "minor-pentatonic-picking-exercise-bc-185",
+      "slug": "the-dmin-chord-bc-123",
       "track": "bc",
-      "code": "bc-185",
+      "code": "bc-123",
       "module": 1,
-      "position": 85,
-      "title": "Minor Pentatonic Picking Exercise",
-      "videoId": "c0alXyaLTC4"
+      "position": 23,
+      "title": "The Dmin Chord",
+      "videoId": "EovReq8aAgU"
     },
     {
-      "slug": "unison-bend-technique-bl-607",
-      "track": "bl",
-      "code": "bl-607",
+      "slug": "the-g-chord-hacked-b1-602",
+      "track": "b1",
+      "code": "b1-602",
       "module": 6,
-      "position": 7,
-      "title": "Unison Bend Technique",
-      "videoId": "1MSnYiXMZ0g"
+      "position": 2,
+      "title": "The G Chord... hacked!",
+      "videoId": "i0G69vCTv4s"
     },
     {
-      "slug": "open-e-minor-pentatonic-scale-b2-803",
-      "track": "b2",
-      "code": "b2-803",
-      "module": 8,
+      "slug": "about-time-signatures-b1-603",
+      "track": "b1",
+      "code": "b1-603",
+      "module": 6,
       "position": 3,
-      "title": "Open E Minor Pentatonic Scale",
-      "videoId": "eEJpypexUDg"
+      "title": "About Time Signatures",
+      "videoId": "FDPWwviOYno"
     },
     {
-      "slug": "raking-in-the-blues-bl-612",
-      "track": "bl",
-      "code": "bl-612",
-      "module": 6,
-      "position": 12,
-      "title": "Raking in the Blues",
-      "fromSlug": true
-    },
-    {
-      "slug": "introduction-to-5-pattern-play-bl-601",
-      "track": "bl",
-      "code": "bl-601",
+      "slug": "beginner-alternate-picking-b1-601",
+      "track": "b1",
+      "code": "b1-601",
       "module": 6,
       "position": 1,
-      "title": "Introduction To 5 Pattern Play",
-      "videoId": "N56hX1bkmhE"
+      "title": "Beginner Alternate Picking",
+      "videoId": "q8SHmo1-dac"
     },
     {
       "slug": "minor-7th-chords-mt-525",
@@ -2868,127 +2236,22 @@ export const CURRICULUM: Curriculum = {
       "title": "Minor 7th Chords"
     },
     {
-      "slug": "introduction-to-modes-mt-721",
-      "track": "mt",
-      "code": "mt-721",
-      "module": 7,
-      "position": 21,
-      "title": "Introduction To Modes"
-    },
-    {
-      "slug": "e-shape-major-7th-chords-mt-603",
-      "track": "mt",
-      "code": "mt-603",
-      "module": 6,
-      "position": 3,
-      "title": "E Shape Major 7th Chords"
-    },
-    {
-      "slug": "pick-manipulation-b2-806",
+      "slug": "perfect-fast-changes-b2-802",
       "track": "b2",
-      "code": "b2-806",
+      "code": "b2-802",
       "module": 8,
-      "position": 6,
-      "title": "Pick Manipulation",
-      "videoId": "XsLrZpdQHlw"
+      "position": 2,
+      "title": "Perfect Fast Changes",
+      "videoId": "xSFHgeJUuIs"
     },
     {
-      "slug": "12-bar-chord-sequence-variations-bl-203",
-      "track": "bl",
-      "code": "bl-203",
-      "module": 2,
-      "position": 3,
-      "title": "12 Bar Chord Sequence Variations",
-      "videoId": "oEbgIiiHw5g"
-    },
-    {
-      "slug": "blues-gospel-slide-chords-bl-207",
-      "track": "bl",
-      "code": "bl-207",
-      "module": 2,
-      "position": 7,
-      "title": "Blues Gospel Slide Chords",
-      "videoId": "hSRcmGmgDhY"
-    },
-    {
-      "slug": "minor-pentatonic-pattern-4-bl-605",
-      "track": "bl",
-      "code": "bl-605",
-      "module": 6,
-      "position": 5,
-      "title": "Minor Pentatonic Pattern 4",
-      "videoId": "CszE9HfyYcQ"
-    },
-    {
-      "slug": "5-blues-licks-from-pattern-4-bl-606",
-      "track": "bl",
-      "code": "bl-606",
-      "module": 6,
-      "position": 6,
-      "title": "5 Blues Licks from Pattern 4",
-      "videoId": "mPD0AaqkAxc"
-    },
-    {
-      "slug": "common-chord-extensions-mt-652",
-      "track": "mt",
-      "code": "mt-652",
-      "module": 6,
-      "position": 52,
-      "title": "Common Chord Extensions"
-    },
-    {
-      "slug": "understanding-chord-extensions-mt-651",
-      "track": "mt",
-      "code": "mt-651",
-      "module": 6,
-      "position": 51,
-      "title": "Understanding Chord Extensions",
-      "fromSlug": true
-    },
-    {
-      "slug": "your-own-songbook-b1-505",
+      "slug": "forcing-chord-changes-b1-606",
       "track": "b1",
-      "code": "b1-505",
-      "module": 5,
-      "position": 5,
-      "title": "Your Own Songbook",
-      "videoId": "0GTuvZmVDUY"
-    },
-    {
-      "slug": "muting-strings-deliberately-b2-804",
-      "track": "b2",
-      "code": "b2-804",
-      "module": 8,
-      "position": 4,
-      "title": "Muting Strings Deliberately",
-      "videoId": "4SPgTAAiPw4"
-    },
-    {
-      "slug": "the-mixolydian-mode-mt-732",
-      "track": "mt",
-      "code": "mt-732",
-      "module": 7,
-      "position": 32,
-      "title": "The Mixolydian Mode",
-      "fromSlug": true
-    },
-    {
-      "slug": "module-8-practice-b2-810",
-      "track": "b2",
-      "code": "b2-810",
-      "module": 8,
-      "position": 10,
-      "title": "Module 8 Practice",
-      "videoId": "YnHo_L5d9YQ"
-    },
-    {
-      "slug": "all-down-8th-note-strumming-b2-805",
-      "track": "b2",
-      "code": "b2-805",
-      "module": 8,
-      "position": 5,
-      "title": "All Down 8th Note Strumming",
-      "videoId": "ImPcqr6w6zM"
+      "code": "b1-606",
+      "module": 6,
+      "position": 6,
+      "title": "Forcing Chord Changes",
+      "videoId": "d9YRzCF5A9M"
     },
     {
       "slug": "open-string-note-names-b1-605",
@@ -3000,21 +2263,46 @@ export const CURRICULUM: Curriculum = {
       "videoId": "CF08-EwA-nY"
     },
     {
-      "slug": "the-stuck-3-4-chords-b2-801",
-      "track": "b2",
-      "code": "b2-801",
-      "module": 8,
-      "position": 1,
-      "title": "The Stuck 3&4 Chords",
-      "videoId": "p5lJTSCUclo"
+      "slug": "introduction-to-modes-mt-721",
+      "track": "mt",
+      "code": "mt-721",
+      "module": 7,
+      "position": 21,
+      "title": "Introduction To Modes"
     },
     {
-      "slug": "diatonic-intervals-major-mt-504",
+      "slug": "the-emin-chord-bc-122",
+      "track": "bc",
+      "code": "bc-122",
+      "module": 1,
+      "position": 22,
+      "title": "The Emin Chord",
+      "videoId": "Hfm4-yOI6oA"
+    },
+    {
+      "slug": "e-shape-major-7th-chords-mt-603",
       "track": "mt",
-      "code": "mt-504",
-      "module": 5,
-      "position": 4,
-      "title": "Diatonic Intervals: Major"
+      "code": "mt-603",
+      "module": 6,
+      "position": 3,
+      "title": "E Shape Major 7th Chords"
+    },
+    {
+      "slug": "what-s-the-best-guitar-for-beginners-b0-020",
+      "track": "b0",
+      "code": "b0-020",
+      "module": 0,
+      "position": 20,
+      "title": "What's the best guitar for beginners?",
+      "videoId": "7m4H8aIsTBQ"
+    },
+    {
+      "slug": "common-chord-extensions-mt-652",
+      "track": "mt",
+      "code": "mt-652",
+      "module": 6,
+      "position": 52,
+      "title": "Common Chord Extensions"
     },
     {
       "slug": "songs-for-module-6-b1-607",
@@ -3026,13 +2314,93 @@ export const CURRICULUM: Curriculum = {
       "videoId": "MLlWCygtVEc"
     },
     {
-      "slug": "perfect-fast-changes-b2-802",
-      "track": "b2",
-      "code": "b2-802",
-      "module": 8,
-      "position": 2,
-      "title": "Perfect Fast Changes",
-      "videoId": "xSFHgeJUuIs"
+      "slug": "understanding-chord-extensions-mt-651",
+      "track": "mt",
+      "code": "mt-651",
+      "module": 6,
+      "position": 51,
+      "title": "Understanding Chord Extensions",
+      "fromSlug": true
+    },
+    {
+      "slug": "the-mixolydian-mode-mt-732",
+      "track": "mt",
+      "code": "mt-732",
+      "module": 7,
+      "position": 32,
+      "title": "The Mixolydian Mode",
+      "fromSlug": true
+    },
+    {
+      "slug": "module-6-practice-b1-608",
+      "track": "b1",
+      "code": "b1-608",
+      "module": 6,
+      "position": 8,
+      "title": "Module 6 Practice",
+      "videoId": "yBxyxZx9oiQ"
+    },
+    {
+      "slug": "beginner-electric-guitar-buyers-guide-b0-035",
+      "track": "b0",
+      "code": "b0-035",
+      "module": 0,
+      "position": 35,
+      "title": "Beginner Electric Guitar Buyers Guide",
+      "videoId": "tCluTk2ety4"
+    },
+    {
+      "slug": "diatonic-intervals-major-mt-504",
+      "track": "mt",
+      "code": "mt-504",
+      "module": 5,
+      "position": 4,
+      "title": "Diatonic Intervals: Major"
+    },
+    {
+      "slug": "cheapest-acoustic-guitar-on-amazon-vs-7500-froggy-bottom-b0-070",
+      "track": "b0",
+      "code": "b0-070",
+      "module": 0,
+      "position": 70,
+      "title": "£32 Acoustic Guitar vs my $7500 Froggy",
+      "videoId": "4Dtct1Xdfgk"
+    },
+    {
+      "slug": "top-10-tips-for-buying-a-guitar-b0-030",
+      "track": "b0",
+      "code": "b0-030",
+      "module": 0,
+      "position": 30,
+      "title": "Top 10 Tips for Buying a Guitar B0 030",
+      "fromSlug": true
+    },
+    {
+      "slug": "beginner-guide-to-effects-pedals-b0-050",
+      "track": "b0",
+      "code": "b0-050",
+      "module": 0,
+      "position": 50,
+      "title": "Beginner Guide To Effects Pedals",
+      "videoId": "XcmIbuYHahw"
+    },
+    {
+      "slug": "beginner-guitar-amp-buyers-guide-b0-037",
+      "track": "b0",
+      "code": "b0-037",
+      "module": 0,
+      "position": 37,
+      "title": "Beginner Guitar Amp Buyers Guide",
+      "videoId": "CrM4oHr71D0"
+    },
+    {
+      "slug": "62-electric-guitar-vs-my-custom-fender-b0-060",
+      "track": "b0",
+      "code": "b0-060",
+      "module": 0,
+      "position": 60,
+      "title": "£62 Electric Guitar vs My Custom Fender",
+      "videoId": "yni-J0Lhhls"
     },
     {
       "slug": "notes-on-the-whole-fretboard-mt-433",
@@ -3058,24 +2426,6 @@ export const CURRICULUM: Curriculum = {
       "module": 7,
       "position": 24,
       "title": "Why Use Modes?"
-    },
-    {
-      "slug": "the-c-chord-bc-132",
-      "track": "bc",
-      "code": "bc-132",
-      "module": 1,
-      "position": 32,
-      "title": "The C Chord",
-      "videoId": "RBYqdBqogo4"
-    },
-    {
-      "slug": "wish-you-were-here-riff-for-beginners-b2-808",
-      "track": "b2",
-      "code": "b2-808",
-      "module": 8,
-      "position": 8,
-      "title": "Wish You Were Here Riff For Beginners",
-      "videoId": "yDY6y8llnA0"
     },
     {
       "slug": "lydian-dominant-sc-654",
@@ -3139,6 +2489,15 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
+      "slug": "one-minute-changes-exercise-b1-110",
+      "track": "b1",
+      "code": "b1-110",
+      "module": 1,
+      "position": 10,
+      "title": "One Minute Changes Exercise",
+      "videoId": "mAgc7hr44WM"
+    },
+    {
       "slug": "jazz-minor-scale-sc-651",
       "track": "sc",
       "code": "sc-651",
@@ -3146,6 +2505,15 @@ export const CURRICULUM: Curriculum = {
       "position": 51,
       "title": "Jazz Minor Scale",
       "fromSlug": true
+    },
+    {
+      "slug": "super-easy-2-chord-songs-b1-114",
+      "track": "b1",
+      "code": "b1-114",
+      "module": 1,
+      "position": 14,
+      "title": "Super Easy 2 Chord Songs",
+      "videoId": "E5do76H_mi0"
     },
     {
       "slug": "more-triad-grips-strings-2-4-3-5-4-6-mt-410",
@@ -3206,6 +2574,15 @@ export const CURRICULUM: Curriculum = {
       "title": "Major Triad Grips (Strings 1/2/3)"
     },
     {
+      "slug": "start-with-mp3-downloads-ru-041",
+      "track": "ru",
+      "code": "ru-041",
+      "module": 0,
+      "position": 41,
+      "title": "Start with Mp3 Downloads",
+      "fromSlug": true
+    },
+    {
       "slug": "a-fretboard-in-your-mind-mt-435",
       "track": "mt",
       "code": "mt-435",
@@ -3221,15 +2598,6 @@ export const CURRICULUM: Curriculum = {
       "position": 10,
       "title": "The 8 Essential Beginner Chords",
       "fromSlug": true
-    },
-    {
-      "slug": "intermediate-rhythm-guitar-3-im-135",
-      "track": "im",
-      "code": "im-135",
-      "module": 1,
-      "position": 35,
-      "title": "Intermediate Rhythm Guitar 3",
-      "videoId": "hB4Gh_J_ty8"
     },
     {
       "slug": "d-shape-quadads-mt-704",
@@ -3289,15 +2657,6 @@ export const CURRICULUM: Curriculum = {
       "title": "Song Structure"
     },
     {
-      "slug": "top-tips-for-overcoming-performance-anxiety-stage-fright-and-red-light-fever-bl-004",
-      "track": "bl",
-      "code": "bl-004",
-      "module": 0,
-      "position": 4,
-      "title": "Performance Anxiety, Stage Fright & Red Light Fever",
-      "videoId": "zd9YvzbX2Zo"
-    },
-    {
       "slug": "g-shape-terror-mt-713",
       "track": "mt",
       "code": "mt-713",
@@ -3315,6 +2674,15 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
+      "slug": "wish-you-were-here-riff-for-beginners-b2-808",
+      "track": "b2",
+      "code": "b2-808",
+      "module": 8,
+      "position": 8,
+      "title": "Wish You Were Here Riff For Beginners",
+      "videoId": "yDY6y8llnA0"
+    },
+    {
       "slug": "the-6-common-chords-in-key-mt-429",
       "track": "mt",
       "code": "mt-429",
@@ -3329,6 +2697,24 @@ export const CURRICULUM: Curriculum = {
       "module": 7,
       "position": 8,
       "title": "C Shape Major To Minor"
+    },
+    {
+      "slug": "holding-the-guitar-b1-304",
+      "track": "b1",
+      "code": "b1-304",
+      "module": 3,
+      "position": 4,
+      "title": "Holding the Guitar",
+      "videoId": "C-mt8td1teU"
+    },
+    {
+      "slug": "songs-for-module-3-b1-310",
+      "track": "b1",
+      "code": "b1-310",
+      "module": 3,
+      "position": 10,
+      "title": "Songs For Module 3",
+      "videoId": "XxICTF-NIZ8"
     },
     {
       "slug": "finding-triads-under-your-fingers-mt-405",
@@ -3363,6 +2749,33 @@ export const CURRICULUM: Curriculum = {
       "title": "Minor 6 in E, A, and D Shapes"
     },
     {
+      "slug": "seven-nation-army-b1-309",
+      "track": "b1",
+      "code": "b1-309",
+      "module": 3,
+      "position": 9,
+      "title": "Seven Nation Army",
+      "videoId": "2LEO5xc9rEA"
+    },
+    {
+      "slug": "the-stuck-3-4-chords-b2-801",
+      "track": "b2",
+      "code": "b2-801",
+      "module": 8,
+      "position": 1,
+      "title": "The Stuck 3&4 Chords",
+      "videoId": "p5lJTSCUclo"
+    },
+    {
+      "slug": "what-are-minor-chords-b1-301",
+      "track": "b1",
+      "code": "b1-301",
+      "module": 3,
+      "position": 1,
+      "title": "What Are Minor Chords",
+      "videoId": "pbIqk8tTdbw"
+    },
+    {
       "slug": "chord-consolidation-mt-719",
       "track": "mt",
       "code": "mt-719",
@@ -3371,31 +2784,22 @@ export const CURRICULUM: Curriculum = {
       "title": "Chord Consolidation"
     },
     {
-      "slug": "super-easy-2-chord-songs-b1-114",
+      "slug": "albert-king-style-ru-100",
+      "track": "ru",
+      "code": "ru-100",
+      "module": 1,
+      "position": 0,
+      "title": "Albert King Style",
+      "videoId": "SyVhBfIFbiQ"
+    },
+    {
+      "slug": "strumming-patterns-with-ups-b1-307",
       "track": "b1",
-      "code": "b1-114",
-      "module": 1,
-      "position": 14,
-      "title": "Super Easy 2 Chord Songs",
-      "videoId": "E5do76H_mi0"
-    },
-    {
-      "slug": "notes-in-the-open-position-bc-171",
-      "track": "bc",
-      "code": "bc-171",
-      "module": 1,
-      "position": 71,
-      "title": "Notes In The Open Position",
-      "videoId": "Df4Dr2VhHG0"
-    },
-    {
-      "slug": "technique-bending-strings-im-144",
-      "track": "im",
-      "code": "im-144",
-      "module": 1,
-      "position": 44,
-      "title": "Technique: Bending Strings",
-      "videoId": "xGl0urYSuug"
+      "code": "b1-307",
+      "module": 3,
+      "position": 7,
+      "title": "Strumming Patterns With Ups",
+      "videoId": "IXL1bG_ao3c"
     },
     {
       "slug": "common-chord-progressions-mt-422",
@@ -3406,40 +2810,22 @@ export const CURRICULUM: Curriculum = {
       "title": "Common Chord Progressions"
     },
     {
-      "slug": "module-1-practice-routine-b1-116",
+      "slug": "module-3-practice-routine-b1-311",
       "track": "b1",
-      "code": "b1-116",
-      "module": 1,
-      "position": 16,
-      "title": "Module 1 Practice Routine",
-      "videoId": "uBZsLmmOz9I"
+      "code": "b1-311",
+      "module": 3,
+      "position": 11,
+      "title": "Module 3 Practice Routine",
+      "videoId": "qckkf38Xk2Y"
     },
     {
-      "slug": "how-to-use-justin-s-song-app-b1-115",
-      "track": "b1",
-      "code": "b1-115",
+      "slug": "easy-songs-for-stage-5-bc-157",
+      "track": "bc",
+      "code": "bc-157",
       "module": 1,
-      "position": 15,
-      "title": "How To Use Justin's Song App",
-      "videoId": "kLYT2B8gyzQ"
-    },
-    {
-      "slug": "how-to-play-the-d-chord-b1-105",
-      "track": "b1",
-      "code": "b1-105",
-      "module": 1,
-      "position": 5,
-      "title": "How To Play The D Chord",
-      "videoId": "QkrIZBLZEXw"
-    },
-    {
-      "slug": "intermediate-rhythm-guitar-4-im-145",
-      "track": "im",
-      "code": "im-145",
-      "module": 1,
-      "position": 45,
-      "title": "Intermediate Rhythm Guitar 4",
-      "videoId": "HnhbAvAruao"
+      "position": 57,
+      "title": "Easy Songs for Stage 5",
+      "fromSlug": true
     },
     {
       "slug": "the-cycle-of-5ths-in-practice-mt-437",
@@ -3458,22 +2844,31 @@ export const CURRICULUM: Curriculum = {
       "title": "Introduction To Intervals"
     },
     {
-      "slug": "when-to-move-on-from-module-1-b1-118",
-      "track": "b1",
-      "code": "b1-118",
-      "module": 1,
-      "position": 18,
-      "title": "When to move on from Module 1?",
-      "videoId": "-SAo7bvQzmA"
+      "slug": "51-a-king-p3-up-to-v-bl-551",
+      "track": "bl",
+      "code": "bl-551",
+      "module": 5,
+      "position": 51,
+      "title": "#51: A King: P3 up to V",
+      "videoId": "lbqtexDWoco"
     },
     {
-      "slug": "how-to-strum-the-correct-strings-b1-112",
+      "slug": "all-about-capos-b1-308",
       "track": "b1",
-      "code": "b1-112",
-      "module": 1,
-      "position": 12,
-      "title": "How To Strum The Correct Strings",
-      "videoId": "72MEHvT9JV4"
+      "code": "b1-308",
+      "module": 3,
+      "position": 8,
+      "title": "All About Capos",
+      "videoId": "A4mEBSFn-7w"
+    },
+    {
+      "slug": "fretboard-diagrams-for-scales-mt-205",
+      "track": "mt",
+      "code": "mt-205",
+      "module": 2,
+      "position": 5,
+      "title": "Fretboard Diagrams For Scales",
+      "videoId": "S1pAV9ml53A"
     },
     {
       "slug": "triad-chord-analysis-mt-403",
@@ -3484,31 +2879,40 @@ export const CURRICULUM: Curriculum = {
       "title": "Triad Chord Analysis"
     },
     {
-      "slug": "the-perfect-octave-interval-et-103",
-      "track": "et",
-      "code": "et-103",
-      "module": 1,
-      "position": 3,
-      "title": "The Perfect Octave Interval",
-      "videoId": "wVUDiE_tG1E"
+      "slug": "06-bb-king-bb-box-1-chord-bl-506",
+      "track": "bl",
+      "code": "bl-506",
+      "module": 5,
+      "position": 6,
+      "title": "#06: BB King: BB Box 1 chord",
+      "videoId": "AtC2RpVJm2k"
     },
     {
-      "slug": "bars-strumming-on-1-b1-111",
+      "slug": "the-e-minor-chord-b1-302",
       "track": "b1",
-      "code": "b1-111",
-      "module": 1,
-      "position": 11,
-      "title": "Bars & Strumming On 1",
-      "videoId": "n45PDizCRLw"
+      "code": "b1-302",
+      "module": 3,
+      "position": 2,
+      "title": "The E Minor Chord",
+      "videoId": "lqcd3jVysXY"
     },
     {
-      "slug": "the-spider-te-201",
-      "track": "te",
-      "code": "te-201",
-      "module": 2,
-      "position": 1,
-      "title": "The Spider",
-      "videoId": "6s32hmkdrDw"
+      "slug": "the-a-minor-chord-b1-303",
+      "track": "b1",
+      "code": "b1-303",
+      "module": 3,
+      "position": 3,
+      "title": "The A Minor Chord",
+      "videoId": "1Y2veGF9s44"
+    },
+    {
+      "slug": "caged-logic-ch-900",
+      "track": "ch",
+      "code": "ch-900",
+      "module": 9,
+      "position": 0,
+      "title": "CAGED Logic",
+      "videoId": "HcvirpUyRWw"
     },
     {
       "slug": "diatonic-quadad-analysis-mt-527",
@@ -3553,6 +2957,24 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
+      "slug": "technique-bending-strings-im-144",
+      "track": "im",
+      "code": "im-144",
+      "module": 1,
+      "position": 44,
+      "title": "Technique: Bending Strings",
+      "videoId": "xGl0urYSuug"
+    },
+    {
+      "slug": "picking-individual-strings-bc-166",
+      "track": "bc",
+      "code": "bc-166",
+      "module": 1,
+      "position": 66,
+      "title": "Picking Individual Strings",
+      "videoId": "Z1ETtvhPqdQ"
+    },
+    {
       "slug": "melodic-minor-pattern-1-sc-601",
       "track": "sc",
       "code": "sc-601",
@@ -3588,6 +3010,15 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
+      "slug": "26-clapton-p1-third-play-bl-526",
+      "track": "bl",
+      "code": "bl-526",
+      "module": 5,
+      "position": 26,
+      "title": "#26: Clapton: P1 Third Play",
+      "videoId": "Cji7z3fd4_4"
+    },
+    {
       "slug": "harmonic-minor-the-five-patterns-sc-704",
       "track": "sc",
       "code": "sc-704",
@@ -3606,40 +3037,76 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
-      "slug": "grade-3-ear-training-test-et-304",
-      "track": "et",
-      "code": "et-304",
-      "module": 3,
+      "slug": "rhythm-guitar-basics-4-bc-165",
+      "track": "bc",
+      "code": "bc-165",
+      "module": 1,
+      "position": 65,
+      "title": "Rhythm Guitar Basics 4",
+      "videoId": "iT2FK3IzWPE"
+    },
+    {
+      "slug": "one-minute-changes-stage-6-bc-162",
+      "track": "bc",
+      "code": "bc-162",
+      "module": 1,
+      "position": 62,
+      "title": "One Minute Changes (Stage 6)",
+      "videoId": "J_xZ5h_Yb4s"
+    },
+    {
+      "slug": "39-tbw-p1-dom-9-bl-539",
+      "track": "bl",
+      "code": "bl-539",
+      "module": 5,
+      "position": 39,
+      "title": "#39: TBW: P1 Dom 9",
+      "videoId": "71NJbszUMP0"
+    },
+    {
+      "slug": "5-blues-licks-from-pattern-1-bl-404",
+      "track": "bl",
+      "code": "bl-404",
+      "module": 4,
       "position": 4,
-      "title": "Grade 3 Ear Training Test",
-      "videoId": "uZr_ipsJBmM"
+      "title": "5 Blues Licks from Pattern 1",
+      "videoId": "Gu2esZ-PzFM"
     },
     {
-      "slug": "the-mental-fretboard-development-et-303",
+      "slug": "grade-2-ear-training-test-et-204",
       "track": "et",
-      "code": "et-303",
-      "module": 3,
-      "position": 3,
-      "title": "The Mental Fretboard Development",
-      "videoId": "v9b7bHZmIUM"
+      "code": "et-204",
+      "module": 2,
+      "position": 4,
+      "title": "Grade 2 Ear Training Test",
+      "videoId": "d-5eeFDdzhI"
     },
     {
-      "slug": "grade-3-quickfire-test-et-306",
-      "track": "et",
-      "code": "et-306",
-      "module": 3,
+      "slug": "using-blues-licks-effectively-bl-406",
+      "track": "bl",
+      "code": "bl-406",
+      "module": 4,
       "position": 6,
-      "title": "Grade 3 Quickfire Test",
-      "videoId": "ijH3TSyUktI"
+      "title": "Using Blues Licks Effectively",
+      "videoId": "z9RSUG9I20A"
     },
     {
-      "slug": "the-major-6th-interval-et-301",
-      "track": "et",
-      "code": "et-301",
-      "module": 3,
-      "position": 1,
-      "title": "The Major 6th Interval",
-      "videoId": "UfLemACbGU4"
+      "slug": "basic-finger-workout-bc-135",
+      "track": "bc",
+      "code": "bc-135",
+      "module": 1,
+      "position": 35,
+      "title": "Basic Finger Workout",
+      "videoId": "JCo2Vvtrdvw"
+    },
+    {
+      "slug": "5-blues-licks-from-pattern-2-bl-408",
+      "track": "bl",
+      "code": "bl-408",
+      "module": 4,
+      "position": 8,
+      "title": "5 Blues Licks from Pattern 2",
+      "videoId": "Ni6cU7hH5ts"
     },
     {
       "slug": "chromatic-intervals-mt-506",
@@ -3648,6 +3115,24 @@ export const CURRICULUM: Curriculum = {
       "module": 5,
       "position": 6,
       "title": "Chromatic Intervals"
+    },
+    {
+      "slug": "blues-licks-linking-patterns-1-2-bl-412",
+      "track": "bl",
+      "code": "bl-412",
+      "module": 4,
+      "position": 12,
+      "title": "Blues Licks Linking Patterns 1 & 2",
+      "videoId": "YdC31_20V3Q"
+    },
+    {
+      "slug": "five-licks-using-the-blue-note-bl-411",
+      "track": "bl",
+      "code": "bl-411",
+      "module": 4,
+      "position": 11,
+      "title": "Five Licks Using The Blue Note",
+      "videoId": "Hjp87ZyEqQw"
     },
     {
       "slug": "chords-in-a-key-diatonic-triads-mt-421",
@@ -3666,49 +3151,76 @@ export const CURRICULUM: Curriculum = {
       "title": "What Is Harmonic Analysis?"
     },
     {
-      "slug": "easy-songs-for-stage-5-bc-157",
-      "track": "bc",
-      "code": "bc-157",
-      "module": 1,
-      "position": 57,
-      "title": "Easy Songs for Stage 5",
-      "fromSlug": true
+      "slug": "the-blues-curl-on-the-flat-3rd-bl-409",
+      "track": "bl",
+      "code": "bl-409",
+      "module": 4,
+      "position": 9,
+      "title": "The Blues Curl on the Flat 3rd",
+      "videoId": "e9IxxZ-hlbA"
     },
     {
-      "slug": "about-time-signatures-b1-603",
-      "track": "b1",
-      "code": "b1-603",
+      "slug": "minor-pentatonic-pattern-2-bl-407",
+      "track": "bl",
+      "code": "bl-407",
+      "module": 4,
+      "position": 7,
+      "title": "Minor Pentatonic Pattern 2",
+      "videoId": "DCbqWevnhuo"
+    },
+    {
+      "slug": "minor-pentatonic-pattern-1-bl-402",
+      "track": "bl",
+      "code": "bl-402",
+      "module": 4,
+      "position": 2,
+      "title": "Minor Pentatonic Pattern 1",
+      "videoId": "7xGqV6Wx_LY"
+    },
+    {
+      "slug": "live-chat-somebody-that-i-used-to-know-gotye-experiments-tr-609",
+      "track": "tr",
+      "code": "tr-609",
       "module": 6,
-      "position": 3,
-      "title": "About Time Signatures",
-      "videoId": "FDPWwviOYno"
+      "position": 9,
+      "title": "Live Chat - Somebody that I used to know (Gotye) experiments",
+      "videoId": "o9kS7ojgxqw"
     },
     {
-      "slug": "a-6-8-strumming-pattern-b1-604",
-      "track": "b1",
-      "code": "b1-604",
+      "slug": "blues-vibrato-bl-405",
+      "track": "bl",
+      "code": "bl-405",
+      "module": 4,
+      "position": 5,
+      "title": "Blues Vibrato",
+      "videoId": "__lTYlYlaCI"
+    },
+    {
+      "slug": "transcribing-neil-young-s-don-t-let-it-bring-you-down-tr-610",
+      "track": "tr",
+      "code": "tr-610",
+      "module": 6,
+      "position": 10,
+      "title": "Transcribing - Neil Young's Don't Let It Bring You Down",
+      "videoId": "bYeQ1YAQ3No"
+    },
+    {
+      "slug": "transcribing-this-charming-man-tr-604",
+      "track": "tr",
+      "code": "tr-604",
       "module": 6,
       "position": 4,
-      "title": "A 6:8 Strumming Pattern",
-      "videoId": "bKOmcPTHYpA"
+      "title": "Transcribing: This Charming Man",
+      "videoId": "rr8xLvYCKzE"
     },
     {
-      "slug": "module-6-practice-b1-608",
-      "track": "b1",
-      "code": "b1-608",
-      "module": 6,
-      "position": 8,
-      "title": "Module 6 Practice",
-      "videoId": "yBxyxZx9oiQ"
-    },
-    {
-      "slug": "module-4-practice-routine-b1-408",
-      "track": "b1",
-      "code": "b1-408",
-      "module": 4,
-      "position": 8,
-      "title": "Module 4 Practice Routine",
-      "videoId": "wZ15h9ryY5E"
+      "slug": "intermediate-rhythm-guitar-3-im-135",
+      "track": "im",
+      "code": "im-135",
+      "module": 1,
+      "position": 35,
+      "title": "Intermediate Rhythm Guitar 3",
+      "videoId": "hB4Gh_J_ty8"
     },
     {
       "slug": "c-shape-suspensions-mt-709",
@@ -3719,40 +3231,76 @@ export const CURRICULUM: Curriculum = {
       "title": "C Shape Suspensions"
     },
     {
-      "slug": "beginner-alternate-picking-b1-601",
+      "slug": "transcribing-couldn-t-stand-the-weather-tr-606",
+      "track": "tr",
+      "code": "tr-606",
+      "module": 6,
+      "position": 6,
+      "title": "Transcribing: Couldn't Stand The Weather",
+      "videoId": "B4mpahVKbQY"
+    },
+    {
+      "slug": "the-blues-language-bl-401",
+      "track": "bl",
+      "code": "bl-401",
+      "module": 4,
+      "position": 1,
+      "title": "The Blues Language",
+      "videoId": "V4DeCHI-tDQ"
+    },
+    {
+      "slug": "12-bar-blues-style-bc-183",
+      "track": "bc",
+      "code": "bc-183",
+      "module": 1,
+      "position": 83,
+      "title": "12 Bar Blues Style",
+      "videoId": "0TxlHjPK0yk"
+    },
+    {
+      "slug": "09-a-king-p3-double-flick-bl-509",
+      "track": "bl",
+      "code": "bl-509",
+      "module": 5,
+      "position": 9,
+      "title": "#09: A King: P3 double flick",
+      "videoId": "5WMTaASWyd8"
+    },
+    {
+      "slug": "transcribing-gravity-tr-605",
+      "track": "tr",
+      "code": "tr-605",
+      "module": 6,
+      "position": 5,
+      "title": "Transcribing: Gravity",
+      "videoId": "YTvf_f9aB7c"
+    },
+    {
+      "slug": "module-1-practice-routine-b1-116",
       "track": "b1",
-      "code": "b1-601",
+      "code": "b1-116",
+      "module": 1,
+      "position": 16,
+      "title": "Module 1 Practice Routine",
+      "videoId": "uBZsLmmOz9I"
+    },
+    {
+      "slug": "transcribing-the-chain-tr-603",
+      "track": "tr",
+      "code": "tr-603",
+      "module": 6,
+      "position": 3,
+      "title": "Transcribing: The Chain",
+      "videoId": "nGIraIWfHpc"
+    },
+    {
+      "slug": "transcribing-moonlight-shadow-tr-601",
+      "track": "tr",
+      "code": "tr-601",
       "module": 6,
       "position": 1,
-      "title": "Beginner Alternate Picking",
-      "videoId": "q8SHmo1-dac"
-    },
-    {
-      "slug": "songs-for-module-4-b1-407",
-      "track": "b1",
-      "code": "b1-407",
-      "module": 4,
-      "position": 7,
-      "title": "Songs For Module 4",
-      "videoId": "CWL_O9kR_b0"
-    },
-    {
-      "slug": "the-d-minor-chord-b1-402",
-      "track": "b1",
-      "code": "b1-402",
-      "module": 4,
-      "position": 2,
-      "title": "The D Minor Chord",
-      "videoId": "8mFF8NYVdtI"
-    },
-    {
-      "slug": "one-minute-changes-f1-im-112",
-      "track": "im",
-      "code": "im-112",
-      "module": 1,
-      "position": 12,
-      "title": "One Minute Changes (F1)",
-      "videoId": "Hwy78VXtCdM"
+      "title": "Transcribing: Moonlight Shadow",
+      "videoId": "_oSCDsyp1i4"
     },
     {
       "slug": "the-find-a-note-exercise-mt-434",
@@ -3771,6 +3319,15 @@ export const CURRICULUM: Curriculum = {
       "title": "Major Scale Theory"
     },
     {
+      "slug": "24-f-king-p1-pentrip-bl-524",
+      "track": "bl",
+      "code": "bl-524",
+      "module": 5,
+      "position": 24,
+      "title": "#24: F King: P1 Pentrip",
+      "videoId": "AXOAxU88rag"
+    },
+    {
       "slug": "ear-training-exercises-f4-im-148",
       "track": "im",
       "code": "im-148",
@@ -3780,21 +3337,49 @@ export const CURRICULUM: Curriculum = {
       "videoId": "kFI8X-5moi0"
     },
     {
-      "slug": "play-the-same-chords-using-different-grips-ch-702",
-      "track": "ch",
-      "code": "ch-702",
-      "module": 7,
+      "slug": "i-to-iv-blues-climb-bl-302",
+      "track": "bl",
+      "code": "bl-302",
+      "module": 3,
       "position": 2,
-      "title": "Play the same chords using different grips",
-      "videoId": "bprDRabVdb4"
+      "title": "I to IV Blues Climb",
+      "videoId": "mOSHkmDhoeo"
     },
     {
-      "slug": "playing-power-chords-mt-311",
-      "track": "mt",
-      "code": "mt-311",
+      "slug": "the-blues-full-stop-the-end-bl-303",
+      "track": "bl",
+      "code": "bl-303",
       "module": 3,
-      "position": 11,
-      "title": "Playing Power Chords"
+      "position": 3,
+      "title": "The Blues Full Stop. The End.",
+      "videoId": "bAWXxuAYb40"
+    },
+    {
+      "slug": "foundation-2-practice-schedule-im-129",
+      "track": "im",
+      "code": "im-129",
+      "module": 1,
+      "position": 29,
+      "title": "Foundation 2 Practice Schedule",
+      "videoId": "A7qtngmwh6Y"
+    },
+    {
+      "slug": "playing-scales-with-a-metronome-im-124",
+      "track": "im",
+      "code": "im-124",
+      "module": 1,
+      "position": 24,
+      "title": "Playing Scales With A Metronome",
+      "videoId": "FLgq5VPRT6k"
+    },
+    {
+      "slug": "36-srv-p1-rake-it-bl-536",
+      "track": "bl",
+      "code": "bl-536",
+      "module": 5,
+      "position": 36,
+      "title": "#36: SRV: P1 Rake It",
+      "videoId": "GH01doUEf98"
     },
     {
       "slug": "open-suspended-chords-ch-370",
@@ -3803,6 +3388,15 @@ export const CURRICULUM: Curriculum = {
       "module": 3,
       "position": 70,
       "title": "Open Suspended Chords",
+      "fromSlug": true
+    },
+    {
+      "slug": "grade-3-test-answers-et-305",
+      "track": "et",
+      "code": "et-305",
+      "module": 3,
+      "position": 5,
+      "title": "Grade 3 Test Answers",
       "fromSlug": true
     },
     {
@@ -3815,6 +3409,15 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
+      "slug": "grade-3-ear-training-test-et-304",
+      "track": "et",
+      "code": "et-304",
+      "module": 3,
+      "position": 4,
+      "title": "Grade 3 Ear Training Test",
+      "videoId": "uZr_ipsJBmM"
+    },
+    {
       "slug": "g-shape-maj-mini-min-mt-714",
       "track": "mt",
       "code": "mt-714",
@@ -3823,13 +3426,22 @@ export const CURRICULUM: Curriculum = {
       "title": "G Shape Maj & Mini Min"
     },
     {
-      "slug": "essential-slide-guitar-techniques-te-801",
-      "track": "te",
-      "code": "te-801",
-      "module": 8,
-      "position": 1,
-      "title": "Essential Slide Guitar Techniques",
-      "videoId": "GpdFe-6ydpo"
+      "slug": "intermediate-rhythm-guitar-2-im-125",
+      "track": "im",
+      "code": "im-125",
+      "module": 1,
+      "position": 25,
+      "title": "Intermediate Rhythm Guitar 2",
+      "videoId": "J2VEgdhWHxk"
+    },
+    {
+      "slug": "how-to-minimize-finger-pain-b1-113",
+      "track": "b1",
+      "code": "b1-113",
+      "module": 1,
+      "position": 13,
+      "title": "How To Minimize Finger Pain",
+      "videoId": "V0Q0buwLvVA"
     },
     {
       "slug": "super-locrian-altered-scale-sc-657",
@@ -3841,6 +3453,42 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
+      "slug": "ear-training-exercises-f2-im-128",
+      "track": "im",
+      "code": "im-128",
+      "module": 1,
+      "position": 28,
+      "title": "Ear Training Exercises (F2)",
+      "videoId": "2IZtN-ih2KI"
+    },
+    {
+      "slug": "12-clapton-p1-16-classic-bl-512",
+      "track": "bl",
+      "code": "bl-512",
+      "module": 5,
+      "position": 12,
+      "title": "#12: Clapton: P1 16 classic",
+      "videoId": "xy0Qgo_P3JU"
+    },
+    {
+      "slug": "backbeat-groove-2-4-hit-strums-uk-005",
+      "track": "uk",
+      "code": "uk-005",
+      "module": 0,
+      "position": 5,
+      "title": "Backbeat Groove, 2 & 4 Hit Strums",
+      "videoId": "S9QDmoRhG-I"
+    },
+    {
+      "slug": "notes-on-the-ukulele-fretboard-uk-010",
+      "track": "uk",
+      "code": "uk-010",
+      "module": 0,
+      "position": 10,
+      "title": "Notes On The Ukulele Fretboard",
+      "videoId": "viOxc62C3HY"
+    },
+    {
       "slug": "locrian-2-sc-656",
       "track": "sc",
       "code": "sc-656",
@@ -3848,6 +3496,15 @@ export const CURRICULUM: Curriculum = {
       "position": 56,
       "title": "Locrian 2",
       "fromSlug": true
+    },
+    {
+      "slug": "ukulele-movable-chords-shape-1-uk-011",
+      "track": "uk",
+      "code": "uk-011",
+      "module": 0,
+      "position": 11,
+      "title": "Ukulele Movable Chords: Shape 1",
+      "videoId": "R78oMs_J-6g"
     },
     {
       "slug": "d-shape-major-and-minor-mt-702",
@@ -3866,40 +3523,58 @@ export const CURRICULUM: Curriculum = {
       "title": "The D Shape Relationships"
     },
     {
-      "slug": "the-g-chord-hacked-b1-602",
-      "track": "b1",
-      "code": "b1-602",
-      "module": 6,
-      "position": 2,
-      "title": "The G Chord... hacked!",
-      "videoId": "i0G69vCTv4s"
-    },
-    {
-      "slug": "folk-fingerstyle-patterns-te-702",
-      "track": "te",
-      "code": "te-702",
-      "module": 7,
-      "position": 2,
-      "title": "Folk Fingerstyle Patterns",
-      "videoId": "rW9IbxIlFuo"
-    },
-    {
-      "slug": "creating-blues-riffs-bl-210",
-      "track": "bl",
-      "code": "bl-210",
-      "module": 2,
-      "position": 10,
-      "title": "Creating Blues Riffs",
-      "videoId": "Ar8IHjEaee0"
-    },
-    {
-      "slug": "the-e-chord-bc-113",
+      "slug": "stage-8-practice-schedule-bc-189",
       "track": "bc",
-      "code": "bc-113",
+      "code": "bc-189",
       "module": 1,
-      "position": 13,
-      "title": "The E Chord",
-      "videoId": "8H393ryDkuY"
+      "position": 89,
+      "title": "Stage 8 Practice Schedule",
+      "videoId": "fRR4NRacNC8"
+    },
+    {
+      "slug": "ukulele-open-chords-part-2-uk-003",
+      "track": "uk",
+      "code": "uk-003",
+      "module": 0,
+      "position": 3,
+      "title": "Ukulele Open Chords [Part 2]",
+      "videoId": "2n_CA7wdTMg"
+    },
+    {
+      "slug": "ukulele-shuffle-strum-get-your-groove-on-uk-004",
+      "track": "uk",
+      "code": "uk-004",
+      "module": 0,
+      "position": 4,
+      "title": "Ukulele Shuffle Strum, Get Your Groove On!",
+      "videoId": "PxVuPIAcnr4"
+    },
+    {
+      "slug": "songs-for-intermediate-foundation-2-im-127",
+      "track": "im",
+      "code": "im-127",
+      "module": 1,
+      "position": 27,
+      "title": "Songs for Intermediate Foundation 2",
+      "fromSlug": true
+    },
+    {
+      "slug": "the-spider-te-201",
+      "track": "te",
+      "code": "te-201",
+      "module": 2,
+      "position": 1,
+      "title": "The Spider",
+      "videoId": "6s32hmkdrDw"
+    },
+    {
+      "slug": "top-tips-for-overcoming-performance-anxiety-stage-fright-and-red-light-fever-bl-004",
+      "track": "bl",
+      "code": "bl-004",
+      "module": 0,
+      "position": 4,
+      "title": "Performance Anxiety, Stage Fright & Red Light Fever",
+      "videoId": "zd9YvzbX2Zo"
     },
     {
       "slug": "lydian-augmented-sc-653",
@@ -3911,31 +3586,49 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
-      "slug": "anchor-fingers-for-a-d-and-e-bc-114",
+      "slug": "basic-fingerstyle-exercise-bc-184",
       "track": "bc",
-      "code": "bc-114",
+      "code": "bc-184",
       "module": 1,
-      "position": 14,
-      "title": "Anchor Fingers for A, D and E",
-      "videoId": "pBacbX9yefA"
+      "position": 84,
+      "title": "Basic Fingerstyle Exercise",
+      "videoId": "V6ZqKjH0G78"
     },
     {
-      "slug": "all-down-4-to-a-bar-strumming-bc-116",
-      "track": "bc",
-      "code": "bc-116",
-      "module": 1,
-      "position": 16,
-      "title": "All Down 4 to a Bar Strumming",
-      "videoId": "NNl9OpLQzmk"
+      "slug": "learning-to-sing-for-ear-training-et-003",
+      "track": "et",
+      "code": "et-003",
+      "module": 0,
+      "position": 3,
+      "title": "Learning To Sing (For Ear Training)",
+      "videoId": "Y3c0wbdBjZI"
     },
     {
-      "slug": "rhythm-guitar-basics-5-bc-175",
+      "slug": "07-robben-p1-penta-4ths-bl-507",
+      "track": "bl",
+      "code": "bl-507",
+      "module": 5,
+      "position": 7,
+      "title": "#07: Robben: P1 Penta 4ths",
+      "videoId": "fBeHidiBaz4"
+    },
+    {
+      "slug": "notes-in-the-open-position-bc-171",
       "track": "bc",
-      "code": "bc-175",
+      "code": "bc-171",
       "module": 1,
-      "position": 75,
-      "title": "Rhythm Guitar Basics 5",
-      "videoId": "euZCDlFC0Lk"
+      "position": 71,
+      "title": "Notes In The Open Position",
+      "videoId": "Df4Dr2VhHG0"
+    },
+    {
+      "slug": "one-minute-changes-f5-im-152",
+      "track": "im",
+      "code": "im-152",
+      "module": 1,
+      "position": 52,
+      "title": "One Minute Changes (F5)",
+      "videoId": "ZC_8yaoM4j4"
     },
     {
       "slug": "major-6-in-e-a-shapes-mt-706",
@@ -3954,6 +3647,24 @@ export const CURRICULUM: Curriculum = {
       "title": "The C Shape Intro"
     },
     {
+      "slug": "intermediate-revision-im-160",
+      "track": "im",
+      "code": "im-160",
+      "module": 1,
+      "position": 60,
+      "title": "Intermediate Revision",
+      "videoId": "r8S0sNavJC4"
+    },
+    {
+      "slug": "stage-5-practice-schedule-bc-159",
+      "track": "bc",
+      "code": "bc-159",
+      "module": 1,
+      "position": 59,
+      "title": "Stage 5 Practice Schedule",
+      "videoId": "OdMDgFEgvLk"
+    },
+    {
       "slug": "which-arpeggios-to-learn-first-mt-581",
       "track": "mt",
       "code": "mt-581",
@@ -3963,13 +3674,13 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
-      "slug": "justin-ear-training-exercises-s7-bc-178",
+      "slug": "rhythm-guitar-basics-3-bc-156",
       "track": "bc",
-      "code": "bc-178",
+      "code": "bc-156",
       "module": 1,
-      "position": 78,
-      "title": "Justin Ear Training Exercises S7",
-      "fromSlug": true
+      "position": 56,
+      "title": "Rhythm Guitar Basics 3",
+      "videoId": "T-R3qPK2MMk"
     },
     {
       "slug": "a-shape-major-barre-chord-grip-im-131",
@@ -3981,22 +3692,13 @@ export const CURRICULUM: Curriculum = {
       "videoId": "8sh9a6HzM9Y"
     },
     {
-      "slug": "forcing-the-changes-bc-145",
-      "track": "bc",
-      "code": "bc-145",
-      "module": 1,
+      "slug": "45-f-king-p1-tore-it-bl-545",
+      "track": "bl",
+      "code": "bl-545",
+      "module": 5,
       "position": 45,
-      "title": "Forcing The Changes",
-      "videoId": "d3H-GbHduvU"
-    },
-    {
-      "slug": "one-minute-changes-stage-7-bc-174",
-      "track": "bc",
-      "code": "bc-174",
-      "module": 1,
-      "position": 74,
-      "title": "One Minute Changes (Stage 7)",
-      "videoId": "e30zsCGWWhc"
+      "title": "#45: F King: P1 Tore it",
+      "videoId": "VekprHdmXQg"
     },
     {
       "slug": "the-minor-6-mt-711",
@@ -4007,6 +3709,24 @@ export const CURRICULUM: Curriculum = {
       "title": "The Minor 6"
     },
     {
+      "slug": "31-f-king-p1-chro-3rds-bl-531",
+      "track": "bl",
+      "code": "bl-531",
+      "module": 5,
+      "position": 31,
+      "title": "#31: F King: P1 Chro 3rds",
+      "videoId": "jvENnKTOtdM"
+    },
+    {
+      "slug": "56-robben-poor-lick-bl-556",
+      "track": "bl",
+      "code": "bl-556",
+      "module": 5,
+      "position": 56,
+      "title": "#56: Robben: Poor Lick",
+      "videoId": "Ux9X2sGNwd4"
+    },
+    {
       "slug": "sussing-the-g-shape-mt-715",
       "track": "mt",
       "code": "mt-715",
@@ -4015,452 +3735,13 @@ export const CURRICULUM: Curriculum = {
       "title": "Sussing The G Shape"
     },
     {
-      "slug": "major-scale-one-finger-solos-im-133",
-      "track": "im",
-      "code": "im-133",
-      "module": 1,
-      "position": 33,
-      "title": "Major Scale One Finger Solos",
-      "videoId": "dttvWSRjQkE"
-    },
-    {
-      "slug": "how-to-use-the-beginner-song-course-bc-997",
-      "track": "bc",
-      "code": "bc-997",
-      "module": 9,
-      "position": 97,
-      "title": "How To Use The Beginner Song Course",
-      "videoId": "90CXPYsg7qI"
-    },
-    {
-      "slug": "the-d-chord-bc-111",
-      "track": "bc",
-      "code": "bc-111",
-      "module": 1,
-      "position": 11,
-      "title": "The D Chord",
-      "videoId": "yh6sPqDEZCY"
-    },
-    {
-      "slug": "stage-1-one-minute-changes-bc-115",
-      "track": "bc",
-      "code": "bc-115",
-      "module": 1,
-      "position": 15,
-      "title": "Stage 1: One Minute Changes",
-      "videoId": "qXK_If0QzDM"
-    },
-    {
-      "slug": "quick-start-guitar-5-minute-overview-bc-101",
-      "track": "bc",
-      "code": "bc-101",
-      "module": 1,
-      "position": 1,
-      "title": "Quick Start Guitar - 5 Minute Overview",
-      "videoId": "hJmw_ldmTMM"
-    },
-    {
-      "slug": "string-bending-technique-te-106",
-      "track": "te",
-      "code": "te-106",
-      "module": 1,
-      "position": 6,
-      "title": "String Bending Technique",
-      "videoId": "xGl0urYSuug"
-    },
-    {
-      "slug": "finger-gym-te-110",
-      "track": "te",
-      "code": "te-110",
-      "module": 1,
-      "position": 10,
-      "title": "Finger Gym",
-      "videoId": "XDt_4ha9Xjs"
-    },
-    {
-      "slug": "grade-2-test-answers-et-205",
-      "track": "et",
-      "code": "et-205",
-      "module": 2,
-      "position": 5,
-      "title": "Grade 2 Test Answers",
-      "fromSlug": true
-    },
-    {
-      "slug": "vibrato-hand-style-te-103",
-      "track": "te",
-      "code": "te-103",
-      "module": 1,
-      "position": 3,
-      "title": "Vibrato (Hand Style)",
-      "videoId": "WNWqobkgdBA"
-    },
-    {
-      "slug": "vibrato-whole-arm-style-te-104",
-      "track": "te",
-      "code": "te-104",
-      "module": 1,
-      "position": 4,
-      "title": "Vibrato (Whole Arm Style)",
-      "videoId": "GoP37ge1rFU"
-    },
-    {
-      "slug": "finger-stretching-exercise-te-101",
-      "track": "te",
-      "code": "te-101",
-      "module": 1,
-      "position": 1,
-      "title": "Finger Stretching Exercise",
-      "videoId": "_Zm_ho26O2U"
-    },
-    {
-      "slug": "one-minute-changes-f3-im-132",
-      "track": "im",
-      "code": "im-132",
-      "module": 1,
-      "position": 32,
-      "title": "One Minute Changes (F3)",
-      "videoId": "xzytcTKpMWE"
-    },
-    {
-      "slug": "how-to-read-guitar-chord-boxes-b1-104",
-      "track": "b1",
-      "code": "b1-104",
-      "module": 1,
-      "position": 4,
-      "title": "How To Read Guitar Chord Boxes",
-      "videoId": "LlN2yrFQKzY"
-    },
-    {
-      "slug": "how-to-practice-scales-sc-102",
-      "track": "sc",
-      "code": "sc-102",
-      "module": 1,
-      "position": 2,
-      "title": "How To Practice Scales",
-      "videoId": "oKFGLYpX4EE"
-    },
-    {
-      "slug": "building-melodic-patterns-im-136",
-      "track": "im",
-      "code": "im-136",
-      "module": 1,
-      "position": 36,
-      "title": "Building Melodic Patterns",
-      "videoId": "4c8o2HdUuZ4"
-    },
-    {
-      "slug": "mr-cato-s-key-signature-trick-mt-308",
-      "track": "mt",
-      "code": "mt-308",
-      "module": 3,
-      "position": 8,
-      "title": "Mr Cato's Key Signature Trick"
-    },
-    {
-      "slug": "how-to-tune-a-guitar-for-beginners-b1-101",
-      "track": "b1",
-      "code": "b1-101",
-      "module": 1,
-      "position": 1,
-      "title": "How To Tune A Guitar For Beginners",
-      "videoId": "X2EmpWr9vUc"
-    },
-    {
-      "slug": "the-big-six-essential-notes-mt-301",
-      "track": "mt",
-      "code": "mt-301",
-      "module": 3,
-      "position": 1,
-      "title": "The Big Six Essential Notes"
-    },
-    {
-      "slug": "how-to-hold-your-guitar-b1-102",
-      "track": "b1",
-      "code": "b1-102",
-      "module": 1,
-      "position": 2,
-      "title": "How To Hold Your Guitar",
-      "videoId": "MlV6WhM9YhE"
-    },
-    {
-      "slug": "the-major-scale-pattern-2-sc-252",
-      "track": "sc",
-      "code": "sc-252",
-      "module": 2,
-      "position": 52,
-      "title": "The Major Scale: Pattern 2",
-      "videoId": "cnnXJXGtZGk"
-    },
-    {
-      "slug": "songs-for-intermediate-foundation-3-im-137",
-      "track": "im",
-      "code": "im-137",
-      "module": 1,
-      "position": 37,
-      "title": "Songs for Intermediate Foundation 3",
-      "fromSlug": true
-    },
-    {
-      "slug": "how-to-play-the-a-chord-b1-108",
-      "track": "b1",
-      "code": "b1-108",
-      "module": 1,
-      "position": 8,
-      "title": "How To Play The A Chord",
-      "videoId": "1X2rW5ATdLQ"
-    },
-    {
-      "slug": "49-robben-em-over-a-bl-549",
+      "slug": "17-f-king-p1-classic-pk-bl-517",
       "track": "bl",
-      "code": "bl-549",
+      "code": "bl-517",
       "module": 5,
-      "position": 49,
-      "title": "#49: Robben: Em Over A",
-      "videoId": "MCoaCvq_TS0"
-    },
-    {
-      "slug": "36-srv-p1-rake-it-bl-536",
-      "track": "bl",
-      "code": "bl-536",
-      "module": 5,
-      "position": 36,
-      "title": "#36: SRV: P1 Rake It",
-      "videoId": "GH01doUEf98"
-    },
-    {
-      "slug": "chuck-berry-style-ru-300",
-      "track": "ru",
-      "code": "ru-300",
-      "module": 3,
-      "position": 0,
-      "title": "Chuck Berry Style",
-      "videoId": "rQErI9pwaDw"
-    },
-    {
-      "slug": "one-minute-changes-exercise-b1-110",
-      "track": "b1",
-      "code": "b1-110",
-      "module": 1,
-      "position": 10,
-      "title": "One Minute Changes Exercise",
-      "videoId": "mAgc7hr44WM"
-    },
-    {
-      "slug": "string-bending-vibrato-te-107",
-      "track": "te",
-      "code": "te-107",
-      "module": 1,
-      "position": 7,
-      "title": "String Bending Vibrato",
-      "videoId": "06M2-51JF80"
-    },
-    {
-      "slug": "string-muting-techniques-im-134",
-      "track": "im",
-      "code": "im-134",
-      "module": 1,
-      "position": 34,
-      "title": "String Muting Techniques",
-      "videoId": "xARmgKQmbYw"
-    },
-    {
-      "slug": "40-clapton-p3-semidown-bl-540",
-      "track": "bl",
-      "code": "bl-540",
-      "module": 5,
-      "position": 40,
-      "title": "#40: Clapton: P3 Semidown",
-      "videoId": "JcNLd4ArlKE"
-    },
-    {
-      "slug": "09-a-king-p3-double-flick-bl-509",
-      "track": "bl",
-      "code": "bl-509",
-      "module": 5,
-      "position": 9,
-      "title": "#09: A King: P3 double flick",
-      "videoId": "5WMTaASWyd8"
-    },
-    {
-      "slug": "24-f-king-p1-pentrip-bl-524",
-      "track": "bl",
-      "code": "bl-524",
-      "module": 5,
-      "position": 24,
-      "title": "#24: F King: P1 Pentrip",
-      "videoId": "AXOAxU88rag"
-    },
-    {
-      "slug": "47-clapton-p2-claptic-bl-547",
-      "track": "bl",
-      "code": "bl-547",
-      "module": 5,
-      "position": 47,
-      "title": "#47: Clapton: P2 Claptic",
-      "videoId": "i1C0bnX33Dc"
-    },
-    {
-      "slug": "20-bb-king-step-to-4-bl-520",
-      "track": "bl",
-      "code": "bl-520",
-      "module": 5,
-      "position": 20,
-      "title": "#20: BB King: Step To 4",
-      "videoId": "bbuQtX_QSQ4"
-    },
-    {
-      "slug": "how-to-read-guitar-tab-mt-202",
-      "track": "mt",
-      "code": "mt-202",
-      "module": 2,
-      "position": 2,
-      "title": "How To Read Guitar TAB",
-      "videoId": "i10y_ZuOfjk"
-    },
-    {
-      "slug": "18-tbw-p1-trip-st-to-b7-bl-518",
-      "track": "bl",
-      "code": "bl-518",
-      "module": 5,
-      "position": 18,
-      "title": "#18: TBW: P1 Trip St. to b7",
-      "videoId": "2UoEjo7iuzI"
-    },
-    {
-      "slug": "16-a-king-iv-chord-out-bl-516",
-      "track": "bl",
-      "code": "bl-516",
-      "module": 5,
-      "position": 16,
-      "title": "#16: A King: IV chord out",
-      "videoId": "gSpQn2sqwKQ"
-    },
-    {
-      "slug": "fretboard-diagrams-for-scales-mt-205",
-      "track": "mt",
-      "code": "mt-205",
-      "module": 2,
-      "position": 5,
-      "title": "Fretboard Diagrams For Scales",
-      "videoId": "S1pAV9ml53A"
-    },
-    {
-      "slug": "pmt-workbook-grade-2-mt-001",
-      "track": "mt",
-      "code": "mt-001",
-      "module": 0,
-      "position": 1,
-      "title": "Pmt Workbook Grade 2",
-      "fromSlug": true
-    },
-    {
-      "slug": "07-robben-p1-penta-4ths-bl-507",
-      "track": "bl",
-      "code": "bl-507",
-      "module": 5,
-      "position": 7,
-      "title": "#07: Robben: P1 Penta 4ths",
-      "videoId": "fBeHidiBaz4"
-    },
-    {
-      "slug": "32-tbw-jazzy-pent-bl-532",
-      "track": "bl",
-      "code": "bl-532",
-      "module": 5,
-      "position": 32,
-      "title": "#32: TBW: Jazzy Pent",
-      "videoId": "waYMjFTL7Ew"
-    },
-    {
-      "slug": "45-f-king-p1-tore-it-bl-545",
-      "track": "bl",
-      "code": "bl-545",
-      "module": 5,
-      "position": 45,
-      "title": "#45: F King: P1 Tore it",
-      "videoId": "VekprHdmXQg"
-    },
-    {
-      "slug": "34-bb-king-maj6-end-bl-534",
-      "track": "bl",
-      "code": "bl-534",
-      "module": 5,
-      "position": 34,
-      "title": "#34: BB King: Maj6 End",
-      "videoId": "ee-tUI0HiS8"
-    },
-    {
-      "slug": "35-robben-fancy-blue-bl-535",
-      "track": "bl",
-      "code": "bl-535",
-      "module": 5,
-      "position": 35,
-      "title": "#35: Robben: Fancy Blue",
-      "videoId": "x9XSagMuT48"
-    },
-    {
-      "slug": "25-tbw-p1-b7-by-semi-bl-525",
-      "track": "bl",
-      "code": "bl-525",
-      "module": 5,
-      "position": 25,
-      "title": "#25: TBW: P1 b7 By Semi",
-      "videoId": "LrRfmEbjvHw"
-    },
-    {
-      "slug": "fake-fingernails-for-guitar-players-te-701",
-      "track": "te",
-      "code": "te-701",
-      "module": 7,
-      "position": 1,
-      "title": "Fake Fingernails For Guitar Players",
-      "videoId": "1K_YtBxx1Kk"
-    },
-    {
-      "slug": "feel-good-strumming-b1-705",
-      "track": "b1",
-      "code": "b1-705",
-      "module": 7,
-      "position": 5,
-      "title": "Feel Good Strumming",
-      "videoId": "36cR8twdq7Q"
-    },
-    {
-      "slug": "41-bb-king-bbs-arp-bl-541",
-      "track": "bl",
-      "code": "bl-541",
-      "module": 5,
-      "position": 41,
-      "title": "#41: BB King: BBs Arp",
-      "videoId": "WXcs7m0kBvw"
-    },
-    {
-      "slug": "29-srv-p1-classic-p-bl-529",
-      "track": "bl",
-      "code": "bl-529",
-      "module": 5,
-      "position": 29,
-      "title": "#29: SRV: P1 Classic P",
-      "videoId": "Hx0n6j2VPAQ"
-    },
-    {
-      "slug": "melodic-percussive-fingerstyle-backbeat-te-751",
-      "track": "te",
-      "code": "te-751",
-      "module": 7,
-      "position": 51,
-      "title": "Melodic Percussive Fingerstyle BackBeat",
-      "videoId": "k8_ldh4lJk8"
-    },
-    {
-      "slug": "33-clapton-p1-clapturn-bl-533",
-      "track": "bl",
-      "code": "bl-533",
-      "module": 5,
-      "position": 33,
-      "title": "#33: Clapton: P1 Clapturn",
-      "videoId": "CeB-7up-Sh8"
+      "position": 17,
+      "title": "#17: F King: P1 ClassiC PK",
+      "videoId": "aZ8Jn39z1jo"
     },
     {
       "slug": "42-robben-slick-16-s-bl-542",
@@ -4472,6 +3753,60 @@ export const CURRICULUM: Curriculum = {
       "videoId": "TLpBetB1jJ4"
     },
     {
+      "slug": "19-clapton-p3-country-blue-bl-519",
+      "track": "bl",
+      "code": "bl-519",
+      "module": 5,
+      "position": 19,
+      "title": "#19: Clapton: P3 Country Blue",
+      "videoId": "xM8oe_ATtEI"
+    },
+    {
+      "slug": "10-f-king-p2-repeater-flick-bl-510",
+      "track": "bl",
+      "code": "bl-510",
+      "module": 5,
+      "position": 10,
+      "title": "#10: F King: P2 Repeater Flick",
+      "videoId": "8h4uikyTjGw"
+    },
+    {
+      "slug": "grade-2-test-answers-et-205",
+      "track": "et",
+      "code": "et-205",
+      "module": 2,
+      "position": 5,
+      "title": "Grade 2 Test Answers",
+      "fromSlug": true
+    },
+    {
+      "slug": "18-tbw-p1-trip-st-to-b7-bl-518",
+      "track": "bl",
+      "code": "bl-518",
+      "module": 5,
+      "position": 18,
+      "title": "#18: TBW: P1 Trip St. to b7",
+      "videoId": "2UoEjo7iuzI"
+    },
+    {
+      "slug": "49-robben-em-over-a-bl-549",
+      "track": "bl",
+      "code": "bl-549",
+      "module": 5,
+      "position": 49,
+      "title": "#49: Robben: Em Over A",
+      "videoId": "MCoaCvq_TS0"
+    },
+    {
+      "slug": "14-robben-p1-fast-trips-bl-514",
+      "track": "bl",
+      "code": "bl-514",
+      "module": 5,
+      "position": 14,
+      "title": "#14: Robben: P1 Fast Trips",
+      "videoId": "TQX48u37Xao"
+    },
+    {
       "slug": "21-robben-robbend-to-b7-bl-521",
       "track": "bl",
       "code": "bl-521",
@@ -4481,21 +3816,240 @@ export const CURRICULUM: Curriculum = {
       "videoId": "RJqCNkg3KLg"
     },
     {
+      "slug": "46-tbw-p1-16s-dom-bl-546",
+      "track": "bl",
+      "code": "bl-546",
+      "module": 5,
+      "position": 46,
+      "title": "#46: TBW: P1 16s Dom",
+      "videoId": "cHMGUDXLb1k"
+    },
+    {
+      "slug": "how-to-read-guitar-chord-boxes-b1-104",
+      "track": "b1",
+      "code": "b1-104",
+      "module": 1,
+      "position": 4,
+      "title": "How To Read Guitar Chord Boxes",
+      "videoId": "LlN2yrFQKzY"
+    },
+    {
+      "slug": "justin-ear-training-exercises-s5-bc-158",
+      "track": "bc",
+      "code": "bc-158",
+      "module": 1,
+      "position": 58,
+      "title": "Justin Ear Training Exercises S5",
+      "fromSlug": true
+    },
+    {
+      "slug": "air-changes-bc-153",
+      "track": "bc",
+      "code": "bc-153",
+      "module": 1,
+      "position": 53,
+      "title": "Air Changes",
+      "videoId": "gn3tR6ODaBs"
+    },
+    {
+      "slug": "mr-cato-s-key-signature-trick-mt-308",
+      "track": "mt",
+      "code": "mt-308",
+      "module": 3,
+      "position": 8,
+      "title": "Mr Cato's Key Signature Trick"
+    },
+    {
+      "slug": "the-big-six-essential-notes-mt-301",
+      "track": "mt",
+      "code": "mt-301",
+      "module": 3,
+      "position": 1,
+      "title": "The Big Six Essential Notes"
+    },
+    {
+      "slug": "how-to-practice-scales-sc-102",
+      "track": "sc",
+      "code": "sc-102",
+      "module": 1,
+      "position": 2,
+      "title": "How To Practice Scales",
+      "videoId": "oKFGLYpX4EE"
+    },
+    {
+      "slug": "48-bb-king-slide-to-blue-bl-548",
+      "track": "bl",
+      "code": "bl-548",
+      "module": 5,
+      "position": 48,
+      "title": "#48: BB King: Slide To Blue",
+      "videoId": "TVTyPeNUUqs"
+    },
+    {
+      "slug": "29-srv-p1-classic-p-bl-529",
+      "track": "bl",
+      "code": "bl-529",
+      "module": 5,
+      "position": 29,
+      "title": "#29: SRV: P1 Classic P",
+      "videoId": "Hx0n6j2VPAQ"
+    },
+    {
+      "slug": "28-robben-rob-s-class-bl-528",
+      "track": "bl",
+      "code": "bl-528",
+      "module": 5,
+      "position": 28,
+      "title": "#28: Robben: Rob's Class",
+      "videoId": "IvoV7P1t2b0"
+    },
+    {
+      "slug": "20-bb-king-step-to-4-bl-520",
+      "track": "bl",
+      "code": "bl-520",
+      "module": 5,
+      "position": 20,
+      "title": "#20: BB King: Step To 4",
+      "videoId": "bbuQtX_QSQ4"
+    },
+    {
+      "slug": "41-bb-king-bbs-arp-bl-541",
+      "track": "bl",
+      "code": "bl-541",
+      "module": 5,
+      "position": 41,
+      "title": "#41: BB King: BBs Arp",
+      "videoId": "WXcs7m0kBvw"
+    },
+    {
+      "slug": "40-clapton-p3-semidown-bl-540",
+      "track": "bl",
+      "code": "bl-540",
+      "module": 5,
+      "position": 40,
+      "title": "#40: Clapton: P3 Semidown",
+      "videoId": "JcNLd4ArlKE"
+    },
+    {
+      "slug": "50-srv-p1-9th-hammer-bl-550",
+      "track": "bl",
+      "code": "bl-550",
+      "module": 5,
+      "position": 50,
+      "title": "#50: SRV: P1 9th Hammer",
+      "videoId": "joDP8ocJbjg"
+    },
+    {
+      "slug": "38-f-king-p1-fk-turns-bl-538",
+      "track": "bl",
+      "code": "bl-538",
+      "module": 5,
+      "position": 38,
+      "title": "#38: F King: P1 FK turns",
+      "videoId": "AQeX4iLsKVQ"
+    },
+    {
+      "slug": "37-a-king-p1-the-ak-bl-537",
+      "track": "bl",
+      "code": "bl-537",
+      "module": 5,
+      "position": 37,
+      "title": "#37: A King: P1 The AK",
+      "videoId": "sTtrsX_lW7I"
+    },
+    {
+      "slug": "exploring-melodic-sequences-mt-013",
+      "track": "mt",
+      "code": "mt-013",
+      "module": 0,
+      "position": 13,
+      "title": "Exploring Melodic Sequences",
+      "videoId": "L2Ryrr6txwA"
+    },
+    {
+      "slug": "best-chord-changes-to-work-on-b1-702",
+      "track": "b1",
+      "code": "b1-702",
+      "module": 7,
+      "position": 2,
+      "title": "Best Chord Changes To Work On",
+      "videoId": "SNYMRZqopi8"
+    },
+    {
+      "slug": "playing-power-chords-mt-311",
+      "track": "mt",
+      "code": "mt-311",
+      "module": 3,
+      "position": 11,
+      "title": "Playing Power Chords"
+    },
+    {
+      "slug": "forcing-the-changes-bc-145",
+      "track": "bc",
+      "code": "bc-145",
+      "module": 1,
+      "position": 45,
+      "title": "Forcing The Changes",
+      "videoId": "d3H-GbHduvU"
+    },
+    {
+      "slug": "traditional-note-names-mt-396",
+      "track": "mt",
+      "code": "mt-396",
+      "module": 3,
+      "position": 96,
+      "title": "Traditional Note Names"
+    },
+    {
+      "slug": "open-strings-between-changes-b1-704",
+      "track": "b1",
+      "code": "b1-704",
+      "module": 7,
+      "position": 4,
+      "title": "Open Strings Between Changes",
+      "videoId": "p-Rj4svEyrA"
+    },
+    {
+      "slug": "dynamic-improvements-b1-706",
+      "track": "b1",
+      "code": "b1-706",
+      "module": 7,
+      "position": 6,
+      "title": "Dynamic Improvements",
+      "videoId": "mP4knhljqj0"
+    },
+    {
+      "slug": "key-signatures-recognition-mt-307",
+      "track": "mt",
+      "code": "mt-307",
+      "module": 3,
+      "position": 7,
+      "title": "Key Signatures Recognition"
+    },
+    {
+      "slug": "blues-turnarounds-last-2-bars-bl-209",
+      "track": "bl",
+      "code": "bl-209",
+      "module": 2,
+      "position": 9,
+      "title": "Blues Turnarounds (Last 2 Bars!)",
+      "videoId": "bTVAFfbkKqU"
+    },
+    {
+      "slug": "recalling-major-scale-notes-mt-309",
+      "track": "mt",
+      "code": "mt-309",
+      "module": 3,
+      "position": 9,
+      "title": "Recalling Major Scale Notes"
+    },
+    {
       "slug": "easy-songs-for-stage-1-bc-117",
       "track": "bc",
       "code": "bc-117",
       "module": 1,
       "position": 17,
       "title": "Easy Songs for Stage 1",
-      "fromSlug": true
-    },
-    {
-      "slug": "justin-ear-training-exercises-s1-bc-118",
-      "track": "bc",
-      "code": "bc-118",
-      "module": 1,
-      "position": 18,
-      "title": "Justin Ear Training Exercises S1",
       "fromSlug": true
     },
     {
@@ -4508,37 +4062,13 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
-      "slug": "50-srv-p1-9th-hammer-bl-550",
-      "track": "bl",
-      "code": "bl-550",
-      "module": 5,
-      "position": 50,
-      "title": "#50: SRV: P1 9th Hammer",
-      "videoId": "joDP8ocJbjg"
-    },
-    {
-      "slug": "traditional-note-names-mt-396",
-      "track": "mt",
-      "code": "mt-396",
-      "module": 3,
-      "position": 96,
-      "title": "Traditional Note Names"
-    },
-    {
-      "slug": "key-signatures-recognition-mt-307",
-      "track": "mt",
-      "code": "mt-307",
-      "module": 3,
-      "position": 7,
-      "title": "Key Signatures Recognition"
-    },
-    {
-      "slug": "recalling-major-scale-notes-mt-309",
-      "track": "mt",
-      "code": "mt-309",
-      "module": 3,
-      "position": 9,
-      "title": "Recalling Major Scale Notes"
+      "slug": "3nps-major-scale-pattern-7-sc-277",
+      "track": "sc",
+      "code": "sc-277",
+      "module": 2,
+      "position": 77,
+      "title": "3NPS Major Scale Pattern 7",
+      "videoId": "CfR69EMKALE"
     },
     {
       "slug": "why-are-you-studying-theory-mt-398",
@@ -4549,94 +4079,85 @@ export const CURRICULUM: Curriculum = {
       "title": "Why are you studying theory?"
     },
     {
-      "slug": "56-robben-poor-lick-bl-556",
+      "slug": "mini-blues-7th-chord-grips-bl-208",
       "track": "bl",
-      "code": "bl-556",
-      "module": 5,
-      "position": 56,
-      "title": "#56: Robben: Poor Lick",
-      "videoId": "Ux9X2sGNwd4"
-    },
-    {
-      "slug": "38-f-king-p1-fk-turns-bl-538",
-      "track": "bl",
-      "code": "bl-538",
-      "module": 5,
-      "position": 38,
-      "title": "#38: F King: P1 FK turns",
-      "videoId": "AQeX4iLsKVQ"
-    },
-    {
-      "slug": "17-f-king-p1-classic-pk-bl-517",
-      "track": "bl",
-      "code": "bl-517",
-      "module": 5,
-      "position": 17,
-      "title": "#17: F King: P1 ClassiC PK",
-      "videoId": "aZ8Jn39z1jo"
-    },
-    {
-      "slug": "53-tbw-p1-repeat-bend-bl-553",
-      "track": "bl",
-      "code": "bl-553",
-      "module": 5,
-      "position": 53,
-      "title": "#53: TBW: P1 repeat bend",
-      "videoId": "l0Kuceybz3Y"
-    },
-    {
-      "slug": "the-amin-chord-bc-121",
-      "track": "bc",
-      "code": "bc-121",
-      "module": 1,
-      "position": 21,
-      "title": "The Amin Chord",
-      "videoId": "kV_EABwevy4"
-    },
-    {
-      "slug": "52-f-king-p2-trip-3-s-bl-552",
-      "track": "bl",
-      "code": "bl-552",
-      "module": 5,
-      "position": 52,
-      "title": "#52: F King: P2 trip 3's",
-      "videoId": "TnGqBzfDwNE"
-    },
-    {
-      "slug": "19-clapton-p3-country-blue-bl-519",
-      "track": "bl",
-      "code": "bl-519",
-      "module": 5,
-      "position": 19,
-      "title": "#19: Clapton: P3 Country Blue",
-      "videoId": "xM8oe_ATtEI"
-    },
-    {
-      "slug": "module-3-practice-routine-b1-311",
-      "track": "b1",
-      "code": "b1-311",
-      "module": 3,
-      "position": 11,
-      "title": "Module 3 Practice Routine",
-      "videoId": "qckkf38Xk2Y"
-    },
-    {
-      "slug": "all-about-capos-b1-308",
-      "track": "b1",
-      "code": "b1-308",
-      "module": 3,
+      "code": "bl-208",
+      "module": 2,
       "position": 8,
-      "title": "All About Capos",
-      "videoId": "A4mEBSFn-7w"
+      "title": "Mini Blues 7th Chord Grips",
+      "videoId": "jEhozS3oKX4"
     },
     {
-      "slug": "all-about-up-strums-b1-306",
+      "slug": "12-bar-riff-ideas-approach-chords-bl-204",
+      "track": "bl",
+      "code": "bl-204",
+      "module": 2,
+      "position": 4,
+      "title": "12 Bar Riff Ideas & Approach Chords",
+      "videoId": "WtKIA6I5Blg"
+    },
+    {
+      "slug": "the-d-minor-chord-b1-402",
       "track": "b1",
-      "code": "b1-306",
-      "module": 3,
-      "position": 6,
-      "title": "All About Up Strums",
-      "videoId": "JrIxNphnhrM"
+      "code": "b1-402",
+      "module": 4,
+      "position": 2,
+      "title": "The D Minor Chord",
+      "videoId": "8mFF8NYVdtI"
+    },
+    {
+      "slug": "5-blues-licks-from-pattern-3-bl-603",
+      "track": "bl",
+      "code": "bl-603",
+      "module": 6,
+      "position": 3,
+      "title": "5 Blues Licks from Pattern 3",
+      "videoId": "r-czdtlbpBE"
+    },
+    {
+      "slug": "how-to-hold-your-guitar-b1-102",
+      "track": "b1",
+      "code": "b1-102",
+      "module": 1,
+      "position": 2,
+      "title": "How To Hold Your Guitar",
+      "videoId": "MlV6WhM9YhE"
+    },
+    {
+      "slug": "justin-ear-training-exercises-s1-bc-118",
+      "track": "bc",
+      "code": "bc-118",
+      "module": 1,
+      "position": 18,
+      "title": "Justin Ear Training Exercises S1",
+      "fromSlug": true
+    },
+    {
+      "slug": "stage-1-practice-schedule-bc-119",
+      "track": "bc",
+      "code": "bc-119",
+      "module": 1,
+      "position": 19,
+      "title": "Stage 1 Practice Schedule",
+      "videoId": "TnCQiY-BhXs"
+    },
+    {
+      "slug": "12-bar-chord-sequence-variations-bl-203",
+      "track": "bl",
+      "code": "bl-203",
+      "module": 2,
+      "position": 3,
+      "title": "12 Bar Chord Sequence Variations",
+      "videoId": "oEbgIiiHw5g"
+    },
+    {
+      "slug": "quick-start-guitar-5-minute-overview-bc-101",
+      "track": "bc",
+      "code": "bc-101",
+      "module": 1,
+      "position": 1,
+      "title": "Quick Start Guitar - 5 Minute Overview",
+      "videoId": "hJmw_ldmTMM"
     },
     {
       "slug": "notes-chord-relationships-sc-160",
@@ -4648,390 +4169,40 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
-      "slug": "counting-ands-b1-305",
-      "track": "b1",
-      "code": "b1-305",
-      "module": 3,
-      "position": 5,
-      "title": "Counting Ands",
-      "videoId": "U1TMGzcbbLE"
-    },
-    {
-      "slug": "51-a-king-p3-up-to-v-bl-551",
+      "slug": "mixing-major-minor-pentatonics-bl-804",
       "track": "bl",
-      "code": "bl-551",
-      "module": 5,
-      "position": 51,
-      "title": "#51: A King: P3 up to V",
-      "videoId": "lbqtexDWoco"
-    },
-    {
-      "slug": "23-a-king-p2-call-it-bl-523",
-      "track": "bl",
-      "code": "bl-523",
-      "module": 5,
-      "position": 23,
-      "title": "#23: A King: P2 Call It",
-      "videoId": "9xaUbpQ5J64"
-    },
-    {
-      "slug": "the-a-minor-chord-b1-303",
-      "track": "b1",
-      "code": "b1-303",
-      "module": 3,
-      "position": 3,
-      "title": "The A Minor Chord",
-      "videoId": "1Y2veGF9s44"
-    },
-    {
-      "slug": "learning-to-sing-for-ear-training-et-003",
-      "track": "et",
-      "code": "et-003",
-      "module": 0,
-      "position": 3,
-      "title": "Learning To Sing (For Ear Training)",
-      "videoId": "Y3c0wbdBjZI"
-    },
-    {
-      "slug": "how-to-use-anchor-fingers-b1-109",
-      "track": "b1",
-      "code": "b1-109",
-      "module": 1,
-      "position": 9,
-      "title": "How To Use Anchor Fingers",
-      "videoId": "Se__aa_k-ms"
-    },
-    {
-      "slug": "seven-nation-army-b1-309",
-      "track": "b1",
-      "code": "b1-309",
-      "module": 3,
-      "position": 9,
-      "title": "Seven Nation Army",
-      "videoId": "2LEO5xc9rEA"
-    },
-    {
-      "slug": "the-e-minor-chord-b1-302",
-      "track": "b1",
-      "code": "b1-302",
-      "module": 3,
-      "position": 2,
-      "title": "The E Minor Chord",
-      "videoId": "lqcd3jVysXY"
-    },
-    {
-      "slug": "songs-for-module-3-b1-310",
-      "track": "b1",
-      "code": "b1-310",
-      "module": 3,
-      "position": 10,
-      "title": "Songs For Module 3",
-      "videoId": "XxICTF-NIZ8"
-    },
-    {
-      "slug": "10-f-king-p2-repeater-flick-bl-510",
-      "track": "bl",
-      "code": "bl-510",
-      "module": 5,
-      "position": 10,
-      "title": "#10: F King: P2 Repeater Flick",
-      "videoId": "8h4uikyTjGw"
-    },
-    {
-      "slug": "54-clapton-p3-clap-on-iv-bl-554",
-      "track": "bl",
-      "code": "bl-554",
-      "module": 5,
-      "position": 54,
-      "title": "#54: Clapton: P3 Clap On IV",
-      "videoId": "0YojdA7vaQs"
-    },
-    {
-      "slug": "how-to-test-your-ears-et-104",
-      "track": "et",
-      "code": "et-104",
-      "module": 1,
+      "code": "bl-804",
+      "module": 8,
       "position": 4,
-      "title": "How To Test Your Ears",
-      "videoId": "-GBX_bcTPBo"
+      "title": "Mixing Major & Minor Pentatonics",
+      "videoId": "Fi1BWmg3JUk"
     },
     {
-      "slug": "grade-3-test-answers-et-305",
-      "track": "et",
-      "code": "et-305",
-      "module": 3,
+      "slug": "starting-arpeggios-in-the-blues-bl-805",
+      "track": "bl",
+      "code": "bl-805",
+      "module": 8,
       "position": 5,
-      "title": "Grade 3 Test Answers",
-      "fromSlug": true
+      "title": "Starting Arpeggios In The Blues",
+      "videoId": "D-GpiMgq-EU"
     },
     {
-      "slug": "the-8-essential-beginner-chord-grips-b1-701",
-      "track": "b1",
-      "code": "b1-701",
-      "module": 7,
-      "position": 1,
-      "title": "The 8 Essential Beginner Chord Grips",
-      "videoId": "lRJ_d3PqPIQ"
+      "slug": "dominant-7-arpeggio-blues-licks-bl-806",
+      "track": "bl",
+      "code": "bl-806",
+      "module": 8,
+      "position": 6,
+      "title": "Dominant 7 Arpeggio Blues Licks",
+      "videoId": "Oa7wQLjpuA8"
     },
     {
-      "slug": "the-major-scale-pattern-3-sc-253",
-      "track": "sc",
-      "code": "sc-253",
+      "slug": "creating-blues-riffs-bl-210",
+      "track": "bl",
+      "code": "bl-210",
       "module": 2,
-      "position": 53,
-      "title": "The Major Scale: Pattern 3",
-      "videoId": "jrVE2T9CyjU"
-    },
-    {
-      "slug": "what-are-minor-chords-b1-301",
-      "track": "b1",
-      "code": "b1-301",
-      "module": 3,
-      "position": 1,
-      "title": "What Are Minor Chords",
-      "videoId": "pbIqk8tTdbw"
-    },
-    {
-      "slug": "easy-songs-for-stage-3-bc-137",
-      "track": "bc",
-      "code": "bc-137",
-      "module": 1,
-      "position": 37,
-      "title": "Easy Songs for Stage 3",
-      "fromSlug": true
-    },
-    {
-      "slug": "how-to-pass-grade-1-b1-710",
-      "track": "b1",
-      "code": "b1-710",
-      "module": 7,
       "position": 10,
-      "title": "How to PASS Grade 1",
-      "videoId": "BI3S9xSK8Iw"
-    },
-    {
-      "slug": "13-bb-king-that-slide-bl-513",
-      "track": "bl",
-      "code": "bl-513",
-      "module": 5,
-      "position": 13,
-      "title": "#13: BB King: That Slide!",
-      "videoId": "KJQxU70NHDo"
-    },
-    {
-      "slug": "43-srv-p1-b9-hammer-bl-543",
-      "track": "bl",
-      "code": "bl-543",
-      "module": 5,
-      "position": 43,
-      "title": "#43: SRV: P1 b9 hammer",
-      "videoId": "-6G7oxAw9lg"
-    },
-    {
-      "slug": "dynamic-improvements-b1-706",
-      "track": "b1",
-      "code": "b1-706",
-      "module": 7,
-      "position": 6,
-      "title": "Dynamic Improvements",
-      "videoId": "mP4knhljqj0"
-    },
-    {
-      "slug": "28-robben-rob-s-class-bl-528",
-      "track": "bl",
-      "code": "bl-528",
-      "module": 5,
-      "position": 28,
-      "title": "#28: Robben: Rob's Class",
-      "videoId": "IvoV7P1t2b0"
-    },
-    {
-      "slug": "02-a-king-p1-p2-linker-bl-502",
-      "track": "bl",
-      "code": "bl-502",
-      "module": 5,
-      "position": 2,
-      "title": "#02: A King: P1 & P2 Linker",
-      "videoId": "WhlQSCEJcK8"
-    },
-    {
-      "slug": "37-a-king-p1-the-ak-bl-537",
-      "track": "bl",
-      "code": "bl-537",
-      "module": 5,
-      "position": 37,
-      "title": "#37: A King: P1 The AK",
-      "videoId": "sTtrsX_lW7I"
-    },
-    {
-      "slug": "27-bb-king-four-over-1-bl-527",
-      "track": "bl",
-      "code": "bl-527",
-      "module": 5,
-      "position": 27,
-      "title": "#27: BB King: Four Over 1",
-      "videoId": "TTApwU5Iq2Q"
-    },
-    {
-      "slug": "pmt-workbook-grade-1-mt-000",
-      "track": "mt",
-      "code": "mt-000",
-      "module": 0,
-      "position": 0,
-      "title": "Pmt Workbook Grade 1",
-      "fromSlug": true
-    },
-    {
-      "slug": "capo-the-chords-to-best-suit-your-voice-ch-701",
-      "track": "ch",
-      "code": "ch-701",
-      "module": 7,
-      "position": 1,
-      "title": "Capo The Chords To Best Suit Your Voice",
-      "videoId": "Ky8uOOfI2tY"
-    },
-    {
-      "slug": "module-5-practice-b1-508",
-      "track": "b1",
-      "code": "b1-508",
-      "module": 5,
-      "position": 8,
-      "title": "Module 5 Practice",
-      "videoId": "7rQGeJwWfe0"
-    },
-    {
-      "slug": "riff-come-as-you-are-b1-506",
-      "track": "b1",
-      "code": "b1-506",
-      "module": 5,
-      "position": 6,
-      "title": "RIFF Come As You Are",
-      "videoId": "0EVHt__Ktnw"
-    },
-    {
-      "slug": "understanding-music-notes-b1-504",
-      "track": "b1",
-      "code": "b1-504",
-      "module": 5,
-      "position": 4,
-      "title": "Understanding Music Notes",
-      "videoId": "Ah-brqdByAY"
-    },
-    {
-      "slug": "exploring-strumming-b1-503",
-      "track": "b1",
-      "code": "b1-503",
-      "module": 5,
-      "position": 3,
-      "title": "Exploring Strumming",
-      "videoId": "0EbliWAtnw0"
-    },
-    {
-      "slug": "one-minute-changes-stage-6-bc-162",
-      "track": "bc",
-      "code": "bc-162",
-      "module": 1,
-      "position": 62,
-      "title": "One Minute Changes (Stage 6)",
-      "videoId": "J_xZ5h_Yb4s"
-    },
-    {
-      "slug": "songs-for-module-5-b1-507",
-      "track": "b1",
-      "code": "b1-507",
-      "module": 5,
-      "position": 7,
-      "title": "Songs For Module 5",
-      "videoId": "k3PM4Qc0N-s"
-    },
-    {
-      "slug": "the-c-chord-b1-501",
-      "track": "b1",
-      "code": "b1-501",
-      "module": 5,
-      "position": 1,
-      "title": "The C Chord",
-      "videoId": "f18EV2dr008"
-    },
-    {
-      "slug": "rhythm-guitar-basics-4-bc-165",
-      "track": "bc",
-      "code": "bc-165",
-      "module": 1,
-      "position": 65,
-      "title": "Rhythm Guitar Basics 4",
-      "videoId": "iT2FK3IzWPE"
-    },
-    {
-      "slug": "04-tbw-p1-long-frame-bl-504",
-      "track": "bl",
-      "code": "bl-504",
-      "module": 5,
-      "position": 4,
-      "title": "#04: TBW: P1 Long Frame",
-      "videoId": "Rufil2V2VPk"
-    },
-    {
-      "slug": "the-major-7th-interval-et-302",
-      "track": "et",
-      "code": "et-302",
-      "module": 3,
-      "position": 2,
-      "title": "The Major 7th Interval",
-      "videoId": "_rUQtJDJBAE"
-    },
-    {
-      "slug": "the-f-maj7-chord-bc-142",
-      "track": "bc",
-      "code": "bc-142",
-      "module": 1,
-      "position": 42,
-      "title": "The F Maj7 Chord",
-      "videoId": "TZ4ITPLIzBc"
-    },
-    {
-      "slug": "ukulele-open-chords-part-2-uk-003",
-      "track": "uk",
-      "code": "uk-003",
-      "module": 0,
-      "position": 3,
-      "title": "Ukulele Open Chords [Part 2]",
-      "videoId": "2n_CA7wdTMg"
-    },
-    {
-      "slug": "one-minute-changes-stage-4-bc-144",
-      "track": "bc",
-      "code": "bc-144",
-      "module": 1,
-      "position": 44,
-      "title": "One Minute Changes - Stage 4",
-      "videoId": "p_zzSYEtY-U"
-    },
-    {
-      "slug": "using-my-practice-assistant-b1-117",
-      "track": "b1",
-      "code": "b1-117",
-      "module": 1,
-      "position": 17,
-      "title": "Using My Practice Assistant",
-      "videoId": "IE5HWnrP9Wk"
-    },
-    {
-      "slug": "30-a-king-p2-st-to-m3-bl-530",
-      "track": "bl",
-      "code": "bl-530",
-      "module": 5,
-      "position": 30,
-      "title": "#30: A King: P2 ST to M3",
-      "videoId": "wNF5bH984_M"
-    },
-    {
-      "slug": "power-chord-theory-mt-310",
-      "track": "mt",
-      "code": "mt-310",
-      "module": 3,
-      "position": 10,
-      "title": "Power Chord Theory"
+      "title": "Creating Blues Riffs",
+      "videoId": "Ar8IHjEaee0"
     },
     {
       "slug": "12-bar-blues-in-12-keys-bl-201",
@@ -5043,109 +4214,85 @@ export const CURRICULUM: Curriculum = {
       "videoId": "E6X80uAzqFQ"
     },
     {
-      "slug": "one-string-major-scales-mt-303",
-      "track": "mt",
-      "code": "mt-303",
-      "module": 3,
-      "position": 3,
-      "title": "One String Major Scales"
+      "slug": "the-e-chord-bc-113",
+      "track": "bc",
+      "code": "bc-113",
+      "module": 1,
+      "position": 13,
+      "title": "The E Chord",
+      "videoId": "8H393ryDkuY"
     },
     {
-      "slug": "easy-songs-for-stage-7-bc-177",
-      "track": "bc",
-      "code": "bc-177",
+      "slug": "your-own-chord-book-mt-204",
+      "track": "mt",
+      "code": "mt-204",
+      "module": 2,
+      "position": 4,
+      "title": "Your Own Chord Book",
+      "videoId": "2o3w2gvhYPM"
+    },
+    {
+      "slug": "major-scale-pattern-1-im-113",
+      "track": "im",
+      "code": "im-113",
       "module": 1,
-      "position": 77,
-      "title": "Easy Songs for Stage 7",
+      "position": 13,
+      "title": "Major Scale Pattern 1",
+      "videoId": "DtaRQoXtIOs"
+    },
+    {
+      "slug": "easy-songs-for-stage-3-bc-137",
+      "track": "bc",
+      "code": "bc-137",
+      "module": 1,
+      "position": 37,
+      "title": "Easy Songs for Stage 3",
       "fromSlug": true
     },
     {
-      "slug": "ukulele-quick-easy-4-chords-many-songs-uk-001",
-      "track": "uk",
-      "code": "uk-001",
+      "slug": "minor-pentatonic-picking-exercise-bc-185",
+      "track": "bc",
+      "code": "bc-185",
+      "module": 1,
+      "position": 85,
+      "title": "Minor Pentatonic Picking Exercise",
+      "videoId": "c0alXyaLTC4"
+    },
+    {
+      "slug": "justin-ear-training-exercises-s8-bc-188",
+      "track": "bc",
+      "code": "bc-188",
+      "module": 1,
+      "position": 88,
+      "title": "Justin Ear Training Exercises S8",
+      "fromSlug": true
+    },
+    {
+      "slug": "pmt-workbook-grade-2-mt-001",
+      "track": "mt",
+      "code": "mt-001",
       "module": 0,
       "position": 1,
-      "title": "Ukulele Quick & Easy! 4 Chords & Many Songs",
-      "videoId": "7Qh2JQwkhjk"
-    },
-    {
-      "slug": "double-sharps-double-flats-naturals-mt-397",
-      "track": "mt",
-      "code": "mt-397",
-      "module": 3,
-      "position": 97,
-      "title": "Double Sharps, Double Flats & Naturals"
-    },
-    {
-      "slug": "mark-knopfler-style-fast-arpeggio-technique-te-800",
-      "track": "te",
-      "code": "te-800",
-      "module": 8,
-      "position": 0,
-      "title": "Mark Knopfler Style Fast Arpeggio Technique",
-      "videoId": "vuwS3WU5u5E"
-    },
-    {
-      "slug": "before-you-start-learning-modes-mt-722",
-      "track": "mt",
-      "code": "mt-722",
-      "module": 7,
-      "position": 22,
-      "title": "Before You Start Learning Modes..."
-    },
-    {
-      "slug": "grade-1-test-answers-et-106",
-      "track": "et",
-      "code": "et-106",
-      "module": 1,
-      "position": 6,
-      "title": "Grade 1 Test Answers",
+      "title": "Pmt Workbook Grade 2",
       "fromSlug": true
     },
     {
-      "slug": "scale-comparison-chart-sc-150",
-      "track": "sc",
-      "code": "sc-150",
+      "slug": "one-minute-changes-stage-8-bc-182",
+      "track": "bc",
+      "code": "bc-182",
       "module": 1,
-      "position": 50,
-      "title": "Scale Comparison Chart",
-      "fromSlug": true
+      "position": 82,
+      "title": "One Minute Changes (Stage 8)",
+      "videoId": "0lSd3QEy2do"
     },
     {
-      "slug": "forcing-chord-changes-b1-606",
-      "track": "b1",
-      "code": "b1-606",
-      "module": 6,
-      "position": 6,
-      "title": "Forcing Chord Changes",
-      "videoId": "d9YRzCF5A9M"
-    },
-    {
-      "slug": "one-minute-changes-f4-im-142",
-      "track": "im",
-      "code": "im-142",
+      "slug": "power-chords-2-bc-186",
+      "track": "bc",
+      "code": "bc-186",
       "module": 1,
-      "position": 42,
-      "title": "One Minute Changes (F4)",
-      "videoId": "w5RG1yQat_Q"
-    },
-    {
-      "slug": "songs-for-intermediate-foundation-4-im-147",
-      "track": "im",
-      "code": "im-147",
-      "module": 1,
-      "position": 47,
-      "title": "Songs for Intermediate Foundation 4",
-      "fromSlug": true
-    },
-    {
-      "slug": "12-bar-blues-bass-lines-im-146",
-      "track": "im",
-      "code": "im-146",
-      "module": 1,
-      "position": 46,
-      "title": "12 Bar Blues Bass Lines",
-      "videoId": "Nx9WSE4LDUA"
+      "position": 86,
+      "title": "Power Chords 2",
+      "videoId": "gV7l9AsGa7M"
     },
     {
       "slug": "using-the-blues-hybrid-scale-im-143",
@@ -5157,6 +4304,51 @@ export const CURRICULUM: Curriculum = {
       "videoId": "nIdcWySWiyc"
     },
     {
+      "slug": "pmt-workbook-grade-1-mt-000",
+      "track": "mt",
+      "code": "mt-000",
+      "module": 0,
+      "position": 0,
+      "title": "Pmt Workbook Grade 1",
+      "fromSlug": true
+    },
+    {
+      "slug": "minor-pentatonic-pattern-5-bl-608",
+      "track": "bl",
+      "code": "bl-608",
+      "module": 6,
+      "position": 8,
+      "title": "Minor Pentatonic Pattern 5",
+      "videoId": "EkiBNoWD39M"
+    },
+    {
+      "slug": "consolidation-putting-it-together-bl-613",
+      "track": "bl",
+      "code": "bl-613",
+      "module": 6,
+      "position": 13,
+      "title": "Consolidation Putting It Together",
+      "fromSlug": true
+    },
+    {
+      "slug": "raking-in-the-blues-bl-612",
+      "track": "bl",
+      "code": "bl-612",
+      "module": 6,
+      "position": 12,
+      "title": "Raking in the Blues",
+      "fromSlug": true
+    },
+    {
+      "slug": "minor-pentatonic-pattern-4-bl-605",
+      "track": "bl",
+      "code": "bl-605",
+      "module": 6,
+      "position": 5,
+      "title": "Minor Pentatonic Pattern 4",
+      "videoId": "CszE9HfyYcQ"
+    },
+    {
       "slug": "a-shape-dom7-min7-chords-im-141",
       "track": "im",
       "code": "im-141",
@@ -5164,6 +4356,130 @@ export const CURRICULUM: Curriculum = {
       "position": 41,
       "title": "A Shape Dom7 & Min7 Chords",
       "videoId": "Z5l9VL-yeUQ"
+    },
+    {
+      "slug": "intermediate-rhythm-guitar-4-im-145",
+      "track": "im",
+      "code": "im-145",
+      "module": 1,
+      "position": 45,
+      "title": "Intermediate Rhythm Guitar 4",
+      "videoId": "HnhbAvAruao"
+    },
+    {
+      "slug": "one-minute-changes-f4-im-142",
+      "track": "im",
+      "code": "im-142",
+      "module": 1,
+      "position": 42,
+      "title": "One Minute Changes (F4)",
+      "videoId": "w5RG1yQat_Q"
+    },
+    {
+      "slug": "12-bar-blues-bass-lines-im-146",
+      "track": "im",
+      "code": "im-146",
+      "module": 1,
+      "position": 46,
+      "title": "12 Bar Blues Bass Lines",
+      "videoId": "Nx9WSE4LDUA"
+    },
+    {
+      "slug": "foundation-4-practice-schedule-im-149",
+      "track": "im",
+      "code": "im-149",
+      "module": 1,
+      "position": 49,
+      "title": "Foundation 4 Practice Schedule",
+      "videoId": "oxAetuFaXqY"
+    },
+    {
+      "slug": "songs-for-intermediate-foundation-4-im-147",
+      "track": "im",
+      "code": "im-147",
+      "module": 1,
+      "position": 47,
+      "title": "Songs for Intermediate Foundation 4",
+      "fromSlug": true
+    },
+    {
+      "slug": "introduction-to-5-pattern-play-bl-601",
+      "track": "bl",
+      "code": "bl-601",
+      "module": 6,
+      "position": 1,
+      "title": "Introduction To 5 Pattern Play",
+      "videoId": "N56hX1bkmhE"
+    },
+    {
+      "slug": "easy-songs-for-stage-2-bc-127",
+      "track": "bc",
+      "code": "bc-127",
+      "module": 1,
+      "position": 27,
+      "title": "Easy Songs for Stage 2",
+      "fromSlug": true
+    },
+    {
+      "slug": "building-melodic-patterns-im-136",
+      "track": "im",
+      "code": "im-136",
+      "module": 1,
+      "position": 36,
+      "title": "Building Melodic Patterns",
+      "videoId": "4c8o2HdUuZ4"
+    },
+    {
+      "slug": "the-arpeggiator-be-afraid-bl-808",
+      "track": "bl",
+      "code": "bl-808",
+      "module": 8,
+      "position": 8,
+      "title": "The Arpeggiator [be afraid!]",
+      "videoId": "soHoP9ECmj4"
+    },
+    {
+      "slug": "major-pentatonic-study-lick-2-bl-803",
+      "track": "bl",
+      "code": "bl-803",
+      "module": 8,
+      "position": 3,
+      "title": "Major Pentatonic Study Lick 2",
+      "videoId": "BPFclO1_oNU"
+    },
+    {
+      "slug": "the-iv-chord-arpeggio-bl-807",
+      "track": "bl",
+      "code": "bl-807",
+      "module": 8,
+      "position": 7,
+      "title": "The IV Chord Arpeggio",
+      "videoId": "TAQkuJjfYxo"
+    },
+    {
+      "slug": "power-chord-theory-mt-310",
+      "track": "mt",
+      "code": "mt-310",
+      "module": 3,
+      "position": 10,
+      "title": "Power Chord Theory"
+    },
+    {
+      "slug": "one-string-major-scales-mt-303",
+      "track": "mt",
+      "code": "mt-303",
+      "module": 3,
+      "position": 3,
+      "title": "One String Major Scales"
+    },
+    {
+      "slug": "unison-bend-technique-bl-607",
+      "track": "bl",
+      "code": "bl-607",
+      "module": 6,
+      "position": 7,
+      "title": "Unison Bend Technique",
+      "videoId": "1MSnYiXMZ0g"
     },
     {
       "slug": "pinch-harmonics-squealies-te-012",
@@ -5175,13 +4491,49 @@ export const CURRICULUM: Curriculum = {
       "videoId": "5I5O8P-r5Rk"
     },
     {
-      "slug": "foundation-4-practice-schedule-im-149",
-      "track": "im",
-      "code": "im-149",
+      "slug": "easy-songs-for-stage-7-bc-177",
+      "track": "bc",
+      "code": "bc-177",
       "module": 1,
-      "position": 49,
-      "title": "Foundation 4 Practice Schedule",
-      "videoId": "oxAetuFaXqY"
+      "position": 77,
+      "title": "Easy Songs for Stage 7",
+      "fromSlug": true
+    },
+    {
+      "slug": "major-pentatonic-study-lick-1-bl-802",
+      "track": "bl",
+      "code": "bl-802",
+      "module": 8,
+      "position": 2,
+      "title": "Major Pentatonic Study Lick 1",
+      "videoId": "7gTntt9IpSk"
+    },
+    {
+      "slug": "stage-2-practice-schedule-bc-129",
+      "track": "bc",
+      "code": "bc-129",
+      "module": 1,
+      "position": 29,
+      "title": "Stage 2 Practice Schedule",
+      "videoId": "7TCz7hP2p1E"
+    },
+    {
+      "slug": "essential-slide-guitar-techniques-te-801",
+      "track": "te",
+      "code": "te-801",
+      "module": 8,
+      "position": 1,
+      "title": "Essential Slide Guitar Techniques",
+      "videoId": "GpdFe-6ydpo"
+    },
+    {
+      "slug": "adding-vibrato-to-string-bends-bl-604",
+      "track": "bl",
+      "code": "bl-604",
+      "module": 6,
+      "position": 4,
+      "title": "Adding Vibrato to String Bends",
+      "videoId": "ck2uxWh4qvo"
     },
     {
       "slug": "tapped-harmonics-te-504",
@@ -5211,15 +4563,6 @@ export const CURRICULUM: Curriculum = {
       "videoId": "02FsSd2hgfY"
     },
     {
-      "slug": "natural-harmonic-series-te-502",
-      "track": "te",
-      "code": "te-502",
-      "module": 5,
-      "position": 2,
-      "title": "Natural Harmonic Series",
-      "videoId": "v-IIWRqnT0c"
-    },
-    {
       "slug": "harp-harmonics-intro-te-506",
       "track": "te",
       "code": "te-506",
@@ -5229,31 +4572,281 @@ export const CURRICULUM: Curriculum = {
       "videoId": "3QLPZ4KEtzw"
     },
     {
-      "slug": "11-tbw-p1-chuck-stole-it-bl-511",
-      "track": "bl",
-      "code": "bl-511",
+      "slug": "natural-harmonic-series-te-502",
+      "track": "te",
+      "code": "te-502",
       "module": 5,
-      "position": 11,
-      "title": "#11: TBW: P1 Chuck Stole It!",
-      "videoId": "tydjK1LuMLU"
+      "position": 2,
+      "title": "Natural Harmonic Series",
+      "videoId": "v-IIWRqnT0c"
     },
     {
-      "slug": "3nps-major-scale-pattern-7-sc-277",
-      "track": "sc",
-      "code": "sc-277",
-      "module": 2,
-      "position": 77,
-      "title": "3NPS Major Scale Pattern 7",
-      "videoId": "CfR69EMKALE"
-    },
-    {
-      "slug": "the-blues-full-stop-the-end-bl-303",
-      "track": "bl",
-      "code": "bl-303",
+      "slug": "double-sharps-double-flats-naturals-mt-397",
+      "track": "mt",
+      "code": "mt-397",
       "module": 3,
+      "position": 97,
+      "title": "Double Sharps, Double Flats & Naturals"
+    },
+    {
+      "slug": "rhythm-guitar-basics-5-bc-175",
+      "track": "bc",
+      "code": "bc-175",
+      "module": 1,
+      "position": 75,
+      "title": "Rhythm Guitar Basics 5",
+      "videoId": "euZCDlFC0Lk"
+    },
+    {
+      "slug": "before-you-start-learning-modes-mt-722",
+      "track": "mt",
+      "code": "mt-722",
+      "module": 7,
+      "position": 22,
+      "title": "Before You Start Learning Modes..."
+    },
+    {
+      "slug": "justin-ear-training-exercises-s7-bc-178",
+      "track": "bc",
+      "code": "bc-178",
+      "module": 1,
+      "position": 78,
+      "title": "Justin Ear Training Exercises S7",
+      "fromSlug": true
+    },
+    {
+      "slug": "scale-comparison-chart-sc-150",
+      "track": "sc",
+      "code": "sc-150",
+      "module": 1,
+      "position": 50,
+      "title": "Scale Comparison Chart",
+      "fromSlug": true
+    },
+    {
+      "slug": "songs-for-intermediate-foundation-3-im-137",
+      "track": "im",
+      "code": "im-137",
+      "module": 1,
+      "position": 37,
+      "title": "Songs for Intermediate Foundation 3",
+      "fromSlug": true
+    },
+    {
+      "slug": "string-muting-techniques-im-134",
+      "track": "im",
+      "code": "im-134",
+      "module": 1,
+      "position": 34,
+      "title": "String Muting Techniques",
+      "videoId": "xARmgKQmbYw"
+    },
+    {
+      "slug": "the-perfect-4th-interval-et-102",
+      "track": "et",
+      "code": "et-102",
+      "module": 1,
+      "position": 2,
+      "title": "The Perfect 4th Interval",
+      "videoId": "2ks4XIqWRys"
+    },
+    {
+      "slug": "the-perfect-octave-interval-et-103",
+      "track": "et",
+      "code": "et-103",
+      "module": 1,
       "position": 3,
-      "title": "The Blues Full Stop. The End.",
-      "videoId": "bAWXxuAYb40"
+      "title": "The Perfect Octave Interval",
+      "videoId": "wVUDiE_tG1E"
+    },
+    {
+      "slug": "grade-1-test-answers-et-106",
+      "track": "et",
+      "code": "et-106",
+      "module": 1,
+      "position": 6,
+      "title": "Grade 1 Test Answers",
+      "fromSlug": true
+    },
+    {
+      "slug": "major-scale-one-finger-solos-im-133",
+      "track": "im",
+      "code": "im-133",
+      "module": 1,
+      "position": 33,
+      "title": "Major Scale One Finger Solos",
+      "videoId": "dttvWSRjQkE"
+    },
+    {
+      "slug": "how-to-test-your-ears-et-104",
+      "track": "et",
+      "code": "et-104",
+      "module": 1,
+      "position": 4,
+      "title": "How To Test Your Ears",
+      "videoId": "-GBX_bcTPBo"
+    },
+    {
+      "slug": "ukulele-quick-easy-4-chords-many-songs-uk-001",
+      "track": "uk",
+      "code": "uk-001",
+      "module": 0,
+      "position": 1,
+      "title": "Ukulele Quick & Easy! 4 Chords & Many Songs",
+      "videoId": "7Qh2JQwkhjk"
+    },
+    {
+      "slug": "one-minute-changes-f3-im-132",
+      "track": "im",
+      "code": "im-132",
+      "module": 1,
+      "position": 32,
+      "title": "One Minute Changes (F3)",
+      "videoId": "xzytcTKpMWE"
+    },
+    {
+      "slug": "play-the-same-chords-using-different-grips-ch-702",
+      "track": "ch",
+      "code": "ch-702",
+      "module": 7,
+      "position": 2,
+      "title": "Play the same chords using different grips",
+      "videoId": "bprDRabVdb4"
+    },
+    {
+      "slug": "demystify-the-minor-scales-1-2-sc-130",
+      "track": "sc",
+      "code": "sc-130",
+      "module": 1,
+      "position": 30,
+      "title": "Demystify The Minor Scales [1/2]",
+      "videoId": "68jbE1_7A7U"
+    },
+    {
+      "slug": "e-chord-anchors-tricks-b1-202",
+      "track": "b1",
+      "code": "b1-202",
+      "module": 2,
+      "position": 2,
+      "title": "E Chord Anchors & Tricks",
+      "videoId": "McSfLPmXcLw"
+    },
+    {
+      "slug": "tapping-your-foot-b1-203",
+      "track": "b1",
+      "code": "b1-203",
+      "module": 2,
+      "position": 3,
+      "title": "Tapping Your Foot",
+      "videoId": "RPBtKqD6ddQ"
+    },
+    {
+      "slug": "the-major-scale-pattern-2-sc-252",
+      "track": "sc",
+      "code": "sc-252",
+      "module": 2,
+      "position": 52,
+      "title": "The Major Scale: Pattern 2",
+      "videoId": "cnnXJXGtZGk"
+    },
+    {
+      "slug": "the-major-scale-pattern-3-sc-253",
+      "track": "sc",
+      "code": "sc-253",
+      "module": 2,
+      "position": 53,
+      "title": "The Major Scale: Pattern 3",
+      "videoId": "jrVE2T9CyjU"
+    },
+    {
+      "slug": "44-a-king-p1-jump-p2-bl-544",
+      "track": "bl",
+      "code": "bl-544",
+      "module": 5,
+      "position": 44,
+      "title": "#44: A King: P1 Jump P2",
+      "videoId": "FPs8RIttB6U"
+    },
+    {
+      "slug": "power-chords-1-bc-172",
+      "track": "bc",
+      "code": "bc-172",
+      "module": 1,
+      "position": 72,
+      "title": "Power Chords 1",
+      "videoId": "trf80-R41X8"
+    },
+    {
+      "slug": "stage-7-practice-schedule-bc-179",
+      "track": "bc",
+      "code": "bc-179",
+      "module": 1,
+      "position": 79,
+      "title": "Stage 7 Practice Schedule",
+      "videoId": "XLxL9kWYygI"
+    },
+    {
+      "slug": "module-2-practice-routine-b1-209",
+      "track": "b1",
+      "code": "b1-209",
+      "module": 2,
+      "position": 9,
+      "title": "Module 2 Practice Routine",
+      "videoId": "gI8iH5Mg7LQ"
+    },
+    {
+      "slug": "peter-gunn-theme-b1-207",
+      "track": "b1",
+      "code": "b1-207",
+      "module": 2,
+      "position": 7,
+      "title": "Peter Gunn Theme",
+      "videoId": "FZ9mkji_8PU"
+    },
+    {
+      "slug": "chord-changes-for-one-b1-206",
+      "track": "b1",
+      "code": "b1-206",
+      "module": 2,
+      "position": 6,
+      "title": "Chord Changes For One",
+      "videoId": "7VzPzBsm4sU"
+    },
+    {
+      "slug": "songs-for-module-2-b1-208",
+      "track": "b1",
+      "code": "b1-208",
+      "module": 2,
+      "position": 8,
+      "title": "Songs For Module 2",
+      "videoId": "p5Ln39q8cj4"
+    },
+    {
+      "slug": "strumming-mechanics-b1-204",
+      "track": "b1",
+      "code": "b1-204",
+      "module": 2,
+      "position": 4,
+      "title": "Strumming Mechanics",
+      "videoId": "c5pipuvb-EM"
+    },
+    {
+      "slug": "strumming-on-the-beat-b1-205",
+      "track": "b1",
+      "code": "b1-205",
+      "module": 2,
+      "position": 5,
+      "title": "Strumming On The Beat",
+      "videoId": "JRhwvxl46-8"
+    },
+    {
+      "slug": "songs-for-intermediate-foundation-5-im-157",
+      "track": "im",
+      "code": "im-157",
+      "module": 1,
+      "position": 57,
+      "title": "Songs for Intermediate Foundation 5",
+      "fromSlug": true
     },
     {
       "slug": "the-major-3rd-interval-et-202",
@@ -5274,40 +4867,31 @@ export const CURRICULUM: Curriculum = {
       "videoId": "Miaeg9a0jiA"
     },
     {
-      "slug": "14-robben-p1-fast-trips-bl-514",
-      "track": "bl",
-      "code": "bl-514",
-      "module": 5,
-      "position": 14,
-      "title": "#14: Robben: P1 Fast Trips",
-      "videoId": "TQX48u37Xao"
-    },
-    {
-      "slug": "minor-pentatonic-pattern-5-bl-608",
-      "track": "bl",
-      "code": "bl-608",
-      "module": 6,
-      "position": 8,
-      "title": "Minor Pentatonic Pattern 5",
-      "videoId": "EkiBNoWD39M"
-    },
-    {
-      "slug": "44-a-king-p1-jump-p2-bl-544",
-      "track": "bl",
-      "code": "bl-544",
-      "module": 5,
-      "position": 44,
-      "title": "#44: A King: P1 Jump P2",
-      "videoId": "FPs8RIttB6U"
-    },
-    {
-      "slug": "how-to-minimize-finger-pain-b1-113",
+      "slug": "all-about-up-strums-b1-306",
       "track": "b1",
-      "code": "b1-113",
+      "code": "b1-306",
+      "module": 3,
+      "position": 6,
+      "title": "All About Up Strums",
+      "videoId": "JrIxNphnhrM"
+    },
+    {
+      "slug": "a7-d7-e7-chords-bc-151",
+      "track": "bc",
+      "code": "bc-151",
       "module": 1,
-      "position": 13,
-      "title": "How To Minimize Finger Pain",
-      "videoId": "V0Q0buwLvVA"
+      "position": 51,
+      "title": "A7, D7, E7 Chords",
+      "videoId": "DtPbCSZgKMM"
+    },
+    {
+      "slug": "counting-ands-b1-305",
+      "track": "b1",
+      "code": "b1-305",
+      "module": 3,
+      "position": 5,
+      "title": "Counting Ands",
+      "videoId": "U1TMGzcbbLE"
     },
     {
       "slug": "12-bar-blues-in-every-key-tr-202",
@@ -5327,51 +4911,6 @@ export const CURRICULUM: Curriculum = {
       "title": "A Shape Major To Minor"
     },
     {
-      "slug": "californication-riff-b2-908",
-      "track": "b2",
-      "code": "b2-908",
-      "module": 9,
-      "position": 8,
-      "title": "Californication Riff",
-      "videoId": "emFaTjKbBIQ"
-    },
-    {
-      "slug": "how-to-tune-a-guitar-for-beginners-bc-109",
-      "track": "bc",
-      "code": "bc-109",
-      "module": 1,
-      "position": 9,
-      "title": "How To Tune A Guitar For Beginners",
-      "videoId": "Q3I1wRc0ikw"
-    },
-    {
-      "slug": "46-tbw-p1-16s-dom-bl-546",
-      "track": "bl",
-      "code": "bl-546",
-      "module": 5,
-      "position": 46,
-      "title": "#46: TBW: P1 16s Dom",
-      "videoId": "cHMGUDXLb1k"
-    },
-    {
-      "slug": "3nps-major-scale-pattern-1-sc-271",
-      "track": "sc",
-      "code": "sc-271",
-      "module": 2,
-      "position": 71,
-      "title": "3NPS Major Scale Pattern 1",
-      "videoId": "q_UYtj-1nvQ"
-    },
-    {
-      "slug": "48-bb-king-slide-to-blue-bl-548",
-      "track": "bl",
-      "code": "bl-548",
-      "module": 5,
-      "position": 48,
-      "title": "#48: BB King: Slide To Blue",
-      "videoId": "TVTyPeNUUqs"
-    },
-    {
       "slug": "sussing-out-some-new-sounds-mt-620",
       "track": "mt",
       "code": "mt-620",
@@ -5380,13 +4919,13 @@ export const CURRICULUM: Curriculum = {
       "title": "Sussing Out Some New Sounds"
     },
     {
-      "slug": "major-scale-pattern-1-im-113",
-      "track": "im",
-      "code": "im-113",
-      "module": 1,
-      "position": 13,
-      "title": "Major Scale Pattern 1",
-      "videoId": "DtaRQoXtIOs"
+      "slug": "the-major-7th-interval-et-302",
+      "track": "et",
+      "code": "et-302",
+      "module": 3,
+      "position": 2,
+      "title": "The Major 7th Interval",
+      "videoId": "_rUQtJDJBAE"
     },
     {
       "slug": "naming-the-beasts-mt-613",
@@ -5446,49 +4985,49 @@ export const CURRICULUM: Curriculum = {
       "videoId": "QDT7dgBF6Fc"
     },
     {
-      "slug": "strumming-on-the-beat-b1-205",
+      "slug": "module-4-practice-routine-b1-408",
       "track": "b1",
-      "code": "b1-205",
-      "module": 2,
-      "position": 5,
-      "title": "Strumming On The Beat",
-      "videoId": "JRhwvxl46-8"
+      "code": "b1-408",
+      "module": 4,
+      "position": 8,
+      "title": "Module 4 Practice Routine",
+      "videoId": "wZ15h9ryY5E"
     },
     {
-      "slug": "chord-changes-for-one-b1-206",
-      "track": "b1",
-      "code": "b1-206",
-      "module": 2,
+      "slug": "the-major-6th-interval-et-301",
+      "track": "et",
+      "code": "et-301",
+      "module": 3,
+      "position": 1,
+      "title": "The Major 6th Interval",
+      "videoId": "UfLemACbGU4"
+    },
+    {
+      "slug": "the-mental-fretboard-development-et-303",
+      "track": "et",
+      "code": "et-303",
+      "module": 3,
+      "position": 3,
+      "title": "The Mental Fretboard Development",
+      "videoId": "v9b7bHZmIUM"
+    },
+    {
+      "slug": "grade-3-quickfire-test-et-306",
+      "track": "et",
+      "code": "et-306",
+      "module": 3,
       "position": 6,
-      "title": "Chord Changes For One",
-      "videoId": "7VzPzBsm4sU"
+      "title": "Grade 3 Quickfire Test",
+      "videoId": "ijH3TSyUktI"
     },
     {
-      "slug": "module-2-practice-routine-b1-209",
+      "slug": "songs-for-module-4-b1-407",
       "track": "b1",
-      "code": "b1-209",
-      "module": 2,
-      "position": 9,
-      "title": "Module 2 Practice Routine",
-      "videoId": "gI8iH5Mg7LQ"
-    },
-    {
-      "slug": "peter-gunn-theme-b1-207",
-      "track": "b1",
-      "code": "b1-207",
-      "module": 2,
+      "code": "b1-407",
+      "module": 4,
       "position": 7,
-      "title": "Peter Gunn Theme",
-      "videoId": "FZ9mkji_8PU"
-    },
-    {
-      "slug": "strumming-mechanics-b1-204",
-      "track": "b1",
-      "code": "b1-204",
-      "module": 2,
-      "position": 4,
-      "title": "Strumming Mechanics",
-      "videoId": "c5pipuvb-EM"
+      "title": "Songs For Module 4",
+      "videoId": "CWL_O9kR_b0"
     },
     {
       "slug": "basic-chord-chart-writing-tr-302",
@@ -5500,13 +5039,130 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
-      "slug": "the-7-amazing-benefits-of-ear-training-et-001",
-      "track": "et",
-      "code": "et-001",
-      "module": 0,
-      "position": 1,
-      "title": "The 7 Amazing Benefits of Ear Training",
-      "videoId": "wMQCdE2Pepc"
+      "slug": "23-a-king-p2-call-it-bl-523",
+      "track": "bl",
+      "code": "bl-523",
+      "module": 5,
+      "position": 23,
+      "title": "#23: A King: P2 Call It",
+      "videoId": "9xaUbpQ5J64"
+    },
+    {
+      "slug": "55-bb-king-bb-big-bend-bl-555",
+      "track": "bl",
+      "code": "bl-555",
+      "module": 5,
+      "position": 55,
+      "title": "#55: BB King: BB Big Bend",
+      "videoId": "A6McWqcftt8"
+    },
+    {
+      "slug": "how-to-play-the-a-chord-b1-108",
+      "track": "b1",
+      "code": "b1-108",
+      "module": 1,
+      "position": 8,
+      "title": "How To Play The A Chord",
+      "videoId": "1X2rW5ATdLQ"
+    },
+    {
+      "slug": "bars-strumming-on-1-b1-111",
+      "track": "b1",
+      "code": "b1-111",
+      "module": 1,
+      "position": 11,
+      "title": "Bars & Strumming On 1",
+      "videoId": "n45PDizCRLw"
+    },
+    {
+      "slug": "using-my-practice-assistant-b1-117",
+      "track": "b1",
+      "code": "b1-117",
+      "module": 1,
+      "position": 17,
+      "title": "Using My Practice Assistant",
+      "videoId": "IE5HWnrP9Wk"
+    },
+    {
+      "slug": "when-to-move-on-from-module-1-b1-118",
+      "track": "b1",
+      "code": "b1-118",
+      "module": 1,
+      "position": 18,
+      "title": "When to move on from Module 1?",
+      "videoId": "-SAo7bvQzmA"
+    },
+    {
+      "slug": "how-to-strum-the-correct-strings-b1-112",
+      "track": "b1",
+      "code": "b1-112",
+      "module": 1,
+      "position": 12,
+      "title": "How To Strum The Correct Strings",
+      "videoId": "72MEHvT9JV4"
+    },
+    {
+      "slug": "how-to-play-the-d-chord-b1-105",
+      "track": "b1",
+      "code": "b1-105",
+      "module": 1,
+      "position": 5,
+      "title": "How To Play The D Chord",
+      "videoId": "QkrIZBLZEXw"
+    },
+    {
+      "slug": "californication-riff-b2-908",
+      "track": "b2",
+      "code": "b2-908",
+      "module": 9,
+      "position": 8,
+      "title": "Californication Riff",
+      "videoId": "emFaTjKbBIQ"
+    },
+    {
+      "slug": "your-chord-book-b2-904",
+      "track": "b2",
+      "code": "b2-904",
+      "module": 9,
+      "position": 4,
+      "title": "YOUR Chord Book",
+      "videoId": "nkn7i3shkKk"
+    },
+    {
+      "slug": "ups-to-the-all-down-16ths-b2-906",
+      "track": "b2",
+      "code": "b2-906",
+      "module": 9,
+      "position": 6,
+      "title": "Ups To The All Down (16ths)",
+      "videoId": "NEVXie3LRaU"
+    },
+    {
+      "slug": "pinky-workout-b2-907",
+      "track": "b2",
+      "code": "b2-907",
+      "module": 9,
+      "position": 7,
+      "title": "Pinky Workout",
+      "videoId": "xWAgPIQhNg0"
+    },
+    {
+      "slug": "c-major-scale-b2-905",
+      "track": "b2",
+      "code": "b2-905",
+      "module": 9,
+      "position": 5,
+      "title": "C Major Scale",
+      "videoId": "i4zGDoRvn5o"
+    },
+    {
+      "slug": "f-chord-cheats-b2-902",
+      "track": "b2",
+      "code": "b2-902",
+      "module": 9,
+      "position": 2,
+      "title": "F Chord Cheats",
+      "videoId": "DcIXL7IU7Ko"
     },
     {
       "slug": "key-signatures-on-staves-mt-306",
@@ -5517,31 +5173,31 @@ export const CURRICULUM: Curriculum = {
       "title": "Key Signatures On Staves"
     },
     {
-      "slug": "foot-tapping-bc-126",
+      "slug": "how-to-tune-a-guitar-for-beginners-bc-109",
       "track": "bc",
-      "code": "bc-126",
+      "code": "bc-109",
       "module": 1,
-      "position": 26,
-      "title": "Foot tapping",
-      "videoId": "1c8UdW8qokI"
+      "position": 9,
+      "title": "How To Tune A Guitar For Beginners",
+      "videoId": "Q3I1wRc0ikw"
     },
     {
-      "slug": "the-dmin-chord-bc-123",
-      "track": "bc",
-      "code": "bc-123",
-      "module": 1,
-      "position": 23,
-      "title": "The Dmin Chord",
-      "videoId": "EovReq8aAgU"
+      "slug": "how-to-pass-grade-1-b1-710",
+      "track": "b1",
+      "code": "b1-710",
+      "module": 7,
+      "position": 10,
+      "title": "How to PASS Grade 1",
+      "videoId": "BI3S9xSK8Iw"
     },
     {
-      "slug": "the-emin-chord-bc-122",
-      "track": "bc",
-      "code": "bc-122",
-      "module": 1,
-      "position": 22,
-      "title": "The Emin Chord",
-      "videoId": "Hfm4-yOI6oA"
+      "slug": "04-tbw-p1-long-frame-bl-504",
+      "track": "bl",
+      "code": "bl-504",
+      "module": 5,
+      "position": 4,
+      "title": "#04: TBW: P1 Long Frame",
+      "videoId": "Rufil2V2VPk"
     },
     {
       "slug": "the-harmonic-minor-scale-mt-572",
@@ -5568,31 +5224,6 @@ export const CURRICULUM: Curriculum = {
       "title": "The Blues Scale"
     },
     {
-      "slug": "deeper-into-arpeggios-mt-580",
-      "track": "mt",
-      "code": "mt-580",
-      "module": 5,
-      "position": 80,
-      "title": "Deeper Into Arpeggios",
-      "fromSlug": true
-    },
-    {
-      "slug": "the-minor-pentatonic-scale-mt-561",
-      "track": "mt",
-      "code": "mt-561",
-      "module": 5,
-      "position": 61,
-      "title": "The Minor Pentatonic Scale"
-    },
-    {
-      "slug": "the-natural-minor-mt-571",
-      "track": "mt",
-      "code": "mt-571",
-      "module": 5,
-      "position": 71,
-      "title": "The Natural Minor"
-    },
-    {
       "slug": "listening-to-the-bass-note-tr-201",
       "track": "tr",
       "code": "tr-201",
@@ -5602,22 +5233,13 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
-      "slug": "picking-individual-strings-bc-166",
-      "track": "bc",
-      "code": "bc-166",
-      "module": 1,
-      "position": 66,
-      "title": "Picking Individual Strings",
-      "videoId": "Z1ETtvhPqdQ"
-    },
-    {
-      "slug": "stage-6-practice-schedule-bc-169",
-      "track": "bc",
-      "code": "bc-169",
-      "module": 1,
-      "position": 69,
-      "title": "Stage 6 Practice Schedule",
-      "videoId": "_NrUvgrrkL0"
+      "slug": "chuck-berry-style-ru-300",
+      "track": "ru",
+      "code": "ru-300",
+      "module": 3,
+      "position": 0,
+      "title": "Chuck Berry Style",
+      "videoId": "rQErI9pwaDw"
     },
     {
       "slug": "3nps-major-scale-pattern-4-sc-274",
@@ -5629,15 +5251,6 @@ export const CURRICULUM: Curriculum = {
       "videoId": "MUnN1htnI40"
     },
     {
-      "slug": "the-major-scale-why-and-how-sc-202",
-      "track": "sc",
-      "code": "sc-202",
-      "module": 2,
-      "position": 2,
-      "title": "The Major Scale: Why and How",
-      "videoId": "LmbMnc2vpFg"
-    },
-    {
       "slug": "the-major-2nd-interval-et-201",
       "track": "et",
       "code": "et-201",
@@ -5647,22 +5260,103 @@ export const CURRICULUM: Curriculum = {
       "videoId": "3AYKQyALBIM"
     },
     {
-      "slug": "03-f-king-p2-chro-from-4-bl-503",
-      "track": "bl",
-      "code": "bl-503",
-      "module": 5,
-      "position": 3,
-      "title": "#03: F King: P2 Chro from 4",
-      "videoId": "FJVD_FO4R9I"
+      "slug": "the-major-scale-why-and-how-sc-202",
+      "track": "sc",
+      "code": "sc-202",
+      "module": 2,
+      "position": 2,
+      "title": "The Major Scale: Why and How",
+      "videoId": "LmbMnc2vpFg"
     },
     {
-      "slug": "the-pause-tr-104",
-      "track": "tr",
-      "code": "tr-104",
+      "slug": "vibrato-whole-arm-style-te-104",
+      "track": "te",
+      "code": "te-104",
       "module": 1,
       "position": 4,
-      "title": "The Pause",
-      "videoId": "ISRujlvFho8"
+      "title": "Vibrato (Whole Arm Style)",
+      "videoId": "GoP37ge1rFU"
+    },
+    {
+      "slug": "eric-clapton-style-ru-200",
+      "track": "ru",
+      "code": "ru-200",
+      "module": 2,
+      "position": 0,
+      "title": "Eric Clapton Style",
+      "videoId": "-_gC2V_nbK8"
+    },
+    {
+      "slug": "correct-thumb-placement-on-the-neck-te-109",
+      "track": "te",
+      "code": "te-109",
+      "module": 1,
+      "position": 9,
+      "title": "Correct Thumb Placement On The Neck",
+      "videoId": "zQuHqY83mD0"
+    },
+    {
+      "slug": "jimi-hendrix-style-ru-400",
+      "track": "ru",
+      "code": "ru-400",
+      "module": 4,
+      "position": 0,
+      "title": "Jimi Hendrix Style",
+      "videoId": "_PVjcIO4MT4"
+    },
+    {
+      "slug": "stevie-ray-vaughan-style-ru-500",
+      "track": "ru",
+      "code": "ru-500",
+      "module": 5,
+      "position": 0,
+      "title": "Stevie Ray Vaughan Style",
+      "videoId": "kfjXp4KTTY8"
+    },
+    {
+      "slug": "how-to-use-justin-s-song-app-b1-115",
+      "track": "b1",
+      "code": "b1-115",
+      "module": 1,
+      "position": 15,
+      "title": "How To Use Justin's Song App",
+      "videoId": "kLYT2B8gyzQ"
+    },
+    {
+      "slug": "how-to-use-anchor-fingers-b1-109",
+      "track": "b1",
+      "code": "b1-109",
+      "module": 1,
+      "position": 9,
+      "title": "How To Use Anchor Fingers",
+      "videoId": "Se__aa_k-ms"
+    },
+    {
+      "slug": "string-bending-technique-te-106",
+      "track": "te",
+      "code": "te-106",
+      "module": 1,
+      "position": 6,
+      "title": "String Bending Technique",
+      "videoId": "xGl0urYSuug"
+    },
+    {
+      "slug": "10-very-easy-songs-to-play-on-the-ukulele-uk-300",
+      "track": "uk",
+      "code": "uk-300",
+      "module": 3,
+      "position": 0,
+      "title": "10 Very Easy Songs to Play on the Ukulele",
+      "videoId": "SpeVF75HZqY"
+    },
+    {
+      "slug": "2020-ukulele-buyers-guide-uk-667",
+      "track": "uk",
+      "code": "uk-667",
+      "module": 6,
+      "position": 67,
+      "title": "2020 Ukulele Buyers Guide",
+      "videoId": "AcRVyQQ0IxY"
     },
     {
       "slug": "how-to-get-started-ru-051",
@@ -5683,40 +5377,67 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
-      "slug": "songs-for-module-8-b2-807",
+      "slug": "all-stop-mute-b2-903",
       "track": "b2",
-      "code": "b2-807",
-      "module": 8,
-      "position": 7,
-      "title": "Songs For Module 8",
-      "videoId": "WMPpiwWq3Yg"
+      "code": "b2-903",
+      "module": 9,
+      "position": 3,
+      "title": "All Stop Mute",
+      "videoId": "Xhg6xXD8lR8"
     },
     {
-      "slug": "rhythm-guitar-basics-3-bc-156",
-      "track": "bc",
-      "code": "bc-156",
-      "module": 1,
-      "position": 56,
-      "title": "Rhythm Guitar Basics 3",
-      "videoId": "T-R3qPK2MMk"
+      "slug": "chords-in-keys-b2-910",
+      "track": "b2",
+      "code": "b2-910",
+      "module": 9,
+      "position": 10,
+      "title": "Chords In Keys",
+      "videoId": "q_0X6b_MFGw"
     },
     {
-      "slug": "31-f-king-p1-chro-3rds-bl-531",
+      "slug": "module-9-practice-schedule-b2-911",
+      "track": "b2",
+      "code": "b2-911",
+      "module": 9,
+      "position": 11,
+      "title": "Module 9 Practice Schedule",
+      "videoId": "8sxiIhOXQiQ"
+    },
+    {
+      "slug": "songs-for-module-9-b2-909",
+      "track": "b2",
+      "code": "b2-909",
+      "module": 9,
+      "position": 9,
+      "title": "Songs For Module 9",
+      "videoId": "dmqsX8tQRHY"
+    },
+    {
+      "slug": "the-f-chord-b2-901",
+      "track": "b2",
+      "code": "b2-901",
+      "module": 9,
+      "position": 1,
+      "title": "The F Chord",
+      "videoId": "4cR1sa1_d_8"
+    },
+    {
+      "slug": "how-to-read-guitar-tab-mt-202",
+      "track": "mt",
+      "code": "mt-202",
+      "module": 2,
+      "position": 2,
+      "title": "How To Read Guitar TAB",
+      "videoId": "i10y_ZuOfjk"
+    },
+    {
+      "slug": "32-tbw-jazzy-pent-bl-532",
       "track": "bl",
-      "code": "bl-531",
+      "code": "bl-532",
       "module": 5,
-      "position": 31,
-      "title": "#31: F King: P1 Chro 3rds",
-      "videoId": "jvENnKTOtdM"
-    },
-    {
-      "slug": "power-chords-1-bc-172",
-      "track": "bc",
-      "code": "bc-172",
-      "module": 1,
-      "position": 72,
-      "title": "Power Chords 1",
-      "videoId": "trf80-R41X8"
+      "position": 32,
+      "title": "#32: TBW: Jazzy Pent",
+      "videoId": "waYMjFTL7Ew"
     },
     {
       "slug": "major-scale-basic-improvisation-im-123",
@@ -5728,6 +5449,87 @@ export const CURRICULUM: Curriculum = {
       "videoId": "wEMMddpcIe0"
     },
     {
+      "slug": "11-tbw-p1-chuck-stole-it-bl-511",
+      "track": "bl",
+      "code": "bl-511",
+      "module": 5,
+      "position": 11,
+      "title": "#11: TBW: P1 Chuck Stole It!",
+      "videoId": "tydjK1LuMLU"
+    },
+    {
+      "slug": "16-a-king-iv-chord-out-bl-516",
+      "track": "bl",
+      "code": "bl-516",
+      "module": 5,
+      "position": 16,
+      "title": "#16: A King: IV chord out",
+      "videoId": "gSpQn2sqwKQ"
+    },
+    {
+      "slug": "33-clapton-p1-clapturn-bl-533",
+      "track": "bl",
+      "code": "bl-533",
+      "module": 5,
+      "position": 33,
+      "title": "#33: Clapton: P1 Clapturn",
+      "videoId": "CeB-7up-Sh8"
+    },
+    {
+      "slug": "using-a-capo-bc-163",
+      "track": "bc",
+      "code": "bc-163",
+      "module": 1,
+      "position": 63,
+      "title": "Using a Capo",
+      "videoId": "Y22MT3etzwM"
+    },
+    {
+      "slug": "35-robben-fancy-blue-bl-535",
+      "track": "bl",
+      "code": "bl-535",
+      "module": 5,
+      "position": 35,
+      "title": "#35: Robben: Fancy Blue",
+      "videoId": "x9XSagMuT48"
+    },
+    {
+      "slug": "stage-6-practice-schedule-bc-169",
+      "track": "bc",
+      "code": "bc-169",
+      "module": 1,
+      "position": 69,
+      "title": "Stage 6 Practice Schedule",
+      "videoId": "_NrUvgrrkL0"
+    },
+    {
+      "slug": "riff-come-as-you-are-b1-506",
+      "track": "b1",
+      "code": "b1-506",
+      "module": 5,
+      "position": 6,
+      "title": "RIFF Come As You Are",
+      "videoId": "0EVHt__Ktnw"
+    },
+    {
+      "slug": "3nps-major-scale-pattern-1-sc-271",
+      "track": "sc",
+      "code": "sc-271",
+      "module": 2,
+      "position": 71,
+      "title": "3NPS Major Scale Pattern 1",
+      "videoId": "q_UYtj-1nvQ"
+    },
+    {
+      "slug": "songs-for-module-5-b1-507",
+      "track": "b1",
+      "code": "b1-507",
+      "module": 5,
+      "position": 7,
+      "title": "Songs For Module 5",
+      "videoId": "k3PM4Qc0N-s"
+    },
+    {
       "slug": "guitar-strumming-tips-b1-502",
       "track": "b1",
       "code": "b1-502",
@@ -5735,6 +5537,24 @@ export const CURRICULUM: Curriculum = {
       "position": 2,
       "title": "Guitar Strumming Tips",
       "videoId": "CjM5fyXoV8w"
+    },
+    {
+      "slug": "the-c-chord-b1-501",
+      "track": "b1",
+      "code": "b1-501",
+      "module": 5,
+      "position": 1,
+      "title": "The C Chord",
+      "videoId": "f18EV2dr008"
+    },
+    {
+      "slug": "01-srv-p1-flat-5-slide-bl-501",
+      "track": "bl",
+      "code": "bl-501",
+      "module": 5,
+      "position": 1,
+      "title": "#01: SRV: P1 Flat 5 Slide",
+      "videoId": "gi2YGvOz9is"
     },
     {
       "slug": "dog-walks-guitar-talks-an-idea-bl-001",
@@ -5746,22 +5566,49 @@ export const CURRICULUM: Curriculum = {
       "videoId": "v3SyFm2pQxw"
     },
     {
-      "slug": "26-clapton-p1-third-play-bl-526",
+      "slug": "54-clapton-p3-clap-on-iv-bl-554",
       "track": "bl",
-      "code": "bl-526",
+      "code": "bl-554",
       "module": 5,
-      "position": 26,
-      "title": "#26: Clapton: P1 Third Play",
-      "videoId": "Cji7z3fd4_4"
+      "position": 54,
+      "title": "#54: Clapton: P3 Clap On IV",
+      "videoId": "0YojdA7vaQs"
     },
     {
-      "slug": "power-chord-shifts-palm-mutes-bc-192",
-      "track": "bc",
-      "code": "bc-192",
-      "module": 1,
-      "position": 92,
-      "title": "Power Chord Shifts & Palm Mutes",
-      "videoId": "QJO5vYO4_8I"
+      "slug": "43-srv-p1-b9-hammer-bl-543",
+      "track": "bl",
+      "code": "bl-543",
+      "module": 5,
+      "position": 43,
+      "title": "#43: SRV: P1 b9 hammer",
+      "videoId": "-6G7oxAw9lg"
+    },
+    {
+      "slug": "53-tbw-p1-repeat-bend-bl-553",
+      "track": "bl",
+      "code": "bl-553",
+      "module": 5,
+      "position": 53,
+      "title": "#53: TBW: P1 repeat bend",
+      "videoId": "l0Kuceybz3Y"
+    },
+    {
+      "slug": "52-f-king-p2-trip-3-s-bl-552",
+      "track": "bl",
+      "code": "bl-552",
+      "module": 5,
+      "position": 52,
+      "title": "#52: F King: P2 trip 3's",
+      "videoId": "TnGqBzfDwNE"
+    },
+    {
+      "slug": "47-clapton-p2-claptic-bl-547",
+      "track": "bl",
+      "code": "bl-547",
+      "module": 5,
+      "position": 47,
+      "title": "#47: Clapton: P2 Claptic",
+      "videoId": "i1C0bnX33Dc"
     },
     {
       "slug": "introduction-to-minor-scales-mt-570",
@@ -5780,183 +5627,85 @@ export const CURRICULUM: Curriculum = {
       "title": "Playing The Major Pentatonic"
     },
     {
-      "slug": "5-blues-licks-from-pattern-3-bl-603",
+      "slug": "34-bb-king-maj6-end-bl-534",
       "track": "bl",
-      "code": "bl-603",
-      "module": 6,
-      "position": 3,
-      "title": "5 Blues Licks from Pattern 3",
-      "videoId": "r-czdtlbpBE"
-    },
-    {
-      "slug": "stage-2-practice-schedule-bc-129",
-      "track": "bc",
-      "code": "bc-129",
-      "module": 1,
-      "position": 29,
-      "title": "Stage 2 Practice Schedule",
-      "videoId": "7TCz7hP2p1E"
-    },
-    {
-      "slug": "12-clapton-p1-16-classic-bl-512",
-      "track": "bl",
-      "code": "bl-512",
+      "code": "bl-534",
       "module": 5,
-      "position": 12,
-      "title": "#12: Clapton: P1 16 classic",
-      "videoId": "xy0Qgo_P3JU"
+      "position": 34,
+      "title": "#34: BB King: Maj6 End",
+      "videoId": "ee-tUI0HiS8"
     },
     {
-      "slug": "super-helpful-vocal-exercise-et-203",
-      "track": "et",
-      "code": "et-203",
-      "module": 2,
-      "position": 3,
-      "title": "Super Helpful Vocal Exercise",
-      "videoId": "FfS7i7SAni0"
+      "slug": "13-bb-king-that-slide-bl-513",
+      "track": "bl",
+      "code": "bl-513",
+      "module": 5,
+      "position": 13,
+      "title": "#13: BB King: That Slide!",
+      "videoId": "KJQxU70NHDo"
     },
     {
-      "slug": "consolidation-practice-tip-b1-712",
+      "slug": "feel-good-strumming-b1-705",
       "track": "b1",
-      "code": "b1-712",
+      "code": "b1-705",
       "module": 7,
-      "position": 12,
-      "title": "Consolidation Practice Tip"
+      "position": 5,
+      "title": "Feel Good Strumming",
+      "videoId": "36cR8twdq7Q"
     },
     {
-      "slug": "open-strings-between-changes-b1-704",
-      "track": "b1",
-      "code": "b1-704",
-      "module": 7,
-      "position": 4,
-      "title": "Open Strings Between Changes",
-      "videoId": "p-Rj4svEyrA"
+      "slug": "25-tbw-p1-b7-by-semi-bl-525",
+      "track": "bl",
+      "code": "bl-525",
+      "module": 5,
+      "position": 25,
+      "title": "#25: TBW: P1 b7 By Semi",
+      "videoId": "LrRfmEbjvHw"
     },
     {
-      "slug": "easy-songs-for-stage-2-bc-127",
-      "track": "bc",
-      "code": "bc-127",
-      "module": 1,
+      "slug": "27-bb-king-four-over-1-bl-527",
+      "track": "bl",
+      "code": "bl-527",
+      "module": 5,
       "position": 27,
-      "title": "Easy Songs for Stage 2",
-      "fromSlug": true
+      "title": "#27: BB King: Four Over 1",
+      "videoId": "TTApwU5Iq2Q"
     },
     {
-      "slug": "why-do-ear-training-b1-708",
-      "track": "b1",
-      "code": "b1-708",
-      "module": 7,
+      "slug": "30-a-king-p2-st-to-m3-bl-530",
+      "track": "bl",
+      "code": "bl-530",
+      "module": 5,
+      "position": 30,
+      "title": "#30: A King: P2 ST to M3",
+      "videoId": "wNF5bH984_M"
+    },
+    {
+      "slug": "08-srv-p1-leg-pat-bl-508",
+      "track": "bl",
+      "code": "bl-508",
+      "module": 5,
       "position": 8,
-      "title": "Why do Ear Training?",
-      "videoId": "bqUdZdhHGVI"
+      "title": "#08: SRV: P1 Leg Pat",
+      "videoId": "wMcvTzM0IkY"
     },
     {
-      "slug": "easy-slash-chords-bc-191",
+      "slug": "one-minute-changes-stage-7-bc-174",
       "track": "bc",
-      "code": "bc-191",
+      "code": "bc-174",
       "module": 1,
-      "position": 91,
-      "title": "Easy Slash Chords",
-      "videoId": "ISl5udYi-ak"
+      "position": 74,
+      "title": "One Minute Changes (Stage 7)",
+      "videoId": "e30zsCGWWhc"
     },
     {
-      "slug": "basic-blues-improvisation-bc-196",
+      "slug": "the-c-chord-bc-132",
       "track": "bc",
-      "code": "bc-196",
+      "code": "bc-132",
       "module": 1,
-      "position": 96,
-      "title": "Basic Blues Improvisation",
-      "videoId": "A67-Uee4iSI"
-    },
-    {
-      "slug": "applied-fingerstyle-patterns-bc-193",
-      "track": "bc",
-      "code": "bc-193",
-      "module": 1,
-      "position": 93,
-      "title": "Applied Fingerstyle Patterns",
-      "videoId": "6KTiCkAkItM"
-    },
-    {
-      "slug": "justin-answer-page-bc-998",
-      "track": "bc",
-      "code": "bc-998",
-      "module": 9,
-      "position": 98,
-      "title": "Justin Answer Page",
-      "fromSlug": true
-    },
-    {
-      "slug": "12-bar-blues-variations-bc-194",
-      "track": "bc",
-      "code": "bc-194",
-      "module": 1,
-      "position": 94,
-      "title": "12 Bar Blues Variations",
-      "videoId": "nt133KcqZZc"
-    },
-    {
-      "slug": "justin-ear-training-exercises-s9-bc-198",
-      "track": "bc",
-      "code": "bc-198",
-      "module": 1,
-      "position": 98,
-      "title": "Justin Ear Training Exercises S9",
-      "fromSlug": true
-    },
-    {
-      "slug": "correct-thumb-placement-on-the-neck-te-109",
-      "track": "te",
-      "code": "te-109",
-      "module": 1,
-      "position": 9,
-      "title": "Correct Thumb Placement On The Neck",
-      "videoId": "zQuHqY83mD0"
-    },
-    {
-      "slug": "finger-rolling-te-108",
-      "track": "te",
-      "code": "te-108",
-      "module": 1,
-      "position": 8,
-      "title": "Finger Rolling",
-      "videoId": "P_7Rf2wqPy8"
-    },
-    {
-      "slug": "3nps-major-scale-pattern-6-sc-276",
-      "track": "sc",
-      "code": "sc-276",
-      "module": 2,
-      "position": 76,
-      "title": "3NPS Major Scale Pattern 6",
-      "videoId": "Z3RZKqRJci0"
-    },
-    {
-      "slug": "triad-chords-1-3-ch-008",
-      "track": "ch",
-      "code": "ch-008",
-      "module": 0,
-      "position": 8,
-      "title": "Triad Chords [1/3]",
-      "videoId": "BvD1yoWfis4"
-    },
-    {
-      "slug": "caged-logic-ch-900",
-      "track": "ch",
-      "code": "ch-900",
-      "module": 9,
-      "position": 0,
-      "title": "CAGED Logic",
-      "videoId": "HcvirpUyRWw"
-    },
-    {
-      "slug": "basic-finger-workout-bc-135",
-      "track": "bc",
-      "code": "bc-135",
-      "module": 1,
-      "position": 35,
-      "title": "Basic Finger Workout",
-      "videoId": "JCo2Vvtrdvw"
+      "position": 32,
+      "title": "The C Chord",
+      "videoId": "RBYqdBqogo4"
     },
     {
       "slug": "the-g-chord-bc-131",
@@ -5968,22 +5717,300 @@ export const CURRICULUM: Curriculum = {
       "videoId": "gEzwpqmt2gc"
     },
     {
-      "slug": "demystify-the-minor-scales-1-2-sc-130",
-      "track": "sc",
-      "code": "sc-130",
+      "slug": "one-minute-changes-stage-3-bc-134",
+      "track": "bc",
+      "code": "bc-134",
       "module": 1,
-      "position": 30,
-      "title": "Demystify The Minor Scales [1/2]",
-      "videoId": "68jbE1_7A7U"
+      "position": 34,
+      "title": "One Minute Changes - Stage 3",
+      "videoId": "Ck73R_GjowE"
     },
     {
-      "slug": "01-srv-p1-flat-5-slide-bl-501",
-      "track": "bl",
-      "code": "bl-501",
-      "module": 5,
+      "slug": "names-of-open-strings-bc-133",
+      "track": "bc",
+      "code": "bc-133",
+      "module": 1,
+      "position": 33,
+      "title": "Names Of Open Strings",
+      "videoId": "rZovoQ_3Jho"
+    },
+    {
+      "slug": "super-helpful-vocal-exercise-et-203",
+      "track": "et",
+      "code": "et-203",
+      "module": 2,
+      "position": 3,
+      "title": "Super Helpful Vocal Exercise",
+      "videoId": "FfS7i7SAni0"
+    },
+    {
+      "slug": "justin-ear-training-exercises-s3-bc-138",
+      "track": "bc",
+      "code": "bc-138",
+      "module": 1,
+      "position": 38,
+      "title": "Justin Ear Training Exercises S3",
+      "fromSlug": true
+    },
+    {
+      "slug": "grade-1-ear-training-test-et-105",
+      "track": "et",
+      "code": "et-105",
+      "module": 1,
+      "position": 5,
+      "title": "Grade 1 Ear Training Test",
+      "videoId": "oFGXN7ZA8WU"
+    },
+    {
+      "slug": "air-changes-aspire-to-this-b1-703",
+      "track": "b1",
+      "code": "b1-703",
+      "module": 7,
+      "position": 3,
+      "title": "Air Changes (aspire to this!)",
+      "videoId": "9CsY2PRzt94"
+    },
+    {
+      "slug": "the-8-essential-beginner-chord-grips-b1-701",
+      "track": "b1",
+      "code": "b1-701",
+      "module": 7,
       "position": 1,
-      "title": "#01: SRV: P1 Flat 5 Slide",
-      "videoId": "gi2YGvOz9is"
+      "title": "The 8 Essential Beginner Chord Grips",
+      "videoId": "lRJ_d3PqPIQ"
+    },
+    {
+      "slug": "justin-answer-page-bc-998",
+      "track": "bc",
+      "code": "bc-998",
+      "module": 9,
+      "position": 98,
+      "title": "Justin Answer Page",
+      "fromSlug": true
+    },
+    {
+      "slug": "stage-1-one-minute-changes-bc-115",
+      "track": "bc",
+      "code": "bc-115",
+      "module": 1,
+      "position": 15,
+      "title": "Stage 1: One Minute Changes",
+      "videoId": "qXK_If0QzDM"
+    },
+    {
+      "slug": "memorize-easy-songs-b1-707",
+      "track": "b1",
+      "code": "b1-707",
+      "module": 7,
+      "position": 7,
+      "title": "Memorize Easy Songs",
+      "videoId": "Rkke83Gvndk"
+    },
+    {
+      "slug": "applied-fingerstyle-patterns-bc-193",
+      "track": "bc",
+      "code": "bc-193",
+      "module": 1,
+      "position": 93,
+      "title": "Applied Fingerstyle Patterns",
+      "videoId": "6KTiCkAkItM"
+    },
+    {
+      "slug": "12-bar-blues-variations-bc-194",
+      "track": "bc",
+      "code": "bc-194",
+      "module": 1,
+      "position": 94,
+      "title": "12 Bar Blues Variations",
+      "videoId": "nt133KcqZZc"
+    },
+    {
+      "slug": "consolidation-practice-tip-b1-712",
+      "track": "b1",
+      "code": "b1-712",
+      "module": 7,
+      "position": 12,
+      "title": "Consolidation Practice Tip"
+    },
+    {
+      "slug": "power-chord-shifts-palm-mutes-bc-192",
+      "track": "bc",
+      "code": "bc-192",
+      "module": 1,
+      "position": 92,
+      "title": "Power Chord Shifts & Palm Mutes",
+      "videoId": "QJO5vYO4_8I"
+    },
+    {
+      "slug": "basic-blues-improvisation-bc-196",
+      "track": "bc",
+      "code": "bc-196",
+      "module": 1,
+      "position": 96,
+      "title": "Basic Blues Improvisation",
+      "videoId": "A67-Uee4iSI"
+    },
+    {
+      "slug": "easy-slash-chords-bc-191",
+      "track": "bc",
+      "code": "bc-191",
+      "module": 1,
+      "position": 91,
+      "title": "Easy Slash Chords",
+      "videoId": "ISl5udYi-ak"
+    },
+    {
+      "slug": "the-d-chord-bc-111",
+      "track": "bc",
+      "code": "bc-111",
+      "module": 1,
+      "position": 11,
+      "title": "The D Chord",
+      "videoId": "yh6sPqDEZCY"
+    },
+    {
+      "slug": "why-do-ear-training-b1-708",
+      "track": "b1",
+      "code": "b1-708",
+      "module": 7,
+      "position": 8,
+      "title": "Why do Ear Training?",
+      "videoId": "bqUdZdhHGVI"
+    },
+    {
+      "slug": "using-octaves-to-find-notes-im-116",
+      "track": "im",
+      "code": "im-116",
+      "module": 1,
+      "position": 16,
+      "title": "Using Octaves To Find Notes",
+      "videoId": "wElX3v3POWU"
+    },
+    {
+      "slug": "ear-training-exercises-f1-im-118",
+      "track": "im",
+      "code": "im-118",
+      "module": 1,
+      "position": 18,
+      "title": "Ear Training Exercises (F1)",
+      "videoId": "1usL7U7a_QA"
+    },
+    {
+      "slug": "songs-for-foundation-1-im-117",
+      "track": "im",
+      "code": "im-117",
+      "module": 1,
+      "position": 17,
+      "title": "Songs for Foundation 1",
+      "fromSlug": true
+    },
+    {
+      "slug": "e-shape-barre-chord-grips-im-111",
+      "track": "im",
+      "code": "im-111",
+      "module": 1,
+      "position": 11,
+      "title": "E Shape Barre Chord Grips",
+      "videoId": "-uJP2rWbMig"
+    },
+    {
+      "slug": "introducing-16th-note-strumming-im-115",
+      "track": "im",
+      "code": "im-115",
+      "module": 1,
+      "position": 15,
+      "title": "Introducing 16th Note Strumming",
+      "videoId": "hyi4htExE9E"
+    },
+    {
+      "slug": "3nps-major-scale-pattern-6-sc-276",
+      "track": "sc",
+      "code": "sc-276",
+      "module": 2,
+      "position": 76,
+      "title": "3NPS Major Scale Pattern 6",
+      "videoId": "Z3RZKqRJci0"
+    },
+    {
+      "slug": "one-minute-changes-f1-im-112",
+      "track": "im",
+      "code": "im-112",
+      "module": 1,
+      "position": 12,
+      "title": "One Minute Changes (F1)",
+      "videoId": "Hwy78VXtCdM"
+    },
+    {
+      "slug": "minimum-movement-exercise-old-im-114",
+      "track": "im",
+      "code": "im-114",
+      "module": 1,
+      "position": 14,
+      "title": "Minimum Movement Exercise (OLD)",
+      "videoId": "jDHaLMj4Oic"
+    },
+    {
+      "slug": "triad-chords-1-3-ch-008",
+      "track": "ch",
+      "code": "ch-008",
+      "module": 0,
+      "position": 8,
+      "title": "Triad Chords [1/3]",
+      "videoId": "BvD1yoWfis4"
+    },
+    {
+      "slug": "02-a-king-p1-p2-linker-bl-502",
+      "track": "bl",
+      "code": "bl-502",
+      "module": 5,
+      "position": 2,
+      "title": "#02: A King: P1 & P2 Linker",
+      "videoId": "WhlQSCEJcK8"
+    },
+    {
+      "slug": "05-clapton-p1-doublestop-bend-bl-505",
+      "track": "bl",
+      "code": "bl-505",
+      "module": 5,
+      "position": 5,
+      "title": "#05: Clapton: P1 Doublestop Bend",
+      "videoId": "9zh_E6mjqiE"
+    },
+    {
+      "slug": "justin-ear-training-exercises-s9-bc-198",
+      "track": "bc",
+      "code": "bc-198",
+      "module": 1,
+      "position": 98,
+      "title": "Justin Ear Training Exercises S9",
+      "fromSlug": true
+    },
+    {
+      "slug": "vibrato-hand-style-te-103",
+      "track": "te",
+      "code": "te-103",
+      "module": 1,
+      "position": 3,
+      "title": "Vibrato (Hand Style)",
+      "videoId": "WNWqobkgdBA"
+    },
+    {
+      "slug": "finger-stretching-exercise-te-101",
+      "track": "te",
+      "code": "te-101",
+      "module": 1,
+      "position": 1,
+      "title": "Finger Stretching Exercise",
+      "videoId": "_Zm_ho26O2U"
+    },
+    {
+      "slug": "string-bending-vibrato-te-107",
+      "track": "te",
+      "code": "te-107",
+      "module": 1,
+      "position": 7,
+      "title": "String Bending Vibrato",
+      "videoId": "06M2-51JF80"
     },
     {
       "slug": "top-10-guitar-practice-tips-bc-030",
@@ -6029,15 +6056,6 @@ export const CURRICULUM: Curriculum = {
       "position": 4,
       "title": "8 Halloween Songs to Play on the Guitar",
       "fromSlug": true
-    },
-    {
-      "slug": "39-tbw-p1-dom-9-bl-539",
-      "track": "bl",
-      "code": "bl-539",
-      "module": 5,
-      "position": 39,
-      "title": "#39: TBW: P1 Dom 9",
-      "videoId": "71NJbszUMP0"
     },
     {
       "slug": "applied-melodic-sequences-sc-120",
@@ -6094,24 +6112,6 @@ export const CURRICULUM: Curriculum = {
       "videoId": "zzkBk8aTelA"
     },
     {
-      "slug": "06-bb-king-bb-box-1-chord-bl-506",
-      "track": "bl",
-      "code": "bl-506",
-      "module": 5,
-      "position": 6,
-      "title": "#06: BB King: BB Box 1 chord",
-      "videoId": "AtC2RpVJm2k"
-    },
-    {
-      "slug": "grade-2-ear-training-test-et-204",
-      "track": "et",
-      "code": "et-204",
-      "module": 2,
-      "position": 4,
-      "title": "Grade 2 Ear Training Test",
-      "videoId": "d-5eeFDdzhI"
-    },
-    {
       "slug": "major-7th-arpeggios-ar-001",
       "track": "ar",
       "code": "ar-001",
@@ -6119,15 +6119,6 @@ export const CURRICULUM: Curriculum = {
       "position": 1,
       "title": "Major 7th Arpeggios",
       "fromSlug": true
-    },
-    {
-      "slug": "05-clapton-p1-doublestop-bend-bl-505",
-      "track": "bl",
-      "code": "bl-505",
-      "module": 5,
-      "position": 5,
-      "title": "#05: Clapton: P1 Doublestop Bend",
-      "videoId": "9zh_E6mjqiE"
     },
     {
       "slug": "what-s-the-best-guitar-for-a-beginner-bc-010",
@@ -6139,15 +6130,6 @@ export const CURRICULUM: Curriculum = {
       "videoId": "7m4H8aIsTBQ"
     },
     {
-      "slug": "why-study-music-theory-b1-709",
-      "track": "b1",
-      "code": "b1-709",
-      "module": 7,
-      "position": 9,
-      "title": "Why study Music Theory?",
-      "videoId": "mB54nIZ-CVs"
-    },
-    {
       "slug": "stage-4-practice-schedule-bc-149",
       "track": "bc",
       "code": "bc-149",
@@ -6155,6 +6137,15 @@ export const CURRICULUM: Curriculum = {
       "position": 49,
       "title": "Stage 4 Practice Schedule",
       "videoId": "K-22wD5ZWgE"
+    },
+    {
+      "slug": "why-study-music-theory-b1-709",
+      "track": "b1",
+      "code": "b1-709",
+      "module": 7,
+      "position": 9,
+      "title": "Why study Music Theory?",
+      "videoId": "mB54nIZ-CVs"
     },
     {
       "slug": "rhythm-guitar-basics-2-bc-146",
@@ -6193,15 +6184,6 @@ export const CURRICULUM: Curriculum = {
       "videoId": "SdanPlK842o"
     },
     {
-      "slug": "55-bb-king-bb-big-bend-bl-555",
-      "track": "bl",
-      "code": "bl-555",
-      "module": 5,
-      "position": 55,
-      "title": "#55: BB King: BB Big Bend",
-      "videoId": "A6McWqcftt8"
-    },
-    {
       "slug": "minimum-movement-exercise-te-102",
       "track": "te",
       "code": "te-102",
@@ -6209,15 +6191,6 @@ export const CURRICULUM: Curriculum = {
       "position": 2,
       "title": "Minimum Movement Exercise",
       "videoId": "QvQ6sFfQjuA"
-    },
-    {
-      "slug": "08-srv-p1-leg-pat-bl-508",
-      "track": "bl",
-      "code": "bl-508",
-      "module": 5,
-      "position": 8,
-      "title": "#08: SRV: P1 Leg Pat",
-      "videoId": "wMcvTzM0IkY"
     },
     {
       "slug": "stage-3-practice-schedule-bc-139",
@@ -6245,6 +6218,15 @@ export const CURRICULUM: Curriculum = {
       "position": 1,
       "title": "The Perfect 5th Interval",
       "videoId": "8_1zZPGKPuI"
+    },
+    {
+      "slug": "03-f-king-p2-chro-from-4-bl-503",
+      "track": "bl",
+      "code": "bl-503",
+      "module": 5,
+      "position": 3,
+      "title": "#03: F King: P2 Chro from 4",
+      "videoId": "FJVD_FO4R9I"
     },
     {
       "slug": "module-7-practice-b1-711",
@@ -6328,6 +6310,33 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
+      "slug": "folk-fingerstyle-patterns-te-702",
+      "track": "te",
+      "code": "te-702",
+      "module": 7,
+      "position": 2,
+      "title": "Folk Fingerstyle Patterns",
+      "videoId": "rW9IbxIlFuo"
+    },
+    {
+      "slug": "fake-fingernails-for-guitar-players-te-701",
+      "track": "te",
+      "code": "te-701",
+      "module": 7,
+      "position": 1,
+      "title": "Fake Fingernails For Guitar Players",
+      "videoId": "1K_YtBxx1Kk"
+    },
+    {
+      "slug": "mark-knopfler-style-fast-arpeggio-technique-te-800",
+      "track": "te",
+      "code": "te-800",
+      "module": 8,
+      "position": 0,
+      "title": "Mark Knopfler Style Fast Arpeggio Technique",
+      "videoId": "vuwS3WU5u5E"
+    },
+    {
       "slug": "technique-legato-scale-playing-im-154",
       "track": "im",
       "code": "im-154",
@@ -6364,15 +6373,6 @@ export const CURRICULUM: Curriculum = {
       "videoId": "j-ljksb6oIY"
     },
     {
-      "slug": "how-to-tune-a-ukulele-uk-000",
-      "track": "uk",
-      "code": "uk-000",
-      "module": 0,
-      "position": 0,
-      "title": "How to Tune a Ukulele",
-      "videoId": "XpABVKv9PZc"
-    },
-    {
       "slug": "grade-3-quickfire-answers-et-307",
       "track": "et",
       "code": "et-307",
@@ -6382,13 +6382,13 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
-      "slug": "the-major-scale-pattern-1-sc-251",
-      "track": "sc",
-      "code": "sc-251",
-      "module": 2,
-      "position": 51,
-      "title": "The Major Scale: Pattern 1",
-      "videoId": "T84Wiid_ZfE"
+      "slug": "how-to-tune-a-ukulele-uk-000",
+      "track": "uk",
+      "code": "uk-000",
+      "module": 0,
+      "position": 0,
+      "title": "How to Tune a Ukulele",
+      "videoId": "XpABVKv9PZc"
     },
     {
       "slug": "transcribing-while-my-guitar-gently-weeps-tr-607",
@@ -6398,6 +6398,15 @@ export const CURRICULUM: Curriculum = {
       "position": 7,
       "title": "Transcribing - While My Guitar Gently Weeps",
       "videoId": "rMT1VQUZBwI"
+    },
+    {
+      "slug": "the-major-scale-pattern-1-sc-251",
+      "track": "sc",
+      "code": "sc-251",
+      "module": 2,
+      "position": 51,
+      "title": "The Major Scale: Pattern 1",
+      "videoId": "T84Wiid_ZfE"
     },
     {
       "slug": "ukulele-open-chords-part-1-uk-002",
@@ -6553,14 +6562,6 @@ export const CURRICULUM: Curriculum = {
       "videoId": "YLJPjrcoBp8"
     },
     {
-      "slug": "the-dorian-and-phrygian-modes-mt-574",
-      "track": "mt",
-      "code": "mt-574",
-      "module": 5,
-      "position": 74,
-      "title": "The Dorian and Phrygian Modes"
-    },
-    {
       "slug": "stage-2-one-minute-changes-bc-124",
       "track": "bc",
       "code": "bc-124",
@@ -6579,13 +6580,12 @@ export const CURRICULUM: Curriculum = {
       "fromSlug": true
     },
     {
-      "slug": "holding-the-guitar-b1-304",
-      "track": "b1",
-      "code": "b1-304",
-      "module": 3,
-      "position": 4,
-      "title": "Holding the Guitar",
-      "videoId": "C-mt8td1teU"
+      "slug": "the-dorian-and-phrygian-modes-mt-574",
+      "track": "mt",
+      "code": "mt-574",
+      "module": 5,
+      "position": 74,
+      "title": "The Dorian and Phrygian Modes"
     },
     {
       "slug": "dominant-7th-arpeggios-ar-003",
@@ -6759,15 +6759,6 @@ export const CURRICULUM: Curriculum = {
       "videoId": "H1mlnUVYkNs"
     },
     {
-      "slug": "major-scale-essential-information-sc-201",
-      "track": "sc",
-      "code": "sc-201",
-      "module": 2,
-      "position": 1,
-      "title": "Major Scale Essential Information",
-      "fromSlug": true
-    },
-    {
       "slug": "fartlek-subdivisions-te-401",
       "track": "te",
       "code": "te-401",
@@ -6775,6 +6766,15 @@ export const CURRICULUM: Curriculum = {
       "position": 1,
       "title": "Fartlek Subdivisions",
       "videoId": "X17Ipc2Hdr0"
+    },
+    {
+      "slug": "major-scale-essential-information-sc-201",
+      "track": "sc",
+      "code": "sc-201",
+      "module": 2,
+      "position": 1,
+      "title": "Major Scale Essential Information",
+      "fromSlug": true
     },
     {
       "slug": "quality-control-exercise-te-302",

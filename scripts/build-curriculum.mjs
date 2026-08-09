@@ -13,7 +13,7 @@
 //
 // Usage: node scripts/build-curriculum.mjs [--offline <dir>]
 
-import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'node:fs';
+import { writeFileSync, readFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -168,6 +168,95 @@ function parseVideoSitemap(xml) {
   return out;
 }
 
+/**
+ * Course structure a person captured from their own browser.
+ *
+ * The class and module pages 403 to automated clients and this script does not
+ * go around that. It does not have to: a reader looking at the page can hand
+ * over what is on it (see scripts/capture-course.js), and that closes the one
+ * real gap — which lessons belong to which module of the grades whose slugs
+ * carry no code.
+ *
+ * The rule this enforces: **the sitemap is authoritative wherever it speaks,
+ * and a capture may only fill silence.** A capture that disagrees with a lesson
+ * code fails the build rather than quietly overwriting it, because a hand
+ * capture is the less trustworthy of the two and should never win.
+ */
+function readCaptured() {
+  const dir = join(ROOT, 'curriculum/captured');
+  if (!existsSync(dir)) return [];
+  const files = readdirSync(dir).filter((f) => f.endsWith('.json'));
+  return files.map((file) => {
+    const raw = JSON.parse(readFileSync(join(dir, file), 'utf8'));
+    const where = `curriculum/captured/${file}`;
+    const fail = (msg) => { throw new Error(`${where}: ${msg}`); };
+
+    if (typeof raw.track !== 'string' || !/^[a-z][a-z0-9]$/.test(raw.track)) {
+      fail('track must be a two-character code like "b3"');
+    }
+    if (!Array.isArray(raw.modules) || !raw.modules.length) fail('modules must be a non-empty array');
+
+    const slugs = new Set();
+    for (const m of raw.modules) {
+      if (!Number.isInteger(m.number)) fail(`module ${JSON.stringify(m.title)} has no integer number`);
+      if (!Array.isArray(m.lessons) || !m.lessons.length) fail(`module ${m.number} has no lessons`);
+      for (const s of m.lessons) {
+        if (typeof s !== 'string' || !s.trim()) fail(`module ${m.number} has a lesson that is not a slug`);
+        if (slugs.has(s)) fail(`${s} is listed twice`);
+        slugs.add(s);
+      }
+    }
+    return { ...raw, file: where };
+  });
+}
+
+/**
+ * Fold captured structure into the sitemap-derived lessons.
+ *
+ * Returns a report rather than logging as it goes, so the build can print one
+ * honest summary: what was placed, what was already known, and what the capture
+ * named that the sitemap has never heard of.
+ */
+function applyCaptured(lessons, captured) {
+  const bySlug = new Map(lessons.map((l) => [l.slug, l]));
+  const report = { placed: 0, alreadyCoded: 0, unknown: [], conflicts: [] };
+
+  for (const course of captured) {
+    for (const mod of course.modules) {
+      mod.lessons.forEach((slug, index) => {
+        const lesson = bySlug.get(slug);
+        if (!lesson) {
+          report.unknown.push(`${course.file}: ${slug}`);
+          return;
+        }
+        if (lesson.code) {
+          // The sitemap already places this one. Agreeing is fine; disagreeing
+          // means one of the two is wrong and the build should stop.
+          if (lesson.track !== course.track || lesson.module !== mod.number) {
+            report.conflicts.push(
+              `${slug} is ${lesson.code} in the sitemap but ${course.track} module ${mod.number} in ${course.file}`,
+            );
+          }
+          report.alreadyCoded += 1;
+          return;
+        }
+        const position = index + 1;
+        lesson.track = course.track;
+        lesson.module = mod.number;
+        lesson.position = position;
+        lesson.code = `${course.track}-${mod.number}${String(position).padStart(2, '0')}`;
+        lesson.placedBy = 'capture';
+        report.placed += 1;
+      });
+    }
+  }
+
+  if (report.conflicts.length) {
+    throw new Error(`captured structure disagrees with the lesson codes:\n  ${report.conflicts.join('\n  ')}`);
+  }
+  return report;
+}
+
 const main = async () => {
   const [sitemap, videoSitemap] = await Promise.all([source('sitemap.xml'), source('video-sitemap.xml')]);
   const urls = parseSitemap(sitemap);
@@ -201,6 +290,21 @@ const main = async () => {
       description: video?.description ?? null,
       videoId: video?.videoId ?? null,
     });
+  }
+
+  // Fill the gaps the sitemaps genuinely cannot answer, from structure a reader
+  // captured in their own browser. Nothing here overrides a lesson code.
+  const captured = readCaptured();
+  const capturedReport = applyCaptured(lessons, captured);
+  for (const course of captured) {
+    TRACKS[course.track] ??= {
+      title: course.title ?? null,
+      stage: course.stage ?? 'any',
+      ...(Number.isInteger(course.order) ? { order: course.order } : {}),
+    };
+    for (const mod of course.modules) {
+      MODULE_NAMES[`${course.track}:${mod.number}`] ??= mod.title ?? null;
+    }
   }
 
   // Group every coded lesson under its track and module. Tracks with no entry in
@@ -399,6 +503,19 @@ const main = async () => {
   console.log(`modules              ${dataset.counts.modules}`);
   console.log(`classes              ${dataset.counts.classes}`);
   console.log(`tracks               ${dataset.tracks.length}`);
+  if (captured.length) {
+    console.log(
+      `captured             ${captured.length} file(s), ${capturedReport.placed} lessons placed, ` +
+      `${capturedReport.alreadyCoded} already coded by the sitemap`,
+    );
+    // Named rather than swallowed: a slug the sitemap has never heard of means
+    // the capture is stale or the selector picked up something that is not a
+    // lesson, and either way the reader should know.
+    for (const u of capturedReport.unknown.slice(0, 10)) console.log(`  unknown slug: ${u}`);
+    if (capturedReport.unknown.length > 10) {
+      console.log(`  ...and ${capturedReport.unknown.length - 10} more`);
+    }
+  }
   for (const t of dataset.tracks.filter((t) => t.title)) {
     const n = t.modules.reduce((sum, m) => sum + m.lessons.length, 0);
     console.log(`  ${t.title.padEnd(28)} ${String(t.modules.length).padStart(2)} modules, ${String(n).padStart(3)} lessons`);

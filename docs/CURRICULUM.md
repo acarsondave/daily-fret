@@ -123,15 +123,30 @@ code, and nothing in either sitemap says which lessons belong to it. `bc-1xx` is
 the *legacy* Beginner Course, not Grade 3. Grade 2 is coded only for modules 8
 and 9. Class-to-lesson membership is likewise only on the blocked HTML.
 
-Two routes exist that do not cross the line, and both need a decision that is
-not the build script's to make:
+### How to fill it, without going near the block
 
-1. **A YouTube Data API key.** Justin publishes every lesson on his own channel,
-   organised into playlists by grade. We now hold a lesson-to-video mapping, so
-   video-to-playlist would give grade and ordering from the author's own
-   published structure, through an official API. Needs a free Google API key.
-2. **Ask.** The course structure is a small amount of information, and Justin's
-   team can simply say what it is or point at a feed.
+A person reading the course in their own browser is not an automated client, and
+the structure is on the page in front of them. That is the whole answer, and it
+needs about a minute:
 
-Until one of those happens the dataset states what it knows and leaves Grade 3
-out rather than guessing at it.
+1. Open the class page, e.g.
+   `/classes/beginner-guitar-course-grade-three`, and expand the modules.
+2. Paste `scripts/capture-course.js` into the DevTools console. It reads the DOM
+   that is already loaded — no requests, no credentials, no automation of
+   anything the reader is not doing by hand — groups the lesson links under
+   their headings, and copies JSON to the clipboard.
+3. Save it as `curriculum/captured/b3.json` and run the build.
+
+`curriculum/captured/README.md` documents the shape. The build enforces one
+rule: **the sitemap is authoritative wherever it speaks, and a capture may only
+fill silence.** A capture that disagrees with an existing lesson code fails the
+build rather than overwriting it, because a hand capture is the less trustworthy
+of the two. Slugs the sitemap has never heard of are named in the output rather
+than dropped.
+
+Two other routes exist and were ruled out for this project: a YouTube Data API
+key (we hold lesson-to-video, so video-to-playlist would give grade and ordering
+from Justin's own published structure), and simply asking his team.
+
+Until a capture is dropped in, the dataset states what it knows and leaves Grade
+3 out rather than guessing at it. Nothing is fabricated to fill the hole.
