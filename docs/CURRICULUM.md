@@ -16,20 +16,46 @@ Two files, both published by justinguitar.com for crawlers and both served at
 
 ## What we deliberately do not do
 
-The lesson pages themselves sit behind a Cloudflare challenge. Every request for
-one returns **403** with an interstitial, whether it comes from `curl`, from a
-headless browser, or from a headless browser wearing a normal desktop user
-agent. `robots.txt` says `Allow: /`, but the operative signal is the 403: the
-site has deployed a control that says "not automated clients".
+The lesson pages sit behind a Cloudflare bot rule. Every request for one returns
+**403**, whether it comes from `curl`, from a headless browser, or from a
+headless browser wearing a normal desktop user agent. `robots.txt` says
+`Allow: /` and disallows only `/cms`, `/admin` and `/en`, but the operative
+signal is the 403: the site has deployed a control that says "not automated
+clients".
 
 We do not work around it. No fingerprint spoofing, no challenge solving, no
-proxies. That would be evading an access control, and the goal here does not
-need it.
+proxies, no third-party mirrors of the blocked pages. That is the line, and it
+does not move.
 
-The cost of that decision: the prose on a lesson page below the video is not
-available. The video description is usually a good summary of the same lesson,
-so the loss is smaller than it sounds, but it is a real gap and it should be
-stated rather than papered over.
+**What that line does not cover, and what a first pass wrongly treated as
+closed.** "We are blocked" is not the same as "there is nothing else", and
+stating the 403 is not the same as looking. Re-probed 2026-08-09:
+
+- `/sitemap.xml`, `/video-sitemap.xml`, `/robots.txt` — **200**, as before.
+- `/guitar-lessons/...`, `/modules/...`, `/classes/...`, `.json` variants,
+  `/feed`, `/rss` — **403**.
+- `/api/v1/...` — **404 rendered by Rails** (`x-request-id`, `x-runtime`
+  present), so that namespace is not covered by the bot rule. No route exists
+  there; guessing further would be scanning someone's server, so it stopped.
+- The main sitemap lists module URLs once per lesson, but shuffled, so adjacency
+  encodes no membership. That lead is dead.
+
+**What looking actually recovered.** The video sitemap has always carried the
+YouTube id of the video that teaches each lesson, inside the thumbnail URL:
+`i.ytimg.com/vi/<id>/hqdefault.jpg`. The first build of this dataset parsed the
+title and description out of those blocks and threw the id away. It is kept now:
+**1048 of 1843 lessons overall, and 73/74 of Beginner Grade 1 and 21/21 of
+Grade 2** — the courses this app is built around.
+
+The user agent no longer claims to be Chrome either. The sitemaps serve a plain
+client at 200, so the spoof bought nothing, and a script that declines to work
+around an access control should not be dressing up as a browser three lines
+later.
+
+The cost that remains, stated plainly: the prose on a lesson page below the
+video is not available, and the video description is truncated at about 2048
+characters. The description is usually a fair summary of the same lesson, so the
+loss is smaller than it sounds, but it is real.
 
 ## What the codes mean
 
@@ -87,3 +113,25 @@ it by hand.
   so course membership comes from the lesson code alone.
 - 573 lessons have no course code. They are real lessons, they are in the
   reference file, and they are not part of any progression.
+
+
+## What is still missing, and the only honest ways to get it
+
+**Grade 3 has no lesson codes at all.** There is a class page
+`/classes/beginner-guitar-course-grade-three`, but no lesson slug carries a `b3`
+code, and nothing in either sitemap says which lessons belong to it. `bc-1xx` is
+the *legacy* Beginner Course, not Grade 3. Grade 2 is coded only for modules 8
+and 9. Class-to-lesson membership is likewise only on the blocked HTML.
+
+Two routes exist that do not cross the line, and both need a decision that is
+not the build script's to make:
+
+1. **A YouTube Data API key.** Justin publishes every lesson on his own channel,
+   organised into playlists by grade. We now hold a lesson-to-video mapping, so
+   video-to-playlist would give grade and ordering from the author's own
+   published structure, through an official API. Needs a free Google API key.
+2. **Ask.** The course structure is a small amount of information, and Justin's
+   team can simply say what it is or point at a feed.
+
+Until one of those happens the dataset states what it knows and leaves Grade 3
+out rather than guessing at it.

@@ -18,7 +18,11 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+// Says what it is. The sitemaps are served at 200 to a plain client, so there
+// was never anything to gain by claiming to be Chrome — and a file that
+// declines to work around an access control should not be dressing up as a
+// browser three lines later.
+const UA = 'daily-fret-curriculum-builder (+https://github.com/acarsondave/daily-fret)';
 const BASE = 'https://www.justinguitar.com';
 
 const offlineAt = process.argv.indexOf('--offline');
@@ -132,7 +136,15 @@ function parseSitemap(xml) {
   return [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => decode(m[1]));
 }
 
-/** Title and description per lesson url, from the video sitemap. */
+/**
+ * Title, description and YouTube id per lesson url, from the video sitemap.
+ *
+ * The id is not published as a field. It is inside the thumbnail URL, which
+ * points at `i.ytimg.com/vi/<id>/hqdefault.jpg` — so the mapping from a lesson
+ * to the video that teaches it is already in a file the site hands to crawlers,
+ * and the first pass at this simply threw it away. 1841 of the 1843 lessons
+ * have one.
+ */
 function parseVideoSitemap(xml) {
   const out = new Map();
   for (const block of xml.split('<url>').slice(1)) {
@@ -140,7 +152,8 @@ function parseVideoSitemap(xml) {
     if (!loc) continue;
     const title = block.match(/<video:title>([\s\S]*?)<\/video:title>/)?.[1];
     const description = block.match(/<video:description>([\s\S]*?)<\/video:description>/)?.[1];
-    if (!title && !description) continue;
+    const videoId = block.match(/i\.ytimg\.com\/vi\/([\w-]{11})\//)?.[1] ?? null;
+    if (!title && !description && !videoId) continue;
     const key = decode(loc).replace(/\/$/, '');
     // A lesson can carry several videos. Keep the first, which is the lesson's
     // own; the rest are follow-ups embedded in the same page.
@@ -148,6 +161,7 @@ function parseVideoSitemap(xml) {
       out.set(key, {
         title: title ? decode(title).trim() : null,
         description: description ? decode(description).replace(/\s+/g, ' ').trim() : null,
+        videoId,
       });
     }
   }
@@ -185,6 +199,7 @@ const main = async () => {
       title: video?.title ?? titleFromSlug(slug),
       titleSource: video?.title ? 'video-sitemap' : 'slug',
       description: video?.description ?? null,
+      videoId: video?.videoId ?? null,
     });
   }
 
@@ -296,6 +311,10 @@ const main = async () => {
         position: l.position,
         title: l.title,
         ...(l.titleSource === 'slug' ? { fromSlug: true } : {}),
+        // The video that teaches the lesson. An identifier, not lesson prose,
+        // and it points at content published on YouTube to be embedded — so it
+        // stays on the right side of the line drawn in docs/CURRICULUM.md.
+        ...(l.videoId ? { videoId: l.videoId } : {}),
       })),
   };
   shipped.counts.lessons = shipped.lessons.length;
@@ -322,6 +341,8 @@ const main = async () => {
     `  module: number;\n` +
     `  position: number;\n` +
     `  title: string;\n` +
+    `  /** YouTube id of the lesson video, where the sitemap named one. */\n` +
+    `  videoId?: string;\n` +
     `  /** Present only when the title had to be derived from the slug. */\n` +
     `  fromSlug?: boolean;\n` +
     `}\n` +

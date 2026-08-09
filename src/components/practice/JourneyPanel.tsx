@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import clsx from 'clsx';
-import { CheckIcon, CaretDownIcon, TargetIcon, HourglassIcon, MicIcon } from '../icons';
+import { CheckIcon, CaretDownIcon, TargetIcon, HourglassIcon, MicIcon, PlayIcon } from '../icons';
 import { useStore, useUserData } from '../../store';
 import { useProgression } from '../../hooks/useProgression';
 import { nextUp, provenChords, byModule, type SkillStanding } from '../../lib/progression';
@@ -57,6 +57,26 @@ export function JourneyPanel() {
           <p className="journey-here">
             You said you are on <strong>{here.title}</strong>, module {here.module}.
           </p>
+        )}
+        {/* Until now the Journey could name the lesson and not much else. The
+            video sitemap has always carried the id of the video that teaches
+            each one; the first build of this dataset simply dropped it.
+
+            The link goes to the lesson on Justin's own site rather than
+            straight to YouTube: that is where the lesson actually lives, with
+            its prose and its tab, and this app is a practice layer on top of
+            that course, not a replacement for it. */}
+        {here && (
+          <a
+            className="journey-lesson-link"
+            href={lessonUrl(here)}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            <PlayIcon size={15} />
+            {here.videoId ? 'Watch this lesson' : 'Open this lesson'}
+            <span className="journey-lesson-host">justinguitar.com</span>
+          </a>
         )}
       </header>
 

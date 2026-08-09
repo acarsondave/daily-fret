@@ -369,3 +369,43 @@
   color: var(--accent-primary);
   border-color: rgba(56, 189, 248, 0.4);
 }
+
+/* The lesson this learner says they are on, as somewhere to actually go.
+   Quiet: it is a way out of the app to the course, not the thing the panel is
+   for, and it should not compete with the practice below it. */
+.journey-lesson-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: flex-start;
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  margin-top: var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color 0.18s, background 0.18s, color 0.18s;
+}
+
+.journey-lesson-link:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: var(--accent-glow);
+}
+
+.journey-lesson-link:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Names where the link goes before it is followed. */
+.journey-lesson-host {
+  font-weight: 500;
+  font-size: var(--text-micro);
+  color: var(--text-secondary);
+}
