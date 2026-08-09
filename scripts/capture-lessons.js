@@ -212,7 +212,7 @@
     ? ` · heap ${Math.round(performance.memory.usedJSHeapSize / 1048576)}MB`
     : '');
 
-  let done = 0, failed = 0, paid = 0, streak = 0;
+  let done = 0, failed = 0, paid = 0, streak = 0, noModule = 0;
   const failures = [];
   const link = (slug) => `${location.origin}/guitar-lessons/${slug}`;
 
@@ -227,10 +227,62 @@
     return failures.length;
   };
 
+  // --- preflight -----------------------------------------------------------
+  // Read one known lesson and check every field before spending fourteen
+  // minutes. Two full runs were wasted discovering at the end that a field was
+  // quietly absent from all 1843 records: nothing errored, every lesson looked
+  // complete, and the one thing the exercise was for was missing. A run that
+  // cannot produce what it is for should refuse to start.
+  const PROBE = 'how-to-tune-a-guitar-for-beginners-b1-101';
+  const REQUIRED = [
+    ['reference', (r) => r.reference === 'B1-101'],
+    ['title', (r) => !!r.title],
+    ['text', (r) => (r.text || '').length > 500],
+    ['video', (r) => !!r.video],
+    ['duration', (r) => !!r.duration],
+    ['module.title', (r) => !!r.module?.title],
+    ['module.label', (r) => !!r.module?.label],
+    ['module.reference', (r) => !!r.module?.reference],
+    ['module.lessonOrder', (r) => Array.isArray(r.module?.lessonOrder) && r.module.lessonOrder.length > 0],
+    ['moduleLessons', (r) => r.moduleLessons?.length > 0],
+    ['course.reference', (r) => !!r.course?.reference],
+    ['grade.position', (r) => typeof r.grade?.position === 'number'],
+  ];
+
+  console.log(`Checking ${PROBE} before starting...`);
+  let probe;
+  try {
+    probe = await read(PROBE);
+  } catch (e) {
+    console.error(`Preflight could not read the probe lesson: ${e.message}`);
+    console.error('Nothing has been captured. Fix that before re-running.');
+    return;
+  }
+  const missing = REQUIRED.filter(([, ok]) => !ok(probe)).map(([name]) => name);
+  console.log({
+    reference: probe.reference, title: probe.title, textChars: (probe.text || '').length,
+    video: probe.video, duration: probe.duration,
+    module: probe.module && `${probe.module.label} · ${probe.module.reference} · ${probe.module.title} · ${probe.module.lessonOrder?.length} lessons`,
+    course: probe.course && `${probe.course.reference} ${probe.course.title}`,
+    grade: probe.grade && `grade ${probe.grade.position} (${probe.grade.belt} belt)`,
+    moduleLessons: probe.moduleLessons?.length,
+  });
+  if (missing.length) {
+    console.error(`Preflight failed. Missing: ${missing.join(', ')}`);
+    console.error('Stopping before the run rather than finding this out in fourteen minutes.');
+    return;
+  }
+  console.log('Preflight passed. Every field the curriculum needs is present.\n');
+
   for (const slug of todo) {
     if (stopping) break;
     try {
-      await put(slug, await read(slug));
+      const rec = await read(slug);
+      // Graded lessons always belong to a module. If they stop doing so the
+      // page shape has changed under us, and finishing the run would just fill
+      // the database with holes that look like data.
+      if (!rec.module && /-(b[0-3]|im)-\d{3}$/.test(slug)) noModule += 1;
+      await put(slug, rec);
       done += 1; streak = 0;
     } catch (e) {
       if (e.paywalled) {
@@ -248,6 +300,10 @@
     }
     if ((done + failed + paid) % 25 === 0) {
       console.log(`  ${done + failed + paid}/${todo.length} · ${done} captured, ${paid} paid, ${failed} skipped${heap()}`);
+    }
+    if (noModule >= 10) {
+      console.error(`${noModule} graded lessons came back with no module. Stopping: the page shape has changed.`);
+      break;
     }
     await sleep(GAP_MS);
   }
