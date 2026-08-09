@@ -14,20 +14,26 @@
 // bypassed: it is your browser loading pages it loads anyway, one at a time,
 // with a pause between them, and this only reads what rendered.
 //
-// WHY THIS VERSION EXISTS
+// WHAT EARLIER VERSIONS GOT WRONG
 //
-// v2 ran out of memory around lesson 200 and would have hit the localStorage
-// quota around lesson 1000. Three things were wrong, all fixed here:
-//
-//   1. Each lesson page booted its YouTube and SoundCloud players inside the
-//      frame. We read text and never look at a player, so they are stripped as
-//      the page renders and never get to initialise.
-//   2. One iframe was reused for every lesson, so detached documents and their
-//      timers accumulated. Each lesson now gets its own frame, blanked and
-//      removed afterwards.
-//   3. Every lesson was held in one growing localStorage string, re-serialised
-//      on every checkpoint. Bodies now go to IndexedDB one at a time, so heap
-//      and write cost stay flat and the 5MB localStorage quota is irrelevant.
+//   1. They captured the wrong text. Taking a container's whole textContent
+//      returned the module's chapter list, the site menus and the shop blurb,
+//      with the lesson itself buried inside. Prose is now collected block by
+//      block and anything that is mostly link text is dropped, which is what
+//      separates the lesson from the furniture around it.
+//   2. Every lesson page booted its YouTube and SoundCloud players inside the
+//      frame. We read text and never look at a player, so the players are
+//      removed as the page builds them and never get to initialise.
+//   3. Memory. One frame is reused for the whole run and parked on about:blank
+//      between lessons, waited on, so each document is torn down before the
+//      next loads. Setting src and removing the element on the same tick leaks
+//      about 25MB a lesson, which is what pushed the heap past 3GB.
+//   4. Storage. Everything lived in one growing localStorage string and would
+//      have hit the 5MB quota near the end. Records go to IndexedDB one at a
+//      time now, so heap and write cost stay flat.
+//   5. Paid lessons stopped the run. A redirect to /store or /signup is a
+//      settled answer, recorded once and never retried, and it no longer counts
+//      towards the consecutive-failure stop.
 //
 // Progress survives a closed tab: paste it again and it carries on, and it
 // imports anything a v2 run already captured. It downloads lessons.json at the
@@ -64,6 +70,16 @@
   const put = (slug, data) => idb(tx('readwrite').put(data, slug));
   const allKeys = () => idb(tx('readonly').getAllKeys());
 
+  // IndexedDB is on disk and survives a reboot or a flat battery, but by
+  // default the browser may evict it under storage pressure. Asking makes it
+  // durable. Chrome usually grants this silently for a site you visit often.
+  if (navigator.storage?.persist) {
+    const durable = (await navigator.storage.persisted()) || (await navigator.storage.persist());
+    console.log(durable
+      ? 'Storage is persistent: captures survive a reboot and will not be evicted.'
+      : 'Storage is best-effort: captures survive a reboot, but run jgDump() now and then to keep a file on disk.');
+  }
+
   // Anything a v2 run already captured moves across, then its localStorage key
   // is released — that quota is what would have stopped the old run.
   const legacy = localStorage.getItem('jg-capture-v2');
@@ -84,18 +100,27 @@
   const graded = (s) => /-(b[0-3]|im)-\d{3}$/.test(s);
   slugs = [...slugs.filter(graded), ...slugs.filter((s) => !graded(s))];
 
-  const have = new Set(await allKeys());
+  // Records carry the extractor that produced them. Anything older holds the
+  // chapter list and site menus rather than the lesson, so it is re-captured
+  // rather than trusted. Without this the fix would only reach lessons nobody
+  // had visited yet, and the ones already taken would stay wrong for good.
+  const EXTRACTOR = 3;
+  const have = new Set();
+  for (const key of await allKeys()) {
+    const rec = await idb(tx('readonly').get(key));
+    if (rec?.paywalled || rec?.v === EXTRACTOR) have.add(key);
+  }
   const todo = slugs.filter((s) => !have.has(s));
+  const stale = (await allKeys()).length - have.size;
+  if (stale > 0) console.log(`${stale} lessons were captured by an older extractor and will be taken again.`);
   console.log(`${slugs.length} lessons, ${have.size} captured, ${todo.length} to go.`);
   console.log(`Roughly ${Math.round((todo.length * (GAP_MS + SETTLE_MS + 1400)) / 60000)} minutes. Leave the tab open.`);
 
   // --- rendering one lesson ------------------------------------------------
-  // The player embeds are the entire memory problem and none of them are read,
-  // so they are removed as fast as the page inserts them. Stripping while the
-  // page is still building means YouTube and SoundCloud never boot at all.
-  // Only the media players. Removing *every* iframe also killed the page's chat
-  // widget mid-boot, which then threw from its own onLoad handler and filled the
-  // console with failures that had nothing to do with the capture.
+  // Only the media players. They are the entire memory problem and none of them
+  // are read, so they go as fast as the page inserts them. Removing *every*
+  // iframe also killed the page's chat widget mid-boot, which then threw from
+  // its own onLoad handler and filled the console with unrelated failures.
   const MEDIA_HOST = /youtube|ytimg|soundcloud|vimeo|spotify|bandcamp|dailymotion/i;
   const strip = (doc) => {
     try {
@@ -162,6 +187,43 @@
 
   const titleIn = (doc) => clean(doc?.querySelector('h1')?.textContent);
 
+  /**
+   * The lesson's own writing, and nothing else.
+   *
+   * Taking a container's whole textContent was wrong: what came back was the
+   * module's chapter list, the site menus and the shop blurb, with the actual
+   * lesson buried in it. The prose is not identifiable by its container, but it
+   * is identifiable by its shape. It lives in paragraphs and headings; the
+   * chapter list, the nav and the footer are almost entirely link text.
+   *
+   * So this collects block elements and drops any block that is mostly a link.
+   * Headings are kept as their own lines, which preserves the section structure
+   * ("How to Use a Guitar Tuner", "The Best Tuner for Beginners") instead of
+   * flattening the lesson into one paragraph.
+   */
+  const PROSE = 'p, h2, h3, h4, h5, blockquote, li, figcaption';
+  const CHROME = 'nav, header, footer, aside, form, .lesson__steps, .lesson-list, .lesson-complete-and-info';
+  const TRAILING_MENU = /^(courses|songs|tools|explore|store|join|log ?in|playground|more|view all|lessons & songs app|music theory app|faq|contact|about justin|privacy policy|community|clubs|©)/i;
+
+  const proseFrom = (doc) => {
+    const blocks = [];
+    for (const el of doc.querySelectorAll(PROSE)) {
+      if (el.closest(CHROME)) continue;
+      // A block already covered by an outer block would be counted twice.
+      if (el.parentElement?.closest(PROSE)) continue;
+      const text = clean(el.textContent);
+      if (text.length < 2) continue;
+      const linkText = clean([...el.querySelectorAll('a')].map((a) => a.textContent).join(' '));
+      if (linkText.length > text.length * 0.6) continue;
+      blocks.push(text);
+    }
+    // The shop blurb and the site menus sit after the lesson and survive the
+    // link test because they are plain text. They are always last, so trim from
+    // the end rather than trying to recognise them in place.
+    while (blocks.length && TRAILING_MENU.test(blocks[blocks.length - 1])) blocks.pop();
+    return blocks.join('\n\n');
+  };
+
   const render = async (slug) => {
     await navigate(`/guitar-lessons/${slug}`);
 
@@ -181,7 +243,16 @@
 
     const doc = frame.contentDocument;
     const at = doc?.location?.pathname ?? '?';
-    if (!at.endsWith(slug)) throw new Error(`redirected to ${at}`);
+    if (!at.endsWith(slug)) {
+      // A redirect to the shop or a signup is a paid lesson. That is a settled
+      // answer, not a failure to retry: it is recorded so re-runs skip it
+      // immediately, and it does not count towards the consecutive-failure
+      // stop. Twenty paid lessons happening to sit next to each other in the
+      // queue used to halt the whole run.
+      const err = new Error(`paywalled, sold at ${at}`);
+      err.paywalled = true;
+      throw err;
+    }
     if (!root) throw new Error(`rendered ${clean(doc?.body?.textContent).length} chars, no container`);
 
     await sleep(SETTLE_MS);
@@ -207,21 +278,30 @@
       };
     }).filter((s) => s.slug);
 
-    const body = root.cloneNode(true);
-    for (const sel of ['.lesson-list', '.lesson__steps', 'nav', 'script', 'style',
-                       '.lesson-complete-and-info', 'button', 'form']) {
-      body.querySelectorAll(sel).forEach((n) => n.remove());
-    }
-    // Plain strings only. Holding on to a node would hold the whole document.
+    // The module's chapter list: every lesson in this module, in taught order,
+    // with its runtime. This is the module membership the sitemaps never state,
+    // and it is worth keeping in its own right rather than mixed into the prose.
+    const chapters = [...doc.querySelectorAll('a[href*="/guitar-lessons/"]')]
+      .map((a) => {
+        const t = clean(a.textContent);
+        const time = t.match(/(\d{1,2}:\d{2})\s*$/);
+        return {
+          slug: a.getAttribute('href').split('/guitar-lessons/')[1]?.replace(/\/$/, '') || null,
+          title: clean(t.replace(/\d{1,2}:\d{2}\s*$/, '')),
+          duration: time ? time[1] : null,
+        };
+      })
+      .filter((c) => c.slug && c.title);
+
     return {
+      v: EXTRACTOR,
       title,
       titleFrom,
       crumb,
+      chapters: chapters.filter((c, i) => chapters.findIndex((o) => o.slug === c.slug) === i),
       siblings,
-      // Which template this came from. The build trusts a .lesson capture more
-      // than a page we found by text density, and needs to know which.
       via: root.dataset?.jgVia ?? 'density',
-      text: clean(body.textContent),
+      text: proseFrom(doc),
     };
   };
 
@@ -232,13 +312,25 @@
   const dump = async () => {
     const keys = await allKeys();
     const lessons = {};
-    for (const k of keys) lessons[k] = await idb(tx('readonly').get(k));
-    const out = { capturedAt: new Date().toISOString().slice(0, 10), count: keys.length, lessons };
+    const paywalled = {};
+    for (const k of keys) {
+      const rec = await idb(tx('readonly').get(k));
+      if (rec?.paywalled) paywalled[k] = rec.soldAt;
+      else lessons[k] = rec;
+    }
+    const out = {
+      capturedAt: new Date().toISOString().slice(0, 10),
+      count: Object.keys(lessons).length,
+      // Listed, not silently dropped: these are Justin's paid courses, and the
+      // build needs to know they are deliberately absent rather than missed.
+      paywalled,
+      lessons,
+    };
     const url = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' }));
     Object.assign(document.createElement('a'), { href: url, download: 'lessons.json' }).click();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
-    console.log(`Saved lessons.json with ${keys.length} lessons.`);
-    return keys.length;
+    console.log(`Saved lessons.json with ${out.count} lessons (${Object.keys(paywalled).length} paid lessons noted and skipped).`);
+    return out.count;
   };
   window.jgDump = dump;
 
@@ -273,8 +365,16 @@
       await put(slug, data);
       done += 1; streak = 0;
     } catch (e) {
-      failed += 1; streak += 1;
+      failed += 1;
       failures.push({ slug, reason: e.message });
+      if (e.paywalled) {
+        // Remembered, so the next run does not spend twenty seconds
+        // rediscovering that this lesson is for sale.
+        await put(slug, { paywalled: true, soldAt: e.message.replace(/^paywalled, sold at /, '') });
+        streak = 0;
+      } else {
+        streak += 1;
+      }
       // log, not warn: warn attaches a stack trace to every line, which made a
       // handful of skipped pages look like the run had collapsed.
       console.log(`  skipped ${e.message}: ${link(slug)}`);
