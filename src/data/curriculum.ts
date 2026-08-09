@@ -24,6 +24,8 @@ export const lessonUrl = (lesson: CurriculumLesson): string => LESSON_BASE + les
 
 export interface CurriculumModule {
   number: number;
+  /** Null where the course does not publish a name we can pin to a number. */
+  title: string | null;
   lessons: string[];
 }
 
@@ -70,6 +72,7 @@ export const CURRICULUM: Curriculum = {
       "modules": [
         {
           "number": 0,
+          "title": "Before You Begin",
           "lessons": [
             "guitar-anatomy-b0-010",
             "what-s-the-best-guitar-for-beginners-b0-020",
@@ -93,6 +96,7 @@ export const CURRICULUM: Curriculum = {
       "modules": [
         {
           "number": 1,
+          "title": "A & D Chords, Your First Song",
           "lessons": [
             "how-to-tune-a-guitar-for-beginners-b1-101",
             "how-to-hold-your-guitar-b1-102",
@@ -116,6 +120,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 2,
+          "title": "Rhythm, Chord Changes & Your First Riff",
           "lessons": [
             "how-to-play-the-e-chord-b1-201",
             "e-chord-anchors-tricks-b1-202",
@@ -130,6 +135,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 3,
+          "title": "Capo, Minor Chords & Up Strums",
           "lessons": [
             "what-are-minor-chords-b1-301",
             "the-e-minor-chord-b1-302",
@@ -146,6 +152,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 4,
+          "title": "Metronome, Stretches & The Pattern",
           "lessons": [
             "beginner-finger-stretches-b1-401",
             "the-d-minor-chord-b1-402",
@@ -159,6 +166,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 5,
+          "title": "Basic Theory & Strumming Development",
           "lessons": [
             "the-c-chord-b1-501",
             "guitar-strumming-tips-b1-502",
@@ -172,6 +180,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 6,
+          "title": "6:8 Time, Fast Changes & Alternate Picking",
           "lessons": [
             "beginner-alternate-picking-b1-601",
             "the-g-chord-hacked-b1-602",
@@ -185,6 +194,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 7,
+          "title": "Air Changes, Dynamics & Consolidation",
           "lessons": [
             "the-8-essential-beginner-chord-grips-b1-701",
             "best-chord-changes-to-work-on-b1-702",
@@ -211,6 +221,7 @@ export const CURRICULUM: Curriculum = {
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "top-5-tips-for-new-guitar-players-bc-001",
             "what-s-the-best-guitar-for-a-beginner-bc-010",
@@ -221,6 +232,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "quick-start-guitar-5-minute-overview-bc-101",
             "how-to-tune-a-guitar-for-beginners-bc-109",
@@ -309,6 +321,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 9,
+          "title": null,
           "lessons": [
             "how-to-use-the-beginner-song-course-bc-997",
             "justin-answer-page-bc-998"
@@ -325,6 +338,7 @@ export const CURRICULUM: Curriculum = {
       "modules": [
         {
           "number": 8,
+          "title": "Stuck 3&4 Chords, Muting & Fast Changes",
           "lessons": [
             "the-stuck-3-4-chords-b2-801",
             "perfect-fast-changes-b2-802",
@@ -340,6 +354,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 9,
+          "title": "The F Chord, Scales & Chords In Keys",
           "lessons": [
             "the-f-chord-b2-901",
             "f-chord-cheats-b2-902",
@@ -365,6 +380,7 @@ export const CURRICULUM: Curriculum = {
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "e-shape-barre-chord-grips-im-111",
             "one-minute-changes-f1-im-112",
@@ -425,6 +441,7 @@ export const CURRICULUM: Curriculum = {
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "dog-walks-guitar-talks-an-idea-bl-001",
             "justin-s-guitar-journey-early-years-bl-002",
@@ -434,12 +451,14 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "8-halloween-songs-to-play-on-the-guitar-bl-104"
           ]
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "12-bar-blues-in-12-keys-bl-201",
             "12-bar-shuffle-picking-techniques-bl-202",
@@ -455,6 +474,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "open-e-blues-rhythm-lick-bl-301",
             "i-to-iv-blues-climb-bl-302",
@@ -463,6 +483,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 4,
+          "title": null,
           "lessons": [
             "the-blues-language-bl-401",
             "minor-pentatonic-pattern-1-bl-402",
@@ -481,6 +502,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 5,
+          "title": null,
           "lessons": [
             "01-srv-p1-flat-5-slide-bl-501",
             "02-a-king-p1-p2-linker-bl-502",
@@ -542,6 +564,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 6,
+          "title": null,
           "lessons": [
             "introduction-to-5-pattern-play-bl-601",
             "minor-pentatonic-pattern-3-bl-602",
@@ -560,12 +583,14 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 7,
+          "title": null,
           "lessons": [
             "the-major-6-blues-colour-bl-701"
           ]
         },
         {
           "number": 8,
+          "title": null,
           "lessons": [
             "major-pentatonic-in-the-blues-bl-801",
             "major-pentatonic-study-lick-1-bl-802",
@@ -588,6 +613,7 @@ export const CURRICULUM: Curriculum = {
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "why-technique-practice-is-often-overdone-te-001",
             "five-golden-rules-of-technique-practice-te-002",
@@ -596,6 +622,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "finger-stretching-exercise-te-101",
             "minimum-movement-exercise-te-102",
@@ -610,12 +637,14 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "the-spider-te-201"
           ]
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "how-and-why-to-practice-scales-te-301",
             "quality-control-exercise-te-302",
@@ -624,6 +653,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 4,
+          "title": null,
           "lessons": [
             "fartlek-subdivisions-te-401",
             "the-disappearing-metronome-trick-te-403"
@@ -631,6 +661,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 5,
+          "title": null,
           "lessons": [
             "how-harmonics-work-te-501",
             "natural-harmonic-series-te-502",
@@ -641,6 +672,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 7,
+          "title": null,
           "lessons": [
             "fake-fingernails-for-guitar-players-te-701",
             "folk-fingerstyle-patterns-te-702",
@@ -651,6 +683,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 8,
+          "title": null,
           "lessons": [
             "mark-knopfler-style-fast-arpeggio-technique-te-800",
             "essential-slide-guitar-techniques-te-801"
@@ -667,6 +700,7 @@ export const CURRICULUM: Curriculum = {
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "pmt-workbook-grade-1-mt-000",
             "pmt-workbook-grade-2-mt-001",
@@ -676,6 +710,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "notes-in-the-first-five-frets-mt-201",
             "how-to-read-guitar-tab-mt-202",
@@ -688,6 +723,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "the-big-six-essential-notes-mt-301",
             "major-scale-theory-mt-302",
@@ -706,6 +742,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 4,
+          "title": null,
           "lessons": [
             "triad-chord-theory-mt-401",
             "triad-chord-theory-worksheet-mt-402",
@@ -737,6 +774,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 5,
+          "title": null,
           "lessons": [
             "introduction-to-intervals-mt-501",
             "diatonic-intervals-perfect-mt-502",
@@ -784,6 +822,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 6,
+          "title": null,
           "lessons": [
             "before-you-start-manipulating-chords-mt-601",
             "major-breakthroughs-with-minor-changes-mt-602",
@@ -812,6 +851,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 7,
+          "title": null,
           "lessons": [
             "the-d-shape-relationships-mt-701",
             "d-shape-major-and-minor-mt-702",
@@ -858,6 +898,7 @@ export const CURRICULUM: Curriculum = {
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "beginners-scale-faq-sc-101",
             "how-to-practice-scales-sc-102",
@@ -870,6 +911,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "major-scale-essential-information-sc-201",
             "the-major-scale-why-and-how-sc-202",
@@ -890,6 +932,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "minor-pentatonic-essential-information-sc-301",
             "minor-pentatonic-how-why-sc-302",
@@ -899,6 +942,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 4,
+          "title": null,
           "lessons": [
             "major-pentatonic-essential-information-sc-401",
             "major-pentatonic-the-five-patterns-sc-404"
@@ -906,6 +950,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 6,
+          "title": null,
           "lessons": [
             "melodic-minor-essential-information-sc-600",
             "melodic-minor-pattern-1-sc-601",
@@ -925,6 +970,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 7,
+          "title": null,
           "lessons": [
             "diminished-half-whole-essential-info-sc-700",
             "harmonic-minor-essential-information-sc-701",
@@ -935,6 +981,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 9,
+          "title": null,
           "lessons": [
             "caged-vs-3-notes-per-string-3nps-scale-systems-sc-987"
           ]
@@ -950,24 +997,28 @@ export const CURRICULUM: Curriculum = {
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "triad-chords-1-3-ch-008"
           ]
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "the-8-essential-beginner-chords-ch-110"
           ]
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "open-7th-chords-ch-210"
           ]
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "the-f-chord-ch-310",
             "open-suspended-chords-ch-370",
@@ -977,6 +1028,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 7,
+          "title": null,
           "lessons": [
             "capo-the-chords-to-best-suit-your-voice-ch-701",
             "play-the-same-chords-using-different-grips-ch-702"
@@ -984,12 +1036,14 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 8,
+          "title": null,
           "lessons": [
             "jimi-hendrix-style-how-to-use-your-thumb-to-play-the-bass-notes-of-chords-ch-850"
           ]
         },
         {
           "number": 9,
+          "title": null,
           "lessons": [
             "caged-logic-ch-900"
           ]
@@ -1005,6 +1059,7 @@ export const CURRICULUM: Curriculum = {
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "start-with-mp3-downloads-ru-041",
             "how-to-get-started-ru-051",
@@ -1013,30 +1068,35 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "albert-king-style-ru-100"
           ]
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "eric-clapton-style-ru-200"
           ]
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "chuck-berry-style-ru-300"
           ]
         },
         {
           "number": 4,
+          "title": null,
           "lessons": [
             "jimi-hendrix-style-ru-400"
           ]
         },
         {
           "number": 5,
+          "title": null,
           "lessons": [
             "stevie-ray-vaughan-style-ru-500"
           ]
@@ -1052,12 +1112,14 @@ export const CURRICULUM: Curriculum = {
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "why-transcribing-is-so-important-tr-001"
           ]
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "the-process-of-transcribing-tr-101",
             "writing-down-melody-in-tab-tr-102",
@@ -1071,6 +1133,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "listening-to-the-bass-note-tr-201",
             "12-bar-blues-in-every-key-tr-202"
@@ -1078,6 +1141,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "creating-lyric-and-chord-sheets-tr-301",
             "basic-chord-chart-writing-tr-302"
@@ -1085,12 +1149,14 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 5,
+          "title": null,
           "lessons": [
             "song-tips-1-pop-and-rock-tr-501"
           ]
         },
         {
           "number": 6,
+          "title": null,
           "lessons": [
             "transcribing-moonlight-shadow-tr-601",
             "transcribing-the-chain-tr-603",
@@ -1113,6 +1179,7 @@ export const CURRICULUM: Curriculum = {
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "the-7-amazing-benefits-of-ear-training-et-001",
             "play-what-you-hear-exercise-et-002",
@@ -1123,6 +1190,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "the-perfect-5th-interval-et-101",
             "the-perfect-4th-interval-et-102",
@@ -1134,6 +1202,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "the-major-2nd-interval-et-201",
             "the-major-3rd-interval-et-202",
@@ -1144,6 +1213,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "the-major-6th-interval-et-301",
             "the-major-7th-interval-et-302",
@@ -1165,6 +1235,7 @@ export const CURRICULUM: Curriculum = {
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "how-to-tune-a-ukulele-uk-000",
             "ukulele-quick-easy-4-chords-many-songs-uk-001",
@@ -1178,12 +1249,14 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "10-very-easy-songs-to-play-on-the-ukulele-uk-300"
           ]
         },
         {
           "number": 6,
+          "title": null,
           "lessons": [
             "2020-ukulele-buyers-guide-uk-667"
           ]
@@ -1199,6 +1272,7 @@ export const CURRICULUM: Curriculum = {
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "major-7th-arpeggios-ar-001",
             "minor-7th-arpeggios-ar-002",
@@ -1209,6 +1283,7 @@ export const CURRICULUM: Curriculum = {
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "arpeggios-why-how-which-when-ar-101",
             "superimposing-arpeggios-ar-111"
@@ -6585,11 +6660,12 @@ export const getTrack = (code: string): CurriculumTrack | null =>
 /** A track's modules with their lessons resolved, in curriculum order. */
 export function trackModules(
   code: string,
-): Array<{ number: number; lessons: CurriculumLesson[] }> {
+): Array<{ number: number; title: string | null; lessons: CurriculumLesson[] }> {
   const track = getTrack(code);
   if (!track) return [];
   return track.modules.map((m) => ({
     number: m.number,
+    title: m.title,
     lessons: m.lessons.map(getLesson).filter((l): l is CurriculumLesson => l !== null),
   }));
 }

@@ -1,0 +1,371 @@
+/* The Journey: what is under your hands, not how fast you did it.
+   Numbers live in Progress; this is the map, and it has to be readable as a
+   map — a list of thirty-eight rows all shouting equally would be a database
+   dump with a stylesheet. */
+
+.journey {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  text-align: left;
+}
+
+.journey-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.journey-eyebrow {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.journey-here {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+.journey-here strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.journey-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.journey-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* --- Closest to done ------------------------------------------------------- */
+
+.journey-next,
+.journey-songs,
+.journey-modules,
+.journey-skills {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.journey-next-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'body figure' 'bar bar';
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.journey-next-body {
+  grid-area: body;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.journey-next-name {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-md);
+  color: var(--text-primary);
+}
+
+.journey-next-evidence {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.journey-next-figure {
+  grid-area: figure;
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-primary);
+}
+.journey-next-of {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.journey-next-bar,
+.journey-module-bar {
+  grid-area: bar;
+  display: block;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.journey-next-fill,
+.journey-module-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-primary);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.journey-module-fill {
+  background: var(--success-color);
+}
+
+/* --- Songs ----------------------------------------------------------------- */
+
+.journey-song {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--success-glow);
+}
+
+.journey-song-name {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.journey-song-chords {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  color: var(--success-color);
+  white-space: nowrap;
+}
+
+/* --- Modules --------------------------------------------------------------- */
+
+.journey-module {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+.journey-module.is-open {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.journey-module-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas: 'number name caret' 'bar bar bar';
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  width: 100%;
+  min-height: 56px;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  transition: background var(--dur-base) ease;
+}
+.journey-module-head:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.journey-module-number {
+  grid-area: number;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.06);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  color: var(--text-secondary);
+}
+
+.journey-module-name {
+  grid-area: name;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.journey-module-count {
+  font-family: var(--font-secondary);
+  font-weight: 400;
+  font-size: var(--text-micro);
+  color: var(--text-muted);
+}
+
+.journey-caret {
+  grid-area: caret;
+  color: var(--text-muted);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.journey-caret.is-open {
+  transform: rotate(180deg);
+}
+
+/* --- Skills ---------------------------------------------------------------- */
+
+.journey-skills {
+  padding: 0 var(--space-4) var(--space-4);
+  gap: var(--space-1);
+}
+
+.journey-skill {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.journey-skill-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  color: var(--text-muted);
+}
+.journey-skill.is-solid .journey-skill-mark {
+  border-color: transparent;
+  background: var(--success-glow);
+  color: var(--success-color);
+}
+
+.journey-skill-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.journey-skill-name {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+/* A skill that is not reachable yet is stated, not greyed out: dimming it would
+   read as disabled, and it is not disabled, it is next. */
+.journey-skill.is-locked .journey-skill-name {
+  color: var(--text-secondary);
+}
+
+.journey-skill-state {
+  font-family: var(--font-secondary);
+  font-weight: 600;
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.journey-skill.is-solid .journey-skill-state {
+  color: var(--success-color);
+}
+.journey-skill.is-working .journey-skill-state {
+  color: var(--accent-primary);
+}
+/* Says out loud that this one is the learner's word, not a measurement. */
+.journey-skill-state.is-claimed {
+  color: var(--warning-color);
+}
+
+.journey-skill-evidence {
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.journey-skill-claim {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  transition: background var(--dur-base) ease, color var(--dur-base) ease,
+    border-color var(--dur-base) ease;
+}
+.journey-skill-claim:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+.journey-skill-claim.is-on {
+  border-color: transparent;
+  background: var(--success-glow);
+  color: var(--success-color);
+}
+
+/* --- Lessons --------------------------------------------------------------- */
+
+.journey-lessons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.journey-lessons-label {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.journey-lessons-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Links out to the course. We are the practice layer; the teaching is theirs,
+   and pretending otherwise would be both wrong and worse for the learner. */
+.journey-lesson {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color var(--dur-base) ease, border-color var(--dur-base) ease;
+}
+.journey-lesson:hover {
+  color: var(--accent-primary);
+  border-color: rgba(56, 189, 248, 0.4);
+}

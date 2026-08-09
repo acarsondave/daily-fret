@@ -18,9 +18,16 @@ console.log('\nA learner with nothing\n');
   check('nothing is solid', st.every(s => s.state !== 'solid'));
   check('skills with no prerequisites are ready',
     find(st, 'technique.finger-placement').state === 'ready');
-  check('skills with prerequisites are locked', find(st, 'chord.D').state === 'locked');
-  check('a locked skill says what is blocking it',
-    find(st, 'chord.D').blockedBy.map(s=>s.id).join() === 'technique.finger-placement');
+  // finger-placement needs per-string energy the app does not have. If an
+  // unmeasurable prerequisite could lock a skill, it would gate all eight chords
+  // forever and the entire course would read as unavailable.
+  check('an unmeasurable prerequisite does not lock anything',
+    find(st, 'chord.D').state === 'ready' && find(st, 'chord.D').blockedBy.length === 0,
+    `${find(st,'chord.D').state} blocked by ${find(st,'chord.D').blockedBy.map(s=>s.id).join()}`);
+  check('a measurable prerequisite does lock',
+    find(st, 'technique.anchor-fingers').state === 'locked' &&
+    find(st, 'technique.anchor-fingers').blockedBy.map(s=>s.id).sort().join() === 'chord.A,chord.D',
+    find(st,'technique.anchor-fingers').blockedBy.map(s=>s.id).join());
   check('nothing to work on yet is an empty list, not a crash', Array.isArray(nextUp(st)));
   check('no chords are claimed as proven', provenChords(st).length === 0);
   check('progress is zero everywhere', st.every(s => s.progress === 0));
@@ -50,8 +57,11 @@ console.log('\nThe owner\'s real shape: A/D/E consolidated, minors coming along\
 
   const next = nextUp(st);
   console.log('    next up:', next.map(s => `${s.skill.id}(${Math.round(s.progress*100)}%)`).join(' '));
+  check('there is something to work on at all', next.length > 0);
   check('what to work on is led by something already under way',
-    next[0].state === 'working', next[0]?.skill.id);
+    next[0]?.state === 'working', next[0]?.skill.id);
+  check('the nearly-there chord is first',
+    next[0]?.skill.id === 'chord.Dm', next.map(s=>s.skill.id).join(' '));
   check('nothing already solid is offered as next', next.every(s => s.state !== 'solid'));
   check('nothing unmeasurable is offered as next',
     next.every(s => s.skill.measure.kind === 'measured'));

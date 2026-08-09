@@ -82,6 +82,52 @@ const TRACKS = {
   uk: { title: 'Ukulele', stage: 'any' },
 };
 
+/**
+ * Module names for the courses we support, keyed `track:number`.
+ *
+ * The sitemap lists module pages but never says which module number a slug is,
+ * and the visual order on the course page does not match the internal numbering
+ * either. So these are stated, and `checkModuleNames` below asserts each one
+ * against a lesson that can only belong to that module. A name that drifts out
+ * of step with the course fails the build rather than misleading a learner.
+ */
+const MODULE_NAMES = {
+  'b0:0': 'Before You Begin',
+  'b1:1': 'A & D Chords, Your First Song',
+  'b1:2': 'Rhythm, Chord Changes & Your First Riff',
+  'b1:3': 'Capo, Minor Chords & Up Strums',
+  'b1:4': 'Metronome, Stretches & The Pattern',
+  'b1:5': 'Basic Theory & Strumming Development',
+  'b1:6': '6:8 Time, Fast Changes & Alternate Picking',
+  'b1:7': 'Air Changes, Dynamics & Consolidation',
+  'b2:8': 'Stuck 3&4 Chords, Muting & Fast Changes',
+  'b2:9': 'The F Chord, Scales & Chords In Keys',
+};
+
+/** A lesson that could only sit in this module, as a check on the name above. */
+const MODULE_ANCHORS = {
+  'b1:1': 'how-to-play-the-d-chord-b1-105',
+  'b1:2': 'how-to-play-the-e-chord-b1-201',
+  'b1:3': 'all-about-capos-b1-308',
+  'b1:4': 'meet-the-metronome-b1-403',
+  'b1:5': 'the-c-chord-b1-501',
+  'b1:6': 'a-6-8-strumming-pattern-b1-604',
+  'b1:7': 'air-changes-aspire-to-this-b1-703',
+  'b2:9': 'the-f-chord-b2-901',
+};
+
+function checkModuleNames(lessons) {
+  const slugs = new Set(lessons.map((l) => l.slug));
+  const missing = Object.entries(MODULE_ANCHORS).filter(([, slug]) => !slugs.has(slug));
+  if (missing.length) {
+    throw new Error(
+      `module names are out of step with the course: ${missing
+        .map(([key, slug]) => `${key} expected ${slug}`)
+        .join('; ')}`,
+    );
+  }
+}
+
 function parseSitemap(xml) {
   return [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => decode(m[1]));
 }
@@ -145,6 +191,8 @@ const main = async () => {
   // Group every coded lesson under its track and module. Tracks with no entry in
   // TRACKS still appear, titled null, so the dataset never claims to know a name
   // it does not have.
+  checkModuleNames(lessons);
+
   const tracks = [];
   for (const lesson of lessons) {
     if (!lesson.track) continue;
@@ -163,7 +211,11 @@ const main = async () => {
     }
     let mod = track.modules.find((m) => m.number === lesson.module);
     if (!mod) {
-      mod = { number: lesson.module, lessons: [] };
+      mod = {
+        number: lesson.module,
+        title: MODULE_NAMES[`${lesson.track}:${lesson.module}`] ?? null,
+        lessons: [],
+      };
       track.modules.push(mod);
     }
     mod.lessons.push(lesson.slug);
@@ -276,7 +328,12 @@ const main = async () => {
     `\n` +
     `export const lessonUrl = (lesson: CurriculumLesson): string => LESSON_BASE + lesson.slug;\n` +
     `\n` +
-    `export interface CurriculumModule {\n  number: number;\n  lessons: string[];\n}\n` +
+    `export interface CurriculumModule {\n` +
+    `  number: number;\n` +
+    `  /** Null where the course does not publish a name we can pin to a number. */\n` +
+    `  title: string | null;\n` +
+    `  lessons: string[];\n` +
+    `}\n` +
     `\n` +
     `export interface CurriculumTrack {\n` +
     `  code: string;\n  title: string | null;\n  stage: string | null;\n` +
@@ -304,11 +361,12 @@ const main = async () => {
     `/** A track's modules with their lessons resolved, in curriculum order. */\n` +
     `export function trackModules(\n` +
     `  code: string,\n` +
-    `): Array<{ number: number; lessons: CurriculumLesson[] }> {\n` +
+    `): Array<{ number: number; title: string | null; lessons: CurriculumLesson[] }> {\n` +
     `  const track = getTrack(code);\n` +
     `  if (!track) return [];\n` +
     `  return track.modules.map((m) => ({\n` +
     `    number: m.number,\n` +
+    `    title: m.title,\n` +
     `    lessons: m.lessons.map(getLesson).filter((l): l is CurriculumLesson => l !== null),\n` +
     `  }));\n` +
     `}\n`,

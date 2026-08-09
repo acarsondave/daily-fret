@@ -13,6 +13,8 @@ interface ModalProps {
   /** Accessible name when the dialog shows no visible title. */
   label?: string;
   position?: 'center' | 'bottom' | 'top-right';
+  /** For panels that are a map rather than a question. */
+  wide?: boolean;
 }
 
 const FOCUSABLE =
@@ -25,6 +27,7 @@ export function Modal({
   title,
   label,
   position = 'center',
+  wide,
 }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
@@ -118,7 +121,7 @@ export function Modal({
           <div className={`modal-wrapper position-${position}`}>
             <motion.div
               ref={panelRef}
-              className="modal-content glass-panel"
+              className={wide ? "modal-content glass-panel is-wide" : "modal-content glass-panel"}
               role="dialog"
               aria-modal="true"
               aria-labelledby={title ? titleId : undefined}

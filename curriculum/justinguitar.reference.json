@@ -25,6 +25,7 @@
       "modules": [
         {
           "number": 0,
+          "title": "Before You Begin",
           "lessons": [
             "guitar-anatomy-b0-010",
             "what-s-the-best-guitar-for-beginners-b0-020",
@@ -48,6 +49,7 @@
       "modules": [
         {
           "number": 1,
+          "title": "A & D Chords, Your First Song",
           "lessons": [
             "how-to-tune-a-guitar-for-beginners-b1-101",
             "how-to-hold-your-guitar-b1-102",
@@ -71,6 +73,7 @@
         },
         {
           "number": 2,
+          "title": "Rhythm, Chord Changes & Your First Riff",
           "lessons": [
             "how-to-play-the-e-chord-b1-201",
             "e-chord-anchors-tricks-b1-202",
@@ -85,6 +88,7 @@
         },
         {
           "number": 3,
+          "title": "Capo, Minor Chords & Up Strums",
           "lessons": [
             "what-are-minor-chords-b1-301",
             "the-e-minor-chord-b1-302",
@@ -101,6 +105,7 @@
         },
         {
           "number": 4,
+          "title": "Metronome, Stretches & The Pattern",
           "lessons": [
             "beginner-finger-stretches-b1-401",
             "the-d-minor-chord-b1-402",
@@ -114,6 +119,7 @@
         },
         {
           "number": 5,
+          "title": "Basic Theory & Strumming Development",
           "lessons": [
             "the-c-chord-b1-501",
             "guitar-strumming-tips-b1-502",
@@ -127,6 +133,7 @@
         },
         {
           "number": 6,
+          "title": "6:8 Time, Fast Changes & Alternate Picking",
           "lessons": [
             "beginner-alternate-picking-b1-601",
             "the-g-chord-hacked-b1-602",
@@ -140,6 +147,7 @@
         },
         {
           "number": 7,
+          "title": "Air Changes, Dynamics & Consolidation",
           "lessons": [
             "the-8-essential-beginner-chord-grips-b1-701",
             "best-chord-changes-to-work-on-b1-702",
@@ -166,6 +174,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "top-5-tips-for-new-guitar-players-bc-001",
             "what-s-the-best-guitar-for-a-beginner-bc-010",
@@ -176,6 +185,7 @@
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "quick-start-guitar-5-minute-overview-bc-101",
             "how-to-tune-a-guitar-for-beginners-bc-109",
@@ -264,6 +274,7 @@
         },
         {
           "number": 9,
+          "title": null,
           "lessons": [
             "how-to-use-the-beginner-song-course-bc-997",
             "justin-answer-page-bc-998"
@@ -280,6 +291,7 @@
       "modules": [
         {
           "number": 8,
+          "title": "Stuck 3&4 Chords, Muting & Fast Changes",
           "lessons": [
             "the-stuck-3-4-chords-b2-801",
             "perfect-fast-changes-b2-802",
@@ -295,6 +307,7 @@
         },
         {
           "number": 9,
+          "title": "The F Chord, Scales & Chords In Keys",
           "lessons": [
             "the-f-chord-b2-901",
             "f-chord-cheats-b2-902",
@@ -320,6 +333,7 @@
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "e-shape-barre-chord-grips-im-111",
             "one-minute-changes-f1-im-112",
@@ -380,6 +394,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "dog-walks-guitar-talks-an-idea-bl-001",
             "justin-s-guitar-journey-early-years-bl-002",
@@ -389,12 +404,14 @@
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "8-halloween-songs-to-play-on-the-guitar-bl-104"
           ]
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "12-bar-blues-in-12-keys-bl-201",
             "12-bar-shuffle-picking-techniques-bl-202",
@@ -410,6 +427,7 @@
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "open-e-blues-rhythm-lick-bl-301",
             "i-to-iv-blues-climb-bl-302",
@@ -418,6 +436,7 @@
         },
         {
           "number": 4,
+          "title": null,
           "lessons": [
             "the-blues-language-bl-401",
             "minor-pentatonic-pattern-1-bl-402",
@@ -436,6 +455,7 @@
         },
         {
           "number": 5,
+          "title": null,
           "lessons": [
             "01-srv-p1-flat-5-slide-bl-501",
             "02-a-king-p1-p2-linker-bl-502",
@@ -497,6 +517,7 @@
         },
         {
           "number": 6,
+          "title": null,
           "lessons": [
             "introduction-to-5-pattern-play-bl-601",
             "minor-pentatonic-pattern-3-bl-602",
@@ -515,12 +536,14 @@
         },
         {
           "number": 7,
+          "title": null,
           "lessons": [
             "the-major-6-blues-colour-bl-701"
           ]
         },
         {
           "number": 8,
+          "title": null,
           "lessons": [
             "major-pentatonic-in-the-blues-bl-801",
             "major-pentatonic-study-lick-1-bl-802",
@@ -543,6 +566,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "why-technique-practice-is-often-overdone-te-001",
             "five-golden-rules-of-technique-practice-te-002",
@@ -551,6 +575,7 @@
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "finger-stretching-exercise-te-101",
             "minimum-movement-exercise-te-102",
@@ -565,12 +590,14 @@
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "the-spider-te-201"
           ]
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "how-and-why-to-practice-scales-te-301",
             "quality-control-exercise-te-302",
@@ -579,6 +606,7 @@
         },
         {
           "number": 4,
+          "title": null,
           "lessons": [
             "fartlek-subdivisions-te-401",
             "the-disappearing-metronome-trick-te-403"
@@ -586,6 +614,7 @@
         },
         {
           "number": 5,
+          "title": null,
           "lessons": [
             "how-harmonics-work-te-501",
             "natural-harmonic-series-te-502",
@@ -596,6 +625,7 @@
         },
         {
           "number": 7,
+          "title": null,
           "lessons": [
             "fake-fingernails-for-guitar-players-te-701",
             "folk-fingerstyle-patterns-te-702",
@@ -606,6 +636,7 @@
         },
         {
           "number": 8,
+          "title": null,
           "lessons": [
             "mark-knopfler-style-fast-arpeggio-technique-te-800",
             "essential-slide-guitar-techniques-te-801"
@@ -622,6 +653,7 @@
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "nitsuj-module-1-practice-1-nj-101",
             "nitsuj-module-1-practice-2-nj-102",
@@ -635,6 +667,7 @@
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "nitsuj-module-2-practice-1-nj-201",
             "nitsuj-module-2-practice-3-nj-203",
@@ -644,6 +677,7 @@
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "nitsuj-module-3-practice-1-nj-301",
             "nitsuj-module-3-practice-2-nj-302",
@@ -654,6 +688,7 @@
         },
         {
           "number": 4,
+          "title": null,
           "lessons": [
             "nitsuj-module-4-practice-1-nj-401",
             "nitsuj-module-4-practice-2-nj-402",
@@ -664,6 +699,7 @@
         },
         {
           "number": 5,
+          "title": null,
           "lessons": [
             "nitsuj-module-5-practice-1-nj-501",
             "nitsuj-module-5-practice-2-nj-502",
@@ -674,6 +710,7 @@
         },
         {
           "number": 6,
+          "title": null,
           "lessons": [
             "nitsuj-module-6-practice-1-nj-601",
             "nitsuj-module-6-practice-2-nj-602",
@@ -684,6 +721,7 @@
         },
         {
           "number": 7,
+          "title": null,
           "lessons": [
             "nitsuj-module-7-practice-1-nj-701",
             "nitsuj-module-7-practice-2-nj-702",
@@ -707,6 +745,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "pmt-workbook-grade-1-mt-000",
             "pmt-workbook-grade-2-mt-001",
@@ -716,6 +755,7 @@
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "notes-in-the-first-five-frets-mt-201",
             "how-to-read-guitar-tab-mt-202",
@@ -728,6 +768,7 @@
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "the-big-six-essential-notes-mt-301",
             "major-scale-theory-mt-302",
@@ -746,6 +787,7 @@
         },
         {
           "number": 4,
+          "title": null,
           "lessons": [
             "triad-chord-theory-mt-401",
             "triad-chord-theory-worksheet-mt-402",
@@ -777,6 +819,7 @@
         },
         {
           "number": 5,
+          "title": null,
           "lessons": [
             "introduction-to-intervals-mt-501",
             "diatonic-intervals-perfect-mt-502",
@@ -824,6 +867,7 @@
         },
         {
           "number": 6,
+          "title": null,
           "lessons": [
             "before-you-start-manipulating-chords-mt-601",
             "major-breakthroughs-with-minor-changes-mt-602",
@@ -852,6 +896,7 @@
         },
         {
           "number": 7,
+          "title": null,
           "lessons": [
             "the-d-shape-relationships-mt-701",
             "d-shape-major-and-minor-mt-702",
@@ -898,6 +943,7 @@
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "beginners-scale-faq-sc-101",
             "how-to-practice-scales-sc-102",
@@ -910,6 +956,7 @@
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "major-scale-essential-information-sc-201",
             "the-major-scale-why-and-how-sc-202",
@@ -930,6 +977,7 @@
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "minor-pentatonic-essential-information-sc-301",
             "minor-pentatonic-how-why-sc-302",
@@ -939,6 +987,7 @@
         },
         {
           "number": 4,
+          "title": null,
           "lessons": [
             "major-pentatonic-essential-information-sc-401",
             "major-pentatonic-the-five-patterns-sc-404"
@@ -946,6 +995,7 @@
         },
         {
           "number": 6,
+          "title": null,
           "lessons": [
             "melodic-minor-essential-information-sc-600",
             "melodic-minor-pattern-1-sc-601",
@@ -965,6 +1015,7 @@
         },
         {
           "number": 7,
+          "title": null,
           "lessons": [
             "diminished-half-whole-essential-info-sc-700",
             "harmonic-minor-essential-information-sc-701",
@@ -975,6 +1026,7 @@
         },
         {
           "number": 9,
+          "title": null,
           "lessons": [
             "caged-vs-3-notes-per-string-3nps-scale-systems-sc-987"
           ]
@@ -990,6 +1042,7 @@
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "contrary-blues-main-lesson-sb-101",
             "contrary-blues-practice-tips-slow-demo-sb-102",
@@ -998,6 +1051,7 @@
         },
         {
           "number": 4,
+          "title": null,
           "lessons": [
             "hooker-vibe-blues-main-lesson-sb-401",
             "hooker-vibe-blues-slow-demo-practice-tips-sb-402",
@@ -1006,6 +1060,7 @@
         },
         {
           "number": 5,
+          "title": null,
           "lessons": [
             "target-3rd-blues-main-lesson-sb-502",
             "target-3rd-blues-practice-tips-slow-demo-sb-503",
@@ -1014,6 +1069,7 @@
         },
         {
           "number": 6,
+          "title": null,
           "lessons": [
             "six-low-slow-primer-main-lesson-sb-602",
             "six-low-slow-primer-slow-demo-sb-603",
@@ -1022,6 +1078,7 @@
         },
         {
           "number": 7,
+          "title": null,
           "lessons": [
             "six-low-slow-blues-main-lesson-sb-702",
             "six-low-slow-blues-slow-demo-practice-tips-sb-703",
@@ -1030,6 +1087,7 @@
         },
         {
           "number": 8,
+          "title": null,
           "lessons": [
             "gospel-primer-main-lesson-sb-802",
             "gospel-primer-practice-tips-slow-demo-sb-803",
@@ -1038,6 +1096,7 @@
         },
         {
           "number": 9,
+          "title": null,
           "lessons": [
             "gospel-blues-main-lesson-sb-902",
             "gospel-blues-practice-tips-slow-demo-sb-903",
@@ -1055,24 +1114,28 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "triad-chords-1-3-ch-008"
           ]
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "the-8-essential-beginner-chords-ch-110"
           ]
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "open-7th-chords-ch-210"
           ]
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "the-f-chord-ch-310",
             "open-suspended-chords-ch-370",
@@ -1082,6 +1145,7 @@
         },
         {
           "number": 7,
+          "title": null,
           "lessons": [
             "capo-the-chords-to-best-suit-your-voice-ch-701",
             "play-the-same-chords-using-different-grips-ch-702"
@@ -1089,12 +1153,14 @@
         },
         {
           "number": 8,
+          "title": null,
           "lessons": [
             "jimi-hendrix-style-how-to-use-your-thumb-to-play-the-bass-notes-of-chords-ch-850"
           ]
         },
         {
           "number": 9,
+          "title": null,
           "lessons": [
             "caged-logic-ch-900"
           ]
@@ -1110,6 +1176,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "boss-katana-50-unboxing-exploring-ka-001",
             "installing-the-boss-tone-studio-ka-002",
@@ -1118,6 +1185,7 @@
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "boss-katana-mk-ii-review-ka-101",
             "alive-pearl-jam-tsl-ka-103",
@@ -1130,6 +1198,7 @@
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "booster-parameters-overview-ka-200",
             "katana-boost-effect-types-ka-201"
@@ -1137,24 +1206,28 @@
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "t-wah-effect-patch-ka-321"
           ]
         },
         {
           "number": 5,
+          "title": null,
           "lessons": [
             "all-about-reverb-ka-501"
           ]
         },
         {
           "number": 7,
+          "title": null,
           "lessons": [
             "katana-patch-kleen-start-ka-700"
           ]
         },
         {
           "number": 9,
+          "title": null,
           "lessons": [
             "tone-tips-with-juca-nery-ka-900"
           ]
@@ -1170,6 +1243,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "start-with-mp3-downloads-ru-041",
             "how-to-get-started-ru-051",
@@ -1178,30 +1252,35 @@
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "albert-king-style-ru-100"
           ]
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "eric-clapton-style-ru-200"
           ]
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "chuck-berry-style-ru-300"
           ]
         },
         {
           "number": 4,
+          "title": null,
           "lessons": [
             "jimi-hendrix-style-ru-400"
           ]
         },
         {
           "number": 5,
+          "title": null,
           "lessons": [
             "stevie-ray-vaughan-style-ru-500"
           ]
@@ -1217,12 +1296,14 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "why-transcribing-is-so-important-tr-001"
           ]
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "the-process-of-transcribing-tr-101",
             "writing-down-melody-in-tab-tr-102",
@@ -1236,6 +1317,7 @@
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "listening-to-the-bass-note-tr-201",
             "12-bar-blues-in-every-key-tr-202"
@@ -1243,6 +1325,7 @@
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "creating-lyric-and-chord-sheets-tr-301",
             "basic-chord-chart-writing-tr-302"
@@ -1250,12 +1333,14 @@
         },
         {
           "number": 5,
+          "title": null,
           "lessons": [
             "song-tips-1-pop-and-rock-tr-501"
           ]
         },
         {
           "number": 6,
+          "title": null,
           "lessons": [
             "transcribing-moonlight-shadow-tr-601",
             "transcribing-the-chain-tr-603",
@@ -1278,36 +1363,42 @@
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "blank-necks-diagrams-chord-boxes-bp-100"
           ]
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "blank-tab-paper-bp-200"
           ]
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "blank-manuscript-paper-bp-300"
           ]
         },
         {
           "number": 4,
+          "title": null,
           "lessons": [
             "blank-tab-manuscript-bp-400"
           ]
         },
         {
           "number": 5,
+          "title": null,
           "lessons": [
             "blank-chord-finding-method-bp-500"
           ]
         },
         {
           "number": 6,
+          "title": null,
           "lessons": [
             "blank-practice-routines-bp-600"
           ]
@@ -1323,12 +1414,14 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "3-types-of-songs-you-should-practice-pc-001"
           ]
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "set-your-guitar-goals-pc-101",
             "decide-what-to-practice-pc-102",
@@ -1343,6 +1436,7 @@
         },
         {
           "number": 5,
+          "title": null,
           "lessons": [
             "beginners-practice-routine-pc-501",
             "intermediate-practice-routine-pc-502"
@@ -1350,6 +1444,7 @@
         },
         {
           "number": 8,
+          "title": null,
           "lessons": [
             "my-thoughts-on-learning-pc-801",
             "pick-n-mix-practice-pc-850"
@@ -1357,6 +1452,7 @@
         },
         {
           "number": 9,
+          "title": null,
           "lessons": [
             "5-tips-to-make-this-year-your-best-guitar-year-pc-901"
           ]
@@ -1372,6 +1468,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "the-7-amazing-benefits-of-ear-training-et-001",
             "play-what-you-hear-exercise-et-002",
@@ -1382,6 +1479,7 @@
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "the-perfect-5th-interval-et-101",
             "the-perfect-4th-interval-et-102",
@@ -1393,6 +1491,7 @@
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "the-major-2nd-interval-et-201",
             "the-major-3rd-interval-et-202",
@@ -1403,6 +1502,7 @@
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "the-major-6th-interval-et-301",
             "the-major-7th-interval-et-302",
@@ -1424,6 +1524,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "justin-s-guitars-list-and-info-gg-001",
             "justin-s-amps-gg-002",
@@ -1436,6 +1537,7 @@
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "maton-mini-gg-101",
             "maton-messiah-gg-102",
@@ -1444,12 +1546,14 @@
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "50-guitar-pick-can-you-hear-it-gg-324"
           ]
         },
         {
           "number": 4,
+          "title": null,
           "lessons": [
             "the-hoolahan-slide-gg-401",
             "gruv-gear-fret-wrap-review-gg-402",
@@ -1469,6 +1573,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "10-basic-jazz-chords-ja-001",
             "basic-jazz-rhythm-guitar-ja-002",
@@ -1503,12 +1608,14 @@
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "jazz-guitar-recommended-listening-ja-101"
           ]
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "learn-to-walk-the-bass-ja-201",
             "fall-off-trees-ja-202",
@@ -1519,6 +1626,7 @@
         },
         {
           "number": 5,
+          "title": null,
           "lessons": [
             "starting-jazz-improv-w-mike-outram-ja-501",
             "minor-pentatonics-over-a-ii-v-i-ja-512",
@@ -1549,12 +1657,14 @@
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "effect-pedal-order-fx-151"
           ]
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "reverb-what-how-history-fx-201",
             "reverb-examples-to-hear-fx-202"
@@ -1562,6 +1672,7 @@
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "echo-tape-delay-analog-delay-and-digital-delay-fx-301",
             "delay-examples-to-hear-fx-302",
@@ -1572,6 +1683,7 @@
         },
         {
           "number": 4,
+          "title": null,
           "lessons": [
             "how-to-use-a-looper-pedal-fx-402"
           ]
@@ -1587,24 +1699,28 @@
       "modules": [
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "caged-shape-explorers-c-shape-ce-200"
           ]
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "caged-shape-explorers-g-shape-ce-300"
           ]
         },
         {
           "number": 4,
+          "title": null,
           "lessons": [
             "caged-shape-explorers-a-shape-ce-400"
           ]
         },
         {
           "number": 5,
+          "title": null,
           "lessons": [
             "caged-shape-explorers-e-shape-ce-500"
           ]
@@ -1620,6 +1736,7 @@
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "home-recording-guide-introduction-rt-101",
             "home-recording-set-up-rt-102",
@@ -1629,6 +1746,7 @@
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "garage-band-introduction-rt-201",
             "garage-band-using-loops-to-make-a-backing-track-rt-202",
@@ -1637,6 +1755,7 @@
         },
         {
           "number": 6,
+          "title": null,
           "lessons": [
             "recording-acoustic-guitars-rt-601",
             "recording-electric-guitars-rt-602"
@@ -1653,6 +1772,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "how-to-tune-a-ukulele-uk-000",
             "ukulele-quick-easy-4-chords-many-songs-uk-001",
@@ -1666,12 +1786,14 @@
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "10-very-easy-songs-to-play-on-the-ukulele-uk-300"
           ]
         },
         {
           "number": 6,
+          "title": null,
           "lessons": [
             "2020-ukulele-buyers-guide-uk-667"
           ]
@@ -1687,6 +1809,7 @@
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "nitsuj-module-10-practice-1-nk-101",
             "nitsuj-module-10-practice-2-nk-102",
@@ -1707,6 +1830,7 @@
         },
         {
           "number": 8,
+          "title": null,
           "lessons": [
             "nitsuj-module-8-practice-1-nk-801",
             "nitsuj-module-8-practice-2-nk-802",
@@ -1717,6 +1841,7 @@
         },
         {
           "number": 9,
+          "title": null,
           "lessons": [
             "nitsuj-module-9-practice-1-nk-901",
             "nitsuj-module-9-practice-2-nk-902",
@@ -1738,6 +1863,7 @@
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "solo-blues-1-introduction-ds-100",
             "walking-easy-blues-ds-101",
@@ -1747,6 +1873,7 @@
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "solo-blues-2-introduction-ds-200",
             "slow-six-blues-ds-201",
@@ -1756,6 +1883,7 @@
         },
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "solo-blues-3-introduction-ds-300",
             "single-line-blues-ds-301",
@@ -1774,6 +1902,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "so-you-want-to-be-a-writer-by-charles-bukowski-so-010",
             "pete-cunnah-on-bukowski-so-011",
@@ -1783,6 +1912,7 @@
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "music-business-quotes-so-111"
           ]
@@ -1798,6 +1928,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "finger-tapping-basics-ro-001",
             "more-finger-tapping-ro-002",
@@ -1813,6 +1944,7 @@
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "angus-young-ac-dc-style-licks-ro-101"
           ]
@@ -1828,6 +1960,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "major-7th-arpeggios-ar-001",
             "minor-7th-arpeggios-ar-002",
@@ -1838,6 +1971,7 @@
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "arpeggios-why-how-which-when-ar-101",
             "superimposing-arpeggios-ar-111"
@@ -1854,6 +1988,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "review-waza-air-headphone-amplifier-all-in-one-gr-000",
             "b-b-king-gr-001",
@@ -1866,6 +2001,7 @@
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "coated-or-plain-acoustic-strings-d-addario-xt-xs-and-phosphor-bronze-gr-100",
             "review-boss-katana-gen-3-guitar-amplifier-gr-101",
@@ -1883,6 +2019,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "about-the-katana-patches-kp-000",
             "sweet-home-alabama-tsl-kp-001",
@@ -1899,6 +2036,7 @@
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "gravity-john-mayer-tsl-kp-101",
             "get-lucky-daft-punk-tsl-kp-102"
@@ -1915,6 +2053,7 @@
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "2016-jan-09-beginner-hour-lv-100",
             "2016-jan-16-beginner-hour-lv-101",
@@ -1928,6 +2067,7 @@
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "live-test-driving-my-acoustic-froggy-bottom-m-lv-203",
             "2018-feb-17-mike-dawes-is-hanging-out-lv-207",
@@ -1953,6 +2093,7 @@
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "sequence-in-3rds-major-p1-ms-101",
             "sequence-in-3rds-major-p2-p3-ms-102",
@@ -1961,6 +2102,7 @@
         },
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "sequence-in-4ths-min-pent-p1-ms-201",
             "sequence-in-4ths-min-pent-p2-p3-ms-202",
@@ -1980,6 +2122,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "raffle-my-suhr-alt-t-guitar-can-be-yours-for-3-rf-001",
             "raffle-win-a-unique-gray-guitar-rf-002"
@@ -1987,6 +2130,7 @@
         },
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "mayfield-hendrix-style-fills-rf-101",
             "rhythm-lick-1-rf-102",
@@ -2004,6 +2148,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "download-your-workbook-sd-000",
             "before-you-start-record-yourself-sd-001",
@@ -2042,6 +2187,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "major-scale-pattern-1-mm-001",
             "chords-in-keys-for-jamming-mm-002",
@@ -2069,6 +2215,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "master-your-major-scales-intro-dm-000",
             "mms-lesson-1-dm-001",
@@ -2094,6 +2241,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "supercharge-your-guitar-practice-with-timeboxing-bg-001"
           ]
@@ -2109,6 +2257,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "lush-acoustic-chords-w-drone-strings-1-ca-001",
             "12-awful-stretchy-guitar-chords-ca-002"
@@ -2125,6 +2274,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "the-caged-system-introduction-tb-031",
             "the-caged-system-e-shape-tb-032",
@@ -2145,6 +2295,7 @@
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "folk-fingerstyle-module-intro-fo-100",
             "folk-fingerstyle-patterns-part-1-fo-101",
@@ -2169,6 +2320,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "mrpc-1-we-rock-rp-001",
             "mrpc-2-in-the-bar-rp-002",
@@ -2197,6 +2349,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "fender-strat-plus-deluxe-jg-001",
             "gretsch-malcolm-young-model-jg-002",
@@ -2215,6 +2368,7 @@
       "modules": [
         {
           "number": 5,
+          "title": null,
           "lessons": [
             "counting-16th-notes-in-funk-fu-501",
             "strumming-technique-mechanics-fu-502",
@@ -2239,6 +2393,7 @@
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "country-roads-play-along-bx-137",
             "struggling-with-strumming-bx-170",
@@ -2256,6 +2411,7 @@
       "modules": [
         {
           "number": 6,
+          "title": null,
           "lessons": [
             "justinguitar-s-top-10-blues-albums-re-666"
           ]
@@ -2271,6 +2427,7 @@
       "modules": [
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "dream-a-little-dream-of-me-ukulele-us-201",
             "let-it-be-ukulele-us-202",
@@ -2294,6 +2451,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "tune-your-guitar-using-a-tuner-tu-001",
             "tune-up-with-reference-pitches-tu-002",
@@ -2313,6 +2471,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "tommy-emmanuel-interview-ma-001",
             "larry-carlton-interview-2008-ma-002",
@@ -2339,6 +2498,7 @@
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "the-history-of-guitar-techniques-magazine-in-100",
             "violining-technique-with-special-guest-quist-in-101",
@@ -2356,6 +2516,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "sofa-showcase-davy-denke-ss-001",
             "sofa-showcase-klara-ss-002",
@@ -2374,6 +2535,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "getting-into-slide-guitar-ap-001",
             "playing-behind-the-slide-ap-002",
@@ -2391,6 +2553,7 @@
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "all-about-guitar-strings-gm-102",
             "handy-string-change-tools-gm-103",
@@ -2410,6 +2573,7 @@
       "modules": [
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "finger-like-a-pick-st-313"
           ]
@@ -2425,6 +2589,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "tammy-lesson-1-td-001",
             "tammy-lesson-2-td-002",
@@ -2451,6 +2616,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "legato-1-hammer-ons-lp-001",
             "legato-2-flick-offs-lp-002",
@@ -2469,6 +2635,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "strumming-techniques-1-a-sm-001",
             "strumming-techniques-1-b-sm-002",
@@ -2487,6 +2654,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "ukulele-quick-start-for-mums-dads-ku-000",
             "the-wheels-on-the-bus-ku-001",
@@ -2517,6 +2685,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "josh-smith-killer-blues-chords-sk-001",
             "jim-campilongo-misty-chord-melody-sk-002",
@@ -2536,6 +2705,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "music-production-introduction-pb-001",
             "what-is-a-daw-logic-pro-x-basics-pb-002",
@@ -2562,6 +2732,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "secure-your-cable-qt-001",
             "your-heartbeat-guides-the-tempo-qt-002",
@@ -2597,6 +2768,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "chat-play-cb-000",
             "chris-buck-articulations-cb-001"
@@ -2613,6 +2785,7 @@
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "condition-report-assessment-cc-101",
             "truss-rod-adjustments-cc-102",
@@ -2634,6 +2807,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "chromatic-6th-s-lk-001",
             "half-diminished-slidey-lk-002",
@@ -2672,6 +2846,7 @@
       "modules": [
         {
           "number": 2,
+          "title": null,
           "lessons": [
             "the-holistic-practice-routine-gt-257",
             "what-you-can-t-do-gt-258",
@@ -2701,6 +2876,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "rhythm-essentials-rm-001",
             "understanding-music-ties-strumming-patterns-rm-002",
@@ -2718,6 +2894,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "why-is-strumming-so-hard-aw-001",
             "fingerstyle-vs-strumming-aw-002",
@@ -2740,6 +2917,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "jens-larsen-teaches-justin-jazz-guitar-lesson-jl-001"
           ]
@@ -2755,6 +2933,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "justin-reacts-mike-dawes-jump-van-halen-cover-md-001"
           ]
@@ -2770,6 +2949,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "drop-d-tuning-es-021",
             "double-drop-d-tuning-es-022",
@@ -2793,6 +2973,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "rut-busters-ep-1-the-language-of-music-rb-001",
             "rut-busters-ep-2-groovin-on-the-6-rb-002",
@@ -2817,6 +2998,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "lee-s-private-lesson-1-cp-001",
             "lee-s-private-lesson-2-cp-002",
@@ -2842,6 +3024,7 @@
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "caged-shape-explorers-d-shape-cs-100"
           ]
@@ -2857,6 +3040,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "how-to-overcome-stage-anxiety-cm-001"
           ]
@@ -2872,6 +3056,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "10-life-changing-hacks-jr-001",
             "youtube-setup-a-tour-of-justin-s-studio-jr-002"
@@ -2888,6 +3073,7 @@
       "modules": [
         {
           "number": 3,
+          "title": null,
           "lessons": [
             "3-awesome-rock-vocal-tricks-sg-333",
             "how-to-sing-in-tune-sg-334"
@@ -2904,6 +3090,7 @@
       "modules": [
         {
           "number": 1,
+          "title": null,
           "lessons": [
             "that-6th-trick-be-101",
             "vari-shuffle-climb-be-102",
@@ -2922,6 +3109,7 @@
       "modules": [
         {
           "number": 0,
+          "title": null,
           "lessons": [
             "easy-advanced-christmas-songs-to-play-on-guitar-bb-003"
           ]

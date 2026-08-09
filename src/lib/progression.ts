@@ -41,7 +41,13 @@ export interface SkillStanding {
   bar: number | null;
   /** One sentence naming the evidence, or what is missing. */
   evidence: string;
-  /** Prerequisites not yet solid, which is why a locked skill is locked. */
+  /**
+   * Prerequisites that genuinely gate this skill: not yet solid, and of a kind
+   * the app can actually measure. A prerequisite it cannot measure is advice,
+   * not a lock — otherwise "positive finger placement", which needs per-string
+   * energy the app does not have, would gate all eight chords forever and the
+   * whole course would read as unavailable.
+   */
   blockedBy: Skill[];
 }
 
@@ -243,7 +249,10 @@ export function allStandings(
     const blockedBy = skill.requires
       .filter((id) => !solid.has(id))
       .map(getSkill)
-      .filter((s): s is Skill => s !== null);
+      .filter((s): s is Skill => s !== null)
+      // Only a skill the app can put a number on is allowed to hold another one
+      // back. Anything else is a recommendation, and the taxonomy says so.
+      .filter((s) => s.measure.kind === 'measured');
 
     const progress =
       m.bar !== null && m.best !== null ? Math.min(1, m.best / m.bar) : solid.has(skill.id) ? 1 : 0;

@@ -60,6 +60,11 @@
   max-width: 500px;
 }
 
+/* A panel that lays out a whole course needs more than a question does. */
+.modal-content.is-wide {
+  max-width: 640px;
+}
+
 .modal-header {
   display: flex;
   justify-content: flex-start;

@@ -206,3 +206,32 @@
   .progress-summary { padding: var(--space-3); }
   .progress-chart-card { padding: var(--space-3); }
 }
+
+/* Two views of the same question. Journey is the map, Numbers is the
+   stopwatch, and they belong behind one door. */
+.progress-tabs {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  margin-bottom: var(--space-5);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.progress-tab {
+  min-height: 40px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  transition: background var(--dur-base) ease, color var(--dur-base) ease;
+}
+.progress-tab:hover {
+  color: var(--text-primary);
+}
+.progress-tab.is-on {
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+}

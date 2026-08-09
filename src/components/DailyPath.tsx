@@ -9,6 +9,7 @@ import { UndoStrip } from './UndoStrip';
 import { useUndoStore, type TaskDeletion } from '../store/undo';
 import { RoutineManagerModal } from './RoutineManagerModal';
 import { ProgressPanel } from './practice/ProgressPanel';
+import { JourneyPanel } from './practice/JourneyPanel';
 import { sanitizeMinutes } from '../lib/coached';
 import type { Task } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -58,6 +59,10 @@ export function DailyPath() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isRoutineModalOpen, setIsRoutineModalOpen] = useState(false);
   const [isProgressOpen, setIsProgressOpen] = useState(false);
+  // Progress answers "how fast", Journey answers "where am I". They are two
+  // views of the same question and live behind one button rather than adding a
+  // fourth thing to the header.
+  const [progressView, setProgressView] = useState<'journey' | 'numbers'>('journey');
   const [isCoachedOpen, setIsCoachedOpen] = useState(false);
   const [isTunerOpen, setIsTunerOpen] = useState(false);
   const [practiceTask, setPracticeTask] = useState<Task | null>(null);
@@ -341,16 +346,19 @@ export function DailyPath() {
           <span>Tune</span>
         </button>
 
-        {hasProgress && (
-          <button
-            className="progress-launch"
-            onClick={() => setIsProgressOpen(true)}
-            title="Your change-speed progress"
-          >
-            <ChartIcon size={18} className="progress-launch-icon" />
-            <span>Progress</span>
-          </button>
-        )}
+        {/* Not gated on having drill results any more: the Journey is a map of
+            the course, and day zero is precisely when someone needs one. */}
+        <button
+          className="progress-launch"
+          onClick={() => {
+            setProgressView(hasProgress ? 'journey' : 'journey');
+            setIsProgressOpen(true);
+          }}
+          title="Where you are, and how you are moving"
+        >
+          <ChartIcon size={18} className="progress-launch-icon" />
+          <span>Progress</span>
+        </button>
       </div>
 
       <div className="task-container-wrapper">
@@ -558,7 +566,32 @@ export function DailyPath() {
         isOpen={isProgressOpen}
         onClose={() => setIsProgressOpen(false)}
         title="Progress"
+        wide
       >
+        <div className="progress-tabs" role="tablist" aria-label="Progress view">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={progressView === 'journey'}
+            className={clsx('progress-tab', progressView === 'journey' && 'is-on')}
+            onClick={() => setProgressView('journey')}
+          >
+            Journey
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={progressView === 'numbers'}
+            className={clsx('progress-tab', progressView === 'numbers' && 'is-on')}
+            onClick={() => setProgressView('numbers')}
+          >
+            Numbers
+          </button>
+        </div>
+
+        {progressView === 'journey' && <JourneyPanel />}
+
+        {progressView === 'numbers' && (
         <ProgressPanel
           onPracticePair={(from, to) => {
             useStore.getState().setLastPair(from, to);
@@ -575,6 +608,7 @@ export function DailyPath() {
             });
           }}
         />
+        )}
       </Modal>
 
       <Suspense fallback={practiceTask ? <Loader overlay label="Tuning up…" /> : null}>

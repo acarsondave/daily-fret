@@ -54,6 +54,14 @@ export interface UserData {
   // Whether coached drills set the tempo (and start the click) themselves from
   // the player's own results. Defaults on; absent means never chosen.
   metronomeAuto?: boolean;
+  // Skills the learner has said they have, for the ones the app cannot hear:
+  // posture, reading tab, knowing what a time signature is. Never used to
+  // override a measurement, only to fill the gap where there will never be one.
+  // See src/lib/progression.ts.
+  claimedSkills?: string[];
+  // Where the learner says they are in their course, as a curriculum lesson
+  // code. Set in onboarding, moved on by hand. Absent means never asked.
+  currentLesson?: string;
   // Which fret the capo is on, 0 for none. The detector matches pitch-class
   // templates, so a capo transposes everything it hears and every drill would
   // silently stop counting without this. Absent means none.
@@ -111,6 +119,8 @@ interface AppState {
   setMetronomeBpm: (bpm: number) => void;
   setMetronomeAuto: (auto: boolean) => void;
   setCapoFret: (fret: number) => void;
+  setSkillClaimed: (skillId: string, claimed: boolean) => void;
+  setCurrentLesson: (code: string | null) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -181,6 +191,8 @@ export const useStore = create<AppState>()(
             metronomeBpm: data.metronomeBpm ?? local?.metronomeBpm,
             metronomeAuto: data.metronomeAuto ?? local?.metronomeAuto,
             capoFret: data.capoFret ?? local?.capoFret,
+            claimedSkills: data.claimedSkills ?? local?.claimedSkills ?? [],
+            currentLesson: data.currentLesson ?? local?.currentLesson,
             updatedAt: remoteUpdatedAt,
           };
 
@@ -457,6 +469,28 @@ export const useStore = create<AppState>()(
         // Clamped rather than trusted: an out-of-range offset would shift the
         // chroma into nonsense and every drill would stop counting with no
         // visible cause.
+        setSkillClaimed: (skillId, claimed) => set((state) =>
+          mutate(state, (a) => {
+            const current = a.claimedSkills ?? [];
+            if (claimed === current.includes(skillId)) return a;
+            return {
+              ...a,
+              claimedSkills: claimed
+                ? [...current, skillId]
+                : current.filter((id) => id !== skillId),
+            };
+          }),
+        ),
+
+        setCurrentLesson: (code) => set((state) =>
+          mutate(state, (a) => {
+            const next = { ...a };
+            if (code) next.currentLesson = code;
+            else delete next.currentLesson;
+            return next;
+          }),
+        ),
+
         setCapoFret: (fret) => set((state) =>
           mutate(state, (a) => ({ ...a, capoFret: Math.max(0, Math.min(11, Math.round(fret))) })),
         ),
