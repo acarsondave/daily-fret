@@ -209,8 +209,13 @@
 
 /* Two views of the same question. Journey is the map, Numbers is the
    stopwatch, and they belong behind one door. */
+/* Four tabs at the desktop padding come to 400px, which on a 375px phone put
+   History past the right edge of the panel with nothing to scroll it into view:
+   a whole tab of the product was unreachable on the device it is mostly used
+   on. The strip now fills the width and the tabs share it. */
 .progress-tabs {
-  display: inline-flex;
+  display: flex;
+  width: 100%;
   gap: var(--space-1);
   padding: var(--space-1);
   margin-bottom: var(--space-5);
@@ -219,8 +224,11 @@
 }
 
 .progress-tab {
+  flex: 1 1 0;
+  min-width: 0;
   min-height: 40px;
-  padding: 0 var(--space-5);
+  padding: 0 var(--space-3);
+  white-space: nowrap;
   border-radius: var(--radius-full);
   color: var(--text-secondary);
   font-family: var(--font-primary);
@@ -234,4 +242,13 @@
 .progress-tab.is-on {
   background: var(--accent-glow);
   color: var(--accent-primary);
+}
+
+/* On the narrowest phones the four labels stop fitting even shared evenly, so
+   the type steps down rather than the strip overflowing again. */
+@media (max-width: 400px) {
+  .progress-tab {
+    padding: 0 var(--space-1);
+    font-size: var(--text-sm);
+  }
 }

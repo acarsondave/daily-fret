@@ -124,6 +124,22 @@
   border-color: rgba(248, 113, 113, 0.28);
 }
 
+/* Undoing a setting is not the same kind of act as configuring one. Given the
+   same weight as "add to my calendar" it competed with it; quieter puts the
+   hierarchy back without hiding it. */
+.settings-action-btn.is-quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-3);
+}
+
+.settings-action-btn.is-quiet:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
 .settings-action-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;

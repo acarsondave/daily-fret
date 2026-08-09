@@ -195,7 +195,11 @@ export function ReminderSetting() {
 
           {notifyError && <p className="reminder-error">{notifyError}</p>}
 
-          <button type="button" className="settings-action-btn" onClick={() => setReminder(null)}>
+          <button
+            type="button"
+            className="settings-action-btn is-quiet"
+            onClick={() => setReminder(null)}
+          >
             <span>Turn the reminder off</span>
           </button>
         </>
