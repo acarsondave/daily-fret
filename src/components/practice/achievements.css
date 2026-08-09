@@ -1,0 +1,217 @@
+/* Points, level and badges. Restrained on purpose: this app's job is to make
+   practice feel worth doing, not to make a game out of it, and a wall of gold
+   trophies would undercut every honest number elsewhere in the product. */
+
+.ach {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  text-align: left;
+}
+
+/* --- Level ----------------------------------------------------------------- */
+
+.ach-level {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-subtle);
+  background: linear-gradient(140deg, var(--accent-glow), rgba(255, 255, 255, 0.02));
+}
+
+.ach-level-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.ach-level-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: rgba(56, 189, 248, 0.14);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-xl);
+  color: var(--accent-primary);
+}
+
+.ach-level-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ach-level-title {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+}
+
+.ach-level-xp {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.ach-level-track {
+  display: block;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.ach-level-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-primary);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+
+.ach-level-next {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* --- Breakdown ------------------------------------------------------------- */
+
+.ach-breakdown {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+}
+
+.ach-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+}
+
+.ach-figure-value {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.ach-figure-label {
+  font-size: var(--text-micro);
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+/* --- Badges ---------------------------------------------------------------- */
+
+.ach-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ach-title {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ach-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ach-badge {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.ach-badge-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  color: var(--text-muted);
+}
+.ach-badge.is-earned {
+  border-color: rgba(52, 211, 153, 0.28);
+  background: rgba(52, 211, 153, 0.06);
+}
+.ach-badge.is-earned .ach-badge-mark {
+  border-color: transparent;
+  background: var(--success-glow);
+  color: var(--success-color);
+}
+
+.ach-badge-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ach-badge-title {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.ach-badge-goal {
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.ach-badge-detail {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  color: var(--text-secondary);
+}
+
+.ach-badge-progress {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-primary);
+}
+
+@media (max-width: 480px) {
+  .ach-breakdown {
+    grid-template-columns: 1fr;
+  }
+}
