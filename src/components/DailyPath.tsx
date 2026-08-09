@@ -6,13 +6,9 @@ import { Modal } from './Modal';
 import { Loader } from './Loader';
 import { TaskCreatorModal } from './TaskCreatorModal';
 import { UndoStrip } from './UndoStrip';
-import { Onboarding } from './Onboarding';
 import { useUndoStore, type TaskDeletion } from '../store/undo';
 import { RoutineManagerModal } from './RoutineManagerModal';
 import { ProgressPanel } from './practice/ProgressPanel';
-import { JourneyPanel } from './practice/JourneyPanel';
-import { AchievementsPanel } from './practice/AchievementsPanel';
-import { HistoryPanel } from './practice/HistoryPanel';
 import { sanitizeMinutes } from '../lib/coached';
 import type { Task } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -37,6 +33,21 @@ const CoachedSession = lazy(() =>
   import('./practice/CoachedSession').then((m) => ({ default: m.CoachedSession })),
 );
 const Tuner = lazy(() => import('./practice/Tuner').then((m) => ({ default: m.Tuner })));
+// The Journey pulls the whole curriculum (650 lessons) and the Awards panel
+// pulls the achievement set. Neither is needed to paint the day's tasks, and
+// eagerly importing them put 40 kB gzipped in front of every first load for a
+// panel most sessions never open.
+const JourneyPanel = lazy(() =>
+  import('./practice/JourneyPanel').then((m) => ({ default: m.JourneyPanel })),
+);
+const AchievementsPanel = lazy(() =>
+  import('./practice/AchievementsPanel').then((m) => ({ default: m.AchievementsPanel })),
+);
+const HistoryPanel = lazy(() =>
+  import('./practice/HistoryPanel').then((m) => ({ default: m.HistoryPanel })),
+);
+// First run only, and it reaches the curriculum through the routine builder.
+const Onboarding = lazy(() => import('./Onboarding').then((m) => ({ default: m.Onboarding })));
 
 const INLINE_STEPS = ['title', 'description', 'duration'] as const;
 const INLINE_HINTS: Record<(typeof INLINE_STEPS)[number], string> = {
@@ -245,7 +256,11 @@ export function DailyPath() {
   // First run: no routine and never asked where they are. Dismissing it drops
   // through to the same blank slate as before, so nobody is trapped in a wizard.
   if (!activeRoutine && !onboardingSkipped) {
-    return <Onboarding onDone={() => setOnboardingSkipped(true)} />;
+    return (
+      <Suspense fallback={<Loader overlay label="Getting set up…" />}>
+        <Onboarding onDone={() => setOnboardingSkipped(true)} />
+      </Suspense>
+    );
   }
 
   if (!activeRoutine) {
@@ -617,11 +632,11 @@ export function DailyPath() {
           </button>
         </div>
 
-        {progressView === 'history' && <HistoryPanel />}
-
-        {progressView === 'awards' && <AchievementsPanel />}
-
-        {progressView === 'journey' && <JourneyPanel />}
+        <Suspense fallback={<p className="progress-empty">Reading your practice…</p>}>
+          {progressView === 'journey' && <JourneyPanel />}
+          {progressView === 'awards' && <AchievementsPanel />}
+          {progressView === 'history' && <HistoryPanel />}
+        </Suspense>
 
         {progressView === 'numbers' && (
         <ProgressPanel

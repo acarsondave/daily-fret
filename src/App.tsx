@@ -1,7 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { DailyPath } from './components/DailyPath';
 import { Footer } from './components/Footer';
-import { AccountModal } from './components/AccountModal';
+// Settings, sign-in, the pattern manager, the routine backlog and a chord
+// diagram all hang off this modal, and none of it is needed to paint today's
+// practice. It opens on a tap, which is exactly when it can be fetched.
+const AccountModal = lazy(() =>
+  import('./components/AccountModal').then((m) => ({ default: m.AccountModal })),
+);
 import { StreakGraph } from './components/StreakGraph';
 import { initAuthListener, useAuthStore } from './lib/auth';
 import { armOutputAudioUnlock } from './audio/outputContext';
@@ -89,10 +94,14 @@ function App() {
 
             <Footer />
 
-            <AccountModal
-              isOpen={isAccountModalOpen}
-              onClose={() => setIsAccountModalOpen(false)}
-            />
+            <Suspense fallback={null}>
+              {isAccountModalOpen && (
+                <AccountModal
+                  isOpen={isAccountModalOpen}
+                  onClose={() => setIsAccountModalOpen(false)}
+                />
+              )}
+            </Suspense>
           </motion.main>
         )}
       </AnimatePresence>
