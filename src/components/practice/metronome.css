@@ -23,6 +23,13 @@
   letter-spacing: 0.04em;
 }
 
+/* Beat one, held for the length of a beat. This is a colour change rather than
+   a transform on purpose: it is the only beat marker left on the closed trigger
+   once the OS asks for reduced motion and the pendulum arm stops swinging. */
+.metro-trigger.is-live[data-down] {
+  background: rgba(56, 189, 248, 0.32);
+}
+
 /* Scheduled but never freed by the browser. This has to read as a warning
    rather than as a running click: the control must never claim a tempo the
    player cannot hear. */
@@ -45,7 +52,7 @@
   max-width: calc(100vw - var(--space-8));
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
   padding: var(--space-4);
   border-radius: var(--radius-lg);
   background: var(--surface-color);
@@ -53,25 +60,59 @@
   box-shadow: var(--shadow-raised);
 }
 
+/* The bar, drawn. Cell height is the accent: a tall cell is the chord change, a
+   middle one is the halfway mark of an eight-beat cycle, and the short ones are
+   the beats between. The shape alone says how long the cycle is and where the
+   change lands, before a single beat has sounded. */
+.metro-strip {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 26px;
+}
+.metro-cell {
+  flex: 1;
+  min-width: 0;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.11);
+  transition: background var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+.metro-cell.is-downbeat {
+  height: 26px;
+  background: rgba(255, 255, 255, 0.2);
+}
+.metro-cell.is-midbar {
+  height: 17px;
+  background: rgba(255, 255, 255, 0.15);
+}
+.metro-cell.is-beat,
+.metro-cell.is-countin {
+  height: 9px;
+}
+
+/* Beats already passed stay filled, so the strip reads as a bar filling up and
+   clearing on the change, not as a light chasing along a row. */
+.metro-cell.is-past {
+  background: rgba(56, 189, 248, 0.5);
+}
+.metro-cell.is-now {
+  background: var(--accent-primary);
+  box-shadow: 0 0 12px -2px rgba(56, 189, 248, 0.9);
+}
+/* The count-in is deliberately not the accent colour. Accent means "this is the
+   drill"; the count-in is the four beats before it. */
+.metro-cell.is-countin.is-past {
+  background: rgba(255, 255, 255, 0.3);
+}
+.metro-cell.is-countin.is-now {
+  background: var(--text-secondary);
+  box-shadow: none;
+}
+
 .metro-readout {
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
-}
-.metro-pulse {
-  width: 10px;
-  height: 10px;
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.16);
-  align-self: center;
-  flex-shrink: 0;
-}
-.metro-pulse.is-beat {
-  animation: metro-flash 0.5s ease-out;
-}
-@keyframes metro-flash {
-  0% { background: var(--accent-primary); transform: scale(1.5); }
-  100% { background: rgba(255, 255, 255, 0.16); transform: scale(1); }
 }
 .metro-bpm {
   font-family: var(--font-secondary);
@@ -88,27 +129,50 @@
   color: var(--text-secondary);
 }
 
+/* One tap back to the tempo the player's own history asked for. Without it a
+   single slider drag silently discards the prescription with no way back, and
+   the reason line above would be describing a number that is no longer
+   playing. */
+.metro-restore {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-inline-start: auto;
+  align-self: center;
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-full);
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-primary);
+  background: var(--accent-glow);
+  transition: background var(--dur-base) ease;
+}
+.metro-restore:hover {
+  background: rgba(56, 189, 248, 0.32);
+}
+
 /* Why this tempo. A number the player cannot interrogate is just a number. */
-.metro-reason {
-  margin: calc(var(--space-3) * -1) 0 0;
+.metro-note {
+  margin: -6px 0 0;
   font-size: var(--text-sm);
   line-height: 1.45;
   color: var(--text-secondary);
   text-align: left;
 }
-
-.metro-silent {
-  margin: calc(var(--space-3) * -1) 0 0;
-  font-size: var(--text-sm);
-  line-height: 1.45;
+.metro-note.is-warning {
   color: var(--warning-color);
-  text-align: left;
+}
+.metro-note.is-live {
+  color: var(--accent-primary);
 }
 
 .metro-stepper {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 .metro-step {
   display: inline-flex;
@@ -157,6 +221,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  margin-top: var(--space-1);
 }
 .metro-tap {
   flex-shrink: 0;
@@ -177,6 +242,12 @@
 }
 .metro-tap:active {
   color: var(--accent-primary);
+}
+/* Mid-tap: the button says how many more it needs. Two taps is one interval and
+   one interval is a guess, so it will not commit a tempo until it has three. */
+.metro-tap.is-counting {
+  color: var(--accent-primary);
+  background: var(--accent-glow);
 }
 .metro-play {
   flex: 1;

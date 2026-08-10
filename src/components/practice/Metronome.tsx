@@ -1,20 +1,33 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MinusIcon, PauseIcon, PlayIcon, PlusIcon, ICON_STROKE } from '../icons';
+import { MinusIcon, PauseIcon, PlayIcon, PlusIcon, RetryIcon, ICON_STROKE } from '../icons';
 import { useStore } from '../../store';
-import { metronome, MIN_BPM, MAX_BPM } from '../../audio/metronome';
+import {
+  metronome,
+  accentFor,
+  COUNT_IN_BEATS,
+  MIN_BPM,
+  MAX_BPM,
+  type BeatEvent,
+} from '../../audio/metronome';
 import { armOutputAudioUnlock } from '../../audio/outputContext';
 import { DEFAULT_PRACTICE_BPM, type TempoPlan } from '../../lib/tempo';
 
 // Ignore taps more than this far apart: they belong to different attempts, not
 // one steady tempo.
 const TAP_RESET_MS = 2000;
+// Two taps is one interval, and one interval is a guess. Three is a tempo.
+const TAPS_NEEDED = 3;
 
 // The live variant of MetronomeIcon: same geometry and the same 1.75 pen as the
-// rest of the set, with the pendulum actually swinging while the click sounds.
-// The swing is deliberately not tied to the beat — at 60 to 132 BPM a synced
-// pendulum reads as a stutter, while a steady sweep reads as "this is running".
-function MetronomeMark({ swinging }: { swinging: boolean }) {
+// rest of the set, with the arm swinging in real time. It is driven off the beat
+// events, which come from the audio clock, and it reaches the end of its travel
+// exactly on the click, which is where a mechanical metronome's escapement
+// actually fires. A swing on a fixed loop would say "running" while disagreeing
+// with the tempo it is running at, which is the kind of small lie that makes a
+// tool feel cheap.
+function MetronomeMark({ beat }: { beat: BeatEvent | null }) {
+  const swing = beat ? (beat.position % 2 === 0 ? -18 : 18) : 0;
   return (
     <svg
       className="icon-glyph"
@@ -37,10 +50,48 @@ function MetronomeMark({ swinging }: { swinging: boolean }) {
         x2="12"
         y2="8.4"
         style={{ originX: '12px', originY: '17.6px' }}
-        animate={swinging ? { rotate: [-18, 18, -18] } : { rotate: 0 }}
-        transition={swinging ? { duration: 1, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.2 }}
+        animate={{ rotate: swing }}
+        transition={
+          beat
+            ? { duration: beat.secondsPerBeat, ease: 'easeInOut' }
+            : { duration: 0.2, ease: 'easeOut' }
+        }
       />
     </svg>
+  );
+}
+
+// The bar, drawn. Where a plain pulse says only "a beat happened", this says
+// which beat, out of how many, and where the chord change lands, which is the
+// thing a strumming pattern needs somewhere to sit. Cells fill through the cycle
+// and clear on the downbeat, so the panel answers "how far through am I" without
+// the player counting.
+function BeatStrip({
+  cells,
+  active,
+  counting,
+  live,
+}: {
+  cells: number;
+  active: number;
+  counting: boolean;
+  live: boolean;
+}) {
+  return (
+    <div
+      className={live ? 'metro-strip is-live' : 'metro-strip'}
+      role="img"
+      // Deliberately the shape of the bar rather than the beat it is on.
+      // Renaming this element four times a second would make a screen reader
+      // unusable for the sake of information the ear already has.
+      aria-label={counting ? 'Counting in' : `${cells} beats to a chord change`}
+    >
+      {Array.from({ length: cells }, (_, i) => {
+        const accent = counting ? 'countin' : accentFor(i, cells);
+        const state = !live || active < 0 ? '' : i === active ? ' is-now' : i < active ? ' is-past' : '';
+        return <span key={i} className={`metro-cell is-${accent}${state}`} />;
+      })}
+    </div>
   );
 }
 
@@ -72,11 +123,21 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
   // suspended, and a tempo readout over silence is worse than no readout.
   const [audible, setAudible] = useState(false);
   const [bpm, setBpm] = useState(storedBpm ?? DEFAULT_PRACTICE_BPM);
-  const [beat, setBeat] = useState(0);
+  const [beat, setBeat] = useState<BeatEvent | null>(null);
+  const [tapsIn, setTapsIn] = useState(0);
   const tapsRef = useRef<number[]>([]);
+  const tapResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const silent = running && !audible;
+  const live = running && audible;
+  const counting = live && beat != null && beat.position < 0;
+  // The strip has to show something before the first beat lands, so it falls
+  // back to the cycle the prescription is about to run at.
+  const cells = counting
+    ? COUNT_IN_BEATS
+    : (beat?.beatsPerBar ?? (auto && plan ? plan.beatsPerChange : 4));
+  const onPlan = plan != null && bpm === plan.bpm;
 
   // The panel floats over a drill that is running. Escape and a tap outside
   // both close it, so getting back to the chord on screen never costs a
@@ -114,12 +175,13 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
     // this screen. Browsers only free audio on a gesture, so claim that tap now
     // rather than discovering the context is frozen once the drill is running.
     armOutputAudioUnlock();
-    metronome.onBeat = () => setBeat((b) => b + 1);
+    metronome.onBeat = (event) => setBeat(event);
     metronome.onAudibleChange = (next) => setAudible(next);
     return () => {
       metronome.onBeat = null;
       metronome.onAudibleChange = null;
       metronome.stop();
+      if (tapResetRef.current) clearTimeout(tapResetRef.current);
     };
   }, []);
 
@@ -138,38 +200,51 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
         metronome.setBeatsPerBar(4);
         metronome.stop();
         setRunning(false);
+        setBeat(null);
         return;
       }
       metronome.setBeatsPerBar(plan.beatsPerChange);
       setBpm(plan.bpm);
       if (autoPlay) {
+        // No count-in here on purpose: in coached practice the coach has just
+        // counted this drill in out loud, and a second count would land on top
+        // of a drill that is already counting chord changes.
         metronome.start(plan.bpm);
         setRunning(true);
       } else {
         metronome.stop();
         setRunning(false);
+        setBeat(null);
       }
     }, 0);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planKey, auto, autoPlay]);
 
-  const commitBpm = (next: number) => {
-    const clamped = Math.min(MAX_BPM, Math.max(MIN_BPM, Math.round(next)));
-    setBpm(clamped);
-    setMetronomeBpm(clamped);
-  };
+  const commitBpm = useCallback(
+    (next: number) => {
+      const clamped = Math.min(MAX_BPM, Math.max(MIN_BPM, Math.round(next)));
+      setBpm(clamped);
+      setMetronomeBpm(clamped);
+    },
+    [setMetronomeBpm],
+  );
 
   const toggle = () => {
-    if (running && audible) {
+    if (live) {
       metronome.stop();
       setRunning(false);
+      setBeat(null);
       return;
     }
+    // Starting by hand is the one case where nothing has counted the player in,
+    // so the click does it: a bar of four quiet ticks before the first real
+    // downbeat, which is what stops bar one being a scramble.
+    //
     // Running but silent means the browser never freed audio. This click is a
     // real gesture, which is the one thing that can, so unlock and restart the
     // count from here instead of leaving a dead click running.
-    metronome.unlockAndStart(bpm);
+    metronome.unlockAndStart(bpm, { countIn: true });
     setRunning(true);
   };
 
@@ -179,13 +254,29 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
     if (taps.length && now - taps[taps.length - 1] > TAP_RESET_MS) taps.length = 0;
     taps.push(now);
     if (taps.length > 5) taps.shift();
-    if (taps.length >= 2) {
-      const intervals: number[] = [];
-      for (let i = 1; i < taps.length; i++) intervals.push(taps[i] - taps[i - 1]);
-      const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-      commitBpm(60000 / avg);
+    setTapsIn(taps.length);
+
+    if (tapResetRef.current) clearTimeout(tapResetRef.current);
+    tapResetRef.current = setTimeout(() => {
+      tapsRef.current.length = 0;
+      setTapsIn(0);
+    }, TAP_RESET_MS);
+
+    if (taps.length < TAPS_NEEDED) return;
+    const intervals: number[] = [];
+    for (let i = 1; i < taps.length; i++) intervals.push(taps[i] - taps[i - 1]);
+    const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+    const tapped = Math.min(MAX_BPM, Math.max(MIN_BPM, Math.round(60000 / avg)));
+    commitBpm(tapped);
+    // You just counted yourself in by tapping. Asking for a second gesture to
+    // hear it back would be a step for nothing.
+    if (!live) {
+      metronome.unlockAndStart(tapped);
+      setRunning(true);
     }
   };
+
+  const tapLabel = tapsIn > 0 && tapsIn < TAPS_NEEDED ? `${TAPS_NEEDED - tapsIn} more` : 'Tap';
 
   return (
     <div className="metro" ref={rootRef}>
@@ -198,6 +289,10 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
               ? 'practice-close metro-trigger is-live'
               : 'practice-close metro-trigger'
         }
+        // The downbeat tints the trigger for the length of one beat. It is a
+        // colour change rather than a transform, so it is still the bar marker
+        // when the OS asks for reduced motion and the arm stops swinging.
+        data-down={live && beat?.accent === 'downbeat' ? 'true' : undefined}
         onClick={() => setOpen((o) => !o)}
         title={silent ? 'Metronome muted by the browser. Tap to turn the sound on.' : running ? `Metronome ${bpm} BPM` : 'Metronome'}
         aria-label={
@@ -209,7 +304,7 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
         }
         aria-expanded={open}
       >
-        <MetronomeMark swinging={audible} />
+        <MetronomeMark beat={live ? beat : null} />
         {running && <span className="metro-trigger-bpm">{silent ? 'muted' : bpm}</span>}
       </button>
 
@@ -222,19 +317,43 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
             exit={{ opacity: 0, y: -8, scale: 0.96 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
           >
+            <BeatStrip
+              cells={cells}
+              active={beat ? beat.beat : -1}
+              counting={counting}
+              live={live}
+            />
+
             <div className="metro-readout">
-              <span key={beat} className={audible ? 'metro-pulse is-beat' : 'metro-pulse'} />
               <span className="metro-bpm">{bpm}</span>
               <span className="metro-unit">BPM</span>
+              {plan && !onPlan && (
+                <button
+                  className="metro-restore"
+                  onClick={() => commitBpm(plan.bpm)}
+                  title={`Back to ${plan.bpm} BPM, the tempo your history asks for`}
+                  aria-label={`Return to the prescribed tempo, ${plan.bpm} BPM`}
+                >
+                  <RetryIcon size={13} />
+                  {plan.bpm}
+                </button>
+              )}
             </div>
 
-            {silent && (
-              <p className="metro-silent">
+            {silent ? (
+              <p className="metro-note is-warning">
                 Your browser is holding the sound. Tap below to turn the click on.
               </p>
-            )}
-
-            {plan && auto && !silent && <p className="metro-reason">{plan.reason}</p>}
+            ) : counting ? (
+              <p className="metro-note is-live">Counting you in.</p>
+            ) : plan && auto && onPlan ? (
+              <p className="metro-note">{plan.reason}</p>
+            ) : plan && auto ? (
+              // The reason belongs to the prescribed number. Once the player has
+              // moved off it, repeating the reason would describe a tempo that
+              // is no longer playing.
+              <p className="metro-note">Set by hand. Your history asks for {plan.bpm}.</p>
+            ) : null}
 
             <div className="metro-stepper">
               <button className="metro-step" onClick={() => commitBpm(bpm - 1)} aria-label="Slower">
@@ -264,9 +383,15 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
             </label>
 
             <div className="metro-actions">
-              <button className="metro-tap" onClick={tap}>Tap</button>
+              <button
+                className={tapsIn > 0 ? 'metro-tap is-counting' : 'metro-tap'}
+                onClick={tap}
+                aria-label="Tap a tempo"
+              >
+                {tapLabel}
+              </button>
               <button className="practice-btn primary metro-play" onClick={toggle}>
-                {running && audible ? <PauseIcon size={18} /> : <PlayIcon size={18} />}
+                {live ? <PauseIcon size={18} /> : <PlayIcon size={18} />}
                 {silent ? 'Turn on sound' : running ? 'Stop' : 'Start'}
               </button>
             </div>
