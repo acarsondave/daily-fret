@@ -1,0 +1,104 @@
+/* The moment before the tuner exists. Its only jobs are to be calm, to be
+   honest about what it is doing, and to always be leaveable. */
+
+.tuner-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  padding: var(--space-6);
+  background: rgba(10, 10, 12, 0.86);
+  backdrop-filter: blur(12px);
+}
+
+.tuner-gate-close {
+  position: absolute;
+  top: calc(var(--space-4) + env(safe-area-inset-top));
+  right: var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  transition: color var(--dur-base) ease, background var(--dur-base) ease;
+}
+.tuner-gate-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.tuner-gate-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  max-width: 40ch;
+  text-align: center;
+}
+
+/* The slow notice arrives under a loader that is still running, so it has to
+   read as a footnote to it rather than a second announcement. */
+.tuner-gate-panel.is-quiet {
+  gap: var(--space-3);
+}
+
+.tuner-gate-title {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+}
+
+.tuner-gate-body {
+  font-size: var(--text-base);
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.tuner-gate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.tuner-gate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  transition: color var(--dur-base) ease, background var(--dur-base) ease,
+    border-color var(--dur-base) ease;
+}
+.tuner-gate-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.tuner-gate-btn.is-primary {
+  border-color: rgba(56, 189, 248, 0.32);
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+}
+.tuner-gate-btn.is-primary:hover {
+  background: rgba(56, 189, 248, 0.26);
+  color: var(--accent-primary);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .tuner-gate { -webkit-backdrop-filter: blur(12px); }
+}

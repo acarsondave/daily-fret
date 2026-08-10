@@ -28,6 +28,14 @@ const TEMPLATES: Template[] = [
   ['F', [0.8, -0.5, -0.5, -0.5, 0.3, 1.0, -0.5, -0.5, -0.5, 0.9, -0.5, -0.5]],
 ];
 
+/**
+ * Every chord the matcher holds a template for, and therefore the only chords a
+ * listening drill can be built from. Derived from the templates rather than
+ * written out again, so a surface that tells the player what the app can hear
+ * cannot drift from what it actually hears.
+ */
+export const DETECTABLE_CHORDS: readonly string[] = TEMPLATES.map(([name]) => name);
+
 export interface ChordMatch {
   chord: string;
   confidence: number;

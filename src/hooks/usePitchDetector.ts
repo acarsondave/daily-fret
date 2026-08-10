@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { MicStream } from '../audio/micStream';
+import { MicStream, MicError, type MicFailureKind, type MicRouteState } from '../audio/micStream';
 import { PitchDetector, type PitchFrame } from '../audio/pitch';
 import { centsBetween } from '../audio/tuning';
 import { getPreferredMicId } from '../audio/micDevice';
 
-export type PitchStatus = 'idle' | 'requesting' | 'listening' | 'error';
+/**
+ * Every way the detector can be, and there is no state that means "wait and see".
+ *
+ * 'asleep' and 'muted' exist because they used to be invisible: the graph was
+ * built, the permission was granted, and not one sample was arriving, which the
+ * surface rendered identically to a quiet room. A tuner that cannot hear must
+ * say so, and say which of the two it is, because only one of them is fixed by
+ * touching the screen.
+ */
+export type PitchStatus = 'idle' | 'requesting' | 'listening' | 'asleep' | 'muted' | 'error';
 
 export interface StablePitch {
   hz: number;
@@ -30,6 +39,13 @@ function median(values: number[]): number {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
+const STATUS_BY_ROUTE: Record<MicRouteState, PitchStatus> = {
+  running: 'listening',
+  asleep: 'asleep',
+  muted: 'muted',
+  closed: 'idle',
+};
+
 /**
  * Owns the mic and the pitch analyser for one component, and turns a stream of
  * per-analysis estimates into something steady enough to tune against.
@@ -49,6 +65,7 @@ export function usePitchDetector() {
   const levelRef = useRef(0);
 
   const [status, setStatus] = useState<PitchStatus>('idle');
+  const [failure, setFailure] = useState<MicFailureKind | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pitch, setPitch] = useState<StablePitch | null>(null);
 
@@ -103,6 +120,7 @@ export function usePitchDetector() {
     historyRef.current = [];
     levelRef.current = 0;
     setStatus('idle');
+    setFailure(null);
     setPitch(null);
     await mic?.stop();
   }, [clearHold]);
@@ -110,6 +128,7 @@ export function usePitchDetector() {
   const start = useCallback(async (): Promise<boolean> => {
     if (micRef.current?.running) return true;
     setStatus('requesting');
+    setFailure(null);
     setError(null);
 
     const mic = new MicStream();
@@ -124,23 +143,45 @@ export function usePitchDetector() {
           const result = detectorRef.current?.push(frame);
           if (result) onAnalysis(result);
         },
+        onRouteChange: (route) => {
+          // A stream that has already been replaced must not narrate over the
+          // live one. Its own teardown is the last thing it gets to say.
+          if (micRef.current !== mic) return;
+          setStatus(STATUS_BY_ROUTE[route]);
+          if (route === 'running') return;
+          // No samples are arriving, so the fade timer that normally retires a
+          // reading will never run. Leaving the last note on screen would be the
+          // tuner reporting a string it can no longer hear.
+          clearHold();
+          historyRef.current = [];
+          levelRef.current = 0;
+          setPitch(null);
+        },
       });
-      setStatus('listening');
+      // Opening the mic is several awaits long, and the component can unmount or
+      // restart inside them. Only the stream still in the ref may set state.
+      if (micRef.current !== mic) return false;
+      setStatus(STATUS_BY_ROUTE[mic.routeState]);
       return true;
     } catch (err) {
+      if (micRef.current !== mic) return false;
       micRef.current = null;
       detectorRef.current = null;
+      const micError = err instanceof MicError ? err : null;
       setStatus('error');
+      setFailure(micError?.kind ?? 'failed');
       setError(
-        err instanceof DOMException && err.name === 'NotAllowedError'
-          ? 'Microphone access was denied.'
-          : err instanceof Error
-            ? err.message
-            : 'The microphone could not be opened.',
+        micError?.message ??
+          (err instanceof Error && err.message ? err.message : 'The microphone could not be opened.'),
       );
       return false;
     }
-  }, [onAnalysis]);
+  }, [onAnalysis, clearHold]);
+
+  /** Call from inside a user gesture: the one moment WebKit will start a route. */
+  const wake = useCallback(() => {
+    micRef.current?.wake();
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -150,5 +191,5 @@ export function usePitchDetector() {
     };
   }, []);
 
-  return { status, error, pitch, levelRef, start, stop };
+  return { status, failure, error, pitch, levelRef, start, stop, wake };
 }

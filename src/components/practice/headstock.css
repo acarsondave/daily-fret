@@ -1,0 +1,284 @@
+/* Materials for the headstock. The gradients live in the SVG's <defs> because
+   they are geometry-relative; everything that changes with state lives here. */
+
+.headstock {
+  position: relative;
+  width: 100%;
+  max-width: var(--headstock-w, 280px);
+  aspect-ratio: 300 / 440;
+  margin-inline: auto;
+  transition: opacity var(--dur-slow) ease;
+}
+
+/* Nothing is being heard, so nothing may look alive. The instrument recedes
+   rather than vanishing: it is still the subject, it just is not listening. */
+.headstock.is-deaf {
+  opacity: 0.4;
+}
+
+.headstock-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  /* Lit from above and to the left, so it throws its weight down and to the
+     right. An offset with a real blur, never a centred halo. */
+  filter: drop-shadow(7px 16px 24px rgba(0, 0, 0, 0.6));
+  transition: filter var(--dur-slow) ease;
+}
+.headstock.is-deaf .headstock-svg {
+  filter: drop-shadow(7px 16px 24px rgba(0, 0, 0, 0.45)) saturate(0.3);
+}
+
+/* --- The face ------------------------------------------------------------- */
+
+.headstock-grain path {
+  fill: none;
+  stroke: #d8a877;
+  stroke-width: 1;
+  opacity: 0.075;
+}
+
+.headstock-sweep {
+  fill: url(#hs-sweep);
+  opacity: 0;
+}
+.headstock.is-done .headstock-sweep {
+  animation: headstock-sweep 1100ms var(--ease-out) 120ms 1;
+}
+
+@keyframes headstock-sweep {
+  0% { opacity: 0; transform: translateY(0); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(700px); }
+}
+
+.headstock-seam {
+  fill: url(#hs-seam);
+}
+
+.headstock-edge {
+  fill: none;
+  stroke: rgba(255, 226, 189, 0.22);
+  stroke-width: 1.4;
+}
+
+.headstock-board {
+  fill: #17110d;
+}
+
+.headstock-nut {
+  fill: url(#hs-nut);
+}
+
+/* --- Hardware ------------------------------------------------------------- */
+
+.headstock-shaft {
+  fill: #5f676e;
+}
+
+.headstock-button {
+  fill: url(#hs-button);
+  stroke: rgba(0, 0, 0, 0.45);
+  stroke-width: 0.8;
+}
+
+.headstock-bore {
+  fill: url(#hs-bore);
+}
+
+.headstock-post {
+  fill: url(#hs-metal);
+  stroke: rgba(0, 0, 0, 0.5);
+  stroke-width: 0.9;
+}
+
+/* The flat top of the post, catching the light square on. Without it the post
+   reads as a disc rather than as a cylinder seen from above. */
+.headstock-post-top {
+  fill: url(#hs-metal);
+  stroke: rgba(255, 255, 255, 0.3);
+  stroke-width: 0.7;
+}
+
+.headstock-post-hole {
+  fill: #0c0f11;
+}
+
+/* --- Strings -------------------------------------------------------------- */
+
+.headstock-string {
+  fill: none;
+  stroke: url(#hs-string);
+  stroke-linecap: round;
+  transition: stroke var(--dur-base) ease, opacity var(--dur-base) ease;
+  opacity: 0.85;
+}
+
+.headstock-string.is-active {
+  stroke: #ffe6b0;
+  opacity: 1;
+}
+
+.headstock-string.is-settled {
+  /* Confirmed, not celebrating. Six neon strings at once turned the finished
+     state into the loudest thing in the app. */
+  stroke: #86cdae;
+  opacity: 0.82;
+}
+
+/* --- Peg state ------------------------------------------------------------ */
+
+.headstock-halo {
+  fill: var(--warning-color);
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0.55);
+  transition: opacity var(--dur-base) ease, transform var(--dur-base) var(--ease-out);
+}
+.headstock-machine.is-active .headstock-halo {
+  opacity: 0.28;
+  transform: scale(1);
+}
+.headstock-machine.is-settled .headstock-halo {
+  fill: var(--success-color);
+  opacity: 0.16;
+  transform: scale(1);
+}
+.headstock-machine.is-pinned .headstock-halo {
+  fill: var(--accent-primary);
+  opacity: 0.26;
+  transform: scale(1);
+}
+
+/* The tuner's own pointer: quiet, and never in the same colour as the live
+   reading, so "this is the one I am hearing" and "this is the one to do next"
+   can never be confused for each other. */
+.headstock-aim {
+  fill: none;
+  stroke: var(--accent-primary);
+  stroke-width: 1.6;
+  stroke-dasharray: 5 7;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0.9);
+  transition: opacity var(--dur-base) ease, transform var(--dur-base) var(--ease-out);
+}
+.headstock-machine.is-target .headstock-aim {
+  opacity: 0.85;
+  transform: scale(1);
+  animation: headstock-aim 2.6s ease-in-out infinite;
+}
+
+/* Slow enough to read as breathing rather than as an alert. It is the only
+   thing on the screen asking for attention while nothing is sounding. */
+@keyframes headstock-aim {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.95; }
+}
+
+/* The confirmation. The ring draws itself round the peg once, clockwise from
+   the top, which is the one moment on this screen worth animating: it is the
+   answer the user has been turning the peg to get. */
+.headstock-seal {
+  fill: none;
+  stroke: var(--success-color);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-dasharray: 113.1;
+  stroke-dashoffset: 113.1;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: rotate(-90deg);
+  opacity: 0;
+  transition: stroke-dashoffset 520ms var(--ease-out), opacity var(--dur-fast) ease;
+}
+.headstock-machine.is-settled .headstock-seal {
+  stroke-dashoffset: 0;
+  opacity: 1;
+}
+
+.headstock-machine.is-active .headstock-post,
+.headstock-machine.is-active .headstock-post-top {
+  stroke: rgba(251, 191, 36, 0.85);
+  stroke-width: 1.2;
+}
+.headstock-machine.is-settled .headstock-post,
+.headstock-machine.is-settled .headstock-post-top {
+  stroke: rgba(52, 211, 153, 0.9);
+  stroke-width: 1.2;
+}
+
+/* --- The peg targets ------------------------------------------------------ */
+
+/* Real buttons over the drawn posts. Sized for a coarse pointer, and offset out
+   of the body on each side so a thumb never covers the string it is judging. */
+.headstock-pegs {
+  position: absolute;
+  inset: 0;
+}
+
+.headstock-peg {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  transform: translate(-50%, -50%);
+  color: var(--text-secondary);
+  transition: color var(--dur-base) ease, background var(--dur-base) ease;
+}
+.headstock-peg:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+.headstock-peg.is-active {
+  color: var(--warning-color);
+}
+.headstock-peg.is-settled {
+  color: var(--success-color);
+}
+.headstock-peg.is-pinned {
+  color: var(--accent-primary);
+}
+.headstock-peg.is-target:not(.is-active):not(.is-settled) {
+  color: var(--accent-primary);
+}
+
+/* The note name rides just outside the body on its own side, so it never sits
+   on the metal it is labelling. */
+.headstock-peg-note {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-md);
+  line-height: 1;
+  letter-spacing: var(--tracking-tight);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+.headstock-peg.is-bass .headstock-peg-note {
+  left: calc(100% + 2px);
+}
+.headstock-peg.is-treble .headstock-peg-note {
+  right: calc(100% + 2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .headstock-seal {
+    transition-duration: 0ms, var(--dur-fast);
+  }
+  .headstock.is-done .headstock-sweep {
+    animation: none;
+  }
+  .headstock-machine.is-target .headstock-aim {
+    animation: none;
+  }
+}

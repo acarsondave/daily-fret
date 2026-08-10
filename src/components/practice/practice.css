@@ -3,90 +3,12 @@
    the metronome and the calibration flow at once. It is now the shell and the
    entry point; each concern lives beside it and is imported here so every
    existing `import './practice.css'` keeps working. */
+@import './overlayShell.css';
 @import './drills.css';
 @import './coach.css';
 @import './song.css';
 @import './metronome.css';
 @import './calibration.css';
-
-/* --- Overlay shell -------------------------------------------------------- */
-.practice-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  background: rgba(10, 10, 12, 0.86);
-  backdrop-filter: blur(20px);
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-.practice-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-6);
-}
-
-.practice-eyebrow {
-  font-family: var(--font-secondary);
-  font-size: var(--text-micro);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.practice-topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-shrink: 0;
-}
-
-.practice-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-full);
-  color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.04);
-  transition: color var(--dur-base) ease, background var(--dur-base) ease, opacity var(--dur-base) ease;
-}
-.practice-close:hover {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.08);
-}
-/* Coach-voice toggle when muted. The icon itself also changes shape, so this
-   only has to reinforce the state rather than carry it alone. */
-.practice-close.is-off {
-  color: var(--text-muted);
-}
-.practice-close.is-off:hover {
-  color: var(--text-primary);
-}
-
-.practice-body {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  /* `safe` keeps the top reachable when content is taller than the viewport, so
-     drills stay usable on short windows instead of clipping above the fold. */
-  justify-content: safe center;
-  overflow-y: auto;
-  gap: var(--space-8);
-  padding: var(--space-6) var(--space-6) var(--space-16);
-  text-align: center;
-}
 
 /* --- Hero chord readout --------------------------------------------------- */
 .practice-mode {
@@ -171,16 +93,6 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 600px) {
-  .practice-topbar {
-    padding: var(--space-4);
-  }
-  .practice-body {
-    padding: var(--space-4) var(--space-4) var(--space-12);
-    gap: var(--space-6);
-  }
-}
-
 /* Capo, while a drill is running. Not a setting here, a statement of what the
    detector is currently assuming, because a stale capo value is the one thing
    that makes a drill fail with nothing on screen to explain it. */
@@ -199,11 +111,4 @@
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   white-space: nowrap;
-}
-
-/* Safari before 18 only knows the prefixed form. Kept in its own block because
-   declared next to the standard property the minifier drops the standard one,
-   which no browser but Safari understands. See the note in index.css. */
-@supports not (backdrop-filter: blur(1px)) {
-  .practice-overlay { -webkit-backdrop-filter: blur(20px); }
 }

@@ -10,12 +10,80 @@
 // classic script. BASE_URL keeps it correct under any deploy sub-path.
 const WORKLET_URL = `${import.meta.env.BASE_URL}pcm-worklet.js`;
 
+/**
+ * Why the microphone is not producing sound, in terms the surface can act on.
+ * Every one of these has a different way out, so collapsing them into a single
+ * "mic failed" would leave the user reading the wrong instructions.
+ */
+export type MicFailureKind =
+  | 'insecure' // page is not on https, so the browser hides the microphone entirely
+  | 'unsupported' // the browser has no capture API at all
+  | 'denied' // the user, or a system setting, refused
+  | 'no-device' // nothing is plugged in
+  | 'device-busy' // another app or tab holds the input
+  | 'failed'; // anything else, message preserved
+
+export class MicError extends Error {
+  readonly kind: MicFailureKind;
+
+  constructor(kind: MicFailureKind, message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'MicError';
+    this.kind = kind;
+  }
+}
+
+/**
+ * What the input route is doing right now.
+ *
+ * 'asleep' covers both 'suspended' and WebKit's own 'interrupted': the graph is
+ * built and the permission is granted, but no samples are arriving and none will
+ * until a user gesture wakes it. 'muted' is the opposite trade — the route is
+ * live but the track is silent, which is what a phone call or another app taking
+ * the microphone looks like from in here.
+ */
+export type MicRouteState = 'running' | 'asleep' | 'muted' | 'closed';
+
+/** A track flickers muted at startup on some devices; only a sustained one counts. */
+const MUTE_GRACE_MS = 1200;
+
+function describeFailure(err: unknown): MicError {
+  if (err instanceof MicError) return err;
+  if (err instanceof DOMException) {
+    switch (err.name) {
+      case 'NotAllowedError':
+      case 'SecurityError':
+        return new MicError('denied', 'The browser is not letting this page use the microphone.', { cause: err });
+      case 'NotFoundError':
+      case 'OverconstrainedError':
+        return new MicError('no-device', 'No microphone was found on this device.', { cause: err });
+      case 'NotReadableError':
+      case 'AbortError':
+        return new MicError('device-busy', 'The microphone is busy, most likely in another app or tab.', { cause: err });
+      // Without this the default branch printed the browser's own bare
+      // "Not supported" as the whole explanation, which reads as a bug report
+      // rather than a reason.
+      case 'NotSupportedError':
+        return new MicError('unsupported', 'This browser cannot open a microphone for this page.', { cause: err });
+      default:
+        return new MicError('failed', err.message || 'The microphone could not be opened.', { cause: err });
+    }
+  }
+  return new MicError(
+    'failed',
+    err instanceof Error && err.message ? err.message : 'The microphone could not be opened.',
+    { cause: err },
+  );
+}
+
 export interface MicStreamHandlers {
   /** Specific mic to capture from; omitted = system default. */
   deviceId?: string;
   /** Fired once the context exists, before any frame arrives. */
   onReady?: (info: { sampleRate: number }) => void;
   onFrame: (frame: Float32Array) => void;
+  /** Fired on every route change, and once as soon as the graph is built. */
+  onRouteChange?: (state: MicRouteState) => void;
 }
 
 // Disable the browser's voice-oriented processing — it mangles a guitar's
@@ -39,6 +107,10 @@ export class MicStream {
   private disposed = false;
   private starting = false;
   private detachResume: (() => void) | null = null;
+  private detachRoute: (() => void) | null = null;
+  private muteTimer: number | null = null;
+  private muted = false;
+  private onRouteChange: ((state: MicRouteState) => void) | null = null;
 
   get running(): boolean {
     return this.ctx !== null || this.starting;
@@ -48,10 +120,28 @@ export class MicStream {
     return this.ctx?.sampleRate ?? null;
   }
 
+  get routeState(): MicRouteState {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state === 'closed') return 'closed';
+    if (ctx.state !== 'running') return 'asleep';
+    return this.muted ? 'muted' : 'running';
+  }
+
   async start(handlers: MicStreamHandlers): Promise<void> {
     if (this.ctx || this.starting) return;
     this.disposed = false;
     this.starting = true;
+    this.onRouteChange = handlers.onRouteChange ?? null;
+
+    // A page served over plain http has no navigator.mediaDevices at all, and
+    // reaching through it throws a TypeError whose text ends up in front of the
+    // user. Name the real problem instead.
+    if (!navigator.mediaDevices?.getUserMedia) {
+      this.starting = false;
+      throw window.isSecureContext
+        ? new MicError('unsupported', 'This browser cannot record audio.')
+        : new MicError('insecure', 'The microphone is only available over a secure (https) connection.');
+    }
 
     // StrictMode (and rapid open/close) can call stop() mid-startup. Re-check
     // `disposed` after every await and tear down any partial graph if so.
@@ -67,10 +157,15 @@ export class MicStream {
         err instanceof DOMException &&
         (err.name === 'OverconstrainedError' || err.name === 'NotFoundError')
       ) {
-        this.stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints() });
+        try {
+          this.stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints() });
+        } catch (fallbackErr) {
+          this.starting = false;
+          throw describeFailure(fallbackErr);
+        }
       } else {
         this.starting = false;
-        throw err;
+        throw describeFailure(err);
       }
     }
     if (this.disposed) return this.teardown();
@@ -84,15 +179,10 @@ export class MicStream {
     try {
       ctx = new AudioContext();
       this.ctx = ctx;
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
-      }
-      if (this.disposed) return this.teardown();
-
       await ctx.audioWorklet.addModule(WORKLET_URL);
     } catch (err) {
       await this.teardown();
-      throw err;
+      throw describeFailure(err);
     }
     if (this.disposed) return this.teardown();
 
@@ -113,24 +203,101 @@ export class MicStream {
     this.node.connect(this.sink);
     this.sink.connect(ctx.destination);
 
+    this.watchRoute(ctx);
     this.attachResumeOnGesture(ctx);
+    this.wake();
     this.starting = false;
+
+    // Fired last, once the graph can actually carry sound, so a listener that
+    // reacts to 'running' is never told so before there is anything to hear.
+    this.emitRoute();
   }
 
-  // iOS Safari frequently leaves the AudioContext suspended until a user
-  // gesture lands. Resume on the next interaction, then self-detach.
+  /**
+   * Ask the browser to start the route. Safe to call from anywhere; free to call
+   * from inside a user gesture, which is the only moment WebKit ever says yes.
+   *
+   * Deliberately never awaited. WebKit leaves the promise from a denied resume()
+   * pending forever rather than rejecting it, so awaiting it stalls whatever is
+   * upstream. That stall is what this file was doing: the context is created
+   * after `await getUserMedia`, by which point the click that opened the tuner
+   * has long expired, so on Safari it started suspended, resume() was refused,
+   * and start() never returned. The tuner sat on screen saying "listening" and
+   * heard nothing. outputContext.ts had already learned this; the capture side
+   * had not. A refused resume is not an error worth reporting either — the route
+   * state says so, and the next gesture tries again.
+   */
+  wake(): void {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state === 'running') return;
+    void Promise.resolve(ctx.resume()).catch(() => {
+      /* refused; routeState still reads 'asleep' and the next gesture retries */
+    });
+  }
+
+  private emitRoute(): void {
+    this.onRouteChange?.(this.routeState);
+  }
+
+  // Both halves of "the graph is up but nothing is coming through": the context
+  // being suspended or interrupted, and the track itself going silent because
+  // something else claimed the input. Neither raises an error, and without
+  // watching for them a dead tuner is indistinguishable from a quiet room.
+  private watchRoute(ctx: AudioContext): void {
+    const onState = () => this.emitRoute();
+    ctx.addEventListener('statechange', onState);
+
+    const track = this.stream?.getAudioTracks()[0] ?? null;
+    const clearMuteTimer = () => {
+      if (this.muteTimer !== null) {
+        clearTimeout(this.muteTimer);
+        this.muteTimer = null;
+      }
+    };
+    const onMute = () => {
+      clearMuteTimer();
+      this.muteTimer = window.setTimeout(() => {
+        this.muteTimer = null;
+        this.muted = true;
+        this.emitRoute();
+      }, MUTE_GRACE_MS);
+    };
+    const onUnmute = () => {
+      clearMuteTimer();
+      if (!this.muted) return;
+      this.muted = false;
+      this.emitRoute();
+    };
+    track?.addEventListener('mute', onMute);
+    track?.addEventListener('unmute', onUnmute);
+    if (track?.muted) onMute();
+
+    this.detachRoute = () => {
+      ctx.removeEventListener('statechange', onState);
+      track?.removeEventListener('mute', onMute);
+      track?.removeEventListener('unmute', onUnmute);
+      clearMuteTimer();
+      this.detachRoute = null;
+    };
+  }
+
+  // Safari routinely leaves an AudioContext suspended until a user gesture
+  // lands, and can take a running one back to 'interrupted' at any point after
+  // that — a call, another tab, the screen locking. The listeners therefore stay
+  // for the life of the stream instead of detaching the first time the context
+  // runs, because "it started fine" is no guarantee it is still running a minute
+  // later. Each one costs an early return when the route is already up.
   private attachResumeOnGesture(ctx: AudioContext): void {
-    if (ctx.state === 'running') return;
     const events: Array<keyof DocumentEventMap> = ['pointerdown', 'touchend', 'keydown'];
-    const resume = () => { void ctx.resume(); };
+    const resume = () => {
+      if (ctx.state === 'running') return;
+      this.wake();
+    };
     events.forEach((e) => document.addEventListener(e, resume, { passive: true }));
     this.detachResume = () => {
       events.forEach((e) => document.removeEventListener(e, resume));
       this.detachResume = null;
     };
-    ctx.addEventListener('statechange', () => {
-      if (ctx.state === 'running') this.detachResume?.();
-    });
   }
 
   async stop(): Promise<void> {
@@ -140,7 +307,10 @@ export class MicStream {
 
   private async teardown(): Promise<void> {
     this.starting = false;
+    this.onRouteChange = null;
     this.detachResume?.();
+    this.detachRoute?.();
+    this.muted = false;
     if (this.node) {
       this.node.port.onmessage = null;
       this.node.disconnect();

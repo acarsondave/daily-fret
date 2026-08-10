@@ -1,27 +1,14 @@
 /* The tuner.
-   Every tuner ever made is a needle on a dial. This one is the six strings
-   themselves: you look at the row you are working on, it is the thickness of the
-   string in your hand, and it moves when you play because its amplitude is the
-   real input level. Correctness is shown by a string going still, which is what
-   in tune actually looks and feels like. */
+   The screen shows the end of the instrument the hand is actually at: three
+   machine heads a side, the string you are sounding running up to one of them
+   and vibrating at the real input level. The headstock answers "which peg";
+   the track beside it answers "how far, and which way"; correctness reads as a
+   string going still and a ring seating on its post, which is what in tune
+   looks and feels like. See docs/DESIGN_SYSTEM.md, Instrument surfaces. */
 
 .tuner-body {
-  gap: var(--space-6);
+  gap: var(--space-5);
   justify-content: safe center;
-}
-
-/* Half the string label column plus its gap. Mirrored on the right so the track
-   centre, the rail, and the note readout all land on one vertical axis. Without
-   the mirror the whole display sits visibly off its own centre line. */
-.tuner-overlay {
-  --tuner-label-w: 64px;
-  --tuner-gutter: calc(var(--tuner-label-w) + var(--space-3));
-  /* The strings are the primary object here, not chrome, so they carry the 3:1
-     minimum for meaningful graphics. --border-strong, which they started on,
-     lands at 1.6:1 over this overlay: fine for a divider, not for the thing the
-     user is reading. Same reasoning for the rail and the settled-string green. */
-  --tuner-wire: rgba(255, 255, 255, 0.38);
-  --tuner-wire-settled: rgba(52, 211, 153, 0.6);
 }
 
 /* --- Tuning picker -------------------------------------------------------- */
@@ -117,203 +104,23 @@
   color: var(--text-secondary);
 }
 
-/* --- The strings ---------------------------------------------------------- */
+/* --- Stage ---------------------------------------------------------------- */
 
-/* Scale and strings are one object. Kept in a single group so the body's gap
-   cannot open a gulf between the axis labels and the axis they label. */
-.tuner-board {
-  width: min(520px, 100%);
+/* One column by default: the instrument, then the numbers under it. The stage
+   is sized from the viewport rather than from its content so the headstock is
+   never the reason a short window has to scroll. */
+.tuner-stage {
+  --headstock-w: min(300px, calc((100dvh - 330px) * 0.682));
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-}
-
-.tuner-scale {
-  display: flex;
-  justify-content: space-between;
-  padding: 0 var(--tuner-gutter);
-  font-family: var(--font-secondary);
-  font-size: var(--text-micro);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.tuner-strings {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
-/* True pitch, running through all six. The one fixed thing on the screen, so it
-   is drawn firmly: a hairline the eye has to hunt for is not a reference. */
-.tuner-rail {
-  position: absolute;
-  /* Inset to the outer strings: the rail is a reference for the six lines, so
-     running it past them makes it a page decoration instead. */
-  top: 12px;
-  bottom: 12px;
-  left: 50%;
-  width: 1px;
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    rgba(255, 255, 255, 0.42) 10%,
-    rgba(255, 255, 255, 0.42) 90%,
-    transparent
-  );
-  pointer-events: none;
-}
-
-/* The tolerance, drawn as a place. Its half-width is centsToOffset(4) scaled by
-   the puck's travel, so the band is exactly the region where the tuner will call
-   a string done, and the puck landing inside it agrees with the words below. */
-.tuner-zone {
-  position: absolute;
-  top: 12px;
-  bottom: 12px;
-  left: 50%;
-  /* 2 x centsToOffset(IN_TUNE_CENTS) x the puck's 46% travel. */
-  width: calc((100% - var(--tuner-gutter) * 2) * 0.157);
-  transform: translateX(-50%);
-  /* Two boundaries, not a block. A filled band at this size becomes the loudest
-     object on screen and the six strings stop being the subject; a pair of
-     dashed edges says "anywhere in here" and then gets out of the way. */
-  border-left: 1px dashed rgba(255, 255, 255, 0.22);
-  border-right: 1px dashed rgba(255, 255, 255, 0.22);
-  transition: border-color var(--dur-base) ease, background var(--dur-base) ease;
-  pointer-events: none;
-}
-.tuner-zone.is-tuned {
-  border-color: rgba(52, 211, 153, 0.55);
-  background: rgba(52, 211, 153, 0.07);
-}
-
-.tuner-string {
-  display: flex;
   align-items: center;
-  gap: var(--space-3);
-  min-height: 48px;
-  padding-right: var(--tuner-gutter);
-}
-
-.tuner-string-label {
-  display: flex;
-  align-items: baseline;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  width: var(--tuner-label-w);
-  min-height: 44px;
-  padding: 0 var(--space-2);
-  border-radius: var(--radius-md);
-  color: var(--text-muted);
-  transition: color var(--dur-base) ease, background var(--dur-base) ease;
-}
-.tuner-string-label:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-secondary);
-}
-
-.tuner-string-note {
-  font-family: var(--font-primary);
-  font-weight: 600;
-  font-size: var(--text-md);
-  letter-spacing: var(--tracking-tight);
-  color: inherit;
-}
-
-/* Doubles as string number and tuned tick, so confirmation costs no new space
-   and the eye already knows where to look for it. */
-.tuner-string-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  align-self: center;
-  border-radius: var(--radius-full);
-  font-family: var(--font-mono);
-  font-size: var(--text-micro);
-  color: var(--text-muted);
-  transition: color var(--dur-base) ease, background var(--dur-base) ease;
-}
-
-.tuner-string-track {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  height: 48px;
-}
-
-.tuner-string-wire {
-  position: absolute;
-  inset: 0;
+  gap: var(--space-5);
   width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-.tuner-string-wire path {
-  fill: none;
-  stroke: var(--tuner-wire);
-  stroke-linecap: round;
-  transition: stroke var(--dur-base) ease;
 }
 
-/* --- Active string -------------------------------------------------------- */
-
-.tuner-string.is-active .tuner-string-label {
-  color: var(--text-primary);
-}
-.tuner-string.is-active .tuner-string-wire path {
-  stroke: var(--warning-color);
-}
-.tuner-string.is-active.is-tuned .tuner-string-wire path {
-  stroke: var(--success-color);
-}
-.tuner-string.is-active.is-far .tuner-string-wire path {
-  stroke: var(--text-muted);
-}
-
-.tuner-string.is-settled .tuner-string-mark {
-  color: var(--success-color);
-  background: var(--success-glow);
-}
-.tuner-string.is-settled .tuner-string-wire path {
-  stroke: var(--tuner-wire-settled);
-}
-
-/* Locked: the tuner is listening to this string only, whatever it hears. */
-.tuner-string.is-locked .tuner-string-label {
-  background: var(--accent-glow);
-  color: var(--accent-primary);
-}
-.tuner-string.is-locked .tuner-string-mark {
-  color: var(--accent-primary);
-}
-
-.tuner-puck {
-  position: absolute;
-  top: 50%;
-  width: 14px;
-  height: 14px;
-  border-radius: var(--radius-full);
-  background: var(--warning-color);
-  box-shadow: 0 0 0 5px var(--warning-glow);
-  transform: translate(-50%, -50%);
-  transition: left 90ms linear, background var(--dur-base) ease,
-    box-shadow var(--dur-base) ease, width var(--dur-base) var(--ease-out),
-    height var(--dur-base) var(--ease-out);
-  pointer-events: none;
-}
-.tuner-string.is-tuned .tuner-puck {
-  width: 18px;
-  height: 18px;
-  background: var(--success-color);
-  box-shadow: 0 0 0 8px var(--success-glow);
-}
-.tuner-string.is-far .tuner-puck {
-  background: var(--text-muted);
-  box-shadow: none;
+.tuner-stage .headstock {
+  width: min(100%, var(--headstock-w));
+  max-width: 300px;
 }
 
 /* --- Readout -------------------------------------------------------------- */
@@ -322,7 +129,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
+  width: min(360px, 100%);
   transition: opacity var(--dur-slow) ease;
 }
 /* The note has died away but the number is still worth reading. Recede, do not
@@ -335,7 +143,11 @@
 .tuner-readout-note {
   display: flex;
   align-items: baseline;
+  justify-content: center;
   gap: 2px;
+  /* Reserved whether or not a note is being heard, so the column does not jump
+     the moment the first string sounds. */
+  min-height: clamp(2.6rem, 11vw, 3.9rem);
   font-family: var(--font-primary);
   font-weight: 600;
   letter-spacing: var(--tracking-display);
@@ -347,15 +159,11 @@
 }
 
 .tuner-readout-name {
-  font-size: clamp(3.5rem, 16vw, 5.5rem);
+  font-size: clamp(2.6rem, 11vw, 3.9rem);
   line-height: 1;
 }
-.tuner-readout-name.is-empty {
-  color: var(--text-muted);
-}
-
 .tuner-readout-octave {
-  font-size: clamp(1.25rem, 5vw, 1.75rem);
+  font-size: clamp(1.1rem, 4.5vw, 1.5rem);
   line-height: 1;
   color: var(--text-muted);
 }
@@ -363,13 +171,22 @@
 .tuner-readout-cents {
   display: flex;
   align-items: baseline;
+  justify-content: center;
   gap: var(--space-2);
-  min-height: 1.6rem;
+  min-height: 2.4rem;
 }
 
 .tuner-readout-value {
-  font-family: var(--font-mono);
-  font-size: var(--text-lg);
+  /* Not the mono face: its slashed zero reads as a glyph error on the one
+     number this screen exists to show. Outfit with tabular figures holds the
+     column just as still and matches the note above it. */
+  font-family: var(--font-primary);
+  font-weight: 600;
+  /* The number people already know how to read, at a size that survives the
+     distance a propped screen actually sits at. Second only to the note. */
+  font-size: clamp(1.7rem, 6.5vw, 2.3rem);
+  line-height: 1;
+  letter-spacing: var(--tracking-tight);
   font-variant-numeric: tabular-nums;
   color: var(--warning-color);
   transition: color var(--dur-base) ease;
@@ -388,76 +205,244 @@
 
 .tuner-readout-unit {
   font-family: var(--font-secondary);
-  font-size: var(--text-micro);
+  font-size: var(--text-sm);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
+/* --- The pitch track ------------------------------------------------------ */
+
+.tuner-track {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  transition: opacity var(--dur-base) ease;
+}
+/* Nothing is being measured, so the axis states itself and stops there. */
+.tuner-track.is-quiet {
+  opacity: 0.45;
+}
+
+.tuner-track-rail {
+  position: relative;
+  height: 22px;
+  border-radius: var(--radius-full);
+  /* The track is a meaningful graphic, not a divider, so it carries the 3:1
+     minimum. --border-strong reads at 1.6:1 over this overlay. */
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* The tolerance, drawn as a place. Its half-width is centsToOffset(4) scaled by
+   the puck's travel, so the band is exactly the region where the tuner will call
+   a string done, and the puck landing inside it agrees with the words below. */
+.tuner-track-zone {
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  /* 2 x centsToOffset(IN_TUNE_CENTS) x the puck's 46% travel. */
+  width: 15.7%;
+  transform: translateX(-50%);
+  border-radius: var(--radius-full);
+  border: 1px dashed rgba(255, 255, 255, 0.26);
+  transition: border-color var(--dur-base) ease, background var(--dur-base) ease;
+}
+.tuner-readout.is-tuned .tuner-track-zone {
+  border-color: rgba(52, 211, 153, 0.6);
+  background: rgba(52, 211, 153, 0.12);
+}
+
+/* True pitch. The one fixed thing on the axis, so it is drawn firmly: a
+   hairline the eye has to hunt for is not a reference. */
+.tuner-track-centre {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 50%;
+  width: 1.5px;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* 25 cents out, placed by the same curve as the puck. Two marks are enough to
+   show that the axis is compressed toward the ends, which is what stops a puck
+   near the edge disagreeing with a number that reads 38. */
+.tuner-track-tick {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.tuner-track-puck {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-full);
+  background: var(--warning-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 5px var(--warning-glow);
+  transform: translate(-50%, -50%);
+  transition: left 90ms linear, background var(--dur-base) ease,
+    box-shadow var(--dur-base) ease, width var(--dur-base) var(--ease-out),
+    height var(--dur-base) var(--ease-out);
+}
+.tuner-readout.is-tuned /* 25 cents out, placed by the same curve as the puck. Two marks are enough to
+   show that the axis is compressed toward the ends, which is what stops a puck
+   near the edge disagreeing with a number that reads 38. */
+.tuner-track-tick {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.tuner-track-puck {
+  width: 20px;
+  height: 20px;
+  background: var(--success-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 7px var(--success-glow);
+}
+.tuner-readout.is-far /* 25 cents out, placed by the same curve as the puck. Two marks are enough to
+   show that the axis is compressed toward the ends, which is what stops a puck
+   near the edge disagreeing with a number that reads 38. */
+.tuner-track-tick {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.tuner-track-puck {
+  background: var(--text-muted);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.tuner-track-scale {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
 .tuner-guidance {
   max-width: 34ch;
+  min-height: 2.9em;
   font-size: var(--text-base);
   line-height: 1.5;
   color: var(--text-secondary);
 }
+.tuner-readout.is-done .tuner-guidance {
+  color: var(--success-color);
+}
 
-/* --- Blocked -------------------------------------------------------------- */
+/* --- Actions and blocked -------------------------------------------------- */
+
+.tuner-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  transition: color var(--dur-base) ease, background var(--dur-base) ease,
+    border-color var(--dur-base) ease;
+}
+.tuner-action:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+.tuner-action.is-primary {
+  border-color: rgba(56, 189, 248, 0.32);
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+}
+.tuner-action.is-primary:hover {
+  background: rgba(56, 189, 248, 0.26);
+  color: var(--accent-primary);
+}
 
 .tuner-blocked {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-4);
-  max-width: 42ch;
+  max-width: 44ch;
+}
+
+.tuner-blocked-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(248, 113, 113, 0.28);
+  background: var(--danger-glow);
+  color: var(--danger-color);
 }
 
 .tuner-blocked-title {
   font-family: var(--font-primary);
   font-weight: 600;
   font-size: var(--text-lg);
+  text-wrap: balance;
   color: var(--text-primary);
 }
 
 .tuner-blocked-body {
   font-size: var(--text-base);
+  line-height: 1.55;
   color: var(--text-secondary);
 }
 
-.tuner-retry {
-  min-height: 44px;
-  padding: var(--space-3) var(--space-6);
-  border-radius: var(--radius-full);
-  border: 1px solid rgba(56, 189, 248, 0.32);
-  background: var(--accent-glow);
-  color: var(--accent-primary);
-  font-family: var(--font-primary);
-  font-weight: 600;
-  font-size: var(--text-base);
-  transition: background var(--dur-base) ease;
-}
-.tuner-retry:hover {
-  background: rgba(56, 189, 248, 0.26);
-}
+/* --- Wide ----------------------------------------------------------------- */
 
-/* --- Narrow ---------------------------------------------------------------- */
-
-@media (max-width: 480px) {
-  .tuner-overlay {
-    --tuner-label-w: 50px;
-    --tuner-gutter: calc(var(--tuner-label-w) + var(--space-2));
+/* Enough width for the instrument and the numbers to sit side by side, which is
+   also the layout that gives the headstock the most height on a short laptop
+   window. Reads left to right: this peg, then this far off. */
+@media (min-width: 800px) and (min-height: 560px) {
+  .tuner-stage {
+    --headstock-w: min(320px, calc((100dvh - 210px) * 0.682));
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-12);
+    width: auto;
   }
-  .tuner-string {
-    gap: var(--space-2);
+  .tuner-stage .headstock {
+    max-width: 320px;
+  }
+  .tuner-readout {
+    width: 360px;
   }
 }
 
-/* The vibration is the one thing here that is decoration as much as data, and
-   it is exactly the kind of continuous motion that reduced-motion asks to stop.
-   The component skips the animation loop entirely in that mode, so the wire
-   stays a straight line; the puck still moves, because its position is the
-   information. */
-@media (prefers-reduced-motion: reduce) {
-  .tuner-puck {
-    transition-duration: 120ms;
+/* --- Narrow --------------------------------------------------------------- */
+
+@media (max-width: 420px) {
+  .tuner-stage {
+    gap: var(--space-4);
+  }
+  .tuner-guidance {
+    max-width: 30ch;
   }
 }

@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import clsx from 'clsx';
-import { CheckIcon, CloseIcon, CaretDownIcon, TuningForkIcon } from '../icons';
-import { MicPermissionHint } from './MicPermissionHint';
-import { usePitchDetector } from '../../hooks/usePitchDetector';
+import { CloseIcon, CaretDownIcon, TuningForkIcon, MicIcon, RetryIcon } from '../icons';
+import { Headstock } from './Headstock';
+import { usePitchDetector, type PitchStatus } from '../../hooks/usePitchDetector';
+import type { MicFailureKind } from '../../audio/micStream';
 import { sfx } from '../../audio/sfx';
 import {
   TUNINGS,
@@ -15,8 +16,13 @@ import {
   matchString,
   nearestString,
   readPitch,
+  type Tuning,
   type TuningString,
 } from '../../audio/tuning';
+// The shell this surface sits in, imported by the surface that uses it. It used
+// to arrive only if a drill had been opened first in the same page load, which
+// is never true of a tuner: tuning is the first thing anyone does.
+import './overlayShell.css';
 import './tuner.css';
 
 const TUNING_KEY = 'daily-fret-tuning';
@@ -31,14 +37,25 @@ const FAR_CENTS = 60;
 const CENTS_READABLE_MAX = 100;
 /** How long the pitch must sit inside tolerance before a string is called done. */
 const SETTLE_MS = 700;
-/** Input level that drives the string to full visual amplitude. */
-const FULL_AMPLITUDE_RMS = 0.22;
 
-/** A string at rest, in the row's 100x20 viewBox. */
-const FLAT_WIRE = 'M0 10 C 25 10, 75 10, 100 10';
-
-/** Relative visual gauge, 1st (thinnest) through 6th. Real string ratios. */
-const STROKE_BY_POSITION: Record<number, number> = { 1: 1, 2: 1.4, 3: 1.9, 4: 2.5, 5: 3.2, 6: 4 };
+/**
+ * Hysteresis, and it is deliberate on both ends.
+ *
+ * A string is called done at IN_TUNE_CENTS (4) held for SETTLE_MS, and is only
+ * un-done once it reads DRIFT_CENTS (12) or worse for DRIFT_MS. The gap between
+ * the two thresholds is the whole point: a green string sitting at 6 or 8 cents
+ * keeps its tick instead of flickering it off and on. An open string that is
+ * ringing wobbles by a cent or two, a neighbour sounding sympathetically pulls
+ * the estimate about, and a decaying note drifts as its partials die; matching
+ * the two thresholds would turn all of that into a blinking display.
+ *
+ * 12 cents is chosen because it is roughly where a guitar starts to sound out
+ * against itself, so the tick is pulled at about the point a player would agree
+ * it should be. The live number underneath never hides any of this: it reads the
+ * true distance every frame, tick or no tick.
+ */
+const DRIFT_CENTS = 12;
+const DRIFT_MS = 300;
 
 type Verdict = 'flat' | 'sharp' | 'tuned';
 
@@ -53,6 +70,20 @@ function readStoredTuning(): string {
 }
 
 /**
+ * The order the tuner leads through: 6th to 1st, thickest to thinnest.
+ *
+ * It is the order every beginner course names the strings in, including the one
+ * this app's curriculum follows, so the sequence matches the words the learner
+ * already has. It is also the order that settles the neck fastest: the low
+ * strings carry the most tension, so moving them first means the smaller
+ * corrections at the treble end are made against a neck that has stopped
+ * shifting. Working the other way guarantees a second pass.
+ */
+function orderedStrings(tuning: Tuning): TuningString[] {
+  return [...tuning.strings].sort((a, b) => b.position - a.position);
+}
+
+/**
  * Cents to a position along the track, as a fraction of half the track width.
  *
  * Deliberately not linear. The whole job happens in the last few cents, and on a
@@ -61,16 +92,95 @@ function readStoredTuning(): string {
  * curve spends more of the track on the part that matters and compresses the far
  * end, which nobody reads precisely anyway.
  *
- * The exponent is a balance: too aggressive and a reading well inside tolerance
- * still sits near the edge of the tolerance band, which makes the display argue
- * with itself. `tuner.css` derives the band's width from this curve, so the two
- * have to move together.
+ * Because the curve compresses, the axis has to declare itself rather than let
+ * the eye assume it is linear: `tuner.css` derives the tolerance band from this
+ * function, and the track draws labelled marks at 25 and 50 cents from the same
+ * function, so a puck near the end and a number reading 38 cannot disagree.
  */
 const CENTS_CURVE = 0.7;
+/** The full span of the track, either side of true pitch. */
+const TRACK_CENTS = 50;
+/** Fraction of half the track the puck may travel, leaving room for its own width. */
+const PUCK_TRAVEL = 0.46;
 
 function centsToOffset(cents: number): number {
-  const clamped = Math.max(-1, Math.min(1, cents / 50));
+  const clamped = Math.max(-1, Math.min(1, cents / TRACK_CENTS));
   return Math.sign(clamped) * Math.pow(Math.abs(clamped), CENTS_CURVE);
+}
+
+/** Percentage position along the track for a cents value. */
+function trackPercent(cents: number): number {
+  return 50 + centsToOffset(cents) * PUCK_TRAVEL * 100;
+}
+
+/**
+ * The recovery for a refused microphone is per browser and per platform, and a
+ * generic "check your settings" is the kind of help that helps nobody. Sniffing
+ * the agent is the wrong tool for behaviour and the right one here: this is a
+ * sentence about a menu, and the menu really is different.
+ */
+function permissionRoute(): string {
+  if (typeof navigator === 'undefined') return 'Allow the microphone for this site in your browser settings, then try again.';
+  const ua = navigator.userAgent;
+  const isSafari = /Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR/.test(ua);
+  if (isSafari) {
+    return /iPhone|iPad|iPod/.test(ua)
+      ? 'In Safari, tap the page settings button in the address bar, choose Microphone, and set it to Allow. Then try again.'
+      : 'In Safari, open Settings for This Website from the Safari menu, set Microphone to Allow, then try again.';
+  }
+  if (/Firefox/.test(ua)) {
+    return 'In Firefox, click the padlock in the address bar, clear the blocked Microphone permission, then try again.';
+  }
+  return 'Click the padlock or the camera icon in the address bar, allow the microphone for this site, then try again.';
+}
+
+interface Recovery {
+  title: string;
+  body: string;
+  /** Null when nothing the user does on this screen can help. */
+  retry: string | null;
+}
+
+function recoveryFor(kind: MicFailureKind, message: string): Recovery {
+  switch (kind) {
+    case 'denied':
+      return {
+        title: 'The microphone is blocked for this site.',
+        body: permissionRoute(),
+        retry: 'Try again',
+      };
+    case 'no-device':
+      return {
+        title: 'No microphone found.',
+        body: 'Plug one in, or check that your computer has an input selected, and try again.',
+        retry: 'Try again',
+      };
+    case 'device-busy':
+      return {
+        title: 'Something else is using the microphone.',
+        body: 'A call, a recording app, or another tab has it. Close that, then try again.',
+        retry: 'Try again',
+      };
+    case 'insecure':
+      return {
+        title: 'The tuner needs a secure connection.',
+        body: 'Browsers only allow the microphone over https. Open the site at its https address.',
+        retry: null,
+      };
+    case 'unsupported':
+      return {
+        title: 'This browser cannot record audio.',
+        body: 'The tuner needs microphone access, which this browser does not offer. Safari, Chrome, or Firefox will work.',
+        retry: null,
+      };
+    default:
+      return { title: 'The microphone could not be opened.', body: message, retry: 'Try again' };
+  }
+}
+
+/** True while the tuner is provably not hearing anything, whatever the reason. */
+function isDeaf(status: PitchStatus): boolean {
+  return status !== 'listening';
 }
 
 interface Props {
@@ -79,14 +189,20 @@ interface Props {
 
 export function Tuner({ onClose }: Props) {
   const reducedMotion = useReducedMotion();
-  const { status, error, pitch, levelRef, start, stop } = usePitchDetector();
+  const { status, failure, error, pitch, levelRef, start, stop, wake } = usePitchDetector();
 
   const [tuningId, setTuningId] = useState(readStoredTuning);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [lockedPosition, setLockedPosition] = useState<number | null>(null);
+  /**
+   * The user overriding the sequence. Pinning both aims the tuner at one string
+   * and stops it listening to the others, which is the way out when a string is
+   * so far off that it reads as its neighbour.
+   */
+  const [pinnedPosition, setPinnedPosition] = useState<number | null>(null);
   const [settled, setSettled] = useState<number[]>([]);
 
   const tuning = useMemo(() => getTuning(tuningId), [tuningId]);
+  const order = useMemo(() => orderedStrings(tuning), [tuning]);
   const pickerRef = useRef<HTMLDivElement>(null);
   const pickerTriggerRef = useRef<HTMLButtonElement>(null);
 
@@ -126,13 +242,18 @@ export function Tuner({ onClose }: Props) {
 
   // Reading -> what the display is about. `match` is which string, `verdict` is
   // how it is doing, `far` means the pitch is closer to some other note entirely.
+  //
+  // Note that a pin, not the sequence target, is what narrows detection. The
+  // tuner leads, but it never refuses to read the string actually being played:
+  // being told "that is the D string, and it is 30 cents flat" when you meant to
+  // play A is more use than being told nothing.
   const match = useMemo(() => {
     if (!pitch) return null;
-    const locked = lockedPosition
-      ? tuning.strings.find((s) => s.position === lockedPosition)
+    const pinned = pinnedPosition
+      ? tuning.strings.find((s) => s.position === pinnedPosition)
       : undefined;
-    return locked ? matchString(pitch.hz, locked) : nearestString(pitch.hz, tuning);
-  }, [pitch, tuning, lockedPosition]);
+    return pinned ? matchString(pitch.hz, pinned) : nearestString(pitch.hz, tuning);
+  }, [pitch, tuning, pinnedPosition]);
 
   const cents = match?.cents ?? 0;
   const activePosition = match?.string.position ?? null;
@@ -168,22 +289,40 @@ export function Tuner({ onClose }: Props) {
     return () => clearTimeout(timer);
   }, [activePosition, verdict]);
 
-  // A string that reads clearly off again has stopped being tuned, whatever we
-  // said earlier. Neighbouring strings pull each other flat as you work round the
-  // headstock, and leaving a stale tick there would be a small lie.
-  //
-  // Adjusted during render rather than in an effect: this is a reaction to a new
-  // reading arriving, not a synchronisation with anything outside React. Holding
-  // the drifting string means the tick is pulled once, on the transition, rather
-  // than on every frame the peg is turning.
-  const [driftingPosition, setDriftingPosition] = useState<number | null>(null);
-  const drifting = activePosition !== null && Math.abs(cents) > NEAR_CENTS ? activePosition : null;
-  if (drifting !== driftingPosition) {
-    setDriftingPosition(drifting);
-    if (drifting !== null) {
-      setSettled((prev) => (prev.includes(drifting) ? prev.filter((p) => p !== drifting) : prev));
+  // The other half of the same mechanism. A string that reads clearly off again
+  // has stopped being tuned, whatever we said five minutes ago: neighbours pull
+  // each other flat as you work round the headstock, and new strings never stop
+  // moving. Holding the reading for DRIFT_MS before pulling the tick is what
+  // stops an ordinary ring or a decaying note undoing finished work.
+  const driftRef = useRef<{ position: number; since: number } | null>(null);
+  useEffect(() => {
+    const drifting =
+      activePosition !== null && Math.abs(cents) >= DRIFT_CENTS ? activePosition : null;
+    if (drifting === null) {
+      driftRef.current = null;
+      return;
     }
-  }
+    if (driftRef.current?.position !== drifting) {
+      driftRef.current = { position: drifting, since: Date.now() };
+    }
+    const remaining = Math.max(0, DRIFT_MS - (Date.now() - driftRef.current.since));
+    const timer = window.setTimeout(() => {
+      setSettled((prev) => (prev.includes(drifting) ? prev.filter((p) => p !== drifting) : prev));
+    }, remaining);
+    return () => clearTimeout(timer);
+  }, [activePosition, cents]);
+
+  /**
+   * Where the tuner is pointing. A pin wins; otherwise it is the next string in
+   * order that is not done, so finishing one hands the sequence on by itself.
+   * It goes null only when all six are done, and comes straight back the moment
+   * one drifts out, which is what makes the finished state a resting point
+   * rather than an exit.
+   */
+  const targetPosition = useMemo(() => {
+    if (pinnedPosition !== null) return pinnedPosition;
+    return order.find((s) => !settled.includes(s.position))?.position ?? null;
+  }, [pinnedPosition, order, settled]);
 
   const allSettled = settled.length === tuning.strings.length;
   const allSettledRef = useRef(false);
@@ -195,7 +334,7 @@ export function Tuner({ onClose }: Props) {
   const chooseTuning = useCallback((id: string) => {
     setTuningId(id);
     setPickerOpen(false);
-    setLockedPosition(null);
+    setPinnedPosition(null);
     setSettled([]);
     try {
       localStorage.setItem(TUNING_KEY, id);
@@ -204,12 +343,21 @@ export function Tuner({ onClose }: Props) {
     }
   }, []);
 
-  // Strings render high to low, matching the tab staff elsewhere in the app.
-  const rows = useMemo(() => [...tuning.strings].reverse(), [tuning]);
+  const togglePin = useCallback((position: number) => {
+    setPinnedPosition((prev) => (prev === position ? null : position));
+  }, []);
+
+  const deaf = isDeaf(status);
+  const byPosition = useMemo(
+    () => new Map(tuning.strings.map((s) => [s.position, s])),
+    [tuning],
+  );
+  const targetName = targetPosition ? byPosition.get(targetPosition)?.name ?? null : null;
+  const pinnedName = pinnedPosition ? byPosition.get(pinnedPosition)?.name ?? null : null;
 
   return createPortal(
     <motion.div
-      className="practice-overlay tuner-overlay"
+      className={clsx('practice-overlay tuner-overlay', allSettled && 'is-done')}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -225,99 +373,73 @@ export function Tuner({ onClose }: Props) {
       </div>
 
       <div className="practice-body tuner-body">
-        <div className="tuner-tuning" ref={pickerRef}>
-          <button
-            ref={pickerTriggerRef}
-            type="button"
-            className="tuner-tuning-trigger"
-            onClick={() => setPickerOpen((open) => !open)}
-            aria-expanded={pickerOpen}
-            aria-haspopup="menu"
-          >
-            <TuningForkIcon size={18} />
-            <span>{tuning.name}</span>
-            <CaretDownIcon size={15} className={clsx('tuner-caret', pickerOpen && 'is-open')} />
-          </button>
-          {pickerOpen && (
-            <div className="tuner-tuning-menu glass-panel" role="menu" aria-label="Choose a tuning">
-              {TUNINGS.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={t.id === tuningId}
-                  className={clsx('tuner-tuning-option', t.id === tuningId && 'is-active')}
-                  onClick={() => chooseTuning(t.id)}
-                >
-                  <span className="tuner-tuning-name">{t.name}</span>
-                  <span className="tuner-tuning-note">{t.note}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
         {status === 'error' ? (
-          <div className="tuner-blocked">
-            <p className="tuner-blocked-title">The tuner needs to hear your guitar.</p>
-            <p className="tuner-blocked-body">{error}</p>
-            <MicPermissionHint />
-            <button type="button" className="tuner-retry" onClick={() => void start()}>
-              Try again
-            </button>
-          </div>
+          <Blocked
+            kind={failure ?? 'failed'}
+            message={error ?? 'The microphone could not be opened.'}
+            onRetry={() => void start()}
+          />
         ) : (
           <>
-            <div className="tuner-board">
-              <div className="tuner-scale" aria-hidden="true">
-                <span>flat</span>
-                <span>sharp</span>
-              </div>
-
-              <div className="tuner-strings">
-                {/* True pitch, and the tolerance either side of it. Showing the
-                    tolerance as a place rather than a number is what stops the
-                    puck sitting visibly off-centre while the readout says the
-                    string is in tune. */}
-                <span
-                  className={clsx('tuner-zone', verdict === 'tuned' && !far && 'is-tuned')}
-                  aria-hidden="true"
-                />
-                <span className="tuner-rail" aria-hidden="true" />
-                {rows.map((string) => (
-                  <StringRow
-                    key={string.position}
-                    string={string}
-                    isActive={string.position === activePosition}
-                    isLocked={string.position === lockedPosition}
-                    isSettled={settled.includes(string.position)}
-                    cents={string.position === activePosition ? cents : 0}
-                    verdict={string.position === activePosition ? verdict : null}
-                    far={string.position === activePosition && far}
-                    levelRef={levelRef}
-                    reducedMotion={Boolean(reducedMotion)}
-                    onToggleLock={() =>
-                      setLockedPosition((prev) => (prev === string.position ? null : string.position))
-                    }
-                  />
-                ))}
-              </div>
+            <div className="tuner-tuning" ref={pickerRef}>
+              <button
+                ref={pickerTriggerRef}
+                type="button"
+                className="tuner-tuning-trigger"
+                onClick={() => setPickerOpen((open) => !open)}
+                aria-expanded={pickerOpen}
+                aria-haspopup="menu"
+              >
+                <TuningForkIcon size={18} />
+                <span>{tuning.name}</span>
+                <CaretDownIcon size={15} className={clsx('tuner-caret', pickerOpen && 'is-open')} />
+              </button>
+              {pickerOpen && (
+                <div className="tuner-tuning-menu glass-panel" role="menu" aria-label="Choose a tuning">
+                  {TUNINGS.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={t.id === tuningId}
+                      className={clsx('tuner-tuning-option', t.id === tuningId && 'is-active')}
+                      onClick={() => chooseTuning(t.id)}
+                    >
+                      <span className="tuner-tuning-name">{t.name}</span>
+                      <span className="tuner-tuning-note">{t.note}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <Readout
-              status={status}
-              pitchHz={pitch?.hz ?? null}
-              fading={pitch?.fading ?? false}
-              match={match}
-              verdict={verdict}
-              far={far}
-              allSettled={allSettled}
-              lockedName={
-                lockedPosition
-                  ? tuning.strings.find((s) => s.position === lockedPosition)?.name ?? null
-                  : null
-              }
-            />
+            <div className="tuner-stage">
+              <Headstock
+                strings={tuning.strings}
+                activePosition={deaf ? null : activePosition}
+                targetPosition={deaf ? null : targetPosition}
+                pinnedPosition={pinnedPosition}
+                settled={settled}
+                deaf={deaf}
+                allSettled={allSettled}
+                levelRef={levelRef}
+                reducedMotion={Boolean(reducedMotion)}
+                onSelect={togglePin}
+              />
+
+              <Readout
+                status={status}
+                pitchHz={pitch?.hz ?? null}
+                fading={pitch?.fading ?? false}
+                match={match}
+                verdict={verdict}
+                far={far}
+                allSettled={allSettled}
+                targetName={targetName}
+                pinnedName={pinnedName}
+                onWake={wake}
+              />
+            </div>
           </>
         )}
       </div>
@@ -326,146 +448,55 @@ export function Tuner({ onClose }: Props) {
   );
 }
 
-interface StringRowProps {
-  string: TuningString;
-  isActive: boolean;
-  isLocked: boolean;
-  isSettled: boolean;
-  cents: number;
-  verdict: Verdict | null;
-  far: boolean;
-  levelRef: React.RefObject<number>;
-  reducedMotion: boolean;
-  onToggleLock: () => void;
+interface BlockedProps {
+  kind: MicFailureKind;
+  message: string;
+  onRetry: () => void;
 }
 
-function StringRow({
-  string,
-  isActive,
-  isLocked,
-  isSettled,
-  cents,
-  verdict,
-  far,
-  levelRef,
-  reducedMotion,
-  onToggleLock,
-}: StringRowProps) {
-  const pathRef = useRef<SVGPathElement | null>(null);
-  const amplitudeRef = useRef(0);
-  /** Whether the wire is already drawn flat, so five idle rows stop writing the
-      same `d` attribute to the DOM sixty times a second between plucks. */
-  const restingRef = useRef(true);
-  // Read inside the animation loop so the loop itself never has to restart, and
-  // so a settled string can damp out smoothly instead of snapping flat.
-  const stateRef = useRef({ isActive, isSettled });
-  useEffect(() => {
-    stateRef.current = { isActive, isSettled };
-  }, [isActive, isSettled]);
-
-  // The string vibrates with the note's real envelope: amplitude tracks input
-  // level, so it swells on the pluck and dies away exactly as the string does.
-  // That is the whole reason the display feels connected to the instrument
-  // rather than to a timer.
-  useEffect(() => {
-    if (reducedMotion) return;
-    let raf = 0;
-    const started = performance.now();
-    const tick = (now: number) => {
-      raf = requestAnimationFrame(tick);
-      const path = pathRef.current;
-      if (!path) return;
-      const { isActive: live, isSettled: done } = stateRef.current;
-      const target = live && !done ? Math.min(1, levelRef.current / FULL_AMPLITUDE_RMS) : 0;
-      amplitudeRef.current += (target - amplitudeRef.current) * 0.14;
-      const amplitude = amplitudeRef.current;
-      if (amplitude < 0.002) {
-        if (!restingRef.current) {
-          path.setAttribute('d', FLAT_WIRE);
-          restingRef.current = true;
-        }
-        return;
-      }
-      restingRef.current = false;
-      // Fundamental mode: the whole length swings together, pinned at both ends.
-      // A cubic whose control points sit at 4/3 of the peak reproduces that
-      // shape in one segment, which keeps this loop essentially free.
-      const swing = Math.sin(((now - started) / 1000) * 2 * Math.PI * 6) * amplitude * 6;
-      const control = 10 - swing * 1.333;
-      path.setAttribute('d', `M0 10 C 25 ${control.toFixed(2)}, 75 ${control.toFixed(2)}, 100 10`);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [levelRef, reducedMotion]);
-
-  const offset = isActive ? centsToOffset(cents) : 0;
-
+function Blocked({ kind, message, onRetry }: BlockedProps) {
+  const { title, body, retry } = recoveryFor(kind, message);
   return (
-    <div
-      className={clsx(
-        'tuner-string',
-        isActive && 'is-active',
-        isSettled && 'is-settled',
-        isLocked && 'is-locked',
-        verdict && `is-${verdict}`,
-        far && 'is-far',
+    <div className="tuner-blocked" role="alert">
+      <span className="tuner-blocked-mark" aria-hidden="true">
+        <MicIcon size={26} />
+      </span>
+      <p className="tuner-blocked-title">{title}</p>
+      <p className="tuner-blocked-body">{body}</p>
+      {retry && (
+        <button type="button" className="tuner-action is-primary" onClick={onRetry}>
+          <RetryIcon size={17} /> {retry}
+        </button>
       )}
-    >
-      <button
-        type="button"
-        className="tuner-string-label"
-        onClick={onToggleLock}
-        aria-pressed={isLocked}
-        aria-label={
-          isLocked
-            ? `${string.name}${string.octave}, string ${string.position}. Listening to this string only. Tap to listen to all six.`
-            : `${string.name}${string.octave}, string ${string.position}${isSettled ? ', in tune' : ''}. Tap to listen to this string only.`
-        }
-      >
-        <span className="tuner-string-note">{string.name}</span>
-        <span className="tuner-string-mark" aria-hidden="true">
-          {isSettled ? <CheckIcon size={13} /> : string.position}
-        </span>
-      </button>
-
-      <div className="tuner-string-track">
-        <svg
-          className="tuner-string-wire"
-          viewBox="0 0 100 20"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          <path
-            ref={pathRef}
-            d={FLAT_WIRE}
-            vectorEffect="non-scaling-stroke"
-            style={{ strokeWidth: STROKE_BY_POSITION[string.position] }}
-          />
-        </svg>
-        {isActive && (
-          <span
-            className="tuner-puck"
-            aria-hidden="true"
-            style={{ left: `${50 + offset * 46}%` }}
-          />
-        )}
-      </div>
     </div>
   );
 }
 
 interface ReadoutProps {
-  status: string;
+  status: PitchStatus;
   pitchHz: number | null;
   fading: boolean;
   match: { string: TuningString; cents: number } | null;
   verdict: Verdict | null;
   far: boolean;
   allSettled: boolean;
-  lockedName: string | null;
+  targetName: string | null;
+  pinnedName: string | null;
+  onWake: () => void;
 }
 
-function Readout({ status, pitchHz, fading, match, verdict, far, allSettled, lockedName }: ReadoutProps) {
+function Readout({
+  status,
+  pitchHz,
+  fading,
+  match,
+  verdict,
+  far,
+  allSettled,
+  targetName,
+  pinnedName,
+  onWake,
+}: ReadoutProps) {
   const heard = pitchHz !== null ? readPitch(pitchHz) : null;
   const cents = match?.cents ?? 0;
   const rounded = Math.round(cents);
@@ -476,28 +507,49 @@ function Readout({ status, pitchHz, fading, match, verdict, far, allSettled, loc
   // heard, and the string it is being measured against moves into the small line.
   const headline = far && heard ? { name: heard.name, octave: heard.octave } : match?.string ?? null;
   const showCents = match !== null && Math.abs(cents) <= CENTS_READABLE_MAX;
+  // The puck has run out of track. Say so on the puck rather than letting it sit
+  // at the end pretending to be a reading.
+  const pinnedToEnd = match !== null && Math.abs(cents) > TRACK_CENTS;
 
+  // Every status renders something a person can act on. There is deliberately no
+  // branch here that means "wait and hope": a tuner that cannot hear says which
+  // of the several reasons it is, because they have different ways out.
   let guidance: string;
   if (status === 'requesting') {
-    guidance = 'Opening the microphone.';
-  } else if (allSettled) {
-    guidance = 'All six. Go and play.';
+    guidance = 'Asking for the microphone.';
+  } else if (status === 'asleep') {
+    guidance = 'The browser has paused audio for this page. One tap gets it back.';
+  } else if (status === 'muted') {
+    guidance = 'Another app has taken the microphone. Close it and the tuner picks up again.';
+  } else if (status === 'idle') {
+    guidance = 'The microphone is closed.';
+  } else if (allSettled && (!match || Math.abs(cents) <= NEAR_CENTS)) {
+    // The payoff lands the instant the sixth string settles, not once the note
+    // has died away. It stays a resting point rather than an exit: anything that
+    // reads clearly off from here pulls its tick and takes the guidance back.
+    guidance = 'All six. Go and play, or sound any string to check it again.';
   } else if (!match) {
-    guidance = lockedName
-      ? `Listening for the ${lockedName} string.`
-      : 'Play a string. I will work out which one.';
+    // Nothing sounding. This is where the tuner leads: it names the string it is
+    // waiting for rather than waiting silently.
+    guidance = pinnedName
+      ? `Listening for the ${pinnedName} string only.`
+      : targetName
+        ? `Play the ${targetName} string.`
+        : 'Play a string. I will work out which one.';
   } else if (!showCents) {
     // More than a semitone out. Say what is actually going on instead of
-    // reporting a distance, and if a lock is what caused it, offer the way back.
-    guidance = lockedName
-      ? `That does not sound like the ${lockedName} string. Tap ${lockedName} to listen to all six again.`
+    // reporting a distance, and if a pin is what caused it, offer the way back.
+    guidance = pinnedName
+      ? `That does not sound like the ${pinnedName} string. Tap ${pinnedName} to listen to all six again.`
       : cents < 0
         ? 'A long way flat. Keep tightening.'
         : 'A long way sharp. Keep easing it off.';
   } else if (far) {
     guidance = cents < 0 ? 'A long way flat. Keep tightening.' : 'A long way sharp. Keep easing it off.';
   } else if (verdict === 'tuned') {
-    guidance = `${match.string.name} is in tune.`;
+    guidance = targetName && targetName !== match.string.name
+      ? `${match.string.name} is in tune. ${targetName} next.`
+      : `${match.string.name} is in tune.`;
   } else if (Math.abs(cents) <= NEAR_CENTS) {
     guidance = verdict === 'flat' ? 'Almost. A hair tighter.' : 'Almost. A touch looser.';
   } else {
@@ -510,19 +562,24 @@ function Readout({ status, pitchHz, fading, match, verdict, far, allSettled, loc
         'tuner-readout',
         match && (far ? 'is-far' : `is-${verdict}`),
         fading && 'is-fading',
+        allSettled && 'is-done',
       )}
     >
       <div className="tuner-readout-note">
-        {headline ? (
+        {/* Empty until a string sounds. The slot keeps its height rather than
+            holding a placeholder glyph, which only ever read as an artefact. */}
+        {headline && (
           <>
             <span className="tuner-readout-name">{headline.name}</span>
             <span className="tuner-readout-octave">{headline.octave}</span>
           </>
-        ) : (
-          <span className="tuner-readout-name is-empty">·</span>
         )}
       </div>
 
+      {/* The number, at the size the rest of the world puts it, because a player
+          who already reads cents should not have to learn this tuner's own
+          dialect to use it. Signed the universal way: negative is flat. The word
+          underneath is for everyone who has never been told which is which. */}
       <div className="tuner-readout-cents">
         {showCents && match ? (
           <>
@@ -531,17 +588,53 @@ function Readout({ status, pitchHz, fading, match, verdict, far, allSettled, loc
               {Math.abs(rounded)}
             </span>
             <span className="tuner-readout-unit">
-              {far ? `cents from ${match.string.name}` : 'cents'}
+              {far
+                ? `cents from ${match.string.name}`
+                : verdict === 'tuned'
+                  ? 'cents, in tune'
+                  : cents < 0
+                    ? 'cents flat'
+                    : 'cents sharp'}
             </span>
           </>
         ) : (
-          <span className="tuner-readout-unit">{heard ? `${heard.hz.toFixed(1)} Hz` : 'listening'}</span>
+          heard && <span className="tuner-readout-unit">{heard.hz.toFixed(1)} Hz</span>
         )}
+      </div>
+
+      {/* The tolerance drawn as a place, not a number, so the marker landing
+          inside the band always agrees with the sentence underneath. The 25-cent
+          marks are placed by the same curve as the puck, so the axis shows its
+          own compression instead of inviting the eye to read it as linear. */}
+      <div className={clsx('tuner-track', !match && 'is-quiet')}>
+        <div className="tuner-track-rail">
+          <span className="tuner-track-zone" aria-hidden="true" />
+          <span className="tuner-track-centre" aria-hidden="true" />
+          <span className="tuner-track-tick" aria-hidden="true" style={{ left: `${trackPercent(-25)}%` }} />
+          <span className="tuner-track-tick" aria-hidden="true" style={{ left: `${trackPercent(25)}%` }} />
+          {match && (
+            <span
+              className={clsx('tuner-track-puck', pinnedToEnd && 'is-pinned')}
+              aria-hidden="true"
+              style={{ left: `${trackPercent(cents)}%` }}
+            />
+          )}
+        </div>
+        <div className="tuner-track-scale" aria-hidden="true">
+          <span>−50 flat</span>
+          <span>sharp +50</span>
+        </div>
       </div>
 
       <p className="tuner-guidance" role="status">
         {guidance}
       </p>
+
+      {status === 'asleep' && (
+        <button type="button" className="tuner-action is-primary" onClick={onWake}>
+          Let the tuner hear
+        </button>
+      )}
     </div>
   );
 }
