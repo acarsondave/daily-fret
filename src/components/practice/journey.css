@@ -225,10 +225,6 @@
   font-variant-numeric: tabular-nums;
   color: var(--accent-primary);
 }
-.journey-next-of {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
 
 .journey-next-bar,
 .journey-module-bar,
@@ -561,9 +557,18 @@
 .journey-skill.is-solid .journey-skill-figure {
   color: var(--success-color);
 }
-.journey-skill-of {
+/* Shared by the "closest to done" list and the module rows: one mark for "out
+   of", and one for a bar nothing has been measured against yet. The second is
+   deliberately not the accent colour, because it is a target and not a result. */
+.journey-figure-of {
   font-size: var(--text-sm);
   color: var(--text-muted);
+}
+.journey-figure-target {
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 /* --- Taught once ----------------------------------------------------------- */

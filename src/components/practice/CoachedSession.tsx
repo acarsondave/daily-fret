@@ -10,10 +10,11 @@ import {
   SpeakerOffIcon,
   SkipIcon,
 } from '../icons';
-import { useStore, getTodayString, type CoachStepResult } from '../../store';
+import { useStore, getTodayString, drillLogsOf, type CoachStepResult } from '../../store';
 import { pairKey } from '../../lib/pairs';
+import { chordKey, poolKey, ringKey, rotationRing, trainerPool } from '../../lib/drillKeys';
 import { buildSegments } from '../../lib/coached';
-import { taskDrillHistory } from '../../lib/drillStats';
+import { keyDrillHistory } from '../../lib/drillStats';
 import { drillSeries, planTempo, fixedTempo, type TempoPlan } from '../../lib/tempo';
 import { useSongs } from '../../hooks/useSongs';
 import { findSong } from '../../lib/songCatalog';
@@ -52,7 +53,7 @@ function mins(seconds: number): string {
 }
 
 export function CoachedSession({ routine, onClose }: Props) {
-  const recordMeasurement = useStore((s) => s.recordMeasurement);
+  const recordMeasurements = useStore((s) => s.recordMeasurements);
   const recordTime = useStore((s) => s.recordTime);
   const settleTask = useStore((s) => s.settleTask);
   const setLastPair = useStore((s) => s.setLastPair);
@@ -100,13 +101,19 @@ export function CoachedSession({ routine, onClose }: Props) {
 
   const seg = segments[index];
   const isLastSegment = index >= segments.length - 1;
-  // The chord trainer compares against its own history (best/series). Snapshot it
-  // when the segment opens, before this run is recorded, so "First benchmark" only
-  // shows when there genuinely is no prior result for this task.
-  const trainerHistory = useMemo(() => {
-    if (!seg || (seg.kind !== 'trainer' && seg.kind !== 'rotation')) return { best: 0, series: [] as number[] };
-    const acc = useStore.getState().accounts[useStore.getState().currentAccountId];
-    return taskDrillHistory(acc?.dailyLogs ?? {}, seg.taskId);
+  // The ring this rotation will turn, so the drill and the key it is filed under
+  // agree on which loop ran.
+  const ring = seg?.kind === 'rotation' ? rotationRing(seg.chords) : null;
+  // The rotation compares against its own history. Snapshot it when the segment
+  // opens, before this run is recorded, so "First benchmark" only shows when
+  // there genuinely is no prior turn of this ring. Chord Perfect reads its own,
+  // per pool, because the pool is part of its key.
+  const rotationBest = useMemo(() => {
+    if (!ring) return 0;
+    const state = useStore.getState();
+    const acc = state.accounts[state.currentAccountId];
+    if (!acc) return 0;
+    return keyDrillHistory(drillLogsOf(acc), ringKey(ring)).best;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
   // The tempo this segment should run at, read from the player's own results for
@@ -114,12 +121,17 @@ export function CoachedSession({ routine, onClose }: Props) {
   // today's result mid-session can't move the click under the player's fingers.
   const tempoPlan = useMemo<TempoPlan | null>(() => {
     if (!seg) return null;
-    const logs = useStore.getState().accounts[useStore.getState().currentAccountId]?.dailyLogs ?? {};
+    const state = useStore.getState();
+    const acc = state.accounts[state.currentAccountId];
+    const logs = acc ? drillLogsOf(acc) : {};
     if (seg.kind === 'changes') {
       return planTempo(drillSeries(logs, pairKey(seg.from, seg.to), seg.seconds), today);
     }
-    if (seg.kind === 'trainer' || seg.kind === 'rotation') {
-      return planTempo(drillSeries(logs, seg.taskId, seg.seconds), today);
+    if (seg.kind === 'trainer') {
+      return planTempo(drillSeries(logs, poolKey(trainerPool(seg.chords)), seg.seconds), today);
+    }
+    if (seg.kind === 'rotation') {
+      return planTempo(drillSeries(logs, ringKey(rotationRing(seg.chords)), seg.seconds), today);
     }
     if (seg.kind === 'timed') return fixedTempo(seg.bpm);
     // Songs are played to the record, not to a click. The tempo is still loaded
@@ -416,7 +428,7 @@ export function CoachedSession({ routine, onClose }: Props) {
             onResult={(cpm, f, t) => {
               // Records what was heard; it does not complete anything. The task
               // is settled once, after its last pair (see advance).
-              recordMeasurement(today, seg.taskId, cpm, pairKey(f, t));
+              recordMeasurements(today, seg.taskId, [{ key: pairKey(f, t), value: cpm }]);
               setLastPair(f, t);
               lastValueRef.current = cpm;
               void speak('done');
@@ -435,15 +447,17 @@ export function CoachedSession({ routine, onClose }: Props) {
           <ChordTrainer
             key={`seg-${index}`}
             config={{ kind: 'chord-trainer', chords: seg.chords, durationSec: seg.seconds }}
-            personalBest={trainerHistory.best}
-            series={trainerHistory.series}
             autoStart
             autoAdvance
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             detector={detector}
-            onResult={(score) => {
-              recordMeasurement(today, seg.taskId, score);
-              lastValueRef.current = score;
+            onResult={({ perChord, total }) => {
+              // The block's score and each shape's own count, from one run.
+              recordMeasurements(today, seg.taskId, [
+                { key: poolKey(perChord.map((p) => p.chord)), value: total },
+                ...perChord.map((p) => ({ key: chordKey(p.chord), value: p.placements })),
+              ]);
+              lastValueRef.current = total;
               void speak('done');
             }}
             onNext={() => advance({
@@ -456,18 +470,18 @@ export function CoachedSession({ routine, onClose }: Props) {
           />
         )}
 
-        {phase === 'segment' && seg.kind === 'rotation' && (
+        {phase === 'segment' && seg.kind === 'rotation' && ring && (
           <ChordRotation
             key={`seg-${index}`}
-            config={{ kind: 'chord-rotation', chords: seg.chords, durationSec: seg.seconds }}
-            personalBest={trainerHistory.best}
+            config={{ kind: 'chord-rotation', chords: ring, durationSec: seg.seconds }}
+            personalBest={rotationBest}
             autoStart
             autoAdvance
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             detector={detector}
-            onResult={(score) => {
-              recordMeasurement(today, seg.taskId, score);
-              lastValueRef.current = score;
+            onResult={({ ring: turned, changes }) => {
+              recordMeasurements(today, seg.taskId, [{ key: ringKey(turned), value: changes }]);
+              lastValueRef.current = changes;
               void speak('done');
             }}
             onNext={() => advance({

@@ -19,18 +19,26 @@ import type { JourneyModule, ModuleContent } from './journeyCourse';
 export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /**
- * The module's real shape in one sentence, which is the whole point of the
- * split: a module that is four lessons of theory and one chord should read as
- * that before a single row is expanded.
+ * The module's shape in one sentence, which is the whole point of the split: a
+ * module that is four lessons of theory and one chord should read as that before
+ * a single row is expanded.
+ *
+ * It says whose count it is. "This module: 1 to practise, across 11 lessons" was
+ * a sentence about Daily Fret's coverage wearing the clothes of a sentence about
+ * the course, and on module 9 the two are nothing like the same thing: the
+ * module is called The F Chord Journey and exactly one skill in the taxonomy
+ * points anywhere inside it. Naming the source costs three words and stops a
+ * thin mapping reading as a thin module.
  */
 export function shapeOf(module: JourneyModule, content: ModuleContent): string {
   const lessons = plural(module.lessonCount, 'lesson');
   if (!content.mapped) return `This module: ${lessons}, none of them mapped to a drill here yet.`;
   const practice = content.practice.length;
   const once = content.taughtOnce.length;
-  if (!practice) return `This module: ${lessons}, all of it taught rather than drilled.`;
-  if (!once) return `This module: ${practice} to practise, across ${lessons}.`;
-  return `This module: ${practice} to practise and ${once} taught but not drilled, across ${lessons}.`;
+  const of = `Of this module's ${lessons}, Daily Fret maps`;
+  if (!practice) return `${of} ${once} taught but not drilled, and nothing to practise.`;
+  if (!once) return `${of} ${practice} to practise.`;
+  return `${of} ${practice} to practise and ${once} taught but not drilled.`;
 }
 
 /** The module's contents in the row, before anything is expanded. */
@@ -96,6 +104,27 @@ export function kindNote(content: ModuleContent): string | null {
     parts.push('Not measured yet: real practice the app has no analysis for.');
   }
   return parts.length ? parts.join(' ') : null;
+}
+
+/**
+ * Why nothing below is marked as behind you.
+ *
+ * Three different situations used to print the same sentence, and two of them
+ * were false. Someone whose lesson code the curriculum no longer holds was told
+ * "you have not said where you are" when they had said exactly that, and someone
+ * reading Justin's own Grade 1 practice diary was told their lesson "sits
+ * outside the beginner course" while the heading above named that course. A
+ * companion series is inside the course and outside its numbered path, and the
+ * only honest sentence is the one that says so.
+ */
+export function outsideNote(where: 'companion' | 'other-course' | 'unknown'): string {
+  if (where === 'companion') {
+    return 'That is a companion series alongside the course rather than one of its numbered modules, so nothing below is marked as behind you.';
+  }
+  if (where === 'unknown') {
+    return 'Daily Fret does not hold that lesson, so nothing below is marked as behind you. Open a module and say you are on it.';
+  }
+  return 'That lesson sits outside the beginner course, so nothing below is marked as behind you.';
 }
 
 /** How many lessons the course counts here but refuses to name. */

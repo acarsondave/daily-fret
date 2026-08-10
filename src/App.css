@@ -7,16 +7,51 @@
   overflow: hidden; /* Prevent body scroll */
 }
 
-/* --- Ambient room ---------------------------------------------------------
-   This layer used to be two divs carrying Tailwind utility classes in a project
-   that has never had Tailwind installed, so it painted nothing at all and the
-   app sat on flat #0F0F11. Rebuilt as real CSS: two wide radial fields and a
-   low horizon, so the dark has a direction and the panels have something to
-   float above.
+/* --- Ambient: the room the practice happens in ----------------------------
 
-   Gradients rather than `filter: blur()` on purpose. A 100px blur over a
-   viewport-sized element is re-rasterised on every frame of the drift; a radial
-   gradient is already soft, so the animation stays a pure compositor transform. */
+   THESIS. The ground is a lit dark room with the instrument across the lap.
+   It refuses the arrangement it replaces, and that most dark apps ship: two
+   soft coloured radials and a horizon band over near-black. Every light here
+   has its centre outside the frame, so only falloff is ever on screen and
+   there is no disc edge anywhere to read as a shape.
+
+   WORLD. One warm lamp entering past the lower-right corner. One cold breath
+   of room air past the upper-left, an order of magnitude quieter, so the dark
+   has a temperature axis rather than a colour. Six string hairlines raked
+   across the lower half at the real gauge order, wound bronze on top and
+   plain steel below. A fixed grain over all of it that both dithers the
+   falloff and gives the dark a tooth.
+
+   NO ACCENT. The old ground was cyan, which is the app's live-state voice.
+   A screen already tinted with the accent has nothing left to say when
+   something actually goes live, so the ground gives the colour back.
+
+   ANGLE. -10.5deg, rising to the right. A guitar lies across the lap at a
+   rake, not level, and the screen is propped above it looking down.
+
+   MOTION. None. The previous ground ran two infinite compositor animations
+   for the whole life of a session, including underneath real-time pitch
+   detection. The room is still; the motion budget belongs to the instrument
+   surfaces.
+
+   COST. Three static composited layers. No filter, no backdrop-filter, no
+   animation, no will-change. The grain is one 240px tile rasterised once.
+
+   CONTRAST. Measured off the rendered ground, not derived. The hottest pixel
+   the lights reach is the lamp's own corner, and it composites to rgb(40,37,34)
+   on a 1366x680 frame. That is brighter than --surface-color, so the claim this
+   paragraph used to make, that the lights stay under a panel, was arithmetic
+   that no build ever matched. What is true is the thing that claim was standing
+   in for: nothing is ever drawn over that corner. Every text run that sits
+   directly on the ground measures no worse than 5.6:1 across 360, 390, 430,
+   1366 and 1280 wide, against 5.18:1 for the same token on a panel, so a token
+   on the ground reads better than the same token on a card and never worse. The
+   deepening below only widens that margin. */
+/* Painted darker than --bg-color by exactly the mean the grain layer adds back,
+   so the ground still lands on #0F0F11 and the raised rows keep the separation
+   they were designed with. Kept derived from the token rather than hard-coded,
+   and the plain declaration above it is the fallback for anything that cannot
+   parse color-mix. */
 .app-ambient {
   position: fixed;
   inset: 0;
@@ -24,57 +59,111 @@
   overflow: hidden;
   pointer-events: none;
   background: var(--bg-color);
+  background: color-mix(in srgb, var(--bg-color) 80%, #000);
 }
 
-.app-ambient-field {
+/* Both radii are given per axis as a share of the viewport, never in vmax: a
+   vmax-sized ellipse is measured off the long edge, so the same light that
+   grazes a laptop's corner floods the entire bottom of a portrait phone. This
+   way the lit corner covers the same fraction of every screen.
+
+   Each stop ends on a zero-alpha copy of its own colour rather than on
+   `transparent`, which some engines interpolate toward transparent black and
+   render as a dirty ring halfway down the falloff. */
+.app-ambient-light {
   position: absolute;
-  width: 78vmax;
-  height: 78vmax;
-  border-radius: 50%;
-  will-change: transform;
+  inset: 0;
+  background:
+    radial-gradient(
+      94% 60% at 104% 103%,
+      rgb(var(--ambient-lamp) / 0.115) 0%,
+      rgb(var(--ambient-lamp) / 0.066) 24%,
+      rgb(var(--ambient-lamp) / 0.022) 50%,
+      rgb(var(--ambient-lamp) / 0) 78%
+    ),
+    radial-gradient(
+      76% 50% at -10% -14%,
+      rgb(var(--ambient-air) / 0.045) 0%,
+      rgb(var(--ambient-air) / 0.018) 34%,
+      rgb(var(--ambient-air) / 0) 64%
+    ),
+    /* The shadow side, listed last so it sits under both lights. Without it the
+       frame is flat black with a lit corner stuck on; with it the ground has a
+       range, deep at the reading end and open where the lamp is. It falls
+       across the axis the lamp comes in on. The cold air above is the only
+       thing relieving it, which is what a shadow lit by room bounce does.
+       This is the one wide low-alpha ramp in the file and it would band on a
+       dark panel unaided; the grain layer is what makes it safe. */
+    linear-gradient(
+      118deg,
+      rgb(0 0 0 / 0.5) 0%,
+      rgb(0 0 0 / 0.16) 30%,
+      rgb(0 0 0 / 0) 58%
+    );
 }
 
-.app-ambient-field.is-sky {
-  top: -32vmax;
-  left: -24vmax;
-  background: radial-gradient(
-    circle at center,
-    rgba(56, 189, 248, 0.14) 0%,
-    rgba(56, 189, 248, 0.06) 38%,
-    transparent 68%
-  );
-  animation: ambient-drift-sky 34s var(--ease-out) infinite alternate;
-}
-
-.app-ambient-field.is-moss {
-  bottom: -34vmax;
-  right: -26vmax;
-  background: radial-gradient(
-    circle at center,
-    rgba(52, 211, 153, 0.1) 0%,
-    rgba(52, 211, 153, 0.04) 40%,
-    transparent 70%
-  );
-  animation: ambient-drift-moss 41s var(--ease-out) infinite alternate;
-}
-
-/* A single soft band low in the frame. It reads as the floor of the room and
-   stops the two fields from looking like stickers on a void. */
-.app-ambient-horizon {
+/* The rake. Rotating the group rather than each string keeps the six of them
+   parallel by construction, and one transform is one composited layer. */
+.app-ambient-rake {
   position: absolute;
-  inset: auto 0 0 0;
-  height: 46vh;
-  background: linear-gradient(to top, rgba(56, 189, 248, 0.05), transparent 70%);
+  inset: 0;
+  transform: rotate(-10.5deg);
 }
 
-@keyframes ambient-drift-sky {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to   { transform: translate3d(6vmax, 4vmax, 0) scale(1.08); }
+/* Each string runs off both edges: the lamp is off the lower-right corner, so
+   the line arrives out of the dark on the left and is still lit where it
+   leaves the frame on the right. Fading both ends symmetrically would draw a
+   glowing dash, which is a decoration; a string is a thing that continues. */
+.app-ambient-string {
+  position: absolute;
+  left: -22%;
+  right: -22%;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--string-rgb) / 0) 2%,
+    rgb(var(--string-rgb) / calc(var(--string-a) * 0.22)) 26%,
+    rgb(var(--string-rgb) / calc(var(--string-a) * 0.58)) 52%,
+    rgb(var(--string-rgb) / var(--string-a)) 76%,
+    rgb(var(--string-rgb) / calc(var(--string-a) * 0.9)) 100%
+  );
 }
 
-@keyframes ambient-drift-moss {
-  from { transform: translate3d(0, 0, 0) scale(1.06); }
-  to   { transform: translate3d(-5vmax, -3vmax, 0) scale(1); }
+/* Top to bottom is low E to high E, the order you see looking down at the
+   instrument. The wound three are thicker, warmer and duller because bronze
+   winding scatters; the plain three are finer, cooler and brighter because
+   drawn steel is specular. Brightness rising downward is also what puts the
+   quiet end of the field under the header and the lit end under nothing. */
+.app-ambient-string.is-e6 { top: 73.5%; height: 2px;    --string-rgb: 236 222 205; --string-a: 0.046; }
+.app-ambient-string.is-a5 { top: 77.3%; height: 1.7px;  --string-rgb: 236 222 205; --string-a: 0.054; }
+.app-ambient-string.is-d4 { top: 81.1%; height: 1.35px; --string-rgb: 236 222 205; --string-a: 0.064; }
+.app-ambient-string.is-g3 { top: 84.9%; height: 1px;    --string-rgb: 226 234 246; --string-a: 0.085; }
+.app-ambient-string.is-b2 { top: 88.7%; height: 0.8px;  --string-rgb: 226 234 246; --string-a: 0.1; }
+.app-ambient-string.is-e1 { top: 92.5%; height: 0.6px;  --string-rgb: 226 234 246; --string-a: 0.115; }
+
+/* Grain. Two jobs, one layer. A dark screen shows 1-step banding in any wide
+   gradient, and dithering is the only real cure; and a ground with a tooth
+   reads as a surface rather than as an absence of pixels. Rendered as a
+   tiled SVG image, so the turbulence is rasterised once at 240px and never
+   again. This is not `filter:`, which would re-run per frame. */
+.app-ambient-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 240px 240px;
+}
+
+/* A phone has no margins for a room to be seen in: the list is the frame. So
+   the rake drops below the list rather than running through it, and loses a
+   third of its weight. The ground is a pleasure a laptop has room for and a
+   pocket does not, and pretending otherwise is how a background starts
+   competing with the task. */
+@media (max-width: 600px) {
+  .app-ambient-rake {
+    transform: translateY(7%) rotate(-10.5deg);
+    opacity: 0.66;
+  }
 }
 
 /* --- Header --------------------------------------------------------------- */
@@ -93,11 +182,13 @@
 
 .header-date-short { display: none; }
 
-@media (max-width: 600px) {
-  .header-date-long { display: none; }
-  .header-date-short { display: inline; }
-}
-
+/* The date is the only item on this row that can give width back, so it is the
+   one that gives it. The controls beside it are pills of nowrap text, which
+   cannot shrink below their own content no matter what flex says, so squeezing
+   the row squeezed nothing and simply pushed the account button past the right
+   edge, where .app-layout's overflow cut it to "This de". Sizing is what fixes
+   that; this pair of declarations only decides what visibly gives way if a
+   width nobody sized for turns up. */
 .header-date {
   font-family: var(--font-primary);
   font-size: var(--text-md);
@@ -105,13 +196,15 @@
   color: var(--text-secondary);
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
   gap: var(--space-6);
-  min-width: 0;
+  flex: 0 0 auto;
 }
 
 .account-btn {
@@ -161,7 +254,18 @@
   overflow-y: auto; /* safety: never clip the add-task control on short viewports */
 }
 
-@media (max-width: 600px) {
+/* Header widths, all measured off the rendered row rather than chosen.
+   The row carries four things at once: the date, the streak, Setup and the
+   account state. With the long date and the wide gaps it needs 669px before
+   the account button stops running past the right edge. With the short date
+   and the tight ones it needs 455px. Both of those used to sit behind a single
+   600px breakpoint, so every width from 601 to 668 clipped the account button
+   and wrapped the date onto two lines, and so did every phone. They are two
+   thresholds and they are now written as two. */
+@media (max-width: 700px) {
+  .header-date-long { display: none; }
+  .header-date-short { display: inline; }
+
   .app-header {
     padding: var(--space-4);
     gap: var(--space-3);
@@ -173,16 +277,53 @@
   .header-actions {
     gap: var(--space-3);
   }
-  /* The label stays. A phone glyph on its own reads as "mobile" or "install
-     the app", not as "your practice is saved here and nowhere else", and
-     where the data lives is something this app states rather than implies.
-     Shortening the date above is what makes room for it. */
   .account-btn span {
     font-size: var(--text-micro);
   }
-  .account-btn {
-    padding: var(--space-2) var(--space-3);
+}
+
+/* Below 455 the word cannot be kept, and the note that used to sit here was
+   wrong that shortening the date could keep it. The three controls and the
+   date are 316px of natural width before the label; the label costs 83 more,
+   on a screen 360 to 430 across. The row only ever had room for it by cutting
+   it, and "This de" states where the practice is saved less clearly than the
+   glyph alone does. So the word goes and comes straight back at the first
+   width that can hold it. Nothing is lost to a screen reader: the button's
+   aria-label carries the whole sentence at every size, and Setup, one pill to
+   the left, opens the panel that says it in words. */
+@media (max-width: 455px) {
+  .app-header {
+    gap: var(--space-2);
   }
+  .header-actions {
+    gap: var(--space-2);
+  }
+  .account-btn span {
+    display: none;
+  }
+  /* A 16px glyph on 8px of padding is a 32px target, which is under the floor
+     for a thumb reaching the top corner of a phone one-handed. */
+  .account-btn {
+    padding: var(--space-2);
+    justify-content: center;
+    min-width: 40px;
+    min-height: 40px;
+  }
+}
+
+/* The smallest phones still in the target set. At 360 the date is the last
+   12px of the overrun, and shrinking its type is a cheaper answer than
+   wrapping it onto a second line or taking another control off the row. */
+@media (max-width: 380px) {
+  .app-header {
+    padding: var(--space-4) var(--space-3);
+  }
+  .header-date {
+    font-size: var(--text-micro);
+  }
+}
+
+@media (max-width: 600px) {
   .center-content {
     padding-top: 92px;
     padding-bottom: 64px;

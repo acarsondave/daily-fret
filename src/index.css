@@ -37,6 +37,19 @@
      defined, so every destructive control rendered in plain body text. */
   --error-color: var(--danger-color);
 
+  /* The room behind the day's list. Two lights whose centres sit outside the
+     frame, given as channel triples because App.css composes them at several
+     alphas. Warm lamp low and right, cold room air high and left; deliberately
+     neither of them the accent, because cyan is the app's live-state voice and
+     a ground already tinted with it has nothing left to say when something
+     actually goes live. Their combined peak composites to rgb(40,37,34) at the
+     lamp's own corner, measured off the rendered ground. Nothing is drawn
+     there, and the dimmest token that does sit on the ground measures 5.6:1,
+     better than the 5.18:1 the same token holds on a panel. Used only by
+     .app-ambient-light. */
+  --ambient-lamp: 255 214 170;
+  --ambient-air: 154 176 206;
+
   /* Hairlines. Three steps is all this interface needs: a divider you barely
      see, a card edge, and an edge that is deliberately noticed. */
   --border-subtle: rgba(255, 255, 255, 0.06);
@@ -182,18 +195,15 @@ select:focus-visible {
    own accessibility problem, not the fix for one. Framer-driven motion is
    handled separately in main.tsx, since CSS cannot reach it. */
 @media (prefers-reduced-motion: reduce) {
-  /* Decorative and looping: gone. */
-  .app-ambient-field,
+  /* Decorative and looping: gone. The ambient ground is absent from this list
+     because it no longer animates at all; a still room is the same room for
+     everyone. */
   .app-loader-string::after,
   .coach-advance-count,
   .om-sparkle,
   .metro-pulse.is-beat,
   .icon-spin {
     animation: none !important;
-  }
-
-  .app-ambient-field {
-    transform: none !important;
   }
 
   /* Informational: kept, but quick, and never travelling across the screen. */

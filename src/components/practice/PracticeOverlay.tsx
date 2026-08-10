@@ -2,11 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { CloseIcon } from '../icons';
-import { useStore, getTodayString } from '../../store';
+import { useStore, getTodayString, drillLogsOf } from '../../store';
 import { pairKey } from '../../lib/pairs';
-import { taskDrillHistory } from '../../lib/drillStats';
+import { chordKey, poolKey, ringKey, rotationRing, trainerPool } from '../../lib/drillKeys';
+import { keyDrillHistory } from '../../lib/drillStats';
 import { drillSeries, planTempo, fixedTempo, type TempoPlan } from '../../lib/tempo';
 import { timedBlocks } from '../../lib/coached';
+import type { DrillMeasurement } from '../../store/completion';
 import { useSongs } from '../../hooks/useSongs';
 import { findSong } from '../../lib/songCatalog';
 import type { Task } from '../../types';
@@ -25,7 +27,7 @@ interface Props {
 }
 
 export function PracticeOverlay({ task, onClose }: Props) {
-  const recordMeasurement = useStore((s) => s.recordMeasurement);
+  const recordMeasurements = useStore((s) => s.recordMeasurements);
   const recordTime = useStore((s) => s.recordTime);
   const settleTask = useStore((s) => s.settleTask);
   const setLastPair = useStore((s) => s.setLastPair);
@@ -33,12 +35,23 @@ export function PracticeOverlay({ task, onClose }: Props) {
   const songs = useSongs();
   const drill = task.drill;
 
+  // The ring this rotation will actually turn, resolved once so the key the
+  // result is filed under and the ring the drill cues are the same list.
+  const ring = useMemo(
+    () => (drill?.kind === 'chord-rotation' ? rotationRing(drill.chords) : null),
+    [drill],
+  );
+
   // Snapshot history once at mount so the in-session result can be compared
-  // against the pre-session best (recording mutates the store live).
-  const { best: personalBest, series } = useMemo(() => {
-    const acc = useStore.getState().accounts[useStore.getState().currentAccountId];
-    return taskDrillHistory(acc?.dailyLogs ?? {}, task.id);
-  }, [task.id]);
+  // against the pre-session best (recording mutates the store live). Chord
+  // Perfect reads its own, per pool, because its pool is editable on screen.
+  const rotationBest = useMemo(() => {
+    if (!ring) return 0;
+    const state = useStore.getState();
+    const acc = state.accounts[state.currentAccountId];
+    if (!acc) return 0;
+    return keyDrillHistory(drillLogsOf(acc), ringKey(ring)).best;
+  }, [ring]);
 
   // A changes drill can prescribe exact pairs (Justin's Module 3 set). When it
   // does, walk them in order here — the same experience as Coached mode — instead
@@ -71,6 +84,15 @@ export function PracticeOverlay({ task, onClose }: Props) {
 
   const today = getTodayString();
   const duration = drill?.durationSec ?? 60;
+  // The key this drill's history sits under, which is also what the prescribed
+  // tempo has to be read from. Null for anything with no single series of its
+  // own (a changes task fans out per pair, a song is never measured).
+  const drillKey = useMemo(() => {
+    if (drill?.kind === 'chord-trainer') return poolKey(trainerPool(drill.chords));
+    if (ring) return ringKey(ring);
+    return null;
+  }, [drill, ring]);
+
   const tempoKey = !drill
     ? `block-${blockIdx}`
     : drill.kind === 'one-minute-changes'
@@ -79,13 +101,15 @@ export function PracticeOverlay({ task, onClose }: Props) {
         : livePair
           ? pairKey(livePair.from, livePair.to)
           : 'no-pair'
-      : task.id;
+      : drillKey ?? 'song';
 
   // Same prescription the coached session uses, so a drill run from the task
   // list is the same practice, not a looser version of it.
   const tempoPlan = useMemo<TempoPlan | null>(() => {
     if (!drill) return fixedTempo(block?.bpm);
-    const logs = useStore.getState().accounts[useStore.getState().currentAccountId]?.dailyLogs ?? {};
+    const state = useStore.getState();
+    const acc = state.accounts[state.currentAccountId];
+    const logs = acc ? drillLogsOf(acc) : {};
     if (drill.kind === 'one-minute-changes') {
       const pair = explicitPairs.length
         ? explicitPairs[Math.min(pairIdx, explicitPairs.length - 1)]
@@ -93,8 +117,8 @@ export function PracticeOverlay({ task, onClose }: Props) {
       if (!pair) return fixedTempo(undefined);
       return planTempo(drillSeries(logs, pairKey(pair.from, pair.to), duration), today);
     }
-    if (drill.kind === 'chord-trainer' || drill.kind === 'chord-rotation') {
-      return planTempo(drillSeries(logs, task.id, duration), today);
+    if (drillKey) {
+      return planTempo(drillSeries(logs, drillKey, duration), today);
     }
     const song = findSong(songs, drill.songId);
     return fixedTempo(
@@ -151,8 +175,8 @@ export function PracticeOverlay({ task, onClose }: Props) {
   // One measured run has landed. Recording and settling are separate calls on
   // purpose: a task prescribing several pairs keeps every pair's number but is
   // only judged once, when its last pair is done.
-  const measured = (value: number, resultKey?: string) => {
-    recordMeasurement(today, task.id, value, resultKey);
+  const measured = (results: readonly DrillMeasurement[]) => {
+    recordMeasurements(today, task.id, results);
     setDrillLive(false);
   };
 
@@ -224,7 +248,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
                 beginDrill();
               }}
               onResult={(cpm, f, t) => {
-                measured(cpm, pairKey(f, t));
+                measured([{ key: pairKey(f, t), value: cpm }]);
                 setLastPair(f, t);
               }}
               onNext={() => {
@@ -261,20 +285,20 @@ export function PracticeOverlay({ task, onClose }: Props) {
               beginDrill();
             }}
             onResult={(cpm, f, t) => {
-              measured(cpm, pairKey(f, t));
+              measured([{ key: pairKey(f, t), value: cpm }]);
               setLastPair(f, t);
               settleTask(today, task.id);
             }}
             onClose={leave}
           />
         )}
-        {drill?.kind === 'chord-rotation' && (
+        {drill?.kind === 'chord-rotation' && ring && (
           <ChordRotation
-            config={drill}
-            personalBest={personalBest}
+            config={{ ...drill, chords: ring }}
+            personalBest={rotationBest}
             onSessionStart={beginDrill}
-            onResult={(score) => {
-              measured(score);
+            onResult={({ ring: turned, changes }) => {
+              measured([{ key: ringKey(turned), value: changes }]);
               settleTask(today, task.id);
             }}
             onClose={leave}
@@ -283,11 +307,15 @@ export function PracticeOverlay({ task, onClose }: Props) {
         {drill?.kind === 'chord-trainer' && (
           <ChordTrainer
             config={drill}
-            personalBest={personalBest}
-            series={series}
             onSessionStart={beginDrill}
-            onResult={(score) => {
-              measured(score);
+            onResult={({ perChord, total }) => {
+              // The pool's total and each shape's own count. Both are written,
+              // because a day's best per shape and a day's best block score come
+              // from different runs and neither can be recovered from the other.
+              measured([
+                { key: poolKey(perChord.map((p) => p.chord)), value: total },
+                ...perChord.map((p) => ({ key: chordKey(p.chord), value: p.placements })),
+              ]);
               settleTask(today, task.id);
             }}
             onClose={leave}

@@ -21,6 +21,7 @@ import {
   countLine,
   evidenceLine,
   kindNote,
+  outsideNote,
   paidGap,
   plural,
   shapeOf,
@@ -100,7 +101,13 @@ export function JourneyPanel() {
           {here ? (
             <>
               You said you are on <strong>{here.title}</strong>.
-              {!hereModule && ' That lesson sits outside the beginner course, so nothing below is marked as behind you.'}
+              {!hereModule && ` ${outsideNote(
+                BEGINNER_PATH.some((g) => g.track === here.track) ? 'companion' : 'other-course',
+              )}`}
+            </>
+          ) : currentLesson ? (
+            <>
+              You said you are on <strong>{currentLesson}</strong>. {outsideNote('unknown')}
             </>
           ) : (
             'You have not said where you are, so nothing below is marked as behind you. Open a module and say you are on it.'
@@ -136,6 +143,18 @@ export function JourneyPanel() {
           <h4 className="journey-title">
             <TargetIcon size={16} /> {next.title}
           </h4>
+          {/* This list is the whole taxonomy, closest first, and it always was.
+              Standing in a module the app has mapped, that reads as "next for
+              you" and is near enough true. Standing in module 22 it read as the
+              app telling someone on the last beginner module to start with the D
+              chord, without saying that it had nothing from where they actually
+              are. The list is unchanged; what it is drawn from is now stated. */}
+          {hereModule && hereContent && !hereContent.mapped && (
+            <p className="journey-note">
+              Nothing in module {hereModule.number} is mapped to a drill yet, so this is everything
+              Daily Fret can measure anywhere in the course, closest first.
+            </p>
+          )}
           <ul className="journey-next">
             {next.items.map((standing) => (
               <li key={standing.skill.id} className="journey-next-item">
@@ -144,14 +163,20 @@ export function JourneyPanel() {
                   <span className="journey-next-evidence">{standing.evidence}</span>
                 </div>
                 {standing.bar !== null && (
-                  <span className="journey-next-bar" aria-hidden="true">
-                    <span className="journey-next-fill" style={fillStyle(standing.progress)} />
-                  </span>
+                  <>
+                    {/* Same rule the module rows follow: a track drawn at zero
+                        reads as no progress, and nothing measured is not no
+                        progress. The figure carries the target instead. */}
+                    {standing.best !== null && (
+                      <span className="journey-next-bar" aria-hidden="true">
+                        <span className="journey-next-fill" style={fillStyle(standing.progress)} />
+                      </span>
+                    )}
+                    <span className="journey-next-figure">
+                      <Figure best={standing.best} bar={standing.bar} />
+                    </span>
+                  </>
                 )}
-                <span className="journey-next-figure">
-                  {standing.best ?? 0}
-                  <span className="journey-next-of">/{standing.bar}</span>
-                </span>
               </li>
             ))}
           </ul>
@@ -448,7 +473,7 @@ function PracticeRow({ standing }: { standing: SkillStanding }) {
           {source === 'claimed' && <span className="journey-skill-state is-claimed">your word</span>}
         </span>
         {line && <span className="journey-skill-evidence">{line}</span>}
-        {bar !== null && (
+        {bar !== null && best !== null && (
           <span className="journey-skill-bar" aria-hidden="true">
             <span className="journey-skill-fill" style={fillStyle(progress)} />
           </span>
@@ -457,11 +482,28 @@ function PracticeRow({ standing }: { standing: SkillStanding }) {
 
       {bar !== null && (
         <span className="journey-skill-figure">
-          {best ?? 0}
-          <span className="journey-skill-of">/{bar}</span>
+          <Figure best={best} bar={bar} />
         </span>
       )}
     </li>
+  );
+}
+
+/**
+ * A result against its bar, or the bar on its own.
+ *
+ * `best ?? 0` used to print a confident zero beside a sentence saying no drill
+ * had ever used this chord, which is the app scoring practice that never
+ * happened. Nothing measured is not a score of nothing, so the row states what
+ * it would take to clear and leaves the number to the first real run.
+ */
+function Figure({ best, bar }: { best: number | null; bar: number }) {
+  if (best === null) return <span className="journey-figure-target">{bar} to clear</span>;
+  return (
+    <>
+      {best}
+      <span className="journey-figure-of">/{bar}</span>
+    </>
   );
 }
 
