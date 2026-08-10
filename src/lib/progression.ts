@@ -15,6 +15,7 @@
 import type { DailyLog } from '../types';
 import { ALL_SKILLS, getSkill, type Skill } from '../data/skills';
 import { PAIR_PREFIX, parsePairKey } from './pairs';
+import { CHANGES_BAR, CHORD_BAR, ROTATION_BAR } from './readiness';
 
 export type SkillState = 'locked' | 'ready' | 'working' | 'solid';
 
@@ -51,17 +52,12 @@ export interface SkillStanding {
   blockedBy: Skill[];
 }
 
-/**
- * Justin's gate for a chord change, and the app's too: thirty clean changes in
- * a minute means the pair is no longer the thing holding you up.
- */
-export const CHANGES_BAR = 30;
-/** A chord counts as under the hand once a pair using it moves at this rate. */
-export const CHORD_BAR = 20;
-/** Anchor rotation is a harder motion than a single pair, so the bar is lower. */
-export const ROTATION_BAR = 25;
-/** Placements in a Chord Perfect block that say the shape is genuinely known. */
-export const PLACEMENT_BAR = 30;
+// The bars live in lib/readiness.ts, which owns both halves of "good enough":
+// what clears the bar, and how many times it has to be cleared before that
+// means anything. Re-exported here because this module has been their public
+// door since they existed, and a bar is meaningless without the standings that
+// read it.
+export { CHANGES_BAR, CHORD_BAR, ROTATION_BAR };
 
 export interface Evidence {
   /** Best changes per minute, per pair key. */
@@ -313,40 +309,9 @@ export function provenChords(standings: readonly SkillStanding[]): string[] {
     .map((s) => s.skill.chords![0]);
 }
 
-export interface ModuleStanding {
-  module: number;
-  skills: SkillStanding[];
-  solid: number;
-  total: number;
-}
-
-/** Standings grouped by the curriculum module that introduces them. */
-export function byModule(
-  standings: readonly SkillStanding[],
-  lessonCodes: readonly string[],
-): ModuleStanding[] {
-  const modules = new Map<number, SkillStanding[]>();
-  // A Set, not the array: this runs on every Journey render against a course
-  // with several hundred lesson codes, and a scan per skill per lesson turns a
-  // lookup into a nested loop for no reason.
-  const inCourse = new Set(lessonCodes);
-  for (const standing of standings) {
-    for (const code of standing.skill.lessons) {
-      if (!inCourse.has(code)) continue;
-      const number = Number(code.split('-')[1]?.[0]);
-      if (!Number.isFinite(number)) continue;
-      const list = modules.get(number) ?? [];
-      if (!list.includes(standing)) list.push(standing);
-      modules.set(number, list);
-      break;
-    }
-  }
-  return [...modules.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([module, skills]) => ({
-      module,
-      skills,
-      solid: skills.filter((s) => s.state === 'solid').length,
-      total: skills.length,
-    }));
-}
+// byModule used to live here, grouping standings by reading the first digit of a
+// lesson code's suffix. That is not where a module number lives: it made module 0
+// unreachable, so its five setup skills were filed under module 1, it put every
+// BG-15xx lesson there too, and it grouped Grade 3 into nothing at all. The
+// Journey resolves membership through the curriculum now, which is the only
+// thing that knows. Nothing should reintroduce a parse of the code.

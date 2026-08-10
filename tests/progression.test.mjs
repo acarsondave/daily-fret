@@ -1,4 +1,4 @@
-import { allStandings, nextUp, provenChords, readEvidence, byModule, CHANGES_BAR, CHORD_BAR }
+import { allStandings, nextUp, provenChords, readEvidence, CHANGES_BAR, CHORD_BAR }
   from '../src/lib/progression.ts';
 import { ALL_SKILLS } from '../src/data/skills.ts';
 import { pairKey } from '../src/lib/pairs.ts';
@@ -120,16 +120,10 @@ console.log('\nEdge cases\n');
     find(negative, 'chord.A').progress >= 0, String(find(negative, 'chord.A').progress));
 }
 
-console.log('\nGrouping by module\n');
-{
-  const st = allStandings(logs([{ [pairKey('A','D')]: 88 }]));
-  const mods = byModule(st, ['b1-105','b1-108','b1-110','b1-402','b1-403']);
-  console.log('   ', mods.map(m => `module ${m.module}: ${m.solid}/${m.total}`).join('  '));
-  check('modules come back in order', mods.map(m=>m.module).join() === '1,4');
-  check('a skill lands in exactly one module',
-    mods.reduce((n,m)=>n+m.total,0) === new Set(mods.flatMap(m=>m.skills)).size);
-  check('lessons outside the given set are ignored', byModule(st, []).length === 0);
-}
+// Grouping by module used to be tested here against byModule, which derived the
+// module from the first digit of a lesson code and was wrong for every track but
+// bg1. It is gone; tests/journey.test.mjs asserts module membership against the
+// curriculum, which is the thing that actually knows.
 
 console.log(failures===0?'\nALL PASS\n':`\n${failures} FAILURE(S)\n`);
 process.exit(failures?1:0);

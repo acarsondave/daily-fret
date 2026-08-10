@@ -8,8 +8,8 @@
 // stays is exactly the person whose history gets long, and they are the last
 // person the app should get slow for.
 
-import { computeXp, levelFor, xpByKind, restAdvice } from '../src/lib/xp.ts';
-import { allStandings, byModule, nextUp, provenChords, readEvidence } from '../src/lib/progression.ts';
+import { computeXp, levelFor, restAdvice } from '../src/lib/xp.ts';
+import { allStandings, nextUp, provenChords, readEvidence } from '../src/lib/progression.ts';
 import { buildHistory, weeklyTotals } from '../src/lib/history.ts';
 import { evaluateAchievements } from '../src/data/achievements.ts';
 import { nudgeDecision, DEFAULT_REMINDER } from '../src/lib/reminders.ts';
@@ -78,11 +78,12 @@ console.log('\nPoints and levels\n');
   check('and is not accidentally quadratic on a second pass', again < 60, `${again.toFixed(1)}ms`);
 
   const [lvl] = time(() => levelFor(xp.total));
-  check('the level resolves', lvl.level.number >= 1 && lvl.level.number <= 10, String(lvl.level.number));
+  check('the level resolves', lvl.level >= 1, String(lvl.level));
+  check('and lands in a named band', lvl.band.title.length > 4, lvl.band.title);
   check('progress stays in range', lvl.progress >= 0 && lvl.progress <= 1);
 
-  const [, kindMs] = time(() => xpByKind(logs));
-  check('the breakdown is quick too', kindMs < 40, `${kindMs.toFixed(1)}ms`);
+  check('the breakdown adds up to the total, five years deep',
+    Object.values(xp.source).reduce((a, b) => a + b, 0) === xp.total, `${xp.total}`);
   const [advice, adviceMs] = time(() => restAdvice(logs, '2025-12-31'));
   check('rest advice does not walk the whole history', adviceMs < 40, `${adviceMs.toFixed(1)}ms`);
   check('and returns a run', advice.run >= 0);
@@ -103,9 +104,7 @@ console.log('\nCompetence\n');
   const [next] = time(() => nextUp(standings, 12));
   check('next-up never exceeds what was asked for', next.length <= 12, String(next.length));
   const codes = trackModules('bg1').flatMap((m) => m.lessons.map((l) => l.code));
-  const [grouped, grMs] = time(() => byModule(standings, codes));
-  check('grouping by module is quick', grMs < 40, `${grMs.toFixed(1)}ms`);
-  check('and produces modules', grouped.length > 0, String(grouped.length));
+  check('the beginner course still resolves its lesson codes', codes.length > 100, String(codes.length));
 }
 
 console.log('\nHistory\n');
@@ -129,8 +128,8 @@ console.log('\nAwards\n');
   for (const [k, v] of evidence.tasks) bests.set(k, v);
   const standings = allStandings(logs, []);
 
-  const [earned, aMs] = time(() => evaluateAchievements({ logs, xp, bests, standings }));
-  check('every award is evaluated', earned.length >= 11, String(earned.length));
+  const [earned, aMs] = time(() => evaluateAchievements({ xp, bests, standings }));
+  check('every award is evaluated', earned.length >= 9, String(earned.length));
   // The "twenty days in a month" award scans a sliding window over every
   // practised day. With five years of them that is the one with room to go
   // quadratic, so it is the one worth timing.
@@ -155,7 +154,7 @@ console.log('\nThe whole Progress panel in one go\n');
     const bests = new Map(evidence.pairs);
     for (const [k, v] of evidence.tasks) bests.set(k, v);
     const standings = allStandings(logs, []);
-    evaluateAchievements({ logs, xp, bests, standings });
+    evaluateAchievements({ xp, bests, standings });
     weeklyTotals(buildHistory(logs, routines));
     return null;
   });

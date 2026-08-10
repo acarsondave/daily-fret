@@ -1,7 +1,8 @@
-/* The Journey: what is under your hands, not how fast you did it.
-   Numbers live in Progress; this is the map, and it has to be readable as a
-   map — a list of thirty-eight rows all shouting equally would be a database
-   dump with a stylesheet. */
+/* The Journey: where you are in a course that takes years.
+   Numbers live in Progress; this is the map. Its whole job is to keep two kinds
+   of thing visually apart — the shapes and changes you come back to for weeks,
+   and the facts you watch once — because a flat roll of lesson titles reads as a
+   to-do list nobody would ever work through. */
 
 .journey {
   display: flex;
@@ -10,28 +11,133 @@
   text-align: left;
 }
 
+/* --- Where you are --------------------------------------------------------- */
+
 .journey-head {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
-.journey-eyebrow {
+.journey-heading {
+  font-family: var(--font-primary);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.25;
+  color: var(--text-primary);
+  text-wrap: balance;
+}
+
+.journey-standing {
+  font-size: var(--text-base);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.journey-standing strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* The module's real shape, before a single row is opened. This is the sentence
+   the old panel could not say, and the reason the panel was rebuilt. */
+.journey-now {
+  margin-top: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.035);
+  font-size: var(--text-base);
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+/* --- The spine ------------------------------------------------------------- */
+
+/* Twenty-three modules drawn at their own lesson counts, so the course has a
+   profile rather than a comb, and the marker has somewhere to sit. Height is a
+   fact the data holds for every module, including the fifteen no drill maps to
+   yet — which is exactly why it is height, and not coverage, being drawn. */
+.journey-spine {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+}
+
+.journey-spine-track {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+  height: 44px;
+  padding-top: var(--space-2);
+}
+
+.journey-spine-grade {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex-basis: 0;
+  min-width: 0;
+}
+
+.journey-spine-ticks {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 3px;
+  height: 36px;
+}
+
+/* Capped, or the strip stops being a profile: given a 640px modal the bars grow
+   to thirty points across and read as blobs lying down rather than as a course
+   with a shape. Wider room buys wider gaps instead. */
+.journey-spine-tick {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 11px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.14);
+}
+.journey-spine-tick.is-behind {
+  background: rgba(255, 255, 255, 0.42);
+}
+.journey-spine-tick.is-here {
+  background: var(--accent-primary);
+}
+/* The marker reads above the bar rather than inside it, so a short module is as
+   findable as a long one. */
+.journey-spine-tick.is-here::after {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+}
+
+.journey-spine-grade-name {
   font-family: var(--font-secondary);
   font-size: var(--text-micro);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.journey-here {
-  font-size: var(--text-base);
-  color: var(--text-secondary);
+.journey-spine-caption {
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-muted);
 }
-.journey-here strong {
-  font-weight: 600;
-  color: var(--text-primary);
-}
+
+/* --- Sections -------------------------------------------------------------- */
 
 .journey-section {
   display: flex;
@@ -51,18 +157,33 @@
   color: var(--text-muted);
 }
 
+/* Everything the panel has to admit rather than claim: a module with no drills
+   mapped, a paid lesson the course refuses to name, a total that is larger than
+   the list under it. */
+.journey-note {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
 /* --- Closest to done ------------------------------------------------------- */
 
 .journey-next,
 .journey-songs,
 .journey-modules,
-.journey-skills {
+.journey-practice,
+.journey-once {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+.journey-next,
+.journey-songs,
+.journey-modules {
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
 .journey-next-item {
@@ -110,22 +231,32 @@
 }
 
 .journey-next-bar,
-.journey-module-bar {
-  grid-area: bar;
+.journey-module-bar,
+.journey-skill-bar {
   display: block;
   height: 3px;
   border-radius: var(--radius-full);
   background: rgba(255, 255, 255, 0.08);
   overflow: hidden;
 }
+.journey-next-bar,
+.journey-module-bar {
+  grid-area: bar;
+}
 
+/* Scaled rather than widened. The value changes only when a result lands, but a
+   width transition is still a layout pass per frame and a transform is not. */
 .journey-next-fill,
-.journey-module-fill {
+.journey-module-fill,
+.journey-skill-fill {
   display: block;
+  width: 100%;
   height: 100%;
   border-radius: inherit;
   background: var(--accent-primary);
-  transition: width var(--dur-slow) var(--ease-out);
+  transform: scaleX(var(--fill, 0));
+  transform-origin: left center;
+  transition: transform var(--dur-slow) var(--ease-out);
 }
 .journey-module-fill {
   background: var(--success-color);
@@ -157,6 +288,79 @@
   white-space: nowrap;
 }
 
+/* --- Grades ---------------------------------------------------------------- */
+
+/* A rule and a label, deliberately not a card. The modules inside are the cards,
+   and a card holding cards is a box drawn around a box. */
+.journey-grade {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.journey-grade + .journey-grade {
+  margin-top: var(--space-4);
+}
+
+.journey-grade-heading {
+  margin: 0;
+  font: inherit;
+}
+
+.journey-grade-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'name caret' 'meta meta';
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-default);
+  text-align: left;
+  transition: border-color var(--dur-base) ease;
+}
+.journey-grade-head:hover {
+  border-bottom-color: var(--border-strong);
+}
+
+.journey-grade-name {
+  grid-area: name;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-md);
+  color: var(--text-primary);
+}
+
+.journey-grade-mark {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--accent-glow);
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--accent-primary);
+}
+
+.journey-grade-meta {
+  grid-area: meta;
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+@media (min-width: 520px) {
+  .journey-grade-head {
+    grid-template-columns: 1fr auto auto;
+    grid-template-areas: 'name meta caret';
+  }
+}
+
 /* --- Modules --------------------------------------------------------------- */
 
 .journey-module {
@@ -166,6 +370,16 @@
 }
 .journey-module.is-open {
   background: rgba(255, 255, 255, 0.02);
+}
+/* The one accent the map spends on itself: the module the learner says they are
+   standing in. */
+.journey-module.is-here {
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.journey-module-heading {
+  margin: 0;
+  font: inherit;
 }
 
 .journey-module-head {
@@ -197,12 +411,17 @@
   font-size: var(--text-micro);
   color: var(--text-secondary);
 }
+.journey-module.is-here .journey-module-number {
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+}
 
 .journey-module-name {
   grid-area: name;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
   font-family: var(--font-primary);
   font-weight: 600;
   font-size: var(--text-base);
@@ -218,6 +437,7 @@
 
 .journey-caret {
   grid-area: caret;
+  flex-shrink: 0;
   color: var(--text-muted);
   transition: transform var(--dur-base) var(--ease-out);
 }
@@ -225,10 +445,29 @@
   transform: rotate(180deg);
 }
 
-/* --- Skills ---------------------------------------------------------------- */
-
-.journey-skills {
+.journey-module-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
   padding: 0 var(--space-4) var(--space-4);
+}
+
+/* Names the kind of thing that follows. Two of these inside one module is the
+   whole point: what you drill, and what you were told once. */
+.journey-kind {
+  margin-top: var(--space-2);
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* --- Practice -------------------------------------------------------------- */
+
+.journey-practice {
+  flex-direction: column;
   gap: var(--space-1);
 }
 
@@ -260,7 +499,7 @@
 .journey-skill-body {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   flex: 1;
   min-width: 0;
 }
@@ -306,47 +545,46 @@
   color: var(--text-muted);
 }
 
-.journey-skill-claim {
+.journey-skill-bar {
+  margin-top: var(--space-1);
+  max-width: 220px;
+}
+
+.journey-skill-figure {
   flex-shrink: 0;
-  min-height: 44px;
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-full);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-  font-family: var(--font-primary);
-  font-weight: 600;
-  font-size: var(--text-sm);
-  transition: background var(--dur-base) ease, color var(--dur-base) ease,
-    border-color var(--dur-base) ease;
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-primary);
 }
-.journey-skill-claim:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-primary);
-}
-.journey-skill-claim.is-on {
-  border-color: transparent;
-  background: var(--success-glow);
+.journey-skill.is-solid .journey-skill-figure {
   color: var(--success-color);
+}
+.journey-skill-of {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* --- Taught once ----------------------------------------------------------- */
+
+/* Deliberately the quietest thing in the module. These are real parts of the
+   course and they are not practice: no state, no bar, no control, nothing that
+   could read as something the learner owes the app. */
+.journey-once {
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.journey-once-item {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
 }
 
 /* --- Lessons --------------------------------------------------------------- */
-
-.journey-lessons {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border-subtle);
-}
-
-.journey-lessons-label {
-  font-family: var(--font-secondary);
-  font-size: var(--text-micro);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
 
 .journey-lessons-list {
   display: flex;
@@ -380,7 +618,7 @@
   align-self: flex-start;
   min-height: 40px;
   padding: 0 var(--space-4);
-  margin-top: var(--space-2);
+  margin-top: var(--space-1);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-full);
   background: transparent;
@@ -389,7 +627,8 @@
   font-size: var(--text-sm);
   font-weight: 600;
   text-decoration: none;
-  transition: border-color 0.18s, background 0.18s, color 0.18s;
+  transition: border-color var(--dur-base) ease, background var(--dur-base) ease,
+    color var(--dur-base) ease;
 }
 
 .journey-lesson-link:hover {
@@ -398,14 +637,34 @@
   background: var(--accent-glow);
 }
 
-.journey-lesson-link:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
-}
-
 /* Names where the link goes before it is followed. */
 .journey-lesson-host {
   font-weight: 500;
   font-size: var(--text-micro);
   color: var(--text-secondary);
+}
+
+/* --- Moving the marker ----------------------------------------------------- */
+
+/* The only thing on this panel that writes anything, and it writes the one fact
+   the learner is the authority on: where they are standing. It is a marker, not
+   a verdict, and the copy says "say" rather than "complete" for that reason. */
+.journey-stand {
+  align-self: flex-start;
+  min-height: 44px;
+  margin-top: var(--space-2);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: border-color var(--dur-base) ease, color var(--dur-base) ease,
+    background var(--dur-base) ease;
+}
+.journey-stand:hover {
+  border-color: var(--accent-primary);
+  background: var(--accent-glow);
+  color: var(--accent-primary);
 }
