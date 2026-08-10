@@ -1,14 +1,19 @@
-/* The row is a container, not a control. Its two halves are: `.task-main`, a
-   real toggle button covering the checkbox and the text, and `.task-aside`,
-   which holds the meta and the Practice launch. Keeping them siblings is what
-   lets both be keyboard-reachable without nesting one button inside another. */
+/* The row is one control with one action: start this task. It used to be a
+   toggle wrapped around a checkbox, which is the app asking to be told what it
+   was already listening to. What is left on the left is a state mark that
+   reports; correction lives in the row's context menu. */
 .task-row {
   display: flex;
-  align-items: stretch;
+  width: 100%;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  text-align: left;
   background: var(--surface-color);
   border: 1px solid rgba(255, 255, 255, 0.03);
   border-radius: var(--radius-lg);
-  transition: background var(--dur-base) ease, border-color var(--dur-base) ease;
+  transition: background var(--dur-base) ease, border-color var(--dur-base) ease,
+    transform var(--dur-fast) var(--ease-out);
   user-select: none;
   margin-bottom: var(--space-3);
   position: relative;
@@ -20,36 +25,21 @@
   border-color: var(--border-subtle);
 }
 
-/* The row clips its children (overflow: hidden keeps the rounded corners), so
-   the app's standard outset focus ring would be cut off. This draws the same
-   ring inside the button instead, and lights the row edge with it. */
-.task-main:focus-visible {
-  box-shadow: inset 0 0 0 2px var(--accent-primary);
-}
-
-.task-row:has(.task-main:focus-visible) {
-  border-color: rgba(56, 189, 248, 0.45);
-}
-
-.task-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-4);
-  text-align: left;
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-lg);
-  transition: transform var(--dur-fast) var(--ease-out);
-}
-
-.task-main:active {
+.task-row:active {
   transform: scale(0.985);
 }
 
-.task-checkbox {
+/* The row clips its children (overflow: hidden keeps the rounded corners), so
+   the app's standard outset focus ring would be cut off. This draws the same
+   ring inside instead, and lights the row edge with it. */
+.task-row:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent-primary);
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
+/* The state mark. Four states, each with a distinct cause: nothing recorded, a
+   run under way, a drill that heard nothing, done. */
+.task-state {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -60,7 +50,7 @@
   color: var(--text-secondary);
 }
 
-.check-bg {
+.state-done {
   position: absolute;
   inset: 0;
   background-color: var(--success-color);
@@ -72,12 +62,42 @@
   box-shadow: var(--shadow-success);
 }
 
-.uncheck-icon {
+/* A completion resting on the player's own word wears a hollow mark. The filled
+   green disc is the app saying it saw this happen, and it does not get lent out
+   for something it was told. */
+.state-done.is-word {
+  background: transparent;
+  color: var(--text-secondary);
+  box-shadow: inset 0 0 0 1.5px var(--border-strong);
+}
+
+.state-ring {
   transition: color var(--dur-base) ease;
 }
 
-.task-row:hover .uncheck-icon {
+.task-row:hover .state-ring {
   color: var(--text-primary);
+}
+
+/* Under way: the ring holds a lit centre. Something is on the record for this
+   task, but not enough of it to call the task done. */
+.state-dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+}
+
+.task-row.is-underway .state-ring {
+  color: var(--accent-primary);
+}
+
+/* Heard nothing. The mark names the cause rather than the failure: this is the
+   app's microphone problem to answer for, not the player's playing. */
+.state-unheard {
+  display: inline-flex;
+  color: var(--warning-color);
 }
 
 .task-content {
@@ -107,6 +127,32 @@
   overflow-wrap: anywhere;
 }
 
+/* What happened, in the app's own words. Tinted by what it rests on, so a
+   completion the player asserted never reads as one the app measured. */
+.task-line {
+  display: block;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.task-row.is-done .task-line {
+  color: var(--success-color);
+}
+
+.task-row.is-stated .task-line {
+  color: var(--text-secondary);
+}
+
+.task-row.is-unheard .task-line {
+  color: var(--warning-color);
+}
+
+.task-row.is-underway .task-line {
+  color: var(--accent-primary);
+}
+
 .task-duration {
   font-size: var(--text-micro);
   font-weight: 600;
@@ -117,26 +163,45 @@
   white-space: nowrap;
 }
 
-/* Completed State */
-.task-row.completed {
-  background: rgba(24, 24, 27, 0.4);
+/* Done. No strikethrough: a crossed-out line is checklist language, and this is
+   a record of what was practised rather than a list of things got rid of. The
+   row recedes; the mark and the line carry the state. */
+.task-row.is-done {
+  background: rgba(24, 24, 27, 0.55);
   border-color: transparent;
 }
 
-.task-row.completed .task-title {
-  text-decoration: line-through;
-  color: var(--text-muted);
-}
-
-.task-row.completed .task-desc {
-  text-decoration: line-through;
-  color: var(--text-muted);
-}
-
-.task-row.completed .task-duration {
+.task-row.is-done .task-duration {
   color: var(--text-muted);
   background: transparent;
   border: 1px solid var(--border-default);
+}
+
+/* The moment a task completes itself. One pass of the success wash across the
+   row, then gone: being noticed, not congratulated. */
+.task-row.is-just-done {
+  animation: task-noticed 1100ms var(--ease-out) 1;
+}
+
+@keyframes task-noticed {
+  0% {
+    background: var(--success-glow);
+    border-color: rgba(52, 211, 153, 0.45);
+  }
+  55% {
+    background: var(--success-glow);
+    border-color: rgba(52, 211, 153, 0.3);
+  }
+  100% {
+    background: rgba(24, 24, 27, 0.55);
+    border-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-row.is-just-done {
+    animation: none;
+  }
 }
 
 /* Editing State */
@@ -183,26 +248,12 @@
   margin-top: var(--space-1);
 }
 
-/* Single right-side cluster: meta chips above the Practice button, so they
-   read as one aligned group instead of two stray right-aligned items. */
-/* One line, not two. Stacking the result above the Practice button made every
-   drill row as tall as its tallest side rather than its content, so a
-   single-line title sat in a 145px row and the list lost its rhythm. There is
-   more than enough width on a laptop to put them beside each other; the phone
-   rule below already did exactly that, which was the tell. */
+/* Trailing cluster: the numbers this row carries, then the go mark. */
 .task-aside {
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: flex-end;
-  gap: var(--space-3);
-  flex-shrink: 0;
-  padding: var(--space-4) var(--space-4) var(--space-4) 0;
-}
-
-.task-meta {
-  display: flex;
-  align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;
 }
@@ -217,54 +268,62 @@
 
 /* Still readable when the row is done: a personal best is the one thing on a
    completed row worth looking back at. */
-.task-row.completed .task-drill-result {
+.task-row.is-done .task-drill-result {
   opacity: 0.8;
 }
 
-/* Trailing "Practice" launch affordance */
-.task-drill-btn {
+/* The go mark. Not a second button — the whole row is the button — so it reads
+   as the row's direction of travel rather than as a control of its own. */
+.task-go {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  justify-content: center;
+  width: 26px;
+  height: 26px;
   flex-shrink: 0;
-  padding: var(--space-2) var(--space-3);
+  margin-left: var(--space-1);
   border-radius: var(--radius-full);
-  font-family: var(--font-primary);
-  font-size: var(--text-micro);
-  font-weight: 600;
-  letter-spacing: 0.01em;
   color: var(--accent-primary);
   background: var(--accent-glow);
-  border: 1px solid transparent;
-  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-base) ease, border-color var(--dur-base) ease;
+  transition: background var(--dur-base) ease, color var(--dur-base) ease;
 }
 
-.task-drill-btn:hover {
-  background: rgba(56, 189, 248, 0.22);
-  border-color: rgba(56, 189, 248, 0.4);
+.task-row:hover .task-go {
+  background: rgba(56, 189, 248, 0.24);
 }
 
-.task-drill-btn:active {
-  transform: scale(0.94);
+.task-row.is-done .task-go {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
 }
 
-/* On a phone the row is reached with a thumb, so both halves get a full touch
-   target and the Practice pill stops competing with the toggle for the same
-   few pixels. */
+/* On a phone the row is reached with a thumb, and there is not enough width for
+   the title, the numbers and the go mark on one line. The numbers drop under
+   the text, aligned with it rather than with the state mark. */
 @media (max-width: 600px) {
   .task-row {
-    flex-direction: column;
-    align-items: stretch;
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
   }
-  .task-main {
-    padding-bottom: var(--space-2);
+  .task-state {
+    order: 1;
   }
-  /* Aligned under the text, not under the checkbox. */
+  /* Basis zero, not auto: a task with a long description would otherwise size
+     the text to its content and push the go mark onto its own line. */
+  .task-content {
+    order: 2;
+    flex: 1 1 0;
+  }
+  /* The go mark stays on the title's line; only the numbers drop below it, and
+     they align with the text rather than with the state mark. */
+  .task-go {
+    order: 3;
+  }
   .task-aside {
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-end;
-    padding: 0 var(--space-4) var(--space-4) calc(var(--space-4) + 24px + var(--space-4));
+    order: 4;
+    flex-basis: 100%;
+    justify-content: flex-start;
+    padding-left: calc(24px + var(--space-4));
   }
   .task-desc {
     display: -webkit-box;
@@ -275,12 +334,12 @@
 }
 
 @media (pointer: coarse) {
-  .task-main {
-    min-height: 56px;
+  .task-row {
+    min-height: 60px;
   }
-  .task-drill-btn {
-    min-height: 36px;
-    padding: var(--space-2) var(--space-4);
+  .task-go {
+    width: 32px;
+    height: 32px;
   }
 }
 

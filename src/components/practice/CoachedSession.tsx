@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import {
   CloseIcon,
   CheckCircleIcon,
+  CircleIcon,
   TrophyIcon,
   SpeakerIcon,
   SpeakerOffIcon,
@@ -51,8 +52,9 @@ function mins(seconds: number): string {
 }
 
 export function CoachedSession({ routine, onClose }: Props) {
-  const recordDrillResult = useStore((s) => s.recordDrillResult);
-  const completeTask = useStore((s) => s.completeTask);
+  const recordMeasurement = useStore((s) => s.recordMeasurement);
+  const recordTime = useStore((s) => s.recordTime);
+  const settleTask = useStore((s) => s.settleTask);
   const setLastPair = useStore((s) => s.setLastPair);
   const saveCoachProgress = useStore((s) => s.saveCoachProgress);
   const clearCoachProgress = useStore((s) => s.clearCoachProgress);
@@ -91,6 +93,10 @@ export function CoachedSession({ routine, onClose }: Props) {
   const [voiceOn, setVoiceOn] = useState(isCoachVoiceEnabled());
   const restLeftRef = useRef(REST_SECONDS);
   const lastValueRef = useRef<number | null>(null);
+  // Wall clock for the segment currently on screen. Only the song play-along
+  // reads it: it is the one segment with no clock of its own, and time spent
+  // with the record playing is the only thing the app can honestly witness there.
+  const segmentStartRef = useRef(0);
 
   const seg = segments[index];
   const isLastSegment = index >= segments.length - 1;
@@ -209,6 +215,7 @@ export function CoachedSession({ routine, onClose }: Props) {
       }
       if (cancelled) return;
       diag.mark(`coached segment ${index + 1}/${segments.length}: ${seg.title}`);
+      segmentStartRef.current = Date.now();
       setPhase('segment');
     })();
     return () => {
@@ -264,10 +271,12 @@ export function CoachedSession({ routine, onClose }: Props) {
   }
 
   const advance = (result?: CoachStepResult) => {
-    // Tick the underlying task off only when this was its last segment, so a
-    // multi-pair changes task isn't marked done after a single pair.
+    // Settle the underlying task only when this was its last segment, so a
+    // multi-pair changes task is judged once, on everything it produced, rather
+    // than on whichever pair happened to come last. Settling does not assume a
+    // completion: it grants one only where the evidence carries it.
     if (isFinalSegmentOfTask(index)) {
-      completeTask(today, seg.taskId);
+      settleTask(today, seg.taskId);
     }
     const nextResults = result ? [...results, result] : results;
     setResults(nextResults);
@@ -405,14 +414,19 @@ export function CoachedSession({ routine, onClose }: Props) {
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             detector={detector}
             onResult={(cpm, f, t) => {
-              // Don't auto-complete the task here — Coached marks it done only
-              // after the last pair (see advance / isFinalSegmentOfTask).
-              recordDrillResult(today, seg.taskId, cpm, pairKey(f, t), false);
+              // Records what was heard; it does not complete anything. The task
+              // is settled once, after its last pair (see advance).
+              recordMeasurement(today, seg.taskId, cpm, pairKey(f, t));
               setLastPair(f, t);
               lastValueRef.current = cpm;
               void speak('done');
             }}
-            onNext={() => advance({ title: `${seg.from} ↔ ${seg.to}`, value: lastValueRef.current, unit: 'cpm' })}
+            onNext={() => advance({
+              title: `${seg.from} ↔ ${seg.to}`,
+              value: lastValueRef.current,
+              unit: 'cpm',
+              done: (lastValueRef.current ?? 0) > 0,
+            })}
             onClose={exit}
           />
         )}
@@ -428,11 +442,16 @@ export function CoachedSession({ routine, onClose }: Props) {
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             detector={detector}
             onResult={(score) => {
-              recordDrillResult(today, seg.taskId, score, undefined, false);
+              recordMeasurement(today, seg.taskId, score);
               lastValueRef.current = score;
               void speak('done');
             }}
-            onNext={() => advance({ title: seg.title, value: lastValueRef.current, unit: 'nailed' })}
+            onNext={() => advance({
+              title: seg.title,
+              value: lastValueRef.current,
+              unit: 'nailed',
+              done: (lastValueRef.current ?? 0) > 0,
+            })}
             onClose={exit}
           />
         )}
@@ -447,11 +466,16 @@ export function CoachedSession({ routine, onClose }: Props) {
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             detector={detector}
             onResult={(score) => {
-              recordDrillResult(today, seg.taskId, score, undefined, false);
+              recordMeasurement(today, seg.taskId, score);
               lastValueRef.current = score;
               void speak('done');
             }}
-            onNext={() => advance({ title: seg.title, value: lastValueRef.current, unit: 'changes' })}
+            onNext={() => advance({
+              title: seg.title,
+              value: lastValueRef.current,
+              unit: 'changes',
+              done: (lastValueRef.current ?? 0) > 0,
+            })}
             onClose={exit}
           />
         )}
@@ -464,7 +488,14 @@ export function CoachedSession({ routine, onClose }: Props) {
             autoAdvance
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             onFinish={() => void speak('done')}
-            onNext={() => advance({ title: seg.title, value: null, unit: '' })}
+            onNext={() => {
+              // The play-along has no clock of its own and no microphone. What
+              // the app can witness is that the record ran to its end with the
+              // player on screen, so that is what goes on the record.
+              const elapsed = (Date.now() - segmentStartRef.current) / 1000;
+              recordTime(today, seg.taskId, { elapsedSeconds: elapsed, reachedEnd: true, done: true });
+              advance({ title: seg.title, value: null, unit: '', done: true });
+            }}
             onClose={exit}
           />
         )}
@@ -478,7 +509,11 @@ export function CoachedSession({ routine, onClose }: Props) {
             pattern={seg.pattern}
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             onFinish={() => void speak('done')}
-            onDone={() => advance({ title: seg.title, value: null, unit: '' })}
+            onDone={(outcome) => {
+              recordTime(today, seg.taskId, outcome);
+              advance({ title: seg.title, value: null, unit: '', done: outcome.done });
+            }}
+            onLeave={(outcome) => recordTime(today, seg.taskId, outcome)}
           />
         )}
 
@@ -491,15 +526,27 @@ export function CoachedSession({ routine, onClose }: Props) {
                 {routine.name} · {results.length} drill{results.length === 1 ? '' : 's'}
               </p>
             </div>
+            {/* A summary that checks off every step it walked past would be the
+                same lie the day's list used to tell. A step that produced
+                nothing says so here. */}
             <div className="coach-summary-list">
               {results.map((r, i) => (
-                <div key={i} className="coach-summary-row">
-                  <CheckCircleIcon size={18} className="coach-summary-check" />
+                <div
+                  key={i}
+                  className={r.done === false ? 'coach-summary-row is-open' : 'coach-summary-row'}
+                >
+                  {r.done === false ? (
+                    <CircleIcon size={18} className="coach-summary-open" />
+                  ) : (
+                    <CheckCircleIcon size={18} className="coach-summary-check" />
+                  )}
                   <span className="coach-summary-name">{r.title}</span>
-                  {r.value !== null && (
+                  {r.value !== null ? (
                     <span className="coach-summary-val">
                       {r.value} <span className="coach-summary-unit">{r.unit}</span>
                     </span>
+                  ) : (
+                    r.done === false && <span className="coach-summary-unit">not counted</span>
                   )}
                 </div>
               ))}

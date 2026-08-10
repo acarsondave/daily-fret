@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Routine, DailyLog, Task } from '../types';
+import {
+  applyMeasurement,
+  applyStated,
+  applyTime,
+  blankLog,
+  clearRecord,
+  settle,
+  type TimedOutcome,
+} from './completion';
 import type { Song } from '../data/songs';
 import type { StrumPattern } from '../data/strumPatterns';
 import type { CalibrationData, ChordCalibration } from '../audio/calibration';
@@ -31,6 +40,9 @@ export interface CoachStepResult {
   title: string;
   value: number | null;
   unit: string;
+  // Whether this step earned its task a completion. Optional so a session saved
+  // by an older build still resumes; absent means the step was not judged.
+  done?: boolean;
 }
 
 // In-progress coached session, persisted so an interruption (pause, close, or
@@ -127,13 +139,21 @@ interface AppState {
   restoreRoutine: (routine: Routine, index: number) => void;
   moveTask: (routineId: string, taskId: string, direction: 'up' | 'down') => void;
 
-  toggleTaskCompletion: (date: string, taskId: string) => void;
-  completeTask: (date: string, taskId: string) => void;
   saveFeedback: (date: string, feedback: string) => void;
-  // Records a numeric drill result. `taskId` is marked complete for the day;
-  // the value is stored under `resultKey` when given (e.g. a chord-pair key),
-  // otherwise under the taskId.
-  recordDrillResult: (date: string, taskId: string, value: number, resultKey?: string, markComplete?: boolean) => void;
+  // The four doors onto a day's record. Nothing else writes completion, and the
+  // rules they apply live in ./completion.ts rather than in any call site.
+  //
+  // A drill run reported a number. Zero is recorded as an attempt the app could
+  // not hear, never as a result. Does not complete the task on its own.
+  recordMeasurement: (date: string, taskId: string, value: number, resultKey?: string) => void;
+  // A timer for this task ran. Reaching the end is what earns the completion.
+  recordTime: (date: string, taskId: string, outcome: TimedOutcome) => void;
+  // This task is finished with for now: complete it if the evidence supports it.
+  settleTask: (date: string, taskId: string) => void;
+  // The user's own word, kept as their word.
+  markTaskDone: (date: string, taskId: string) => void;
+  // Take today's claim back. Leaves measured numbers alone.
+  clearTaskRecord: (date: string, taskId: string) => void;
   setActiveRoutine: (routineId: string) => void;
   setLastPair: (from: string, to: string) => void;
   saveCoachProgress: (progress: CoachProgress) => void;
@@ -185,6 +205,21 @@ export const useStore = create<AppState>()(
             [accId]: { ...updater(acc), updatedAt: now() },
           },
         };
+      };
+
+      // Run one of the completion rules over a day's log, creating the day if
+      // this is the first thing recorded on it. A rule that changes nothing
+      // returns the same log, and then so does this, so an idempotent settle
+      // does not churn the account.
+      const writeLog = (
+        acc: UserData,
+        date: string,
+        rule: (log: DailyLog) => DailyLog,
+      ): UserData => {
+        const existing = acc.dailyLogs[date];
+        const next = rule(existing ?? blankLog(date, acc.activeRoutineId));
+        if (existing && next === existing) return acc;
+        return { ...acc, dailyLogs: { ...acc.dailyLogs, [date]: next } };
       };
 
       return {
@@ -372,48 +407,6 @@ export const useStore = create<AppState>()(
           })),
         ),
 
-        toggleTaskCompletion: (date, taskId) => set((state) =>
-          mutate(state, (a) => {
-            const log = a.dailyLogs[date] || {
-              date,
-              routineId: a.activeRoutineId,
-              completedTaskIds: [],
-            };
-            const isCompleted = log.completedTaskIds.includes(taskId);
-            const updatedTaskIds = isCompleted
-              ? log.completedTaskIds.filter((id) => id !== taskId)
-              : [...log.completedTaskIds, taskId];
-            return {
-              ...a,
-              dailyLogs: {
-                ...a.dailyLogs,
-                [date]: { ...log, completedTaskIds: updatedTaskIds },
-              },
-            };
-          }),
-        ),
-
-        completeTask: (date, taskId) => set((state) =>
-          mutate(state, (a) => {
-            const log = a.dailyLogs[date] || {
-              date,
-              routineId: a.activeRoutineId,
-              completedTaskIds: [],
-            };
-            if (log.completedTaskIds.includes(taskId)) return a;
-            return {
-              ...a,
-              dailyLogs: {
-                ...a.dailyLogs,
-                [date]: {
-                  ...log,
-                  completedTaskIds: [...log.completedTaskIds, taskId],
-                },
-              },
-            };
-          }),
-        ),
-
         saveFeedback: (date, feedback) => set((state) => {
           const acc = state.accounts[state.currentAccountId];
           if (!acc.dailyLogs[date]) return state;
@@ -426,37 +419,23 @@ export const useStore = create<AppState>()(
           }));
         }),
 
-        recordDrillResult: (date, taskId, value, resultKey, markComplete = true) => set((state) =>
-          mutate(state, (a) => {
-            const log = a.dailyLogs[date] || {
-              date,
-              routineId: a.activeRoutineId,
-              completedTaskIds: [],
-            };
-            const key = resultKey ?? taskId;
-            const previousBest = log.drillResults?.[key] ?? 0;
-            // A one-minute-changes task expands into several pair drills; the
-            // caller (Coached) only marks it complete once the last pair is done,
-            // so a single pair no longer ticks the whole task off prematurely.
-            const completedTaskIds = markComplete && !log.completedTaskIds.includes(taskId)
-              ? [...log.completedTaskIds, taskId]
-              : log.completedTaskIds;
-            return {
-              ...a,
-              dailyLogs: {
-                ...a.dailyLogs,
-                [date]: {
-                  ...log,
-                  completedTaskIds,
-                  drillResults: {
-                    ...log.drillResults,
-                    [key]: Math.max(previousBest, value),
-                  },
-                },
-              },
-            };
-          }),
-        ),
+        recordMeasurement: (date, taskId, value, resultKey) =>
+          set((state) => mutate(state, (a) => writeLog(a, date, (log) =>
+            applyMeasurement(log, taskId, value, now(), resultKey)))),
+
+        recordTime: (date, taskId, outcome) =>
+          set((state) => mutate(state, (a) => writeLog(a, date, (log) =>
+            applyTime(log, taskId, outcome, now())))),
+
+        settleTask: (date, taskId) =>
+          set((state) => mutate(state, (a) => writeLog(a, date, (log) => settle(log, taskId)))),
+
+        markTaskDone: (date, taskId) =>
+          set((state) => mutate(state, (a) => writeLog(a, date, (log) =>
+            settle(applyStated(log, taskId, now()), taskId)))),
+
+        clearTaskRecord: (date, taskId) =>
+          set((state) => mutate(state, (a) => writeLog(a, date, (log) => clearRecord(log, taskId)))),
 
         setActiveRoutine: (routineId) => set((state) =>
           mutate(state, (a) => ({ ...a, activeRoutineId: routineId })),

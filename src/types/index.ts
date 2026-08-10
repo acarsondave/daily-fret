@@ -51,12 +51,57 @@ export interface Routine {
   chords?: string[]; // working chord vocabulary; drives pairs + Coached mode
 }
 
+// What the app itself witnessed for a task today. Absent means it witnessed
+// nothing, which is a different statement from "not done" and has to stay
+// distinguishable: a completion the user asserted must never read as a
+// measurement.
+//   measured - the microphone counted something for this task today.
+//   timed    - a timer for this task ran inside the app today.
+//   silent   - a drill ran its full length and nothing was heard.
+// Ranked in exactly that order: evidence accumulates over a day and never
+// downgrades, so a silent second run cannot erase a measured first one.
+export type TaskEvidence = 'measured' | 'timed' | 'silent';
+
+export interface TaskRecord {
+  evidence?: TaskEvidence;
+  // Total seconds this task's timer actually ran today, summed across runs.
+  seconds?: number;
+  // A timer for this task reached zero at least once. This, not elapsed time,
+  // is what earns a timed task its completion: skipping is not doing.
+  ranToEnd?: boolean;
+  // The user said this is done. Kept beside the evidence rather than folded
+  // into it, so "you marked this" can never be presented as "the app heard it".
+  stated?: boolean;
+  at: number; // epoch ms of the most recent run
+}
+
+// One run of one drill. The app used to keep only the day's best, which cannot
+// tell one lucky attempt from three consistent ones, and threw away the runs it
+// summarised. The summary stays (everything downstream reads it); this is the
+// thing it is a summary of.
+export interface DrillRun {
+  value: number;
+  // Epoch ms. Absent on runs reconstructed from a day that predates this, where
+  // the only honest statement is that the day held at least one run at that
+  // value, not when.
+  at?: number;
+}
+
 export interface DailyLog {
   date: string; // YYYY-MM-DD
   routineId: string;
   completedTaskIds: string[];
   feedback?: string;
-  drillResults?: Record<string, number>; // taskId -> best changes/min for the day
+  drillResults?: Record<string, number>; // result key -> best value for the day
+  // Every heard run of the day, in the order they happened, under the same keys
+  // as drillResults. Absent on older logs; read it through `runsFor` in
+  // src/store/completion.ts rather than directly, so a day recorded before this
+  // existed still answers the question.
+  drillRuns?: Record<string, DrillRun[]>
+  // How each of today's completions came about. Absent on logs written before
+  // this existed, and never backfilled: an old day is readable exactly as it
+  // was recorded, and the app does not invent evidence it never had.
+  taskRecords?: Record<string, TaskRecord>;
 }
 
 export interface UserState {

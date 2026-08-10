@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { useUndoStore } from '../store/undo';
 import { useStore, getTodayString } from '../store';
+import { runsFor } from '../store/completion';
 import {
   CheckIcon,
   CircleIcon,
   TrashIcon,
   PencilIcon,
   CloseIcon,
-  PlectrumIcon,
+  MicIcon,
+  PlayIcon,
   ArrowUpIcon,
   ArrowDownIcon,
   PlusIcon,
@@ -23,7 +25,7 @@ import { DRILL_UNIT, DRILL_LABEL } from '../lib/drills';
 import { SongPicker } from './SongPicker';
 import { useSongs } from '../hooks/useSongs';
 import { StrumPatternSelect } from './StrumPatternSelect';
-import type { DrillConfig, DrillKind, Task, TimedBlock } from '../types';
+import type { DrillConfig, DrillKind, Task, TaskRecord, TimedBlock } from '../types';
 import './TaskRow.css';
 import './drill-fields.css';
 
@@ -31,6 +33,44 @@ const DRILL_CHORDS = ['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F'];
 
 // Pull the bare minute digits out of a (possibly legacy) duration label.
 const durationDigits = (d?: string) => (d ? d.match(/\d+/)?.[0] ?? '' : '');
+
+const clock = (seconds: number): string => {
+  const total = Math.max(0, Math.round(seconds));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+};
+
+/**
+ * What the app can say about this task today, in the app's own voice.
+ *
+ * There is one rule running through all of it: never say more than was
+ * witnessed. A measurement names its number, a timer names its minutes, and the
+ * user's own word is attributed to them rather than folded in with the rest.
+ * Returns null when the app has nothing to report, which is not the same as
+ * reporting that nothing happened.
+ */
+function evidenceLine(
+  record: TaskRecord | undefined,
+  isCompleted: boolean,
+  todayValue: number | null,
+  unit: string,
+  runs: number,
+): string | null {
+  if (!record) return null;
+  if (record.evidence === 'measured') {
+    const measure = todayValue === null ? 'Heard' : `${todayValue}${unit ? ` ${unit}` : ''}`;
+    const when = isCompleted ? `${measure} today` : `${measure} so far`;
+    // Two runs at the same number is a different fact from one, and it is the
+    // one that says the playing is repeatable rather than lucky.
+    return runs > 1 ? `${when} · ${runs} runs` : when;
+  }
+  if (record.evidence === 'timed') {
+    const spent = clock(record.seconds ?? 0);
+    if (!isCompleted) return `${spent} so far`;
+    return record.ranToEnd ? `${spent} practised` : `${spent} practised, counted by you`;
+  }
+  if (record.evidence === 'silent') return 'Ran, nothing heard';
+  return record.stated ? 'Marked done by you' : null;
+}
 
 interface TaskRowProps {
   routineId: string;
@@ -42,15 +82,16 @@ interface TaskRowProps {
   blocks?: TimedBlock[];
   index: number;
   total: number;
-  onLaunchDrill?: (task: Task) => void;
+  onStart?: (task: Task) => void;
 }
 
-export const TaskRow = memo(function TaskRow({ routineId, taskId, title, description, duration, drill, blocks, index, total, onLaunchDrill }: TaskRowProps) {
+export const TaskRow = memo(function TaskRow({ routineId, taskId, title, description, duration, drill, blocks, index, total, onStart }: TaskRowProps) {
   const today = getTodayString();
   // Select each action on its own — Zustand returns the *same* function
   // reference every render, so this row no longer subscribes to the whole store
   // (a bare `useStore()` did, re-rendering every row on any state change).
-  const toggleTaskCompletion = useStore((s) => s.toggleTaskCompletion);
+  const markTaskDone = useStore((s) => s.markTaskDone);
+  const clearTaskRecord = useStore((s) => s.clearTaskRecord);
   const deleteTask = useStore((s) => s.deleteTask);
   const updateTask = useStore((s) => s.updateTask);
   const moveTask = useStore((s) => s.moveTask);
@@ -94,6 +135,69 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
     return best >= 0 ? best : null;
   });
 
+  // Today's number, which is what the row reports back. The chip beside it is
+  // the all-time best; conflating the two was how "your best" ended up standing
+  // in for "what happened just now".
+  const todayResult = useStore((s) => {
+    if (resultKeys.length === 0) return null;
+    const dr = s.accounts[s.currentAccountId]?.dailyLogs?.[today]?.drillResults;
+    if (!dr) return null;
+    let best = -1;
+    for (const k of resultKeys) {
+      const v = dr[k];
+      if (typeof v === 'number' && v > best) best = v;
+    }
+    return best >= 0 ? best : null;
+  });
+
+  // The record is a stable object reference until this task's day changes, so
+  // subscribing to it does not re-render the row on unrelated store writes.
+  const record = useStore(
+    (s) => s.accounts[s.currentAccountId]?.dailyLogs?.[today]?.taskRecords?.[taskId],
+  );
+
+  const todayRuns = useStore((s) => {
+    if (resultKeys.length === 0) return 0;
+    const log = s.accounts[s.currentAccountId]?.dailyLogs?.[today];
+    if (!log) return 0;
+    let count = 0;
+    for (const k of resultKeys) count += runsFor(log, k).length;
+    return count;
+  });
+
+  const line = evidenceLine(
+    record,
+    isCompleted,
+    todayResult,
+    drill ? DRILL_UNIT[drill.kind] : '',
+    todayRuns,
+  );
+
+  // A completion resting on nothing but the player's word. Kept visibly apart
+  // from one the app measured, because the two mean different things and the
+  // whole point of this is that the app stops pretending they are the same.
+  const restsOnWord = isCompleted && !!record?.stated && !record?.evidence;
+
+  // Today's number and the all-time best being the same number does not need
+  // saying twice; when they differ, the best is the context.
+  const showBest =
+    !!drill &&
+    typeof bestResult === 'number' &&
+    !(record?.evidence === 'measured' && bestResult === todayResult);
+
+  // The moment a task completes itself is worth marking once, then letting go.
+  const [justCompleted, setJustCompleted] = useState(false);
+  const wasCompleted = useRef(isCompleted);
+  useEffect(() => {
+    if (isCompleted === wasCompleted.current) return;
+    const rising = isCompleted && !wasCompleted.current;
+    wasCompleted.current = isCompleted;
+    if (!rising) return;
+    setJustCompleted(true);
+    const id = setTimeout(() => setJustCompleted(false), 1200);
+    return () => clearTimeout(id);
+  }, [isCompleted]);
+
   const [isEditing, setIsEditing] = useState(false);
   const [editDraft, setEditDraft] = useState({ title, description: description || '', duration: durationDigits(duration) });
   const [editDrillKind, setEditDrillKind] = useState<DrillKind | 'none'>(drill?.kind ?? 'none');
@@ -121,7 +225,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
   const removeEditBlock = (id: string) => setEditBlocks(prev => prev.filter(b => b.id !== id));
 
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const taskRef = useRef<HTMLDivElement>(null);
+  const taskRef = useRef<HTMLButtonElement>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -420,10 +524,33 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
     );
   }
 
+  const state = isCompleted
+    ? 'is-done'
+    : record?.evidence === 'silent'
+      ? 'is-unheard'
+      : record
+        ? 'is-underway'
+        : 'is-planned';
+
+  const start = () => onStart?.({ id: taskId, title, description, duration, drill, blocks });
+
   return (
     <ContextMenu
       content={
         <>
+          {/* Correction lives here rather than on the row. The app records what
+              it witnessed; disagreeing with it is a deliberate, occasional act,
+              not something to be swept through at the end of a day. */}
+          {!isCompleted && (
+            <ContextMenuItem onClick={() => markTaskDone(today, taskId)}>
+              <CheckIcon size={16} /> I did this
+            </ContextMenuItem>
+          )}
+          {(isCompleted || record) && (
+            <ContextMenuItem onClick={() => clearTaskRecord(today, taskId)}>
+              <CloseIcon size={16} /> Clear today's record
+            </ContextMenuItem>
+          )}
           <ContextMenuItem onClick={handleEditClick}>
             <PencilIcon size={16} /> Edit task
           </ContextMenuItem>
@@ -439,84 +566,81 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
         </>
       }
     >
-      <motion.div
+      {/* One control, one action: the row starts the work. It used to be a
+          toggle, which is the app asking to be told what it was already
+          listening to. Completion now follows from the run, and the mark on the
+          left reports rather than asks. */}
+      <motion.button
         ref={taskRef}
+        type="button"
         layout
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-        className={clsx('task-row', isCompleted && 'completed')}
+        className={clsx('task-row', state, restsOnWord && 'is-stated', justCompleted && 'is-just-done')}
+        aria-label={`Start ${title}${line ? `. ${line}` : ''}`}
+        title={drill ? DRILL_LABEL[drill.kind] : 'Run the timer for this'}
+        onClick={start}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onTouchMove={handleTouchEnd}
       >
-        {/* The row was a div with an onClick, so a task could not be ticked
-            without a mouse. This is a real toggle button, and it is a sibling of
-            the Practice control rather than its parent, so neither is nested
-            inside the other. */}
-        <button
-          type="button"
-          className="task-main"
-          aria-pressed={isCompleted}
-          onClick={() => toggleTaskCompletion(today, taskId)}
-        >
-          <span className="task-checkbox">
+        <span className="task-state" aria-hidden="true">
+          {isCompleted ? (
             <motion.span
-              className="check-bg"
-              animate={{
-                scale: isCompleted ? 1 : 0,
-                opacity: isCompleted ? 1 : 0,
-              }}
+              className={clsx('state-done', restsOnWord && 'is-word')}
+              initial={{ scale: 0.4, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 500, damping: 30 }}
             >
               <CheckIcon size={14} strokeWidth={2.6} />
             </motion.span>
-            {!isCompleted && <CircleIcon size={24} className="uncheck-icon" />}
-          </span>
-
-          <span className="task-content">
-            <span className="task-title">{title}</span>
-            {/* A riff's note is a tab staff. Collapsing it into the row's two
-                lines of prose produced a scramble of dashes and pipes, so the
-                row says what it is and the staff renders where it is played. */}
-            {description &&
-              (looksLikeTab(description) ? (
-                <span className="task-desc is-tab-note">Tab</span>
-              ) : (
-                <span className="task-desc">{description}</span>
-              ))}
-          </span>
-        </button>
-
-        <div className="task-aside">
-          {(typeof bestResult === 'number' || duration) && (
-            <div className="task-meta">
-              {typeof bestResult === 'number' && drill && (
-                <span className="task-drill-result" title="Your best so far">
-                  {bestResult} {DRILL_UNIT[drill.kind]}
-                </span>
-              )}
-              {formatDuration(duration) && <span className="task-duration">{formatDuration(duration)}</span>}
-            </div>
+          ) : state === 'is-unheard' ? (
+            <span className="state-unheard">
+              <MicIcon size={18} />
+            </span>
+          ) : (
+            <>
+              <CircleIcon size={24} className="state-ring" />
+              {state === 'is-underway' && <span className="state-dot" />}
+            </>
           )}
-          {drill && (
-            <button
-              type="button"
-              className="task-drill-btn"
-              aria-label={`${DRILL_LABEL[drill.kind]}: ${title}`}
-              title={DRILL_LABEL[drill.kind]}
-              onClick={(e) => {
-                e.stopPropagation();
-                onLaunchDrill?.({ id: taskId, title, description, duration, drill });
-              }}
-            >
-              <PlectrumIcon size={15} />
-              <span>Practice</span>
-            </button>
+        </span>
+
+        <span className="task-content">
+          <span className="task-title">{title}</span>
+          {/* Once there is something to report, the row reports it. The
+              description is instructions for doing the task; after it has been
+              done, what happened is the more useful line, and swapping one for
+              the other is what turns the day's plan into the day's record. */}
+          {line ? (
+            <span className="task-line">{line}</span>
+          ) : (
+            description &&
+            (looksLikeTab(description) ? (
+              <span className="task-desc is-tab-note">Tab</span>
+            ) : (
+              <span className="task-desc">{description}</span>
+            ))
           )}
-        </div>
-      </motion.div>
+        </span>
+
+        {(showBest || formatDuration(duration)) && (
+          <span className="task-aside">
+            {showBest && drill && (
+              <span className="task-drill-result" title="Your best so far">
+                {bestResult} {DRILL_UNIT[drill.kind]}
+              </span>
+            )}
+            {formatDuration(duration) && <span className="task-duration">{formatDuration(duration)}</span>}
+          </span>
+        )}
+
+        <span className="task-go">
+          <PlayIcon size={13} />
+        </span>
+      </motion.button>
     </ContextMenu>
   );
 });

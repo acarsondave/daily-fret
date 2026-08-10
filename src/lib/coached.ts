@@ -1,4 +1,4 @@
-import type { Routine } from '../types';
+import type { Routine, Task, TimedBlock } from '../types';
 import { chordPairs, routineChords } from './pairs';
 
 // A coached session flattens a routine into an ordered list of runnable
@@ -42,6 +42,29 @@ export function formatDuration(duration: string | undefined): string | null {
     return `${n} min${n === 1 ? '' : 's'}`;
   }
   return trimmed;
+}
+
+/**
+ * The timed blocks a non-drill task is made of.
+ *
+ * A task with no blocks is one block: itself. Stated once here because the
+ * coached session and a task launched straight from the day's list have to run
+ * the same thing, and the day's record is only honest if the timer that earned a
+ * completion is the same timer either way.
+ */
+export function timedBlocks(task: Task): TimedBlock[] {
+  if (task.blocks?.length) {
+    return task.blocks.map((block) => ({ ...block, bpm: block.bpm ?? task.bpm }));
+  }
+  return [
+    {
+      id: task.id,
+      label: task.title,
+      durationSec: parseDuration(task.duration),
+      note: task.description,
+      bpm: task.bpm,
+    },
+  ];
 }
 
 export function buildSegments(routine: Routine | undefined): CoachSegment[] {
@@ -97,10 +120,11 @@ export function buildSegments(routine: Routine | undefined): CoachSegment[] {
         title: task.title,
         songId: task.drill.songId,
       });
-    } else if (task.blocks?.length) {
+    } else {
       // Configurable timed task: each block runs as its own segment, announced
       // by its label, so one task (e.g. "Strumming") can hold several patterns.
-      for (const block of task.blocks) {
+      // A task with no blocks is a single block covering the whole task.
+      for (const block of timedBlocks(task)) {
         segments.push({
           kind: 'timed',
           taskId: task.id,
@@ -108,18 +132,9 @@ export function buildSegments(routine: Routine | undefined): CoachSegment[] {
           description: block.note,
           seconds: block.durationSec,
           pattern: block.pattern,
-          bpm: block.bpm ?? task.bpm,
+          bpm: block.bpm,
         });
       }
-    } else {
-      segments.push({
-        kind: 'timed',
-        taskId: task.id,
-        title: task.title,
-        description: task.description,
-        seconds: parseDuration(task.duration),
-        bpm: task.bpm,
-      });
     }
   }
 

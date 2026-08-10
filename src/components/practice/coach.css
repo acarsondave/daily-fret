@@ -101,6 +101,24 @@
   line-height: 1.6;
 }
 
+/* Offered when a block was left before its clock ran out. It is an offer during
+   the hand-over, never a question that stops the session: ignoring it leaves the
+   record saying exactly what happened. */
+.timed-count-btn {
+  margin-top: var(--space-1);
+}
+
+.timed-counted {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--success-color);
+}
+
 
 /* --- Summary -------------------------------------------------------------- */
 .coach-summary {
@@ -163,6 +181,20 @@
 .coach-summary-check {
   color: var(--success-color);
   flex-shrink: 0;
+}
+/* A step the session walked past without it producing anything. Ticking these
+   off would be the same lie the day's list used to tell. */
+.coach-summary-row.is-open {
+  background: transparent;
+  border-style: dashed;
+}
+.coach-summary-open {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.coach-summary-row.is-open .coach-summary-name {
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 .coach-summary-name {
   flex: 1;
