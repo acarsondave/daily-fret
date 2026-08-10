@@ -72,8 +72,8 @@ let detachFlush: (() => void) | null = null;
 export const startAuthListener = () => {
   onAuthStateChanged(auth, async (user) => {
     useAuthStore.getState().setUser(user);
-    // Record whether this browser has a session, so the next visit knows
-    // whether first paint should wait for the cloud (see ./authStore).
+    // Record whether this browser has a session, so the next visit can say from
+    // its first frame that a cloud reconcile is coming (see ./authStore).
     rememberSession(!!user);
 
     // Clean up previous listeners
@@ -232,11 +232,12 @@ export const startAuthListener = () => {
       useStore.getState().switchAccount('anonymous');
     }
     } catch (err) {
-      // Never leave the app stuck on the loader: if cloud sync fails (offline,
-      // permissions, blocked transport), fall through to the local-first state.
+      // The screen is already painted from the local copy, so a failure here
+      // costs the reconcile, not the session. Say so rather than leaving the
+      // header claiming a sync is still on its way.
       console.error('Auth/sync initialization failed; continuing locally', err);
     } finally {
-      useAuthStore.getState().setLoading(false);
+      useAuthStore.getState().setSyncing(false);
     }
   });
 };

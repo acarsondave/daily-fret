@@ -5,9 +5,14 @@
 // at module scope and App.tsx imported it at module scope in turn, so the whole
 // SDK sat in the entry chunk and every first-time visitor downloaded Firestore
 // before they could see a single task, in an app that is local-first and fully
-// usable signed out. It also gated first paint: `loading` started true and only
-// cleared inside onAuthStateChanged, so the splash sat there until an auth
-// round-trip finished.
+// usable signed out.
+//
+// Splitting the chunk out was only half of it. A returning signed-in user still
+// held the splash until this chunk had downloaded, Firebase had refreshed its
+// token and Firestore had answered a getDoc: four serial network dependencies
+// before a screen the device could have painted from localStorage. Nothing
+// waits for the cloud any more. It reconciles behind the painted screen, which
+// is what last-write-wins in the store was always for.
 
 import { useAuthStore, hadSession } from './authStore';
 
@@ -22,39 +27,40 @@ function loadSync(): Promise<SyncModule> {
   return pending;
 }
 
-// If the SDK cannot load at all (offline, blocked, ad-blocker on the auth
-// domain), a returning user must not be left staring at the splash forever.
-// Local practice data is already in the store; fall through to it.
+// If the SDK never loads (offline, blocked, ad-blocker on the auth domain), the
+// header must stop claiming a sync is on its way. Nothing is blocked on this;
+// it only stops the affordance lying.
 const LOAD_TIMEOUT_MS = 8000;
 
-function runIdle(fn: () => void): void {
+function runIdle(fn: () => void, timeout: number): void {
   const ric = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void })
     .requestIdleCallback;
-  if (ric) ric(fn, { timeout: 2000 });
-  else setTimeout(fn, 200);
+  if (ric) ric(fn, { timeout });
+  else setTimeout(fn, Math.min(timeout, 200));
 }
 
 export function initAuthListener(): void {
   const start = () => {
     const failSafe = setTimeout(() => {
       console.warn('Cloud sync did not load in time; continuing locally');
-      useAuthStore.getState().setLoading(false);
+      useAuthStore.getState().setSyncing(false);
     }, LOAD_TIMEOUT_MS);
 
     void loadSync()
       .then((m) => m.startAuthListener())
       .catch((err) => {
         console.error('Cloud sync unavailable; continuing locally', err);
-        useAuthStore.getState().setLoading(false);
+        useAuthStore.getState().setSyncing(false);
       })
       .finally(() => clearTimeout(failSafe));
   };
 
-  // A returning signed-in user is watching a splash until this resolves, so it
-  // goes first. A signed-out visitor is already looking at their routine, so the
-  // SDK waits for an idle moment rather than competing with first paint.
-  if (hadSession()) start();
-  else runIdle(start);
+  // Everyone, signed in or not, is already looking at their routine by now: the
+  // app paints from localStorage and the cloud only ever reconciles behind it.
+  // So the SDK waits for an idle moment rather than competing with first paint.
+  // A returning user gets a shorter leash because their reconcile is the one
+  // that can actually change what is on screen.
+  runIdle(start, hadSession() ? 300 : 2000);
 }
 
 export async function signIn(email: string, password: string) {

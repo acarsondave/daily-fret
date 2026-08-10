@@ -12,11 +12,39 @@
     <meta name="description" content="A premium, low-friction daily routine tracker for your guitar learning journey. Build speed, master chords, and track your daily progress elegantly." />
     <meta name="theme-color" content="#0F0F11" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-    
+    <!-- Both faces are served from this origin. They used to come from Google
+         Fonts, which cost two extra DNS+TLS handshakes and, worse, put a
+         render-blocking cross-origin stylesheet ahead of everything: the splash
+         below could not paint until fonts.googleapis.com answered. These are
+         the latin subsets of the variable faces, so one file covers every
+         weight the app uses (Outfit 400-700, Plus Jakarta Sans 400-600).
+
+         Deliberately NOT preloaded. Measured on slow 4G, preloading the pair
+         cost 350ms of first paint: 60kB of font competing with the entry chunk
+         for the same pipe, to replace a fallback face nobody can read yet
+         because the app has not mounted. Left to the normal font pipeline they
+         are fetched when the first text using them is laid out, which is after
+         the routine is already on screen. -->
+
     <style>
+      /* Outfit and Plus Jakarta Sans, SIL Open Font License 1.1.
+         `swap` so text is legible from the first frame in the system fallback
+         and upgrades when the face lands; it must never hide the routine. */
+      @font-face {
+        font-family: 'Outfit';
+        font-style: normal;
+        font-weight: 400 700;
+        font-display: swap;
+        src: url('/fonts/outfit-latin-var.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'Plus Jakarta Sans';
+        font-style: normal;
+        font-weight: 400 600;
+        font-display: swap;
+        src: url('/fonts/plus-jakarta-sans-latin-var.woff2') format('woff2');
+      }
+
       /* Initial Loader Styles */
       #initial-loader {
         position: fixed;
@@ -26,7 +54,7 @@
         align-items: center;
         justify-content: center;
         z-index: 9999;
-        transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.6s;
+        transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.28s;
       
         /* Never a hit target: it fades before it is removed, and for those few
            hundred milliseconds it was still swallowing the first tap. */

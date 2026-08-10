@@ -14,11 +14,12 @@ import { StreakGraph } from './components/StreakGraph';
 import { initAuthListener, useAuthStore } from './lib/auth';
 import { armOutputAudioUnlock } from './audio/outputContext';
 import { CloudIcon, DeviceIcon } from './components/icons';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import './App.css';
 
 function App() {
-  const { loading, user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const syncing = useAuthStore((s) => s.syncing);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Read once per mount rather than on every render: the heading is a fixed
@@ -31,6 +32,12 @@ function App() {
     short: new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
   }));
 
+  const accountLabel = syncing
+    ? 'Settings. Your practice is on this device and the cloud copy is still loading.'
+    : user
+      ? 'Settings. Your practice is synced to the cloud.'
+      : 'Settings. Your practice is saved on this device only.';
+
   useEffect(() => {
     initAuthListener();
     // Practice audio (the coach's click, the cues) starts on a timer, not on a
@@ -39,79 +46,86 @@ function App() {
     armOutputAudioUnlock();
   }, []);
 
+  // The splash is dismissed by the first commit, not by a network result. It
+  // exists to cover the gap between the HTML arriving and React mounting; once
+  // the routine is on screen there is nothing left for it to cover.
   useEffect(() => {
-    if (!loading) {
-      const loader = document.getElementById('initial-loader');
-      if (loader) {
-        loader.style.opacity = '0';
-        loader.style.visibility = 'hidden';
-        setTimeout(() => loader.remove(), 600);
-      }
-    }
-  }, [loading]);
+    const loader = document.getElementById('initial-loader');
+    if (!loader) return;
+    loader.style.opacity = '0';
+    loader.style.visibility = 'hidden';
+    const remove = setTimeout(() => loader.remove(), 300);
+    return () => clearTimeout(remove);
+  }, []);
 
   return (
     <>
-      {/* The room the app sits in. Two slow radial fields and a faint horizon,
-          painted as gradients rather than blurred elements so the drift stays
-          on the compositor. */}
+      {/* The room the app sits in: one warm lamp past the lower-right corner,
+          the room's cold air past the upper-left, and six strings raked across
+          the lower half in low-E-to-high-E order. Both light centres are off
+          canvas, so only their falloff is ever on screen. Nothing here moves.
+          Geometry and the reasoning behind it are in App.css. */}
       <div className="app-ambient" aria-hidden="true">
-        <span className="app-ambient-field is-sky" />
-        <span className="app-ambient-field is-moss" />
-        <span className="app-ambient-horizon" />
+        <span className="app-ambient-light" />
+        <span className="app-ambient-rake">
+          <span className="app-ambient-string is-e6" />
+          <span className="app-ambient-string is-a5" />
+          <span className="app-ambient-string is-d4" />
+          <span className="app-ambient-string is-g3" />
+          <span className="app-ambient-string is-b2" />
+          <span className="app-ambient-string is-e1" />
+        </span>
+        <span className="app-ambient-grain" />
       </div>
 
-      <AnimatePresence mode="wait">
-        {loading ? null : (
-          <motion.main
-            key="app"
-            initial={{ opacity: 0, filter: 'blur(10px)' }}
-            animate={{ opacity: 1, filter: 'blur(0px)' }}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="app-layout"
-          >
-            <header className="app-header">
-              <h1 className="header-date">
-                <span className="header-date-long">{displayDate.long}</span>
-                <span className="header-date-short">{displayDate.short}</span>
-              </h1>
-              <div className="header-actions">
-                <StreakGraph />
-                <QuickSetup onOpenSettings={() => setIsSettingsOpen(true)} />
-                <button
-                  className={user ? 'account-btn is-synced' : 'account-btn'}
-                  onClick={() => setIsSettingsOpen(true)}
-                  aria-label={
-                    user
-                      ? 'Settings. Your practice is synced to the cloud.'
-                      : 'Settings. Your practice is saved on this device only.'
-                  }
-                >
-                  {user ? <CloudIcon size={16} /> : <DeviceIcon size={16} />}
-                  {/* Says where the data actually lives. "Local Mode" named a
-                      mode; this names the consequence. */}
-                  <span>{user ? 'Synced' : 'This device'}</span>
-                </button>
-              </div>
-            </header>
+      {/* Opacity only, and short. The old entrance animated `filter: blur(10px)`
+          across the whole viewport for 600ms, which on a mid-range phone is an
+          offscreen render pass per frame and, more to the point, 600ms during
+          which the practice list is there but cannot be read. */}
+      <motion.main
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+        className="app-layout"
+      >
+        <header className="app-header">
+          <h1 className="header-date">
+            <span className="header-date-long">{displayDate.long}</span>
+            <span className="header-date-short">{displayDate.short}</span>
+          </h1>
+          <div className="header-actions">
+            <StreakGraph />
+            <QuickSetup onOpenSettings={() => setIsSettingsOpen(true)} />
+            <button
+              className={user ? 'account-btn is-synced' : 'account-btn'}
+              onClick={() => setIsSettingsOpen(true)}
+              aria-label={accountLabel}
+            >
+              {user || syncing ? <CloudIcon size={16} /> : <DeviceIcon size={16} />}
+              {/* Says where the data actually lives. "Local Mode" named a mode;
+                  this names the consequence. While the cloud copy is still
+                  coming this says so, because the screen was painted from the
+                  local copy and might yet be corrected. */}
+              <span>{syncing ? 'Syncing' : user ? 'Synced' : 'This device'}</span>
+            </button>
+          </div>
+        </header>
 
-            <div className="center-content">
-              <DailyPath />
-            </div>
+        <div className="center-content">
+          <DailyPath />
+        </div>
 
-            <Footer />
+        <Footer />
 
-            <Suspense fallback={null}>
-              {isSettingsOpen && (
-                <SettingsModal
-                  isOpen={isSettingsOpen}
-                  onClose={() => setIsSettingsOpen(false)}
-                />
-              )}
-            </Suspense>
-          </motion.main>
-        )}
-      </AnimatePresence>
+        <Suspense fallback={null}>
+          {isSettingsOpen && (
+            <SettingsModal
+              isOpen={isSettingsOpen}
+              onClose={() => setIsSettingsOpen(false)}
+            />
+          )}
+        </Suspense>
+      </motion.main>
     </>
   );
 }
