@@ -8,13 +8,16 @@
 // recorded as a claim rather than as a fact.
 //
 // Chord competence is read from *change* results rather than from Chord
-// Perfect, which stores one total for a whole pool and so cannot say which
-// shape earned it. Pair results are per pair, they go back the full history,
-// and a pair moving at speed is real evidence for both of its chords.
+// Perfect. Chord Perfect does now say which shape earned what, but it counts
+// placements per block and the bar for a chord is a change rate, and folding
+// one unit into the other would be inventing a conversion nobody measured. Pair
+// results are per pair, they go back the full history, and a pair moving at
+// speed is real evidence for both of its chords.
 
 import type { DailyLog } from '../types';
 import { ALL_SKILLS, getSkill, type Skill } from '../data/skills';
 import { PAIR_PREFIX, parsePairKey } from './pairs';
+import { RING_PREFIX } from './drillKeys';
 import { CHANGES_BAR, CHORD_BAR, ROTATION_BAR } from './readiness';
 
 export type SkillState = 'locked' | 'ready' | 'working' | 'solid';
@@ -62,7 +65,12 @@ export { CHANGES_BAR, CHORD_BAR, ROTATION_BAR };
 export interface Evidence {
   /** Best changes per minute, per pair key. */
   pairs: Map<string, number>;
-  /** Best score per task id, for the drills that store one number. */
+  /**
+   * Best value under every other drill key: a shape, a Chord Perfect pool, an
+   * anchor ring, and any task id left over from before keys named the drill.
+   * Read by prefix, never in bulk, so one drill's numbers can never be taken
+   * for another's.
+   */
   tasks: Map<string, number>;
   /** Days on which anything at all was practised. */
   days: number;
@@ -170,21 +178,17 @@ function measure(skill: Skill, evidence: Evidence, claimed: boolean): Measuremen
   }
 
   if (skill.id === 'technique.anchor-fingers') {
-    const best = maxOf(evidence.tasks);
+    // Only a rotation counts. This used to take the best of every task-keyed
+    // result there was, which at the time meant Chord Perfect's totals as well,
+    // so a good block of placements could carry the anchor skill to solid
+    // without a rotation ever having been run. Ring keys name the drill, so the
+    // question has an exact answer now.
+    const best = maxOfPrefix(evidence.tasks, RING_PREFIX);
     return {
       best,
       bar: ROTATION_BAR,
       unit: 'changes',
       evidence: best ? `Best ${best} changes in an anchor rotation.` : 'No anchor rotation run yet.',
-    };
-  }
-
-  if (skill.id === 'setup.tuning') {
-    return {
-      best: null,
-      bar: null,
-      unit: null,
-      evidence: 'The tuner will tell you. Nothing to track over time.',
     };
   }
 
@@ -200,9 +204,12 @@ function measure(skill: Skill, evidence: Evidence, claimed: boolean): Measuremen
   };
 }
 
-function maxOf(values: Map<string, number>): number | null {
+function maxOfPrefix(values: Map<string, number>, prefix: string): number | null {
   let best: number | null = null;
-  for (const v of values.values()) if (best === null || v > best) best = v;
+  for (const [key, value] of values) {
+    if (!key.startsWith(prefix)) continue;
+    if (best === null || value > best) best = value;
+  }
   return best;
 }
 

@@ -22,7 +22,10 @@ console.log('\nReading a day back\n');
   check('newest first', h[0].date === '2026-07-02', h.map(d=>d.date).join(' '));
   check('the day names its routine', h[0].routineName === 'Module 4 Daily');
   check('the date reads as a date', /July/.test(h[0].label), h[0].label);
-  check('a pair reads as a pair', h[0].results.find(r=>r.key.startsWith('pair:')).label === 'A to D');
+  // One spelling of a pair across the whole app. The history used to write its
+  // own ("A to D") while Progress wrote "A ↔ D", which makes a reader check
+  // whether the two rows are the same drill.
+  check('a pair reads as a pair', h[0].results.find(r=>r.key.startsWith('pair:')).label === 'A ↔ D');
   check('a task result reads as its task', h[0].results.find(r=>r.key==='t1').label === 'Chord Perfect');
   check('units come from the drill kind', h[0].results.find(r=>r.key==='t1').unit === 'placed');
   check('a personal best is marked', h[0].results.find(r=>r.key.startsWith('pair:')).isBest);
@@ -56,7 +59,10 @@ console.log('\nWhat the history refuses to invent\n');
 
 console.log('\nLabels\n');
 {
-  check('a pair key', labelForKey(pairKey('Dm','Am'), ROUTINES).label === 'Am to Dm');
+  check('a pair key', labelForKey(pairKey('Dm','Am'), ROUTINES).label === 'Am ↔ Dm');
+  check('a pool key names its shapes', labelForKey('pool:A|D|E', ROUTINES).label === 'A D E');
+  check('a ring key names its turn', labelForKey('ring:A>E>D', ROUTINES).label === 'A → E → D');
+  check('a single shape says so', labelForKey('chord:F', ROUTINES).label === 'F shape');
   check('a task with no drill has no unit', labelForKey('t3', ROUTINES).unit === '');
   check('an unknown key is named honestly', labelForKey('zzz', ROUTINES).label === 'A drill since removed');
 }
@@ -109,6 +115,16 @@ console.log('\nWhat a day can claim about its plan\n');
   check('a plan smaller than the day is dropped, not printed', shrunk[0].planned === null,
     String(shrunk[0].planned));
   check('the day still says what it completed', shrunk[0].completed === 5);
+
+  // A routine with nothing in it planned nothing, and "0 of 0 done" is not a
+  // report of that day. It is a fraction with an empty denominator, printed with
+  // the confidence of a measurement.
+  const empty = buildHistory(
+    logs(['2026-07-03', { date: '2026-07-03', routineId: 'r0', completedTaskIds: [], feedback: 'Just noodled.' }]),
+    [{ id: 'r0', name: 'Empty', description: '', isDefault: false, tasks: [] }],
+  );
+  check('a routine with no tasks reports no plan', empty[0].planned === null, String(empty[0].planned));
+  check('and the day is still in the history', empty[0].feedback === 'Just noodled.');
 }
 
 console.log(failures===0?'\nALL PASS\n':`\n${failures} FAILURE(S)\n`);

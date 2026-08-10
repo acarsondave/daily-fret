@@ -93,7 +93,20 @@ const SKILLS: Skill[] = [
     summary: 'Get the guitar in tune before playing anything.',
     family: 'setup',
     requires: [],
-    measure: { kind: 'measured', drill: 'tuner', metric: 'cents from target, per string' },
+    // Declared measured, with a drill named, and there was nothing behind it: no
+    // tuning has ever reached the practice log, so the standing had no value and
+    // no bar and could never move off "ready" however often the guitar was
+    // tuned. A skill the taxonomy says the app grades and the app never grades
+    // is the exact dishonesty this column exists to prevent, so it is filed
+    // where it actually stands: the signal is already there, the recording is
+    // the part that is missing.
+    measure: {
+      kind: 'measurable',
+      needs:
+        'a tuning check written to the day, which the tuner never does. It already ' +
+        'reports cents per string, accurate to a fraction of one, and keeps none of it',
+      metric: 'strings inside a few cents at the start of a session',
+    },
     lessons: ['b1-101'],
   },
   {

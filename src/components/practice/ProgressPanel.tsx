@@ -10,7 +10,8 @@ import {
   type DrillStat,
   type Trend,
 } from '../../lib/drillStats';
-import { readiness, CHANGES_BAR, type Readiness } from '../../lib/readiness';
+import { readiness, CHANGES_BAR, ROTATION_BAR, type Readiness } from '../../lib/readiness';
+import { parseRingKey } from '../../lib/drillKeys';
 import { restAdvice, computeXp } from '../../lib/xp';
 import { getTodayString, useUserData } from '../../store';
 import { ProgressChart } from './ProgressChart';
@@ -21,22 +22,35 @@ import './progress.css';
  * Whether this drill's number can be repeated, where the app is entitled to an
  * opinion about it.
  *
- * Chord changes only, for now, and not because the other drills matter less.
- * The anchor rotation and Chord Perfect store their results under the task's
- * id, so editing or rebuilding a routine silently truncates their history, and
- * "held on your last three runs" read off a series that can lose its beginning
- * is a claim the app has not earned. Chord pairs are keyed by the pair itself
- * and survive everything, which is why they can carry the mark today.
+ * What decides it is having a bar, not what kind of drill it is. This used to
+ * be chord pairs only, because everything else was filed under a task id and
+ * lost its beginning whenever a routine was rebuilt; keys name what was played
+ * now (src/lib/drillKeys.ts), so an anchor ring survives the same way a pair
+ * always did and is judged against its own bar.
+ *
+ * Chord Perfect still carries no mark, and that is a statement about the number
+ * rather than about the drill. A pool score is every placement in a block, and
+ * lib/readiness.ts has no bar for placements: CHORD_BAR is a change rate. A
+ * "held" chip against a bar the app invented on the spot would be exactly the
+ * kind of unearned verdict this file exists to avoid.
  */
 function readinessOf(stat: DrillStat, today: string): Readiness | null {
-  if (stat.kind !== 'pair') return null;
-  return readiness(stat.series, CHANGES_BAR, today);
+  if (stat.kind === 'pair') return readiness(stat.series, CHANGES_BAR, today);
+  if (parseRingKey(stat.key)) return readiness(stat.series, ROTATION_BAR, today);
+  return null;
 }
 
 // What the chart's axis is actually counting, in words.
+//
+// Read off the stat's own unit rather than guessed from what it is not. A key
+// the app can no longer identify carries an empty unit, and the old else-branch
+// labelled those "changes per drill" on the strength of not being placements,
+// which is a claim about a number whose drill is exactly what has been lost.
 function unitLabel(stat: DrillStat): string {
   if (stat.kind === 'pair') return 'changes / min';
-  return stat.unit === 'placed' ? 'shapes placed' : 'changes per drill';
+  if (stat.unit === 'placed') return 'shapes placed';
+  if (stat.unit === 'changes') return 'changes per drill';
+  return 'result';
 }
 
 const MONTHS = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

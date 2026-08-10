@@ -7,7 +7,7 @@
 
 import type { DailyLog, Routine } from '../types';
 import { DRILL_UNIT } from './drills';
-import { parsePairKey } from './pairs';
+import { describeDrillKey, isDrillKey } from './drillKeys';
 
 export interface HistoryResult {
   key: string;
@@ -54,6 +54,12 @@ const REMOVED: Labelled = { label: 'A drill since removed', unit: '' };
  * thousands of results, and looking each one up by walking every task of every
  * routine turned reading the history into a nested loop over data that never
  * changes inside the call.
+ *
+ * A key that names what was played answers for itself, and is asked first: the
+ * task index only knows about keys written under a task id, and a `pool:` or
+ * `ring:` number falling through it would be labelled "A drill since removed" on
+ * the day it was practised. Task ids stay behind it for the history recorded
+ * before drillKeys.ts existed and never aliased.
  */
 function makeLabeller(routines: readonly Routine[]): (key: string) => Labelled {
   const byTaskId = new Map<string, Labelled>();
@@ -66,20 +72,17 @@ function makeLabeller(routines: readonly Routine[]): (key: string) => Labelled {
       });
     }
   }
-  const pairs = new Map<string, Labelled>();
+  const drills = new Map<string, Labelled>();
   return (key) => {
-    const known = byTaskId.get(key);
-    if (known) return known;
-    const cached = pairs.get(key);
-    if (cached) return cached;
-    const pair = parsePairKey(key);
-    if (!pair) return REMOVED;
-    const labelled = {
-      label: `${pair.from} to ${pair.to}`,
-      unit: DRILL_UNIT['one-minute-changes'],
-    };
-    pairs.set(key, labelled);
-    return labelled;
+    if (isDrillKey(key)) {
+      const cached = drills.get(key);
+      if (cached) return cached;
+      const { label, unit } = describeDrillKey(key);
+      const labelled = { label, unit };
+      drills.set(key, labelled);
+      return labelled;
+    }
+    return byTaskId.get(key) ?? REMOVED;
   };
 }
 
@@ -138,9 +141,13 @@ export function buildHistory(
 
     // Routines are read as they stand now, so an edited routine can claim fewer
     // tasks than the day actually completed. "5 of 3 done" is not a fact about
-    // that day, so the comparison is dropped rather than repaired.
+    // that day, so the comparison is dropped rather than repaired. An empty
+    // routine goes the same way: it planned nothing, and "0 of 0 done" is not a
+    // report of a day, it is what a missing denominator looks like when nobody
+    // checked. The day still says what it did, above.
     const taskCount = routine?.tasks.length ?? null;
-    const planned = taskCount !== null && completed <= taskCount ? taskCount : null;
+    const planned =
+      taskCount !== null && taskCount > 0 && completed <= taskCount ? taskCount : null;
 
     days.push({
       date,

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useUserData } from '../store';
+import { useDrillLogs, useUserData } from '../store';
 import { allStandings, type SkillStanding } from '../lib/progression';
 
 const NO_CLAIMS: string[] = [];
@@ -13,8 +13,9 @@ const NO_CLAIMS: string[] = [];
  * folding the entire practice history on every keystroke elsewhere.
  */
 export function useProgression(): SkillStanding[] {
-  const data = useUserData();
-  const dailyLogs = data.dailyLogs;
-  const claimed = data.claimedSkills ?? NO_CLAIMS;
+  // The resolved logs, so a drill whose task has since been rebuilt still counts
+  // toward the skill it was evidence for.
+  const dailyLogs = useDrillLogs();
+  const claimed = useUserData().claimedSkills ?? NO_CLAIMS;
   return useMemo(() => allStandings(dailyLogs, claimed), [dailyLogs, claimed]);
 }

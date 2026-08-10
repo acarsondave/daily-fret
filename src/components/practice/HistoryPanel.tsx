@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { CaretDownIcon, TrophyIcon } from '../icons';
-import { getTodayString, useUserData } from '../../store';
+import { getTodayString, useDrillLogs, useUserData } from '../../store';
 import { buildHistory, weeklyTotals, type HistoryDay } from '../../lib/history';
 import { EmptyState } from './EmptyState';
 import './history.css';
@@ -31,6 +31,12 @@ interface Props {
 
 export function HistoryPanel({ onStartSession }: Props) {
   const data = useUserData();
+  // Through the resolver, like every other reading of the history: a number
+  // filed under the id of a task that has since been deleted is named by the
+  // alias map, and read raw it would be listed as "a drill since removed" on a
+  // day the player can remember practising. The routines still come from the
+  // account, because the plan a day was run against is not a drill result.
+  const drillLogs = useDrillLogs();
   const [shown, setShown] = useState(PAGE);
   // `undefined` means the player has not chosen yet, which is not the same as
   // having closed everything: the newest day opens itself so the tab answers
@@ -38,8 +44,8 @@ export function HistoryPanel({ onStartSession }: Props) {
   const [open, setOpen] = useState<string | null | undefined>(undefined);
 
   const days = useMemo(
-    () => buildHistory(data.dailyLogs, data.routines),
-    [data.dailyLogs, data.routines],
+    () => buildHistory(drillLogs, data.routines),
+    [drillLogs, data.routines],
   );
   const weeks = useMemo(
     () => weeklyTotals(days, getTodayString()).slice(-WEEKS_SHOWN),

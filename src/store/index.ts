@@ -2,14 +2,20 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Routine, DailyLog, Task } from '../types';
 import {
-  applyMeasurement,
+  applyMeasurements,
   applyStated,
   applyTime,
   blankLog,
   clearRecord,
   settle,
+  type DrillMeasurement,
   type TimedOutcome,
 } from './completion';
+import {
+  captureDrillKeyAliases,
+  mergeDrillKeyAliases,
+  resolveDrillLogs,
+} from '../lib/drillKeys';
 import type { Song } from '../data/songs';
 import type { StrumPattern } from '../data/strumPatterns';
 import type { CalibrationData, ChordCalibration } from '../audio/calibration';
@@ -106,6 +112,20 @@ export interface UserData {
   // there is no default reminder, because an app that starts notifying you
   // without being asked is one you turn off rather than tune.
   reminder?: ReminderSettings;
+  // What a task id used to mean, for the two drills that once filed their
+  // results under one.
+  //
+  // Chord Perfect and the anchor rotation wrote their numbers under the id of
+  // the task they were launched from, so renaming, rebuilding or regenerating a
+  // routine orphaned every one of them. They are keyed by what was played now
+  // (src/lib/drillKeys.ts), and this map is the only thing left that can say
+  // what a given task id was drilling. It is captured from the routines the
+  // first time this build loads them and is append-only after that, because the
+  // task an entry describes may already be gone by the time anything asks.
+  //
+  // Nothing rewrites a day. Old logs are read through this map and stay on disk
+  // exactly as they were recorded.
+  drillKeyAliases?: Record<string, string>;
   // Epoch ms of the last local mutation to this account. Drives conflict
   // resolution against the cloud copy. Older/legacy data defaults to 0.
   updatedAt: number;
@@ -143,9 +163,10 @@ interface AppState {
   // The four doors onto a day's record. Nothing else writes completion, and the
   // rules they apply live in ./completion.ts rather than in any call site.
   //
-  // A drill run reported a number. Zero is recorded as an attempt the app could
-  // not hear, never as a result. Does not complete the task on its own.
-  recordMeasurement: (date: string, taskId: string, value: number, resultKey?: string) => void;
+  // A drill run reported its numbers, each under the key naming what was
+  // played. Zero is recorded as an attempt the app could not hear, never as a
+  // result. Does not complete the task on its own.
+  recordMeasurements: (date: string, taskId: string, results: readonly DrillMeasurement[]) => void;
   // A timer for this task ran. Reaching the end is what earns the completion.
   recordTime: (date: string, taskId: string, outcome: TimedOutcome) => void;
   // This task is finished with for now: complete it if the evidence supports it.
@@ -254,10 +275,12 @@ export const useStore = create<AppState>()(
             return state;
           }
 
+          const routines = data.routines?.length
+            ? data.routines
+            : local?.routines ?? defaultUserData.routines;
+
           const merged: UserData = {
-            routines: data.routines?.length
-              ? data.routines
-              : local?.routines ?? defaultUserData.routines,
+            routines,
             dailyLogs: data.dailyLogs ?? local?.dailyLogs ?? {},
             activeRoutineId:
               data.activeRoutineId ??
@@ -278,6 +301,15 @@ export const useStore = create<AppState>()(
             leftHanded: data.leftHanded ?? local?.leftHanded,
             currentLesson: data.currentLesson ?? local?.currentLesson,
             reminder: data.reminder ?? local?.reminder,
+            // Unioned rather than picked, then topped up from whatever routines
+            // won the merge. Each device captures its own aliases, so the cloud
+            // copy and the local one can each hold task ids the other has never
+            // seen, and dropping either side would orphan the numbers filed
+            // under it. Nothing here can overwrite an entry.
+            drillKeyAliases: captureDrillKeyAliases(
+              routines,
+              mergeDrillKeyAliases(local?.drillKeyAliases, data.drillKeyAliases),
+            ),
             updatedAt: remoteUpdatedAt,
           };
 
@@ -419,9 +451,9 @@ export const useStore = create<AppState>()(
           }));
         }),
 
-        recordMeasurement: (date, taskId, value, resultKey) =>
+        recordMeasurements: (date, taskId, results) =>
           set((state) => mutate(state, (a) => writeLog(a, date, (log) =>
-            applyMeasurement(log, taskId, value, now(), resultKey)))),
+            applyMeasurements(log, taskId, results, now())))),
 
         recordTime: (date, taskId, outcome) =>
           set((state) => mutate(state, (a) => writeLog(a, date, (log) =>
@@ -648,14 +680,57 @@ export const useStore = create<AppState>()(
     },
     {
       name: 'daily-fret-storage',
+      // Snapshot what every task drills the moment the routines come back off
+      // disk, before anything the user does can edit that connection away. This
+      // is the migration's one write, and it deliberately does not touch
+      // `updatedAt`: it is derived knowledge rather than an edit, and stamping
+      // it as one would let a device that has just woken up win a
+      // last-write-wins merge against another device's newer practice.
+      merge: (persisted, current) => {
+        const state = { ...current, ...(persisted as Partial<AppState>) };
+        const accounts: Record<string, UserData> = {};
+        // Storage that has lost its accounts is storage this cannot repair, and
+        // throwing here would leave the app on the loader with no way back in.
+        for (const [id, acc] of Object.entries(state.accounts ?? current.accounts)) {
+          const aliases = captureDrillKeyAliases(acc.routines ?? [], acc.drillKeyAliases);
+          accounts[id] = aliases === acc.drillKeyAliases ? acc : { ...acc, drillKeyAliases: aliases };
+        }
+        return { ...state, accounts };
+      },
     },
   ),
 );
+
+// Flush the alias capture that `merge` just did in memory.
+//
+// Zustand only writes the persisted copy when something changes the state, so
+// without this the map would sit in memory until the user's next edit and a
+// session where nothing else was written would lose it. That is precisely the
+// session that matters: the map has to outlive the routines it was read from.
+// Each account object keeps its identity, so this writes the file without
+// looking like an edit to the cloud sync watching for one.
+useStore.setState((state) => ({ accounts: state.accounts }));
 
 // Selector hook for convenience. Subscribes to *only* the current account slice
 // (not the whole store) so unrelated state changes don't re-render every
 // consumer — and the slice reference is stable until that account mutates.
 export const useUserData = () =>
   useStore((s) => s.accounts[s.currentAccountId] ?? defaultUserData);
+
+/**
+ * The practice logs with every result under the key it would be written under
+ * today.
+ *
+ * The stored days are untouched; this is a read adapter over them (see
+ * src/lib/drillKeys.ts). Every analysis of the history goes through here rather
+ * than through `useUserData().dailyLogs`, because a reader that skips it sees
+ * the last few months of Chord Perfect and anchor-rotation numbers as belonging
+ * to task ids and therefore to nothing.
+ */
+export const drillLogsOf = (acc: UserData): Record<string, DailyLog> =>
+  resolveDrillLogs(acc.dailyLogs, acc.drillKeyAliases);
+
+export const useDrillLogs = (): Record<string, DailyLog> =>
+  useStore((s) => drillLogsOf(s.accounts[s.currentAccountId] ?? defaultUserData));
 
 export { getTodayString, defaultUserData };

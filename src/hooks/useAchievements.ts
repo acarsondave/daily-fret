@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useUserData } from '../store';
+import { useDrillLogs, useUserData } from '../store';
 import { useProgression } from './useProgression';
 import { computeXp, levelFor } from '../lib/xp';
 import { evaluateAchievements, type EarnedAchievement } from '../data/achievements';
@@ -19,10 +19,15 @@ export interface Standing {
  */
 export function useAchievements(): Standing {
   const dailyLogs = useUserData().dailyLogs;
+  // Points are replayed off the days exactly as they were written, so this
+  // screen and Progress can never disagree about a total. What a *drill* is
+  // worth has to be read through the resolved keys, or a rebuilt routine would
+  // look like a personal best being set from nothing.
+  const drillLogs = useDrillLogs();
   const standings = useProgression();
   return useMemo(() => {
     const xp = computeXp(dailyLogs);
-    const evidence = readEvidence(dailyLogs);
+    const evidence = readEvidence(drillLogs);
     const bests = new Map(evidence.pairs);
     for (const [key, value] of evidence.tasks) bests.set(key, value);
     return {
@@ -30,5 +35,5 @@ export function useAchievements(): Standing {
       level: levelFor(xp.total),
       achievements: evaluateAchievements({ xp, bests, standings }),
     };
-  }, [dailyLogs, standings]);
+  }, [dailyLogs, drillLogs, standings]);
 }

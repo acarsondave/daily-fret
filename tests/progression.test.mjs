@@ -2,6 +2,7 @@ import { allStandings, nextUp, provenChords, readEvidence, CHANGES_BAR, CHORD_BA
   from '../src/lib/progression.ts';
 import { ALL_SKILLS } from '../src/data/skills.ts';
 import { pairKey } from '../src/lib/pairs.ts';
+import { chordKey, poolKey, ringKey } from '../src/lib/drillKeys.ts';
 
 let failures = 0;
 const check = (l, ok, d) => { if (!ok) failures++; console.log(`  ${ok?'ok  ':'FAIL'}  ${l}${d?' — '+d:''}`); };
@@ -38,7 +39,7 @@ console.log('\nThe owner\'s real shape: A/D/E consolidated, minors coming along\
   const st = allStandings(logs([
     { [pairKey('A','D')]: 88, [pairKey('D','E')]: 90, [pairKey('A','E')]: 75 },
     { [pairKey('Am','Em')]: 52, [pairKey('D','Em')]: 60, [pairKey('Am','E')]: 42 },
-    { [pairKey('Dm','Am')]: 18, 'task-rotation': 60 },
+    { [pairKey('Dm','Am')]: 18, [ringKey(['D','A','E'])]: 60 },
   ]), ['technique.finger-placement']);
 
   check('a chord used at speed reads as solid', find(st, 'chord.A').state === 'solid',
@@ -49,7 +50,7 @@ console.log('\nThe owner\'s real shape: A/D/E consolidated, minors coming along\
     find(st, 'chord.C').evidence);
   check('the changes skill clears Justin\'s gate', find(st, 'changes.one-minute').state === 'solid',
     find(st, 'changes.one-minute').evidence);
-  check('anchor rotation reads the task-keyed result', find(st, 'technique.anchor-fingers').best === 60,
+  check('anchor rotation reads the ring it was turned on', find(st, 'technique.anchor-fingers').best === 60,
     find(st, 'technique.anchor-fingers').evidence);
   check('proven chords are the ones actually proven',
     provenChords(st).sort().join(' ') === 'A Am D E Em', provenChords(st).sort().join(' '));

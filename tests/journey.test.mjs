@@ -226,11 +226,11 @@ console.log('\nWhat the panel is allowed to say\n');
   const four = moduleByNumber(4);
   check('module 0 reads as taught rather than drilled',
     shapeOf(zero, moduleContent(zero, standings)) ===
-      'This module: 1 to practise and 4 taught but not drilled, across 6 lessons.',
+      "Of this module's 6 lessons, Daily Fret maps 1 to practise and 4 taught but not drilled.",
     shapeOf(zero, moduleContent(zero, standings)));
   check('module 4 reads as practice',
     shapeOf(four, moduleContent(four, standings)) ===
-      'This module: 6 to practise and 1 taught but not drilled, across 8 lessons.',
+      "Of this module's 8 lessons, Daily Fret maps 6 to practise and 1 taught but not drilled.",
     shapeOf(four, moduleContent(four, standings)));
   check('an unmapped module says so rather than claiming nothing to do',
     shapeOf(moduleByNumber(16), moduleContent(moduleByNumber(16), standings))

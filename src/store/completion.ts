@@ -58,6 +58,17 @@ function withCompletion(log: DailyLog, taskId: string): DailyLog {
   return { ...log, completedTaskIds: [...log.completedTaskIds, taskId] };
 }
 
+/** One number a drill produced, and what it is a number about. */
+export interface DrillMeasurement {
+  /**
+   * Where the number is filed. Names what was played, never which task it was
+   * played from: see src/lib/drillKeys.ts for the vocabulary and for why this
+   * is not allowed to fall back to the task id.
+   */
+  key: string;
+  value: number;
+}
+
 /**
  * A drill run ended and reported a number.
  *
@@ -80,12 +91,11 @@ function withCompletion(log: DailyLog, taskId: string): DailyLog {
 export function applyMeasurement(
   log: DailyLog,
   taskId: string,
-  value: number,
+  result: DrillMeasurement,
   at: number,
-  resultKey?: string,
 ): DailyLog {
   const previous = recordFor(log, taskId);
-  const heard = Number.isFinite(value) && value > 0;
+  const heard = Number.isFinite(result.value) && result.value > 0;
   if (!heard) {
     return withRecord(log, taskId, {
       ...previous,
@@ -93,7 +103,7 @@ export function applyMeasurement(
       at,
     });
   }
-  const key = resultKey ?? taskId;
+  const { key, value } = result;
   const best = Math.max(log.drillResults?.[key] ?? 0, value);
   const runs = [...(log.drillRuns?.[key] ?? []), { value, at }].slice(-MAX_RUNS_PER_KEY);
   const measured: DailyLog = {
@@ -102,6 +112,25 @@ export function applyMeasurement(
     drillRuns: { ...log.drillRuns, [key]: runs },
   };
   return withRecord(measured, taskId, { ...previous, evidence: 'measured', at });
+}
+
+/**
+ * Everything one run of a drill produced, applied together.
+ *
+ * Chord Perfect is the reason this exists. It scores a block across a pool of
+ * shapes and it also knows what each shape earned, and both are worth keeping:
+ * the block's total is the number that can be compared session to session, and
+ * the per-shape counts are the only thing that can say which shape is holding
+ * the total back. They come from one run, so they share one timestamp and land
+ * in one write.
+ */
+export function applyMeasurements(
+  log: DailyLog,
+  taskId: string,
+  results: readonly DrillMeasurement[],
+  at: number,
+): DailyLog {
+  return results.reduce((acc, result) => applyMeasurement(acc, taskId, result, at), log);
 }
 
 /**
@@ -208,8 +237,8 @@ export function settle(log: DailyLog, taskId: string): DailyLog {
  *
  * Deliberately leaves `drillResults` alone. What is being corrected is the claim
  * that the task is done, not the measurement: the app heard what it heard, and
- * chord-change results are keyed by pair rather than by task, so deleting them
- * here would quietly destroy another task's numbers too.
+ * results are keyed by what was played rather than by the task it was played
+ * from, so deleting them here would quietly destroy another task's numbers too.
  */
 export function clearRecord(log: DailyLog, taskId: string): DailyLog {
   const next: DailyLog = {
