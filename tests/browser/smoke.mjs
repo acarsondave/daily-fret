@@ -77,10 +77,161 @@ const sideways = (page) =>
   console.log('\nThe day\'s practice\n');
   const { ctx, page, errors } = await open(seed());
   check('the routine renders', (await page.locator('.task-row').count()) === 2);
-  check('a drill is launchable', (await page.locator('.task-drill-btn').count()) >= 1);
+  check('every task is startable', (await page.locator('.task-go').count()) === 2);
+  check('nothing asks to be ticked', (await page.locator('[aria-pressed]').count()) === 0);
   check('no sideways scroll', (await sideways(page)) <= 0);
   check('no console errors', errors.length === 0, errors.join(' | '));
   await ctx.close();
+}
+
+// --- the day's record ------------------------------------------------------
+// The list used to ask the player to tick off what the app had just listened to.
+// It records instead. These drive the paths that produce each state, and then
+// the one path that lets the player disagree with it.
+{
+  console.log('\nThe day records itself\n');
+
+  const routine = {
+    id: 'r1', name: 'Recording', description: '', isDefault: true,
+    tasks: [
+      { id: 'q1', title: 'Quick block', blocks: [{ id: 'b1', label: 'Quick block', durationSec: 3 }] },
+      { id: 'q2', title: 'Long block', blocks: [{ id: 'b2', label: 'Long block', durationSec: 600 }] },
+      { id: 'q3', title: 'Never started', duration: '5' },
+    ],
+  };
+  const { ctx, page, errors } = await open(
+    seed({ routines: [routine], dailyLogs: {} }),
+    { width: 1280, height: 1000 },
+  );
+
+  const row = (title) => page.locator('.task-row', { hasText: title });
+  const stored = () => page.evaluate(() => {
+    const acc = JSON.parse(localStorage.getItem('daily-fret-storage')).state.accounts.anonymous;
+    const key = Object.keys(acc.dailyLogs).sort().pop();
+    return acc.dailyLogs[key] ?? null;
+  });
+
+  // A task run to the end completes itself, with no tick anywhere in the path.
+  await row('Quick block').click();
+  await page.waitForSelector('.practice-overlay');
+  await page.waitForSelector('.practice-overlay', { state: 'detached', timeout: 20000 });
+  const afterRun = await stored();
+  check('running a task to the end completes it', afterRun?.completedTaskIds.includes('q1'));
+  check('recorded as time, not as a tick', afterRun?.taskRecords?.q1?.evidence === 'timed');
+  check('and the clock is on the record', afterRun?.taskRecords?.q1?.ranToEnd === true);
+  check('the row states what happened',
+    /practised/.test(await row('Quick block').innerText()), await row('Quick block').innerText());
+
+  // Walking out half-way is honest about itself: the time it ran, and no claim.
+  await row('Long block').click();
+  await page.waitForSelector('.practice-overlay');
+  await page.waitForTimeout(6500);
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('.practice-overlay', { state: 'detached' });
+  const afterLeaving = await stored();
+  check('abandoning a task does not complete it', !afterLeaving?.completedTaskIds.includes('q2'));
+  check('but the time it really ran is kept', (afterLeaving?.taskRecords?.q2?.seconds ?? 0) >= 5);
+  check('and the day knows the clock never ran out',
+    afterLeaving?.taskRecords?.q2?.ranToEnd === false);
+  check('the row says so rather than nothing',
+    /so far/.test(await row('Long block').innerText()), await row('Long block').innerText());
+
+  // The player disagreeing with the record, and it sticking.
+  await row('Never started').click({ button: 'right' });
+  await page.waitForSelector('.context-menu-content');
+  await page.getByRole('menuitem', { name: 'I did this' }).click();
+  await page.waitForTimeout(300);
+  const afterSaying = await stored();
+  check('saying so completes the task', afterSaying?.completedTaskIds.includes('q3'));
+  check('kept as the player\'s word, not as evidence',
+    afterSaying?.taskRecords?.q3?.stated === true && afterSaying?.taskRecords?.q3?.evidence === undefined);
+  check('and the row attributes it to them',
+    /Marked done by you/.test(await row('Never started').innerText()));
+
+  // And taking it back.
+  await row('Never started').click({ button: 'right' });
+  await page.waitForSelector('.context-menu-content');
+  await page.getByRole('menuitem', { name: "Clear today's record" }).click();
+  await page.waitForTimeout(300);
+  const afterClearing = await stored();
+  check('clearing it sticks too', !afterClearing?.completedTaskIds.includes('q3'));
+  check('and forgets how it came about', afterClearing?.taskRecords?.q3 === undefined);
+  check('while never touching what was measured',
+    JSON.stringify(afterClearing?.drillResults ?? {}) === JSON.stringify(afterRun?.drillResults ?? {}));
+
+  check('no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
+// --- the day's list, in every state it can be in ---------------------------
+{
+  console.log('\nEvery state a row can be in\n');
+  const today = iso(new Date());
+  const routine = {
+    id: 'r1', name: 'Module 4 Daily', description: '', isDefault: true,
+    tasks: [
+      { id: 't1', title: 'Chord Perfect', duration: '10', drill: { kind: 'chord-trainer', durationSec: 90, chords: ['Am', 'Em'] } },
+      { id: 't2', title: 'Spider walk', duration: '5', description: 'Start at the 1st fret, alternate picking.' },
+      { id: 't3', title: 'Strumming', duration: '5' },
+      { id: 't4', title: 'One-minute changes', duration: '5', drill: { kind: 'one-minute-changes', durationSec: 60, chords: ['A', 'D'] } },
+    ],
+  };
+  const states = {
+    nothing: {},
+    partway: {
+      [today]: {
+        date: today, routineId: 'r1', completedTaskIds: ['t1'],
+        drillResults: { t1: 19 },
+        drillRuns: { t1: [{ value: 17, at: 1 }, { value: 19, at: 2 }] },
+        taskRecords: {
+          t1: { evidence: 'measured', at: 1 },
+          t2: { evidence: 'timed', seconds: 128, ranToEnd: false, at: 1 },
+          t4: { evidence: 'silent', at: 1 },
+        },
+      },
+    },
+    everything: {
+      [today]: {
+        date: today, routineId: 'r1', completedTaskIds: ['t1', 't2', 't3', 't4'],
+        drillResults: { t1: 17, [pair('A', 'D')]: 46 },
+        taskRecords: {
+          t1: { evidence: 'measured', at: 1 },
+          t2: { evidence: 'timed', seconds: 300, ranToEnd: true, at: 1 },
+          t3: { stated: true, at: 1 },
+          t4: { evidence: 'measured', at: 1 },
+        },
+      },
+    },
+  };
+
+  for (const [name, dailyLogs] of Object.entries(states)) {
+    for (const [tag, viewport] of [['390', { width: 390, height: 844 }], ['1280', { width: 1280, height: 1000 }]]) {
+      const { ctx, page, errors } = await open(seed({ routines: [routine], dailyLogs }), viewport);
+      await page.waitForTimeout(600);
+      if (name === 'partway' && tag === '1280') {
+        check('a drill run twice says so',
+          /2 runs/.test(await page.locator('.task-row', { hasText: 'Chord Perfect' }).innerText()));
+      }
+      if (name === 'everything' && tag === '1280') {
+        // The one distinction the whole thing rests on: what the app saw, and
+        // what it was told, must never look the same.
+        check('a completion resting on the player\'s word is marked apart',
+          (await page.locator('.task-row.is-stated').count()) === 1);
+        check('and the measured ones are not', (await page.locator('.task-row.is-done').count()) === 4);
+      }
+      // Everything done pops the reflection note over the list; dismiss it so the
+      // shot is of the list rather than of the sheet on top of it.
+      const jotter = page.locator('.jotter-done-btn');
+      if (await jotter.count()) {
+        await jotter.click();
+        await page.waitForTimeout(400);
+      }
+      await page.screenshot({ path: `${OUT}/day-${name}-${tag}.png` });
+      check(`${name} at ${tag}: no sideways scroll`, (await sideways(page)) <= 0);
+      check(`${name} at ${tag}: no console errors`, errors.length === 0, errors.join(' | '));
+      await ctx.close();
+    }
+  }
 }
 
 // --- Progress, on the smallest phone --------------------------------------
@@ -177,6 +328,8 @@ const sideways = (page) =>
   await page.click('.account-btn');
   await page.waitForSelector('.guitar-list');
   await page.waitForTimeout(700);
+  check('settings open on the setup group',
+    (await page.locator('.settings-rail-btn.is-on').innerText()).includes('Your setup'));
   check('both guitars are listed', (await page.locator('.guitar-row').count()) === 2);
   check('one is in use', (await page.locator('.guitar-row.is-active').count()) === 1);
   check('an uncalibrated one says so',
@@ -187,7 +340,9 @@ const sideways = (page) =>
   check('switching guitars works',
     (await page.locator('.guitar-row.is-active .guitar-name').innerText()) === 'Nylon');
 
-  const panel = await page.locator('.mic-setting', { hasText: 'Practice reminder' }).innerText();
+  await page.locator('.settings-rail-label', { hasText: /^Practice$/ }).click();
+  await page.waitForSelector('.reminder-days');
+  const panel = await page.locator('.setting-block', { hasText: 'Practice reminder' }).innerText();
   check('the calendar route is named the reliable one', /This is the reliable one/.test(panel));
   check('the notification route states its limit', /cannot wake a sleeping phone/.test(panel));
   check('seven day toggles on one row', await page.evaluate(() => {
@@ -196,6 +351,44 @@ const sideways = (page) =>
   }));
 
   await page.screenshot({ path: `${OUT}/settings-375.png`, fullPage: true });
+  check('no sideways scroll', (await sideways(page)) <= 0);
+  check('no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
+// --- the capo, without opening settings ------------------------------------
+// A capo transposes everything the detector hears, so a wrong one silently stops
+// every drill counting. It has to be reachable and readable from the practice
+// screen, not three taps down.
+{
+  console.log('\nQuick setup in the header\n');
+  const { ctx, page, errors } = await open(seed(), { width: 390, height: 850 });
+
+  await page.click('.quick-setup-btn');
+  await page.waitForSelector('.quick-setup-panel');
+  check('the capo is one tap from practice', (await page.locator('.capo-fret').count()) === 8);
+  check('the microphone came with it', (await page.locator('.mic-setting-select').count()) === 1);
+
+  await page.getByRole('radio', { name: 'Capo on fret 2' }).click();
+  await page.waitForTimeout(200);
+  check('the header states the capo it assumes',
+    (await page.locator('.quick-setup-btn').innerText()).trim() === 'Capo 2');
+  check('and the store agrees', await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('daily-fret-storage')).state.accounts.anonymous.capoFret === 2));
+
+  // One Escape, one layer: the popover closes and nothing underneath does.
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(250);
+  check('Escape closes exactly the popover', (await page.locator('.quick-setup-panel').count()) === 0
+    && (await page.locator('.task-container').count()) === 1);
+
+  await page.click('.quick-setup-btn');
+  await page.waitForSelector('.quick-setup-panel');
+  await page.getByRole('button', { name: 'All settings' }).click();
+  await page.waitForSelector('.settings-surface');
+  check('and it hands over to the full surface',
+    (await page.locator('.quick-setup-panel').count()) === 0);
+
   check('no sideways scroll', (await sideways(page)) <= 0);
   check('no console errors', errors.length === 0, errors.join(' | '));
   await ctx.close();

@@ -1,5 +1,14 @@
 # Curriculum data
 
+> **Superseded.** This describes the sitemap-derived build, which was replaced
+> on 2026-08-09 by a capture of each lesson page's own published JSON. Its
+> conclusions are no longer true: the lesson pages are readable, module
+> membership and taught order come from the site rather than from parsing lesson
+> codes, and Grade 3 is present (its lessons are coded `BG-15xx` to `BG-22xx`,
+> which is why every search for `b3-` came back empty). See
+> **`curriculum/README.md`** for the current source of truth. Kept for the
+> record of what was tried.
+
 Where the course structure comes from, what we do and do not take, and why.
 
 ## Source

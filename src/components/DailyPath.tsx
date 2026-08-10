@@ -1,6 +1,8 @@
-import { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import {
+  useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import { useStore, useUserData, getTodayString } from '../store';
-import { useDrillStats } from '../hooks/useDrillStats';
 import { TaskRow } from './TaskRow';
 import { Modal } from './Modal';
 import { Loader } from './Loader';
@@ -10,6 +12,8 @@ import { PracticeNudge } from './PracticeNudge';
 import { useUndoStore, type TaskDeletion } from '../store/undo';
 import { RoutineManagerModal } from './RoutineManagerModal';
 import { ProgressPanel } from './practice/ProgressPanel';
+import { TunerLauncher } from './practice/TunerLauncher';
+import { preloadTuner } from './practice/tunerChunk';
 import { sanitizeMinutes } from '../lib/coached';
 import type { Task } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -33,7 +37,9 @@ const PracticeOverlay = lazy(() =>
 const CoachedSession = lazy(() =>
   import('./practice/CoachedSession').then((m) => ({ default: m.CoachedSession })),
 );
-const Tuner = lazy(() => import('./practice/Tuner').then((m) => ({ default: m.Tuner })));
+// The tuner is fetched by TunerLauncher rather than by lazy()/Suspense, which
+// has no timeout and no retry: see the note at the top of that file.
+
 // The Journey pulls the whole curriculum (650 lessons) and the Awards panel
 // pulls the achievement set. Neither is needed to paint the day's tasks, and
 // eagerly importing them put 40 kB gzipped in front of every first load for a
@@ -49,6 +55,15 @@ const HistoryPanel = lazy(() =>
 );
 // First run only, and it reaches the curriculum through the routine builder.
 const Onboarding = lazy(() => import('./Onboarding').then((m) => ({ default: m.Onboarding })));
+
+type ProgressView = 'journey' | 'numbers' | 'awards' | 'history';
+
+const PROGRESS_VIEWS: ReadonlyArray<{ id: ProgressView; label: string }> = [
+  { id: 'journey', label: 'Journey' },
+  { id: 'numbers', label: 'Numbers' },
+  { id: 'awards', label: 'Awards' },
+  { id: 'history', label: 'History' },
+];
 
 const INLINE_STEPS = ['title', 'description', 'duration'] as const;
 const INLINE_HINTS: Record<(typeof INLINE_STEPS)[number], string> = {
@@ -77,7 +92,24 @@ export function DailyPath() {
   // Progress answers "how fast", Journey answers "where am I". They are two
   // views of the same question and live behind one button rather than adding a
   // fourth thing to the header.
-  const [progressView, setProgressView] = useState<'journey' | 'numbers' | 'awards' | 'history'>('journey');
+  const [progressView, setProgressView] = useState<ProgressView>('journey');
+  const tabRefs = useRef<Partial<Record<ProgressView, HTMLButtonElement | null>>>({});
+
+  // A tablist owes the keyboard arrow keys; without them the roving tabindex
+  // below would leave three of the four tabs unreachable.
+  const onTabKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    const at = PROGRESS_VIEWS.findIndex((v) => v.id === progressView);
+    const next = step !== 0
+      ? PROGRESS_VIEWS[(at + step + PROGRESS_VIEWS.length) % PROGRESS_VIEWS.length]
+      : e.key === 'Home' ? PROGRESS_VIEWS[0]
+      : e.key === 'End' ? PROGRESS_VIEWS[PROGRESS_VIEWS.length - 1]
+      : null;
+    if (!next) return;
+    e.preventDefault();
+    setProgressView(next.id);
+    tabRefs.current[next.id]?.focus();
+  };
   const [isCoachedOpen, setIsCoachedOpen] = useState(false);
   const [isTunerOpen, setIsTunerOpen] = useState(false);
   const [practiceTask, setPracticeTask] = useState<Task | null>(null);
@@ -85,7 +117,6 @@ export function DailyPath() {
   const [limitNotice, setLimitNotice] = useState(false);
   const [onboardingSkipped, setOnboardingSkipped] = useState(false);
 
-  const drillStats = useDrillStats();
   // Deleted tasks wait here in the list, in the gap they left, until the offer
   // expires. Routine deletions have their own strip inside the manager.
   const pendingUndo = useUndoStore((s) => s.pending);
@@ -96,11 +127,12 @@ export function DailyPath() {
       ),
     [pendingUndo, activeRoutineId],
   );
-  const hasProgress = drillStats.any;
 
   // Stable across renders so memoized TaskRows don't re-render when the list
-  // does (e.g. when another task is toggled). The row passes its own task back.
-  const launchDrill = useCallback((task: Task) => setPracticeTask(task), []);
+  // does. The row passes its own task back. Every task is startable now, not
+  // only the ones with a live drill: a task nobody can run inside the app is a
+  // task the app can only ever be told about.
+  const startTask = useCallback((task: Task) => setPracticeTask(task), []);
 
   const routineDropdownRef = useRef<HTMLDivElement>(null);
   const routineTriggerRef = useRef<HTMLButtonElement>(null);
@@ -372,6 +404,11 @@ export function DailyPath() {
 
         <button
           className="progress-launch"
+          // Fetch on the press, not on the release: it buys the download a head
+          // start and keeps the microphone request inside the user gesture that
+          // asked for it, which is what Safari checks.
+          onPointerDown={preloadTuner}
+          onFocus={preloadTuner}
           onClick={() => setIsTunerOpen(true)}
           title="Tune up before you start"
         >
@@ -384,7 +421,7 @@ export function DailyPath() {
         <button
           className="progress-launch"
           onClick={() => {
-            setProgressView(hasProgress ? 'journey' : 'journey');
+            setProgressView('journey');
             setIsProgressOpen(true);
           }}
           title="Where you are, and how you are moving"
@@ -419,7 +456,7 @@ export function DailyPath() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: row.index * 0.03 }}
                   >
-                    <TaskRow routineId={activeRoutine.id} taskId={row.task.id} title={row.task.title} description={row.task.description} duration={row.task.duration} drill={row.task.drill} blocks={row.task.blocks} index={row.index} total={tasks.length} onLaunchDrill={launchDrill} />
+                    <TaskRow routineId={activeRoutine.id} taskId={row.task.id} title={row.task.title} description={row.task.description} duration={row.task.duration} drill={row.task.drill} blocks={row.task.blocks} index={row.index} total={tasks.length} onStart={startTask} />
                   </motion.div>
                 ),
               )}
@@ -604,45 +641,34 @@ export function DailyPath() {
         title="Progress"
         wide
       >
-        <div className="progress-tabs" role="tablist" aria-label="Progress view">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={progressView === 'journey'}
-            className={clsx('progress-tab', progressView === 'journey' && 'is-on')}
-            onClick={() => setProgressView('journey')}
-          >
-            Journey
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={progressView === 'numbers'}
-            className={clsx('progress-tab', progressView === 'numbers' && 'is-on')}
-            onClick={() => setProgressView('numbers')}
-          >
-            Numbers
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={progressView === 'awards'}
-            className={clsx('progress-tab', progressView === 'awards' && 'is-on')}
-            onClick={() => setProgressView('awards')}
-          >
-            Awards
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={progressView === 'history'}
-            className={clsx('progress-tab', progressView === 'history' && 'is-on')}
-            onClick={() => setProgressView('history')}
-          >
-            History
-          </button>
+        {/* These read as tabs to a screen reader, so they have to behave like
+            them: a panel to point at, arrow keys, and one stop in the tab order
+            rather than four. Before this they announced a tablist whose panels
+            did not exist. */}
+        <div className="progress-tabs" role="tablist" aria-label="Progress view" onKeyDown={onTabKey}>
+          {PROGRESS_VIEWS.map((view) => (
+            <button
+              key={view.id}
+              type="button"
+              role="tab"
+              id={`progress-tab-${view.id}`}
+              aria-controls="progress-panel"
+              aria-selected={progressView === view.id}
+              tabIndex={progressView === view.id ? 0 : -1}
+              ref={(el) => { tabRefs.current[view.id] = el; }}
+              className={clsx('progress-tab', progressView === view.id && 'is-on')}
+              onClick={() => setProgressView(view.id)}
+            >
+              {view.label}
+            </button>
+          ))}
         </div>
 
+        <div
+          role="tabpanel"
+          id="progress-panel"
+          aria-labelledby={`progress-tab-${progressView}`}
+        >
         <Suspense fallback={<p className="progress-empty">Reading your practice…</p>}>
           {progressView === 'journey' && <JourneyPanel />}
           {progressView === 'awards' && <AchievementsPanel />}
@@ -668,6 +694,7 @@ export function DailyPath() {
           }}
         />
         )}
+        </div>
       </Modal>
 
       <Suspense fallback={practiceTask ? <Loader overlay label="Tuning up…" /> : null}>
@@ -682,11 +709,9 @@ export function DailyPath() {
         </AnimatePresence>
       </Suspense>
 
-      <Suspense fallback={isTunerOpen ? <Loader overlay label="Listening…" /> : null}>
-        <AnimatePresence>
-          {isTunerOpen && <Tuner key="tuner" onClose={() => setIsTunerOpen(false)} />}
-        </AnimatePresence>
-      </Suspense>
+      <AnimatePresence>
+        {isTunerOpen && <TunerLauncher key="tuner" onClose={() => setIsTunerOpen(false)} />}
+      </AnimatePresence>
 
       <Suspense fallback={isCoachedOpen ? <Loader overlay label="Tuning up…" /> : null}>
         <AnimatePresence>

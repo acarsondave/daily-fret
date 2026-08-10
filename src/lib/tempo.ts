@@ -50,7 +50,11 @@ const FIRST_FACTOR = 0.9; // only one data point, sit under it
 const REGRESS_RATIO = 0.85;
 // ...and this far above is real improvement rather than a good-day wobble.
 const PROGRESS_RATIO = 1.02;
-const RUST_DAYS = 14;
+// How long before a drill's history counts as cold. Exported because the
+// readiness model in lib/readiness.ts has to expire a held result on exactly
+// the same schedule: the click easing off for rust while a mark still called
+// the skill current would be the app contradicting itself on one screen.
+export const RUST_DAYS = 14;
 // How many prior sessions form the baseline the latest one is judged against.
 const BASELINE_WINDOW = 3;
 // The latest session carries more weight than the ones before it, but not all
