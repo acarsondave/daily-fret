@@ -28,7 +28,7 @@ export function useAchievements(): Standing {
     return {
       xp,
       level: levelFor(xp.total),
-      achievements: evaluateAchievements({ logs: dailyLogs, xp, bests, standings }),
+      achievements: evaluateAchievements({ xp, bests, standings }),
     };
   }, [dailyLogs, standings]);
 }

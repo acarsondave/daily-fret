@@ -1,88 +1,65 @@
-/* Points, level and badges. Restrained on purpose: this app's job is to make
-   practice feel worth doing, not to make a game out of it, and a wall of gold
-   trophies would undercut every honest number elsewhere in the product. */
+/* Points, level and awards.
+ *
+ * Restrained on purpose: this app's job is to make practice feel worth doing,
+ * not to make a game out of it, and a wall of gold trophies would undercut every
+ * honest number elsewhere in the product.
+ *
+ * Two colours carry the whole surface, and they mean different things.
+ * `--record-color` is the system's existing token for records, streaks and
+ * personal bests, so it is what an earned award is painted in. `--accent-primary`
+ * is the app's voice for cues and targets, so it marks the thing being aimed at
+ * and nothing else. Earned used to be green, which is the token for a completed
+ * task and made the awards read as a checklist.
+ */
 
 .ach {
+  /* Named once here rather than sprinkled through the rules below. */
+  --ach-mark: 40px;
+  --ach-mark-lg: 52px;
+  --ach-meter-h: 4px;
+  --ach-rung-h: 6px;
+  --ach-tile-min: 170px;
+  /* The earned wash sits well under --record-glow. Nine tiles at the token's own
+     0.13 turned a grid of awards olive; at this weight the gold stays an edge
+     and a mark rather than a fill. */
+  --ach-record-wash: rgba(246, 200, 96, 0.06);
+  --ach-record-fill: rgba(246, 200, 96, 0.11);
+  /* Secondary text on the earned tiles is tinted from their own hue. Neutral
+     grey on a warm surface reads as dirt. */
+  --ach-record-text: #C9BB9C;
+  --ach-rung-passed: rgba(56, 189, 248, 0.42);
+
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
   text-align: left;
 }
 
-/* --- Level ----------------------------------------------------------------- */
+/* --- Standing -------------------------------------------------------------- */
 
-.ach-level {
+.ach-standing {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
   padding: var(--space-5);
   border-radius: var(--radius-xl);
   border: 1px solid var(--border-subtle);
-  background: linear-gradient(140deg, var(--accent-glow), rgba(255, 255, 255, 0.02));
+  background: var(--surface-color);
 }
 
-.ach-level-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-
-.ach-level-number {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 52px;
-  height: 52px;
-  border-radius: var(--radius-full);
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  background: rgba(56, 189, 248, 0.14);
+.ach-standing-title {
   font-family: var(--font-primary);
   font-weight: 600;
   font-size: var(--text-xl);
-  color: var(--accent-primary);
-}
-
-.ach-level-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.ach-level-title {
-  font-family: var(--font-primary);
-  font-weight: 600;
-  font-size: var(--text-lg);
+  line-height: 1.15;
   letter-spacing: var(--tracking-tight);
   color: var(--text-primary);
 }
 
-.ach-level-xp {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-
-/* Dim enough that an empty bar reads as an empty bar. At 0.1 white the track
-   alone looked like a filled one, so a brand-new player's level bar appeared
-   complete before they had played a note. */
-.ach-level-track {
-  display: block;
-  height: 4px;
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.06);
-  overflow: hidden;
-}
-
-.ach-level-fill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent-primary);
-  transition: width var(--dur-slow) var(--ease-out);
-}
-
-.ach-level-next {
+.ach-standing-rank {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
   font-family: var(--font-secondary);
   font-size: var(--text-micro);
   letter-spacing: var(--tracking-label);
@@ -90,18 +67,152 @@
   color: var(--text-muted);
 }
 
-/* --- Breakdown ------------------------------------------------------------- */
+/* The level is the figure that actually moves here, every couple of days early
+   on, so it is sized as a number rather than as part of a caption. The word next
+   to it stays a label. */
+.ach-standing-level {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-lg);
+  line-height: 1;
+  letter-spacing: var(--tracking-tight);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
 
-.ach-breakdown {
+/* The ladder: one rung per named band, evenly spaced because they count bands
+   rather than plot points. The current rung is the only one that fills, and it
+   fills with progress through that band rather than through a level, so it moves
+   slowly on purpose. The last band has no end; its rung fills and stays. */
+.ach-ladder {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.ach-rung {
+  flex: 1;
+  height: var(--ach-rung-h);
+  border-radius: var(--radius-full);
+  background: var(--border-default);
+  overflow: hidden;
+}
+
+.ach-rung.is-passed {
+  background: var(--ach-rung-passed);
+}
+
+/* Dim enough that an empty rung reads as an empty rung. At 0.1 white the track
+   alone looked filled, so a brand-new player's level bar appeared complete
+   before they had played a note. */
+.ach-rung.is-here {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ach-rung-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-primary);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+
+.ach-standing-next {
+  margin-top: var(--space-1);
+  max-width: 56ch;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* --- The ledger ------------------------------------------------------------ */
+
+/* What the total is made of, as a record rather than a chart. A stacked bar
+   would need five hues on a surface that carries two, and none of the five is a
+   share worth reading to a percent. The numbers are, so they are the display. */
+/* The rule and the heading both belong to the ledger, so they move together and
+   share its column width. */
+.ach-ledger-head {
+  max-width: 30rem;
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ach-ledger {
+  display: flex;
+  flex-direction: column;
+  /* Held to a column rather than run to the card's edge. On a laptop the label
+     and its number were half a screen apart and the pairing stopped reading. */
+  max-width: 30rem;
+  margin-top: var(--space-2);
+}
+
+.ach-ledger-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+}
+
+.ach-ledger-row + .ach-ledger-row {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.ach-ledger-row dt {
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+
+.ach-ledger-row dd {
+  margin: 0;
+  flex-shrink: 0;
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* Quiet enough that the column still scans as numbers, present enough that no
+   row can be mistaken for a count of drills or days. */
+.ach-ledger-unit {
+  font-weight: 400;
+  font-size: var(--text-micro);
+  color: var(--text-muted);
+}
+
+/* The trusted line is the honest one, so it says so rather than being quietly
+   folded in with the measured rows. */
+.ach-standing-note {
+  margin-top: var(--space-3);
+  max-width: 62ch;
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* --- Figures --------------------------------------------------------------- */
+
+.ach-figures {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: var(--space-2);
 }
 
 .ach-figure {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-subtle);
@@ -111,6 +222,7 @@
   font-family: var(--font-primary);
   font-weight: 600;
   font-size: var(--text-lg);
+  line-height: 1;
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
 }
@@ -121,7 +233,7 @@
   color: var(--text-muted);
 }
 
-/* --- Badges ---------------------------------------------------------------- */
+/* --- Sections -------------------------------------------------------------- */
 
 .ach-section {
   display: flex;
@@ -129,7 +241,7 @@
   gap: var(--space-3);
 }
 
-.ach-title {
+.ach-section-title {
   font-family: var(--font-secondary);
   font-size: var(--text-micro);
   font-weight: 600;
@@ -139,90 +251,175 @@
 }
 
 .ach-grid {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--ach-tile-min), 1fr));
+  gap: var(--space-3);
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.ach-badge {
+/* --- The one being aimed at ------------------------------------------------ */
+
+.ach-nearest {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(56, 189, 248, 0.24);
+  background: rgba(56, 189, 248, 0.06);
+}
+
+.ach-nearest-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--ach-mark-lg);
+  height: var(--ach-mark-lg);
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(56, 189, 248, 0.32);
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+}
+
+.ach-nearest-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1;
+}
+
+.ach-nearest-name {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+}
+
+.ach-nearest-goal {
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.ach-nearest-fact {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+/* --- Meter ----------------------------------------------------------------- */
+
+.ach-meter {
+  display: block;
+  height: var(--ach-meter-h);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.ach-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  /* Grey on the tiles: only the award actually being chased is lit, or nine
+     accent bars compete and none of them mean anything. */
+  background: var(--text-muted);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+
+.ach-meter.is-live .ach-meter-fill {
+  background: var(--accent-primary);
+}
+
+/* --- Tiles ----------------------------------------------------------------- */
+
+.ach-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-subtle);
   background: rgba(255, 255, 255, 0.02);
 }
 
-.ach-badge-mark {
+.ach-tile-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
+  width: var(--ach-mark);
+  height: var(--ach-mark);
   border-radius: var(--radius-full);
   border: 1px solid var(--border-default);
   color: var(--text-muted);
 }
-.ach-badge.is-earned {
-  border-color: rgba(52, 211, 153, 0.28);
-  background: rgba(52, 211, 153, 0.06);
-}
-.ach-badge.is-earned .ach-badge-mark {
-  border-color: transparent;
-  background: var(--success-glow);
-  color: var(--success-color);
-}
 
-.ach-badge-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-}
-
-.ach-badge-title {
+.ach-tile-name {
   font-family: var(--font-primary);
   font-weight: 600;
   font-size: var(--text-base);
+  letter-spacing: var(--tracking-tight);
   color: var(--text-primary);
 }
 
-.ach-badge-goal {
+.ach-tile-line {
   font-size: var(--text-sm);
   line-height: 1.45;
   color: var(--text-muted);
 }
 
-.ach-badge-detail {
-  /* Prose, not a code sample. This rendered "Best run so far: 0 days." in a
-     monospace face in the middle of a sans column, which read as a bug. */
+.ach-tile-fact {
   font-family: var(--font-secondary);
   font-size: var(--text-micro);
+  line-height: 1.4;
   color: var(--text-secondary);
 }
 
-.ach-badge-progress {
-  flex-shrink: 0;
-  font-family: var(--font-primary);
-  font-size: var(--text-sm);
-  font-variant-numeric: tabular-nums;
-  color: var(--accent-primary);
+.ach-tile.is-earned {
+  border-color: var(--record-edge);
+  background: var(--ach-record-wash);
 }
 
-@media (max-width: 480px) {
-  .ach-breakdown {
-    grid-template-columns: 1fr;
+.ach-tile.is-earned .ach-tile-mark {
+  border-color: var(--record-edge);
+  background: var(--ach-record-fill);
+  color: var(--record-color);
+  box-shadow: 0 2px 10px -6px rgba(246, 200, 96, 0.6);
+  animation: ach-settle var(--dur-slow) var(--ease-out) both;
+}
+
+/* The earned line is the record rather than the instruction, so it is lit a
+   step brighter than a goal not yet met. */
+.ach-tile.is-earned .ach-tile-line {
+  color: var(--ach-record-text);
+}
+
+/* The one authored moment on this surface. The awards already earned settle in
+   when the tab opens, staggered along the row; nothing else here moves, so the
+   motion says "these are the things that happened" and not "look, an app". */
+@keyframes ach-settle {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
   }
 }
 
-/* Permission to rest. Warm rather than alarming: this is encouragement, not a
-   warning, and it is the only place the product ever says "stop". */
+/* --- Permission to rest ---------------------------------------------------- */
+
+/* Warm rather than alarming: this is encouragement, not a warning, and it is the
+   only place the product ever says "stop". */
 .ach-rest {
   padding: var(--space-4);
   border-radius: var(--radius-lg);
@@ -231,4 +428,26 @@
   font-size: var(--text-base);
   line-height: 1.5;
   color: var(--text-primary);
+}
+
+@media (max-width: 420px) {
+  .ach-nearest {
+    padding: var(--space-4);
+    gap: var(--space-3);
+  }
+}
+
+/* The global reduced-motion rule shortens durations but leaves delays alone, so
+   a staggered entrance would hold the last mark blank for half a second with
+   nothing to show for the wait. Cancel the whole thing here. */
+@media (prefers-reduced-motion: reduce) {
+  .ach-tile.is-earned .ach-tile-mark {
+    animation: none;
+    animation-delay: 0ms !important;
+  }
+
+  .ach-meter-fill,
+  .ach-rung-fill {
+    transition: none;
+  }
 }

@@ -185,6 +185,44 @@ export const SessionIcon = (p: IconProps) => (
   </IconBase>
 );
 
+// A chord shape in a fret box: four strings, one fret, two fingers down. The
+// mark for owning the grips, drawn as the thing itself rather than as a hand or
+// a generic "skill" glyph.
+//
+// The box is what makes it legible. Drawn open, as a nut with bare strings
+// hanging off it, it was indistinguishable from the tally below at the 22px the
+// awards grid uses, and the two sat four tiles apart.
+export const GripIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <rect x="4.7" y="4.6" width="14.6" height="14.8" rx="2.2" />
+    <path d="M9.6 4.6v14.8M14.4 4.6v14.8" />
+    <path d="M4.7 11.9h14.6" />
+    <circle cx="14.4" cy="8.2" r="1.7" fill="currentColor" stroke="none" />
+    <circle cx="9.6" cy="15.9" r="1.7" fill="currentColor" stroke="none" />
+  </IconBase>
+);
+
+// Days counted the way anyone counts days they have to keep track of. Four
+// uprights and the fifth struck across them, spaced wider than a real tally so
+// the strokes stay separable at icon size.
+export const TallyIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <path d="M5.9 6.2v11.6M10 6.2v11.6M14.1 6.2v11.6M18.2 6.2v11.6" />
+    <path d="M4.3 17.4 19.8 6.6" />
+  </IconBase>
+);
+
+// Coming back after a break. A sunrise rather than a circular arrow: this marks
+// starting again, which is a warmer thing than a retry, and the app is careful
+// never to imply the days away were a failure.
+export const SunriseIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <path d="M3.8 18.6h16.4" />
+    <path d="M7.4 18.6a4.6 4.6 0 0 1 9.2 0" />
+    <path d="M12 4.4v2.6M5.9 7.1l1.8 1.8M18.1 7.1l-1.8 1.8" />
+  </IconBase>
+);
+
 export const RetryIcon = (p: IconProps) => (
   <IconBase {...p}>
     <path d="M4.6 12a7.4 7.4 0 1 0 2.5-5.6" />
