@@ -93,6 +93,50 @@
   color: var(--accent-primary);
 }
 
+/* Everything a more practised player might want lives at the bottom of this
+   menu rather than on the tuning screen, which has one job. */
+.tuner-menu-rule {
+  height: 1px;
+  margin: var(--space-2) var(--space-3);
+  background: var(--border-subtle);
+}
+
+.tuner-tuning-option.is-switch .tuner-tuning-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+/* Not a checkmark: this is a setting that stays on, and a switch is the control
+   the rest of the app already uses for that. */
+.tuner-switch {
+  flex-shrink: 0;
+  width: 34px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  background: rgba(255, 255, 255, 0.06);
+  transition: background var(--dur-base) ease, border-color var(--dur-base) ease;
+}
+.tuner-switch::after {
+  content: '';
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: 2px;
+  border-radius: var(--radius-full);
+  background: var(--text-muted);
+  transition: transform var(--dur-base) var(--ease-out), background var(--dur-base) ease;
+}
+.tuner-switch.is-on {
+  background: var(--accent-glow);
+  border-color: rgba(56, 189, 248, 0.45);
+}
+.tuner-switch.is-on::after {
+  transform: translateX(14px);
+  background: var(--accent-primary);
+}
+
 .tuner-tuning-note {
   font-size: var(--text-sm);
   line-height: 1.4;
@@ -125,90 +169,52 @@
 
 /* --- Readout -------------------------------------------------------------- */
 
+/* One instruction, and a picture of how far there is to go. Nothing else.
+   The screen used to lead with a signed number in cents, which is a unit almost
+   nobody tuning their first guitar has been taught, sitting above the sentence
+   that actually said what to do. The order is now the other way round and the
+   number is a preference. */
 .tuner-readout {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-5);
   width: min(360px, 100%);
   transition: opacity var(--dur-slow) ease;
 }
-/* The note has died away but the number is still worth reading. Recede, do not
-   disappear: blanking the display the moment the string stops ringing is the
-   single most annoying thing a tuner can do. */
+/* The note has died away but the reading is still worth having on screen.
+   Recede, do not disappear: blanking the display the moment the string stops
+   ringing is the single most annoying thing a tuner can do. */
 .tuner-readout.is-fading {
   opacity: 0.55;
 }
 
-.tuner-readout-note {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 2px;
-  /* Reserved whether or not a note is being heard, so the column does not jump
-     the moment the first string sounds. */
-  min-height: clamp(2.6rem, 11vw, 3.9rem);
+/* The instruction. The largest thing on the surface, because it is the only
+   thing on the surface a person has to act on, and it is read at arm's length
+   with both hands on an instrument. */
+.tuner-call {
+  /* Two lines of the longest sentence it can hold, reserved, so the track below
+     never moves as the words change under a turning peg. */
+  min-height: 2.5em;
+  max-width: 22ch;
   font-family: var(--font-primary);
   font-weight: 600;
-  letter-spacing: var(--tracking-display);
+  font-size: clamp(1.5rem, 5.6vw, 1.95rem);
+  line-height: 1.25;
+  letter-spacing: var(--tracking-tight);
+  text-wrap: balance;
   color: var(--text-primary);
   transition: color var(--dur-base) ease;
 }
-.tuner-readout.is-tuned .tuner-readout-note {
+.tuner-readout.is-tuned .tuner-call,
+.tuner-readout.is-done .tuner-call {
   color: var(--success-color);
 }
-
-.tuner-readout-name {
-  font-size: clamp(2.6rem, 11vw, 3.9rem);
-  line-height: 1;
-}
-.tuner-readout-octave {
-  font-size: clamp(1.1rem, 4.5vw, 1.5rem);
-  line-height: 1;
-  color: var(--text-muted);
-}
-
-.tuner-readout-cents {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: var(--space-2);
-  min-height: 2.4rem;
-}
-
-.tuner-readout-value {
-  /* Not the mono face: its slashed zero reads as a glyph error on the one
-     number this screen exists to show. Outfit with tabular figures holds the
-     column just as still and matches the note above it. */
-  font-family: var(--font-primary);
-  font-weight: 600;
-  /* The number people already know how to read, at a size that survives the
-     distance a propped screen actually sits at. Second only to the note. */
-  font-size: clamp(1.7rem, 6.5vw, 2.3rem);
-  line-height: 1;
-  letter-spacing: var(--tracking-tight);
-  font-variant-numeric: tabular-nums;
+/* The tuner cannot answer, and the sentence says why. Amber is the colour this
+   screen already uses for a live reading being worked on, which is what this
+   is: something the player can fix in one move. */
+.tuner-readout.is-crowded .tuner-call {
   color: var(--warning-color);
-  transition: color var(--dur-base) ease;
-}
-.tuner-readout.is-tuned .tuner-readout-value {
-  color: var(--success-color);
-}
-/* Past half a semitone the number stops being the point, so it stops shouting.
-   The note name above it is carrying the message. */
-.tuner-readout.is-far .tuner-readout-value {
-  color: var(--text-muted);
-}
-.tuner-readout.is-far .tuner-readout-name {
-  color: var(--text-secondary);
-}
-
-.tuner-readout-unit {
-  font-family: var(--font-secondary);
-  font-size: var(--text-sm);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--text-muted);
 }
 
 /* --- The pitch track ------------------------------------------------------ */
@@ -222,12 +228,12 @@
 }
 /* Nothing is being measured, so the axis states itself and stops there. */
 .tuner-track.is-quiet {
-  opacity: 0.45;
+  opacity: 0.4;
 }
 
 .tuner-track-rail {
   position: relative;
-  height: 22px;
+  height: 26px;
   border-radius: var(--radius-full);
   /* The track is a meaningful graphic, not a divider, so it carries the 3:1
      minimum. --border-strong reads at 1.6:1 over this overlay. */
@@ -237,7 +243,7 @@
 
 /* The tolerance, drawn as a place. Its half-width is centsToOffset(4) scaled by
    the puck's travel, so the band is exactly the region where the tuner will call
-   a string done, and the puck landing inside it agrees with the words below. */
+   a string done, and the puck landing inside it agrees with the words above. */
 .tuner-track-zone {
   position: absolute;
   inset-block: 0;
@@ -254,6 +260,28 @@
   background: rgba(52, 211, 153, 0.12);
 }
 
+/* How far there is to go, as a length running from true pitch out to the
+   reading. A length is measured by the eye without being asked; the position of
+   a dot has to be compared against something first. */
+.tuner-track-span {
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  border-radius: var(--radius-full);
+  background: var(--warning-color);
+  opacity: 0.45;
+  transition: left 90ms linear, width 90ms linear, background var(--dur-base) ease,
+    opacity var(--dur-base) ease;
+}
+.tuner-readout.is-tuned .tuner-track-span {
+  background: var(--success-color);
+  opacity: 0.5;
+}
+.tuner-readout.is-far .tuner-track-span {
+  background: var(--text-muted);
+  opacity: 0.4;
+}
+
 /* True pitch. The one fixed thing on the axis, so it is drawn firmly: a
    hairline the eye has to hunt for is not a reference. */
 .tuner-track-centre {
@@ -263,26 +291,14 @@
   left: 50%;
   width: 1.5px;
   transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.5);
-}
-
-/* 25 cents out, placed by the same curve as the puck. Two marks are enough to
-   show that the axis is compressed toward the ends, which is what stops a puck
-   near the edge disagreeing with a number that reads 38. */
-.tuner-track-tick {
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  width: 1px;
-  transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.55);
 }
 
 .tuner-track-puck {
   position: absolute;
   top: 50%;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: var(--radius-full);
   background: var(--warning-color);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 5px var(--warning-glow);
@@ -291,41 +307,20 @@
     box-shadow var(--dur-base) ease, width var(--dur-base) var(--ease-out),
     height var(--dur-base) var(--ease-out);
 }
-.tuner-readout.is-tuned /* 25 cents out, placed by the same curve as the puck. Two marks are enough to
-   show that the axis is compressed toward the ends, which is what stops a puck
-   near the edge disagreeing with a number that reads 38. */
-.tuner-track-tick {
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  width: 1px;
-  transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.22);
-}
-
-.tuner-track-puck {
-  width: 20px;
-  height: 20px;
+.tuner-readout.is-tuned .tuner-track-puck {
+  width: 22px;
+  height: 22px;
   background: var(--success-color);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 7px var(--success-glow);
 }
-.tuner-readout.is-far /* 25 cents out, placed by the same curve as the puck. Two marks are enough to
-   show that the axis is compressed toward the ends, which is what stops a puck
-   near the edge disagreeing with a number that reads 38. */
-.tuner-track-tick {
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  width: 1px;
-  transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.22);
-}
-
-.tuner-track-puck {
+.tuner-readout.is-far .tuner-track-puck {
   background: var(--text-muted);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
+/* The ends name what is wrong with the string rather than what the number is
+   called, which is what makes tighten and loosen in the sentence above explain
+   themselves the first time anyone reads them. */
 .tuner-track-scale {
   display: flex;
   justify-content: space-between;
@@ -333,19 +328,18 @@
   font-size: var(--text-micro);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
-  font-variant-numeric: tabular-nums;
   color: var(--text-muted);
 }
 
-.tuner-guidance {
-  max-width: 34ch;
-  min-height: 2.9em;
+/* Cents, for the player who turned them on. Deliberately the quietest thing
+   here: it is a second opinion on a decision already made above it. */
+.tuner-cents {
+  min-height: 1.4em;
+  font-family: var(--font-primary);
   font-size: var(--text-base);
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
-.tuner-readout.is-done .tuner-guidance {
-  color: var(--success-color);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-muted);
 }
 
 /* --- Actions and blocked -------------------------------------------------- */
@@ -416,9 +410,9 @@
 
 /* --- Wide ----------------------------------------------------------------- */
 
-/* Enough width for the instrument and the numbers to sit side by side, which is
-   also the layout that gives the headstock the most height on a short laptop
-   window. Reads left to right: this peg, then this far off. */
+/* Enough width for the instrument and the instruction to sit side by side, which
+   is also the layout that gives the headstock the most height on a short laptop
+   window. Reads left to right: this peg, then what to do to it. */
 @media (min-width: 800px) and (min-height: 560px) {
   .tuner-stage {
     --headstock-w: min(320px, calc((100dvh - 210px) * 0.682));
@@ -432,7 +426,20 @@
     max-width: 320px;
   }
   .tuner-readout {
-    width: 360px;
+    width: 380px;
+  }
+  /* Beside the instrument the sentence has a column of its own and reads from
+     its left edge, which is where the eye arrives from the headstock. */
+  .tuner-readout,
+  .tuner-call {
+    align-items: flex-start;
+    text-align: left;
+  }
+  /* A column of its own, so the sentence can carry the weight the note name
+     used to. It is the only thing on this half of the screen. */
+  .tuner-call {
+    max-width: 100%;
+    font-size: 2.2rem;
   }
 }
 
@@ -442,7 +449,7 @@
   .tuner-stage {
     gap: var(--space-4);
   }
-  .tuner-guidance {
-    max-width: 30ch;
+  .tuner-readout {
+    gap: var(--space-4);
   }
 }

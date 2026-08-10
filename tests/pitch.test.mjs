@@ -146,6 +146,105 @@ console.log('\n4. Octave errors (the classic failure)');
   check('no octave errors across the guitar range', wrong === 0, `${wrong} misreads`);
 }
 
+// The failure the owner actually hit: not the estimator picking the wrong
+// octave, but two strings an octave apart sounding at once. Their sum repeats at
+// the lower string's period, so the estimate is right about the period and the
+// tuner was wrong to read it as an identification. There is no correct single
+// answer here; the only correct behaviour is to know that and say so.
+console.log('\n4b. Two strings at once, which is what "playing fast" produces');
+{
+  const sr = 44100;
+
+  const mix = (a, b, seconds, opts = {}) => {
+    const { amps = [0.5, 0.5], weakA = false, offsetSec = 0.2 } = opts;
+    const one = pluck(midiToHz(a), sr, seconds, { weakFundamental: weakA });
+    const two = pluck(midiToHz(b), sr, seconds - offsetSec);
+    const out = new Float32Array(one.length);
+    const at = Math.floor(offsetSec * sr);
+    for (let i = 0; i < one.length; i++) out[i] = one[i] * amps[0];
+    for (let i = 0; i < two.length && at + i < out.length; i++) out[at + i] += two[i] * amps[1];
+    return out;
+  };
+
+  const confident = (readings) => readings.filter((r) => r.hz !== null && r.clarity >= 0.75);
+
+  // The bar the surface actually applies, transcribed from usePitchDetector:
+  // three of the last five confident analyses. One analysis is not evidence, and
+  // a quiet tail in a noisy room throws one every so often.
+  const WINDOW = 5;
+  const MIN = 3;
+  const says = (readings) => {
+    const live = confident(readings);
+    for (let i = MIN - 1; i < live.length; i++) {
+      const from = Math.max(0, i - WINDOW + 1);
+      let flagged = 0;
+      for (let k = from; k <= i; k++) if (live[k].secondNoteAt !== null) flagged++;
+      if (flagged >= MIN) return true;
+    }
+    return false;
+  };
+  const share = (readings) => {
+    const live = confident(readings);
+    return live.length ? live.filter((r) => r.secondNoteAt !== null).length / live.length : 0;
+  };
+
+  // Nothing that is one string may ever be called two, in any tuning, with or
+  // without the weak fundamental a wound string really has. A false alarm here
+  // is a tuner that refuses to finish.
+  let falseAlarms = 0;
+  for (const tuning of TUNINGS) {
+    for (const s of tuning.strings) {
+      for (const weak of [false, true]) {
+        const readings = run(pluck(midiToHz(s.midi), sr, 2, { weakFundamental: weak }), sr);
+        if (says(readings)) {
+          falseAlarms++;
+          console.log(`        ${tuning.id} ${s.label} weak=${weak} -> ${(share(readings) * 100).toFixed(0)}% of analyses`);
+        }
+      }
+    }
+  }
+  check('one string is never mistaken for two', falseAlarms === 0, `${falseAlarms} strings flagged`);
+
+  // The reported case. The two E strings are exactly 4:1, so the pair repeats at
+  // the low E's period and the estimator says low E at full confidence. It is
+  // right about the period. Reading that as "the low E is in tune" is the bug.
+  const twoOctaves = run(mix(40, 64, 2.5), sr);
+  const heard = medianHz(twoOctaves);
+  check('both E strings ringing still estimates as the low E',
+    heard !== null && Math.abs(centsBetween(heard, midiToHz(40))) < 10,
+    heard ? `${heard.toFixed(1)} Hz` : 'no reading');
+  check('but the reading knows it is not one string', says(twoOctaves),
+    `${(share(twoOctaves) * 100).toFixed(0)}% of analyses`);
+  check('and knows it is the double octave',
+    confident(twoOctaves).some((r) => r.secondNoteAt === 4));
+
+  // The other ratios a six-string makes with itself: E2 against B3 is 3:1 to
+  // within two cents, and drop D, open G and DADGAD all carry a 2:1 pair.
+  check('a twelfth apart is caught', says(run(mix(40, 59, 2.5), sr)),
+    `${(share(run(mix(40, 59, 2.5), sr)) * 100).toFixed(0)}%`);
+  check('an octave apart is caught', says(run(mix(38, 50, 2.5), sr)),
+    `${(share(run(mix(38, 50, 2.5), sr)) * 100).toFixed(0)}%`);
+
+  // The limit, stated rather than hidden. When the upper string of an octave
+  // pair is the one carrying the energy, the estimator reports that string, and
+  // there is no second note above it to find. That is not a wrong answer: the
+  // upper string is what is sounding, and it is the string the tuner names.
+  const upperWins = run(mix(38, 50, 2.5, { weakA: true }), sr);
+  const upper = medianHz(upperWins);
+  check('when the upper string dominates, the upper string is what is read',
+    upper !== null && Math.abs(centsBetween(upper, midiToHz(50))) < 15,
+    upper ? `${upper.toFixed(1)} Hz` : 'no reading');
+
+  // A string ringing quietly behind the one being tuned is the ordinary state of
+  // a guitar and must not stop the tuner working. The estimator locks onto the
+  // loud string; the quiet one does not sit on its partials.
+  const sympathetic = run(mix(64, 40, 2.5, { amps: [0.85, 0.15], offsetSec: 0 }), sr);
+  const dominant = medianHz(sympathetic);
+  check('a quietly ringing neighbour does not stop the tuner',
+    dominant !== null && Math.abs(centsBetween(dominant, midiToHz(64))) < 10 && !says(sympathetic),
+    `${dominant ? dominant.toFixed(1) : 'none'} Hz, ${(share(sympathetic) * 100).toFixed(0)}% of analyses`);
+}
+
 console.log('\n5. Theory helpers');
 {
   check('A4 is 440', midiToHz(69) === 440);
@@ -175,6 +274,50 @@ console.log('\n5. Theory helpers');
     TUNINGS.every((t) => t.strings[0].position === 6 && t.strings[5].position === 1));
   check('every tuning has six strings, ascending', TUNINGS.every((t) =>
     t.strings.length === 6 && t.strings.every((s, i) => i === 0 || s.midi > t.strings[i - 1].midi)));
+
+  // String matching compares frequencies. Nothing anywhere folds a reading to a
+  // pitch class, which would make every E the same E and is the shape of the bug
+  // the owner reported. These are the readings that would pass a pitch-class
+  // test and must not pass this one.
+  const standard = getTuning('standard');
+  check('the high E is never attributed to the low E string',
+    nearestString(midiToHz(64), standard)?.string.position === 1);
+  check('nor the low E to the high E string',
+    nearestString(midiToHz(40), standard)?.string.position === 6);
+  check('an A an octave above the A string is not the A string',
+    nearestString(midiToHz(57), standard)?.string.position !== 5,
+    `${nearestString(midiToHz(57), standard)?.string.label}`);
+  check('no reading is ever matched to a string more than 250 cents away',
+    Array.from({ length: 600 }, (_, i) => 60 + i)
+      .map((hz) => nearestString(hz, standard))
+      .every((m) => m === null || Math.abs(m.cents) <= 250));
+  check('every string in every tuning matches itself and nothing else',
+    TUNINGS.every((t) => t.strings.every((s) => {
+      const m = nearestString(midiToHz(s.midi), t);
+      return m !== null && m.string.position === s.position && Math.abs(m.cents) < 0.001;
+    })));
+}
+
+console.log('\n7. What a person calls each string');
+{
+  const standard = getTuning('standard');
+  const label = (position) => standard.strings.find((s) => s.position === position)?.label;
+  // Two E strings, and "E is in tune" while the other E is the one being asked
+  // for is the sentence that made the tuner feel broken.
+  check('the 6th is the low E', label(6) === 'low E', label(6));
+  check('the 1st is the high E', label(1) === 'high E', label(1));
+  check('a letter that appears once is just the letter', label(5) === 'A' && label(4) === 'D',
+    `${label(5)}, ${label(4)}`);
+  check('drop D tells its two Ds apart',
+    getTuning('drop-d').strings.find((s) => s.position === 6)?.label === 'low D');
+  // Open G has three Ds, which "low" and "high" cannot separate, so those fall
+  // back to the one label that stays unambiguous.
+  check('three of a letter falls back to the string number',
+    getTuning('open-g').strings.filter((s) => s.name === 'D').every((s) => /string, D$/.test(s.label)),
+    getTuning('open-g').strings.filter((s) => s.name === 'D').map((s) => s.label).join(' / '));
+  check('every string in every tuning has a distinct label',
+    TUNINGS.every((t) => new Set(t.strings.map((s) => s.label)).size === 6));
+  check('no label is empty', TUNINGS.every((t) => t.strings.every((s) => s.label.length > 0)));
 }
 
 console.log('\n6. Cost');

@@ -264,10 +264,10 @@
   letter-spacing: var(--tracking-tight);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
-.headstock-peg.is-bass .headstock-peg-note {
+.headstock-peg.is-left .headstock-peg-note {
   left: calc(100% + 2px);
 }
-.headstock-peg.is-treble .headstock-peg-note {
+.headstock-peg.is-right .headstock-peg-note {
   right: calc(100% + 2px);
 }
 

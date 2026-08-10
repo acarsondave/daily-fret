@@ -71,6 +71,15 @@ export interface TuningString {
   midi: number;
   name: string;
   octave: number;
+  /**
+   * What a person calls this string out loud: "low E", "A", "high E".
+   *
+   * Standard tuning has two E strings, and "E is in tune" while the other E is
+   * the one being asked for is the sentence that made the tuner feel broken.
+   * Scientific octaves would disambiguate and mean nothing to a beginner, so the
+   * words a teacher actually uses are carried on the string itself.
+   */
+  label: string;
 }
 
 export interface Tuning {
@@ -83,10 +92,34 @@ export interface Tuning {
 }
 
 function buildStrings(midis: number[]): TuningString[] {
-  return midis.map((midi, i) => {
-    const { name, octave } = midiToName(midi);
-    return { position: midis.length - i, midi, name, octave };
+  const named = midis.map((midi, i) => ({
+    position: midis.length - i,
+    midi,
+    ...midiToName(midi),
+  }));
+
+  // Only strings that share a letter need telling apart, and only two of them
+  // can be told apart by "low" and "high". Where a tuning repeats a letter three
+  // times (open G has three Ds), the string's number is the one label that stays
+  // unambiguous, so that is what those get.
+  const shared = new Map<string, number[]>();
+  for (const s of named) shared.set(s.name, [...(shared.get(s.name) ?? []), s.position]);
+
+  return named.map((s) => {
+    const others = shared.get(s.name);
+    if (!others || others.length === 1) return { ...s, label: s.name };
+    if (others.length === 2) {
+      const lowest = Math.max(...others);
+      return { ...s, label: `${s.position === lowest ? 'low' : 'high'} ${s.name}` };
+    }
+    return { ...s, label: `${ordinal(s.position)} string, ${s.name}` };
   });
+}
+
+const ORDINALS = ['1st', '2nd', '3rd', '4th', '5th', '6th'] as const;
+
+function ordinal(position: number): string {
+  return ORDINALS[position - 1] ?? `${position}th`;
 }
 
 export const TUNINGS: Tuning[] = [

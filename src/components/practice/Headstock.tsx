@@ -2,8 +2,23 @@
 //
 // A tuner's real question is "which peg do I turn", and the answer has a shape:
 // three machine heads a side, the string you are sounding running from the nut
-// up to one of them. Six abstract rows could say which string; only the
+// out to one of them. Six abstract rows could say which string; only the
 // headstock says which peg, which is the part the hand acts on.
+//
+// ORIENTATION. The neck leaves the top of the frame and the headstock points
+// down, which is the guitar as its own player sees it: sitting with the
+// instrument in your lap, the neck runs off to your left and the thick string is
+// the one nearest you, and turning that view upright to fit a screen puts the
+// nut at the top with the low E on the left. It was drawn the other way up
+// before, tip at the top, which is how a guitar is photographed rather than how
+// it is played, and it put every peg somewhere the hand had to translate.
+//
+// So, reading down: the pegs nearest the nut carry the D and the G, because the
+// two middle strings have the furthest to travel sideways and so must reach
+// their posts soonest; the low E and the high E take the far pair at the tip.
+// The outer strings therefore fan across the inner posts on their way past,
+// which is what the real thing does and what a photograph of any three-a-side
+// headstock shows.
 //
 // It is rendered rather than drawn: the face is a shaded wood, the posts and
 // buttons are lit metal with real speculars, and the strings vibrate at the
@@ -16,30 +31,37 @@
 // of them, so the targets are focusable, labelled, and 44px without inventing
 // keyboard semantics for <g> elements.
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import clsx from 'clsx';
 import type { TuningString } from '../../audio/tuning';
+import { useUserData } from '../../store';
 import './headstock.css';
 
 const VIEW_W = 300;
 const VIEW_H = 440;
 
-/** Where the strings leave the nut, left to right: 6th through 1st. */
-const NUT_Y = 418;
+/** Where the strings cross the nut, left to right: 6th through 1st. */
+const NUT_Y = 22;
 const NUT_X0 = 102;
 const NUT_STEP = 19.2;
 
 /**
- * Post centres. On any 3-a-side headstock the outer strings take the pegs
- * furthest from the nut and the middle pair take the nearest, so the columns run
- * 6-5-4 down the bass side and 1-2-3 down the treble side.
+ * Post centres, nearest the nut first.
+ *
+ * On any three-a-side headstock the two middle strings take the pegs nearest the
+ * nut and the two outer strings take the pegs at the tip, which is the only
+ * arrangement in which no string crosses another.
  */
 const POST_X_BASS = 94;
 const POST_X_TREBLE = 206;
-const POST_Y = [96, 186, 276] as const;
+const POST_Y = [164, 254, 344] as const;
 /** The silhouette's own edge at each post's height, so a machine head hangs off
     the taper rather than off one straight line the body does not follow. */
-const EDGE_X = [61, 66, 78] as const;
+const EDGE_X = [78, 66, 61] as const;
+
+/** Which peg each string winds onto, nearest the nut outwards, per side. */
+const BASS_ORDER = [4, 5, 6] as const;
+const TREBLE_ORDER = [3, 2, 1] as const;
 
 interface PegGeometry {
   position: number;
@@ -50,18 +72,44 @@ interface PegGeometry {
   nutX: number;
   /** The body's edge at this height, where the machine head's shaft leaves it. */
   edgeX: number;
-  /** Bass side sits on the left, so its button protrudes left. */
-  side: 'bass' | 'treble';
+  /** Which side of the screen this peg is on, after handedness. */
+  side: 'left' | 'right';
 }
 
-const PEGS: PegGeometry[] = [
-  { position: 6, x: POST_X_BASS, y: POST_Y[0], nutX: NUT_X0 + NUT_STEP * 0, edgeX: EDGE_X[0], side: 'bass' },
-  { position: 5, x: POST_X_BASS, y: POST_Y[1], nutX: NUT_X0 + NUT_STEP * 1, edgeX: EDGE_X[1], side: 'bass' },
-  { position: 4, x: POST_X_BASS, y: POST_Y[2], nutX: NUT_X0 + NUT_STEP * 2, edgeX: EDGE_X[2], side: 'bass' },
-  { position: 3, x: POST_X_TREBLE, y: POST_Y[2], nutX: NUT_X0 + NUT_STEP * 3, edgeX: VIEW_W - EDGE_X[2], side: 'treble' },
-  { position: 2, x: POST_X_TREBLE, y: POST_Y[1], nutX: NUT_X0 + NUT_STEP * 4, edgeX: VIEW_W - EDGE_X[1], side: 'treble' },
-  { position: 1, x: POST_X_TREBLE, y: POST_Y[0], nutX: NUT_X0 + NUT_STEP * 5, edgeX: VIEW_W - EDGE_X[0], side: 'treble' },
-];
+/**
+ * The six pegs, laid out for the guitar in the room.
+ *
+ * A left-handed guitar is this object mirrored, so the whole layout mirrors: the
+ * low E moves to the right and every string's peg goes with it. The face itself
+ * is symmetric about its centre line, which is why nothing but these coordinates
+ * has to know.
+ */
+function buildPegs(leftHanded: boolean): PegGeometry[] {
+  const mirror = (x: number) => (leftHanded ? VIEW_W - x : x);
+  const pegs: PegGeometry[] = [];
+
+  for (const [order, postX] of [
+    [BASS_ORDER, POST_X_BASS],
+    [TREBLE_ORDER, POST_X_TREBLE],
+  ] as const) {
+    order.forEach((position, row) => {
+      const bass = order === BASS_ORDER;
+      const x = mirror(postX);
+      pegs.push({
+        position,
+        x,
+        y: POST_Y[row],
+        nutX: mirror(NUT_X0 + NUT_STEP * (6 - position)),
+        edgeX: mirror(bass ? EDGE_X[row] : VIEW_W - EDGE_X[row]),
+        side: x < VIEW_W / 2 ? 'left' : 'right',
+      });
+    });
+  }
+
+  // Lowest string first, so the DOM order of the peg buttons is the order the
+  // tuner works through them and a keyboard walks the instrument the same way.
+  return pegs.sort((a, b) => b.position - a.position);
+}
 
 /** Relative visual gauge, 1st (thinnest) through 6th. Real string ratios. */
 const GAUGE: Record<number, number> = { 1: 1.1, 2: 1.5, 3: 2, 4: 2.6, 5: 3.3, 6: 4.1 };
@@ -73,13 +121,15 @@ const MAX_SWING = 5.2;
 /** The eye reads a slow shimmer as a live string; faster reads as noise. */
 const SWING_HZ = 6;
 
-/** A three-a-side silhouette: a narrow nut end opening into a wide crown with
-    the shallow centre dip every guitar with this layout has. */
+/** A three-a-side silhouette: a narrow nut end at the top opening into a wide
+    crown, with the shallow centre dip every guitar with this layout has. It is
+    symmetric about the centre line, which is what lets handedness mirror the
+    hardware and leave the face alone. */
 const OUTLINE =
-  'M94 428 C92 400 88 368 84 340 C80 312 78 292 78 274 C77 240 70 212 66 186 ' +
-  'C62 152 60 120 61 96 C62 64 74 36 98 26 C116 19 136 40 150 40 ' +
-  'C164 40 184 19 202 26 C226 36 238 64 239 96 C240 120 238 152 234 186 ' +
-  'C230 212 223 240 222 274 C222 292 220 312 216 340 C212 368 208 400 206 428 Z';
+  'M94 12 C92 40 88 72 84 100 C80 128 78 148 78 166 C77 200 70 228 66 254 ' +
+  'C62 288 60 320 61 344 C62 376 74 404 98 414 C116 421 136 400 150 400 ' +
+  'C164 400 184 421 202 414 C226 404 238 376 239 344 C240 320 238 288 234 254 ' +
+  'C230 228 223 200 222 166 C222 148 220 128 216 100 C212 72 208 40 206 12 Z';
 
 function stringPath(peg: PegGeometry, swing: number): string {
   const dx = peg.x - peg.nutX;
@@ -123,6 +173,10 @@ export function Headstock({
   onSelect,
 }: Props) {
   const byPosition = new Map(strings.map((s) => [s.position, s]));
+  // Handedness is a fact about the instrument in the room, like the capo, so the
+  // drawing reads it rather than making the tuner remember to pass it.
+  const leftHanded = useUserData().leftHanded ?? false;
+  const pegs = useMemo(() => buildPegs(leftHanded), [leftHanded]);
 
   return (
     <div className={clsx('headstock', deaf && 'is-deaf', allSettled && 'is-done')}>
@@ -202,14 +256,14 @@ export function Headstock({
               this size costs a full-frame raster on every repaint and this
               screen is already running an analyser and an animation loop. */}
           <g className="headstock-grain">
-            <path d="M72 440 C80 330 76 210 88 18" />
-            <path d="M96 440 C104 320 98 200 112 14" />
-            <path d="M118 442 C124 322 116 194 128 12" />
-            <path d="M138 442 C140 320 134 190 142 10" />
-            <path d="M162 442 C160 320 166 190 158 10" />
-            <path d="M182 442 C176 322 184 194 172 12" />
-            <path d="M204 440 C196 320 202 200 188 14" />
-            <path d="M228 440 C220 330 224 210 212 18" />
+            <path d="M72 0 C80 110 76 230 88 422" />
+            <path d="M96 0 C104 120 98 240 112 426" />
+            <path d="M118 -2 C124 118 116 246 128 428" />
+            <path d="M138 -2 C140 120 134 250 142 430" />
+            <path d="M162 -2 C160 120 166 250 158 430" />
+            <path d="M182 -2 C176 118 184 246 172 428" />
+            <path d="M204 0 C196 120 202 240 188 426" />
+            <path d="M228 0 C220 110 224 230 212 422" />
           </g>
           {/* The centre stripe a book-matched face carries. It is what stops
               the wood reading as one flat sheet of brown. */}
@@ -225,15 +279,15 @@ export function Headstock({
             what separates the face from the ground without a drawn border. */}
         <path className="headstock-edge" d={OUTLINE} />
 
-        {/* Nut, and the fingerboard running off the bottom of the frame. There
-            is no bridge and no scale length here: this is the end of the
-            instrument the hand is actually at. */}
-        <rect className="headstock-board" x="95" y="424" width="110" height="18" />
-        <rect className="headstock-nut" x="93" y="413" width="114" height="12" rx="3" />
+        {/* Nut, and the fingerboard running off the top of the frame towards the
+            body. There is no bridge and no scale length here: this is the end of
+            the instrument the hand is actually at. */}
+        <rect className="headstock-board" x="95" y="-2" width="110" height="18" />
+        <rect className="headstock-nut" x="93" y="15" width="114" height="12" rx="3" />
 
         {/* Strings first, so each one disappears into the bore it winds onto
             instead of being painted across the hardware. */}
-        {PEGS.map((peg) => {
+        {pegs.map((peg) => {
           const string = byPosition.get(peg.position);
           if (!string) return null;
           return (
@@ -248,7 +302,7 @@ export function Headstock({
           );
         })}
 
-        {PEGS.map((peg) => {
+        {pegs.map((peg) => {
           const string = byPosition.get(peg.position);
           if (!string) return null;
           return (
@@ -267,7 +321,7 @@ export function Headstock({
       {/* Real buttons, laid over the posts they belong to. The SVG stays
           presentational so focus, labels and hit area come from the platform. */}
       <div className="headstock-pegs">
-        {PEGS.map((peg) => {
+        {pegs.map((peg) => {
           const string = byPosition.get(peg.position);
           if (!string) return null;
           const isSettled = settled.includes(peg.position);
@@ -292,8 +346,8 @@ export function Headstock({
               aria-pressed={isPinned}
               aria-label={
                 isPinned
-                  ? `${string.name}${string.octave}, string ${string.position}. Listening to this string only. Activate to listen to all six.`
-                  : `${string.name}${string.octave}, string ${string.position}${
+                  ? `${string.label}, string ${string.position}. Listening to this string only. Activate to listen to all six.`
+                  : `${string.label}, string ${string.position}${
                       isSettled ? ', in tune' : isTarget ? ', tune this one next' : ''
                     }. Activate to listen to this string only.`
               }
@@ -319,7 +373,7 @@ interface PegProps {
 }
 
 function Peg({ peg, isActive, isSettled, isTarget, isPinned }: PegProps) {
-  const out = peg.side === 'bass' ? -1 : 1;
+  const out = peg.side === 'left' ? -1 : 1;
   const shaftX = peg.edgeX;
   const buttonX = peg.edgeX + out * 24;
 
@@ -349,7 +403,7 @@ function Peg({ peg, isActive, isSettled, isTarget, isPinned }: PegProps) {
       <path
         className="headstock-button"
         d={
-          peg.side === 'bass'
+          peg.side === 'left'
             ? `M${buttonX + 9} ${peg.y - 9} C${buttonX - 2} ${peg.y - 11}, ${buttonX - 12} ${peg.y - 6}, ${buttonX - 12} ${peg.y} C${buttonX - 12} ${peg.y + 6}, ${buttonX - 2} ${peg.y + 11}, ${buttonX + 9} ${peg.y + 9} Z`
             : `M${buttonX - 9} ${peg.y - 9} C${buttonX + 2} ${peg.y - 11}, ${buttonX + 12} ${peg.y - 6}, ${buttonX + 12} ${peg.y} C${buttonX + 12} ${peg.y + 6}, ${buttonX + 2} ${peg.y + 11}, ${buttonX - 9} ${peg.y + 9} Z`
         }

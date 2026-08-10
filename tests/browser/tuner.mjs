@@ -176,7 +176,7 @@ for (const [name, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
     const { browser, page, errors } = await open(launcher, { mic: 'refusedRoute' });
     await page.waitForSelector('.tuner-overlay', { timeout: 10000 });
     await page.waitForTimeout(1500);
-    const guidance = (await text(page, '.tuner-guidance')) ?? '';
+    const guidance = (await text(page, '.tuner-call')) ?? '';
     check('it does not hang on opening the microphone', !/asking for the microphone/i.test(guidance), guidance);
     check('it says audio is paused', /paused audio/i.test(guidance), guidance);
     check('and offers the one thing that fixes it',
@@ -254,7 +254,7 @@ for (const [name, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
 
 const WAVS = writeFixtures(mkdtempSync(join(tmpdir(), 'daily-fret-tuner-')));
 
-async function openWithAudio(wav, viewport = { width: 1366, height: 680 }) {
+async function openWithAudio(wav, { viewport = { width: 1366, height: 680 }, cents = false } = {}) {
   const browser = await chromium.launch({
     args: [
       '--use-fake-ui-for-media-stream',
@@ -269,6 +269,9 @@ async function openWithAudio(wav, viewport = { width: 1366, height: 680 }) {
     (s) => localStorage.setItem('daily-fret-storage', JSON.stringify({ state: s, version: 0 })),
     seed,
   );
+  // Cents are off by default and are a stored preference, so the advanced
+  // readout is tested the way a player would actually have turned it on.
+  if (cents) await page.addInitScript(() => localStorage.setItem('daily-fret-tuner-cents', 'on'));
   await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 25000 });
   await page.waitForSelector('.task-container', { timeout: 25000 });
   await page.waitForTimeout(700);
@@ -288,8 +291,13 @@ const settledCount = (page) => page.locator('.headstock-machine.is-settled').cou
   const { browser, page } = await openWithAudio('silence.wav');
   await page.waitForTimeout(1600);
   check('it points at the thickest string first', (await targetString(page)) === '6');
-  check('and says so in words', /Play the E string/.test(await text(page, '.tuner-guidance')),
-    await text(page, '.tuner-guidance'));
+  // "low E", not "E": the tuning has two E strings, and naming the wrong one is
+  // the same class of mistake as lighting the wrong peg.
+  check('and names it the way a person would', /Play the low E\./.test(await text(page, '.tuner-call')),
+    await text(page, '.tuner-call'));
+  check('no number is on the screen by default',
+    !/\d/.test((await page.locator('.tuner-readout').innerText()).replace(/\s/g, '')),
+    await page.locator('.tuner-readout').innerText());
   await browser.close();
 }
 
@@ -309,16 +317,18 @@ const settledCount = (page) => page.locator('.headstock-machine.is-settled').cou
 
 {
   console.log('\nguided: a green string is not undone by a wobble\n');
-  const { browser, page } = await openWithAudio('hysteresis.wav');
+  // Cents on, because the hysteresis band is stated in cents and this is the
+  // one check that has to read the exact number the tuner is acting on.
+  const { browser, page } = await openWithAudio('hysteresis.wav', { cents: true });
   await page.waitForFunction(() => document.querySelectorAll('.headstock-machine.is-settled').length === 1,
     null, { timeout: 20000 });
   check('it settles', (await settledCount(page)) === 1);
 
   // 8 cents flat: inside the hysteresis band, so the tick must hold.
   await page.waitForFunction(
-    () => /cents flat/.test(document.querySelector('.tuner-readout-unit')?.textContent ?? ''),
+    () => /^\u2212\d+ cents/.test(document.querySelector('.tuner-cents')?.textContent ?? ''),
     null, { timeout: 20000 });
-  const wobble = Number((await text(page, '.tuner-readout-value')).replace('\u2212', '-'));
+  const wobble = Number((await text(page, '.tuner-cents')).replace('\u2212', '-').replace(' cents', ''));
   check('a small drift is reported honestly', wobble <= -4 && wobble >= -12, String(wobble));
   check('and stays inside the hysteresis band', wobble > -12, String(wobble));
   check('and does not pull the tick', (await settledCount(page)) === 1);
@@ -341,7 +351,7 @@ const settledCount = (page) => page.locator('.headstock-machine.is-settled').cou
   await page.waitForFunction(() => document.querySelectorAll('.headstock-machine.is-settled').length === 6,
     null, { timeout: 40000 });
   check('all six go green', (await settledCount(page)) === 6);
-  check('and it says so', /All six/.test(await text(page, '.tuner-guidance')), await text(page, '.tuner-guidance'));
+  check('and it says so', /All six/.test(await text(page, '.tuner-call')), await text(page, '.tuner-call'));
   await page.waitForFunction(() => document.querySelectorAll('.headstock-machine.is-settled').length === 5,
     null, { timeout: 25000 });
   check('a string going out afterwards is noticed', (await settledCount(page)) === 5);
@@ -351,26 +361,91 @@ const settledCount = (page) => page.locator('.headstock-machine.is-settled').cou
 }
 
 {
-  console.log('\nthe number people already know how to read\n');
+  console.log('\nthe screen says what to do, not what the number is\n');
   const { browser, page } = await openWithAudio('flat.wav');
   await page.waitForFunction(
-    () => /cents/.test(document.querySelector('.tuner-readout-unit')?.textContent ?? ''),
+    () => /Tighten|Loosen|in tune/.test(document.querySelector('.tuner-call')?.textContent ?? ''),
     null, { timeout: 20000 });
-  const value = await text(page, '.tuner-readout-value');
-  check('it is signed the universal way', value.startsWith('\u2212'), value);
+  const call = await text(page, '.tuner-call');
+  // The A string, 38 cents flat. What a beginner needs from that is a verb and
+  // a string, and neither of them is the word flat.
+  check('it names the action and the string', /^Tighten the A\.$/.test(call), call);
+  check('no jargon in the instruction', !/flat|sharp|cent|hz/i.test(call), call);
+  const readout = await page.locator('.tuner-readout').innerText();
+  check('and no number anywhere near it', !/\d/.test(readout.replace(/\s/g, '')), readout);
+  // The axis names what is wrong with the string, which is what makes tighten
+  // and loosen explain themselves the first time they are read.
+  const scale = await text(page, '.tuner-track-scale');
+  check('the track ends say what is wrong', /too loose/i.test(scale) && /too tight/i.test(scale), scale);
+  check('the marker sits on the loose side of true pitch', await page.evaluate(() => {
+    const rail = document.querySelector('.tuner-track-rail');
+    const puck = document.querySelector('.tuner-track-puck');
+    if (!rail || !puck) return false;
+    const r = rail.getBoundingClientRect();
+    const p = puck.getBoundingClientRect();
+    return p.left + p.width / 2 < r.left + r.width / 2;
+  }));
+  await browser.close();
+}
+
+{
+  console.log('\ncents are kept for the player who asks for them\n');
+  const { browser, page } = await openWithAudio('flat.wav', { cents: true });
+  await page.waitForFunction(
+    () => /cents/.test(document.querySelector('.tuner-cents')?.textContent ?? ''),
+    null, { timeout: 20000 });
+  const value = await text(page, '.tuner-cents');
+  check('signed the universal way', value.startsWith('\u2212'), value);
   // Within a couple of cents of the tone in the file. The remaining offset is
   // the fake-capture path resampling 44.1k to the context rate, not the
   // estimator: an exactly-in-tune fixture reads 0.
-  const read = Number(value.replace('\u2212', '-'));
+  const read = Number(value.replace('\u2212', '-').replace(' cents', ''));
   check('and reads what a player would expect', read <= -35 && read >= -41, value);
-  check('the direction is in words too', /cents flat/i.test(await text(page, '.tuner-readout-unit')),
-    await text(page, '.tuner-readout-unit'));
-  check('and the action is named', /Tighten/.test(await text(page, '.tuner-guidance')),
-    await text(page, '.tuner-guidance'));
-  // The axis declares its own range and its own compression, so a puck near the
-  // end cannot silently disagree with the number.
-  check('the axis states its range', /50/.test(await text(page, '.tuner-track-scale')));
-  check('and shows where 25 cents falls', (await page.locator('.tuner-track-tick').count()) === 2);
+  check('the instruction is still the headline', /^Tighten the A\.$/.test(await text(page, '.tuner-call')),
+    await text(page, '.tuner-call'));
+  check('and the number is smaller than it', await page.evaluate(() => {
+    const px = (sel) => parseFloat(getComputedStyle(document.querySelector(sel)).fontSize);
+    return px('.tuner-cents') < px('.tuner-call');
+  }));
+  await browser.close();
+}
+
+// --- the reported defect ---------------------------------------------------
+//
+// "It did it when I played the high E string and marked the low E string as
+// good." The two E strings are exactly two octaves apart, so both ringing at
+// once is one periodic signal whose period is the low E's. The estimator reports
+// 82.4 Hz at clarity 1.0 and is right about the period; it is the musical
+// question it cannot answer. Attributing that reading to the low E, and then
+// holding it in tolerance long enough to call it done, is what the owner saw.
+
+{
+  console.log('\nthe high E must never tick the low E\n');
+  const { browser, page } = await openWithAudio('two-octaves.wav');
+  // Long enough for the old code to have settled twice over: the low E read
+  // inside tolerance from about 400 ms and the settle hold is 700 ms.
+  await page.waitForTimeout(9000);
+  check('no string is called in tune while two are ringing', (await settledCount(page)) === 0,
+    `${await settledCount(page)} settled`);
+  check('the low E peg specifically is not green',
+    (await page.locator('.headstock-machine.is-settled').count()) === 0);
+  const call = await text(page, '.tuner-call');
+  check('it says what is actually wrong', /another string is ringing/i.test(call), call);
+  check('and names the way out', /play the low E alone/i.test(call), call);
+  check('nothing claims to be in tune', !/in tune/i.test(await page.locator('.tuner-readout').innerText()));
+  await browser.close();
+}
+
+{
+  console.log('\nplaying fast never marks a string the player has left\n');
+  const { browser, page } = await openWithAudio('fast-change.wav');
+  // Six strings in 2.4 s, each struck over the last. Nothing is held in
+  // tolerance for the 700 ms a tick costs, so nothing may be ticked.
+  await page.waitForTimeout(6000);
+  check('nothing goes green on a run of fast plucks', (await settledCount(page)) === 0,
+    `${await settledCount(page)} settled`);
+  check('and the screen never claimed one was in tune',
+    !/in tune/i.test(await text(page, '.tuner-call')), await text(page, '.tuner-call'));
   await browser.close();
 }
 

@@ -20,23 +20,65 @@ export interface StablePitch {
   clarity: number;
   /** True while the note has faded but the reading is still being shown. */
   fading: boolean;
+  /**
+   * True until enough analyses agree. The reading is the best answer available
+   * and is shown, because a display that lags a string change by a tenth of a
+   * second reads as a broken tuner; but nothing irreversible may be decided on
+   * it, because the string it names has only just started sounding.
+   */
+  provisional: boolean;
+  /**
+   * Set when a second string is ringing at this whole multiple of `hz`. The
+   * reading is then the period the two share and not an identification of
+   * either, so no verdict may be given while it holds.
+   */
+  secondNoteAt: number | null;
 }
 
 /** A single analysis is trusted only above this periodicity. */
 const CLARITY_MIN = 0.75;
 /** Analyses combined into one displayed reading. */
 const WINDOW = 5;
-/** Readings needed before anything is shown. Trades ~140ms for a still needle. */
+/** Analyses that must agree before a reading stops being provisional. */
 const MIN_SAMPLES = 3;
 /** A jump this large is a different string, not noise — start the window over. */
 const JUMP_CENTS = 120;
 /** How long a reading survives after the note dies, so it can still be read. */
 const HOLD_MS = 1400;
+/**
+ * Analyses in the window that must see a second note before the tuner says so.
+ *
+ * A single flagged analysis is not evidence: a quiet tail in a noisy room throws
+ * one every so often. Three of five is: two strings ringing together flag almost
+ * every analysis for as long as they both sound.
+ */
+const SECOND_NOTE_MIN = 3;
 
 function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = sorted.length >> 1;
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+/** The multiple most of the window agrees on, or null if it does not agree. */
+function agreedSecondNote(window: (number | null)[]): number | null {
+  const counts = new Map<number, number>();
+  let flagged = 0;
+  for (const multiple of window) {
+    if (multiple === null) continue;
+    flagged++;
+    counts.set(multiple, (counts.get(multiple) ?? 0) + 1);
+  }
+  if (flagged < SECOND_NOTE_MIN) return null;
+  let best: number | null = null;
+  let bestCount = 0;
+  for (const [multiple, count] of counts) {
+    if (count > bestCount) {
+      best = multiple;
+      bestCount = count;
+    }
+  }
+  return best;
 }
 
 const STATUS_BY_ROUTE: Record<MicRouteState, PitchStatus> = {
@@ -60,6 +102,7 @@ export function usePitchDetector() {
   const micRef = useRef<MicStream | null>(null);
   const detectorRef = useRef<PitchDetector | null>(null);
   const historyRef = useRef<number[]>([]);
+  const secondNoteRef = useRef<(number | null)[]>([]);
   const holdTimerRef = useRef<number | null>(null);
   /** Current input level, 0–1-ish. Read by rAF; never triggers a render. */
   const levelRef = useRef(0);
@@ -87,6 +130,7 @@ export function usePitchDetector() {
         holdTimerRef.current = window.setTimeout(() => {
           holdTimerRef.current = null;
           historyRef.current = [];
+          secondNoteRef.current = [];
           setPitch(null);
         }, HOLD_MS);
       }
@@ -97,18 +141,32 @@ export function usePitchDetector() {
     clearHold();
 
     const history = historyRef.current;
+    const secondNotes = secondNoteRef.current;
     if (history.length && Math.abs(centsBetween(frame.hz, history[history.length - 1])) > JUMP_CENTS) {
+      // A different string is sounding. Everything the window holds describes
+      // the previous one, and holding on to any of it is how the tuner came to
+      // sit on a stale note long enough to call it done while the player was
+      // already on the next string.
       history.length = 0;
+      secondNotes.length = 0;
     }
     history.push(frame.hz);
+    secondNotes.push(frame.secondNoteAt);
     if (history.length > WINDOW) history.shift();
-    if (history.length < MIN_SAMPLES) return;
+    if (secondNotes.length > WINDOW) secondNotes.shift();
 
     const hz = median(history);
+    const provisional = history.length < MIN_SAMPLES;
+    const secondNoteAt = agreedSecondNote(secondNotes);
     setPitch((prev) =>
-      prev && !prev.fading && prev.hz === hz && prev.clarity === frame.clarity
+      prev &&
+      !prev.fading &&
+      prev.hz === hz &&
+      prev.clarity === frame.clarity &&
+      prev.provisional === provisional &&
+      prev.secondNoteAt === secondNoteAt
         ? prev
-        : { hz, clarity: frame.clarity, fading: false },
+        : { hz, clarity: frame.clarity, fading: false, provisional, secondNoteAt },
     );
   }, [clearHold]);
 
@@ -118,6 +176,7 @@ export function usePitchDetector() {
     micRef.current = null;
     detectorRef.current = null;
     historyRef.current = [];
+    secondNoteRef.current = [];
     levelRef.current = 0;
     setStatus('idle');
     setFailure(null);
@@ -154,6 +213,7 @@ export function usePitchDetector() {
           // tuner reporting a string it can no longer hear.
           clearHold();
           historyRef.current = [];
+          secondNoteRef.current = [];
           levelRef.current = 0;
           setPitch(null);
         },
