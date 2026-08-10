@@ -74,5 +74,42 @@ console.log('\nWeeks\n');
     weeklyTotals(buildHistory(logs(day('2026-07-12', { t1: 5 })), ROUTINES))[0].week === '2026-07-06');
 }
 
+// A month away used to produce no bars at all, so the chart drew a broken run
+// of practice as an unbroken one. Time has to be continuous or it says nothing.
+console.log('\nWeeks off are still weeks\n');
+{
+  const h = buildHistory(logs(day('2026-06-01', { t1: 5 }), day('2026-07-06', { t1: 5 })), ROUTINES);
+  const w = weeklyTotals(h);
+  check('the gap is drawn, not skipped', w.length === 6, JSON.stringify(w.map(x=>x.count)));
+  check('and drawn as zero', w.slice(1, -1).every((x) => x.count === 0), JSON.stringify(w));
+  check('the ends still hold the practice', w[0].count === 1 && w[w.length-1].count === 1);
+
+  const trailing = weeklyTotals(h, '2026-07-27');
+  check('a run that stopped keeps running to now', trailing.length === 9, String(trailing.length));
+  check('and the last weeks are empty', trailing.slice(-3).every((x) => x.count === 0));
+  check('a "now" already covered adds nothing', weeklyTotals(h, '2026-07-06').length === 6);
+  check('a "now" in the past never truncates the history',
+    weeklyTotals(h, '2026-01-01').length === 6);
+  check('one practised week is one week', weeklyTotals(buildHistory(logs(day('2026-07-06',{t1:5})), ROUTINES)).length === 1);
+  check('no days, no weeks', weeklyTotals([]).length === 0);
+}
+
+// The routine is read as it stands now, so an edited routine could report
+// "5 of 3 done" about a day it knows nothing about.
+console.log('\nWhat a day can claim about its plan\n');
+{
+  const full = buildHistory(logs(['2026-07-01', {
+    date: '2026-07-01', routineId: 'r1', completedTaskIds: ['t1','t2'], drillResults: { t1: 9 },
+  }]), ROUTINES);
+  check('a plan it fits inside is reported', full[0].planned === 3 && full[0].completed === 2);
+
+  const shrunk = buildHistory(logs(['2026-07-02', {
+    date: '2026-07-02', routineId: 'r1', completedTaskIds: ['a','b','c','d','e'], drillResults: { t1: 9 },
+  }]), ROUTINES);
+  check('a plan smaller than the day is dropped, not printed', shrunk[0].planned === null,
+    String(shrunk[0].planned));
+  check('the day still says what it completed', shrunk[0].completed === 5);
+}
+
 console.log(failures===0?'\nALL PASS\n':`\n${failures} FAILURE(S)\n`);
 process.exit(failures?1:0);

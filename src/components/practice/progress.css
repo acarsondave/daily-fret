@@ -12,120 +12,158 @@
   gap: var(--space-4);
 }
 
-/* Recommendation — closes the loop from tracking to action */
+/* The lead. Progress that does not end in "so play this" is a scoreboard, and
+   this panel is not for admiring. It is the one thing here with a filled
+   action, and it sits above everything the player has to read. */
 .progress-reco {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-4);
   width: 100%;
   text-align: left;
-  padding: var(--space-4);
+  padding: var(--space-5);
   border-radius: var(--radius-lg);
   background: var(--accent-glow);
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  border: 1px solid rgba(56, 189, 248, 0.28);
   color: var(--text-primary);
   cursor: pointer;
-  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, border-color 0.2s ease;
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-base) ease,
+    border-color var(--dur-base) ease;
 }
 .progress-reco:hover {
   background: rgba(56, 189, 248, 0.22);
   border-color: rgba(56, 189, 248, 0.45);
 }
 .progress-reco:active { transform: scale(0.99); }
-.progress-reco-icon { color: var(--accent-primary); flex-shrink: 0; }
-.progress-reco-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.progress-reco-text { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; flex: 1; }
 .progress-reco-label {
   font-family: var(--font-secondary);
   font-size: var(--text-micro);
-  letter-spacing: 0.1em;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--accent-primary);
 }
-.progress-reco-pair { font-family: var(--font-primary); font-weight: 600; font-size: var(--text-md); }
-.progress-reco-reason { font-family: var(--font-secondary); font-weight: 500; font-size: var(--text-sm); color: var(--text-secondary); }
+.progress-reco-pair {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: var(--text-xl);
+  line-height: 1.1;
+  letter-spacing: var(--tracking-tight);
+}
+.progress-reco-reason {
+  font-family: var(--font-secondary);
+  font-weight: 500;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
 .progress-reco-go {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
   border-radius: var(--radius-full);
   background: var(--accent-primary);
   color: #06141d;
 }
 
-/* Summary strip */
-.progress-summary {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-2);
-  padding: var(--space-4);
-  border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-.progress-stat {
+/* The one drill under the microscope. */
+.progress-focus {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  text-align: center;
-}
-.progress-stat + .progress-stat { border-left: 1px solid rgba(255, 255, 255, 0.06); }
-.progress-stat-value {
-  font-family: var(--font-primary);
-  font-weight: 700;
-  font-size: var(--text-xl);
-  line-height: 1;
-  color: var(--text-primary);
-}
-.progress-stat-streak {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--record-color);
-}
-.progress-stat-label {
-  font-family: var(--font-secondary);
-  font-size: var(--text-micro);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
-/* Chart card */
-.progress-chart-card {
+  gap: var(--space-3);
   padding: var(--space-4);
   border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
 }
-.progress-chart-head {
+.progress-focus-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: var(--space-2);
+  gap: var(--space-3);
 }
-.progress-chart-titles { display: flex; flex-direction: column; gap: 2px; }
-.progress-chart-pair { font-family: var(--font-primary); font-weight: 700; font-size: var(--text-lg); color: var(--text-primary); }
-.progress-chart-sub {
+.progress-focus-titles { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.progress-focus-title {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+}
+.progress-focus-sub {
   font-family: var(--font-secondary);
-  font-size: var(--text-micro);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
 }
-.progress-chart-best {
+.progress-focus-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.progress-focus-value {
   font-family: var(--font-primary);
   font-weight: 700;
   font-size: var(--text-xl);
   line-height: 1;
   color: var(--accent-primary);
 }
+.progress-focus-value-label {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* The trend and the words for what it compared, on one line. A percentage
+   without its basis is a claim the reader cannot check. */
+.progress-focus-trend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.progress-focus-verdict {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+}
+.progress-focus-basis {
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.progress-focus-single {
+  padding: var(--space-6) var(--space-2);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.02);
+  font-family: var(--font-secondary);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.progress-focus-best {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--record-color);
+}
+
 .progress-chart { width: 100%; height: auto; display: block; }
-.chart-axis { fill: var(--text-secondary); font-size: 11px; font-family: var(--font-secondary); opacity: 0.7; }
-.chart-empty { color: var(--text-secondary); text-align: center; padding: var(--space-8) 0; }
+.chart-axis { fill: var(--text-secondary); font-size: 11px; font-family: var(--font-secondary); }
 
 /* Two families of measurement, each labelled. Chord changes are a speed; shape
    drills are a count of clean placements. Putting them in one undifferentiated
@@ -144,32 +182,54 @@
   color: var(--text-muted);
 }
 
-/* Per-drill selector list */
+/* Per-drill list. Optional: the panel has already chosen what to show, and
+   these are for looking somewhere else, not a step before it speaks. */
 .progress-pairs { display: flex; flex-direction: column; gap: var(--space-2); }
 .progress-pair-row {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   width: 100%;
+  min-height: 56px;
   text-align: left;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition: background var(--dur-base) ease, border-color var(--dur-base) ease;
 }
-.progress-pair-row:hover { background: rgba(255, 255, 255, 0.05); }
+.progress-pair-row:hover { background: rgba(255, 255, 255, 0.06); }
 .progress-pair-row.is-active {
   background: var(--accent-glow);
   border-color: rgba(56, 189, 248, 0.35);
 }
-.progress-pair-name {
+/* The drill's name and, when it has earned one, its standing. One group: held
+   is a property of the drill, not of today's number, so it travels with the
+   name instead of joining the figures on the right. */
+.progress-pair-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   flex: 1;
+  min-width: 0;
+}
+.progress-pair-name {
+  min-width: 0;
   font-family: var(--font-primary);
   font-weight: 600;
   font-size: var(--text-md);
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.progress-pair-figures {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  flex-shrink: 0;
 }
 .progress-pair-best {
   display: inline-flex;
@@ -177,34 +237,140 @@
   gap: 3px;
   font-family: var(--font-primary);
   font-weight: 700;
-  font-size: var(--text-lg);
+  font-size: var(--text-md);
+  line-height: 1.2;
   color: var(--text-primary);
 }
 .progress-pair-unit { font-size: var(--text-micro); font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
+/* The latest run leads and the best sits under it. A row showing only a
+   personal best cannot answer "am I still there", which is the question. */
+.progress-pair-context {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  color: var(--text-secondary);
+}
+
+/* Whether the number can be repeated, in the label register.
+
+   No pill, no fill, no glow. The trend chips two columns over are pills, and a
+   second pill here would read as another chip of the same kind rather than a
+   different sort of claim entirely. Green because the system reserves it for
+   confirmed and counted, which is what held is, and because amber is already
+   spoken for by the personal best: a best is a peak, held is a floor, and the
+   two must not look alike. */
+.progress-standing {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  font-weight: 700;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.progress-standing.is-held { color: var(--success-color); }
+/* An absence, not a failure, so it gets the recessive grey and no tick. There
+   is nothing currently true to put a mark against. */
+.progress-standing.is-lapsed { color: var(--text-muted); }
+
+/* The same reading, given room. Sits under the trend line because the two
+   answer different questions about one drill: that one says which way the
+   number is going, this one says whether it holds. */
+/* Text flow, not a flex row. As a row the label became a flex item that could
+   not share a line with the sentence, so a phone stacked "2 of 3" above two
+   lines of prose and spent three lines saying one thing. Inline, the label
+   leads the sentence it belongs to and the whole thing wraps as prose. */
+.progress-standing-line {
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.progress-standing-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: var(--space-2);
+  vertical-align: baseline;
+  line-height: 1;
+  font-size: var(--text-micro);
+  font-weight: 700;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.progress-standing-line.is-held .progress-standing-label { color: var(--success-color); }
+/* A part-built streak is a target being approached, which is what the accent
+   is for everywhere else in the app. */
+.progress-standing-line.is-hit .progress-standing-label { color: var(--accent-primary); }
+.progress-standing-line.is-lapsed .progress-standing-label { color: var(--text-muted); }
 
 .progress-trend {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  padding: 2px var(--space-2);
+  padding: 3px var(--space-2);
   border-radius: var(--radius-full);
   font-family: var(--font-secondary);
   font-size: var(--text-micro);
   font-weight: 700;
-  min-width: 52px;
+  min-width: 58px;
+  flex-shrink: 0;
   justify-content: center;
 }
 .progress-trend.is-up { color: var(--success-color); background: var(--success-glow); }
 .progress-trend.is-down { color: var(--danger-color); background: var(--danger-glow); }
-.progress-trend.is-flat { color: var(--text-secondary); background: rgba(255, 255, 255, 0.05); }
+.progress-trend.is-flat { color: var(--text-secondary); background: rgba(255, 255, 255, 0.06); }
+/* Not a trend, and not styled as one. One run has no direction. */
+.progress-trend.is-none {
+  color: var(--text-muted);
+  background: none;
+  font-weight: 500;
+}
+
+/* The totals, as a caption. They are context for everything above, not the
+   headline: nobody opens this panel to find out how many results exist. */
+.progress-meta {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+.progress-meta > * {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+/* Trailing, not leading. A wrapped caption should end a line on the divider,
+   never begin one with it. */
+.progress-meta > *:not(:last-child)::after {
+  content: '·';
+  margin: 0 var(--space-1) 0 var(--space-2);
+  color: var(--text-muted);
+}
+.progress-meta-streak { color: var(--record-color); }
 
 @media (max-width: 600px) {
-  .progress-stat-value,
-  .progress-chart-best {
+  .progress-reco { padding: var(--space-4); gap: var(--space-3); }
+  .progress-focus { padding: var(--space-3); }
+  .progress-focus-value,
+  .progress-reco-pair {
     font-size: var(--text-lg);
   }
-  .progress-summary { padding: var(--space-3); }
-  .progress-chart-card { padding: var(--space-3); }
+}
+
+/* At 360px the row's three columns stop fitting on one line, so the trend chip
+   takes the second. Truncating a drill's name to keep a percentage on the same
+   row would be the wrong thing to give up. */
+@media (max-width: 380px) {
+  .progress-pair-row { flex-wrap: wrap; padding: var(--space-3) var(--space-3); }
+  .progress-pair-label { flex: 1 1 100%; }
+  .progress-pair-figures { flex-direction: row; align-items: baseline; gap: var(--space-2); flex: 1; }
 }
 
 /* Two views of the same question. Journey is the map, Numbers is the

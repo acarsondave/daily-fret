@@ -1,25 +1,36 @@
 import { useMemo, useState } from 'react';
-import { FlameIcon, MinusIcon, PlayIcon, TargetIcon, TrendDownIcon, TrendUpIcon } from '../icons';
+import { CheckIcon, FlameIcon, MinusIcon, PlayIcon, TargetIcon, TrendDownIcon, TrendUpIcon, TrophyIcon } from '../icons';
 import clsx from 'clsx';
 import { useDrillStats } from '../../hooks/useDrillStats';
-import { recommendNext, type DrillStat } from '../../lib/drillStats';
-import { useUserData } from '../../store';
+import {
+  pickFocus,
+  recentTrend,
+  recommendNext,
+  trendLabel,
+  type DrillStat,
+  type Trend,
+} from '../../lib/drillStats';
+import { readiness, CHANGES_BAR, type Readiness } from '../../lib/readiness';
+import { restAdvice, computeXp } from '../../lib/xp';
+import { getTodayString, useUserData } from '../../store';
 import { ProgressChart } from './ProgressChart';
 import { EmptyState } from './EmptyState';
 import './progress.css';
 
-function currentStreak(dailyLogs: Record<string, { completedTaskIds?: string[] }>): number {
-  let streak = 0;
-  const d = new Date();
-  // Allow today to be empty (you may not have practiced yet) without breaking it.
-  for (let i = 0; i < 400; i++) {
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const done = (dailyLogs[key]?.completedTaskIds?.length ?? 0) > 0;
-    if (done) streak += 1;
-    else if (i !== 0) break;
-    d.setDate(d.getDate() - 1);
-  }
-  return streak;
+/**
+ * Whether this drill's number can be repeated, where the app is entitled to an
+ * opinion about it.
+ *
+ * Chord changes only, for now, and not because the other drills matter less.
+ * The anchor rotation and Chord Perfect store their results under the task's
+ * id, so editing or rebuilding a routine silently truncates their history, and
+ * "held on your last three runs" read off a series that can lose its beginning
+ * is a claim the app has not earned. Chord pairs are keyed by the pair itself
+ * and survive everything, which is why they can carry the mark today.
+ */
+function readinessOf(stat: DrillStat, today: string): Readiness | null {
+  if (stat.kind !== 'pair') return null;
+  return readiness(stat.series, CHANGES_BAR, today);
 }
 
 // What the chart's axis is actually counting, in words.
@@ -28,40 +39,70 @@ function unitLabel(stat: DrillStat): string {
   return stat.unit === 'placed' ? 'shapes placed' : 'changes per drill';
 }
 
+const MONTHS = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function shortDate(date: string): string {
+  const [, month, day] = date.split('-');
+  return `${parseInt(day, 10)} ${MONTHS[parseInt(month, 10)] ?? ''}`;
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+function TrendChip({ trend, size = 12 }: { trend: Trend; size?: number }) {
+  const Mark = trend.direction === 'up' ? TrendUpIcon : trend.direction === 'down' ? TrendDownIcon : MinusIcon;
+  return (
+    <span className={clsx('progress-trend', `is-${trend.direction}`)}>
+      <Mark size={size} />
+      {trendLabel(trend)}
+    </span>
+  );
+}
+
 interface RowProps {
   stat: DrillStat;
+  today: string;
   isActive: boolean;
   onSelect: () => void;
 }
 
-function StatRow({ stat, isActive, onSelect }: RowProps) {
-  const values = stat.series.map((p) => p.value);
-  const first = values[0];
-  const last = values[values.length - 1];
-  const hasTrend = values.length >= 2;
-  const deltaPct = hasTrend && first > 0 ? Math.round(((last - first) / first) * 100) : 0;
-  const dir = !hasTrend ? 'flat' : deltaPct > 0 ? 'up' : deltaPct < 0 ? 'down' : 'flat';
+function StatRow({ stat, today, isActive, onSelect }: RowProps) {
+  const trend = recentTrend(stat.series);
+  const latest = stat.series[stat.series.length - 1];
+  // Only a settled answer belongs in a list being scanned. A part-built streak
+  // is real progress and it is still a running total, so it says its piece in
+  // the focus section where there is room for the sentence, and stays out of
+  // twenty rows the player is reading down.
+  const ready = readinessOf(stat, today);
+  const standing = ready?.state === 'held' || ready?.state === 'lapsed' ? ready : null;
 
   return (
     <button
+      type="button"
       className={clsx('progress-pair-row', isActive && 'is-active')}
       onClick={onSelect}
       aria-pressed={isActive}
     >
-      <span className="progress-pair-name">{stat.label}</span>
-      <span className="progress-pair-best">
-        {stat.best}
-        <span className="progress-pair-unit">{stat.unit}</span>
+      <span className="progress-pair-label">
+        <span className="progress-pair-name">{stat.label}</span>
+        {standing && (
+          <span className={clsx('progress-standing', `is-${standing.state}`)}>
+            {standing.state === 'held' && <CheckIcon size={12} aria-hidden="true" />}
+            {standing.label}
+          </span>
+        )}
       </span>
-      {hasTrend && (
-        <span className={clsx('progress-trend', `is-${dir}`)}>
-          {dir === 'up' && <TrendUpIcon size={12} />}
-          {dir === 'down' && <TrendDownIcon size={12} />}
-          {dir === 'flat' && <MinusIcon size={12} />}
-          {dir === 'up' ? '+' : ''}
-          {deltaPct}%
+      <span className="progress-pair-figures">
+        <span className="progress-pair-best">
+          {latest.value}
+          <span className="progress-pair-unit">{stat.unit}</span>
         </span>
-      )}
+        {/* With one run the latest *is* the best, and printing both twice says
+            nothing the row has not already said. */}
+        {stat.series.length > 1 && <span className="progress-pair-context">best {stat.best}</span>}
+      </span>
+      {/* A single session gets a statement of its own, not a blank column: a
+          missing chip reads as a chip the app failed to draw. */}
+      {trend ? <TrendChip trend={trend} /> : <span className="progress-trend is-none">1 run</span>}
     </button>
   );
 }
@@ -74,11 +115,27 @@ interface Props {
 
 export function ProgressPanel({ onPracticePair, onStartSession }: Props) {
   const { pairs, tasks, any } = useDrillStats();
-  const userData = useUserData();
+  const { dailyLogs } = useUserData();
+  // Read once and handed down, so every row and the focus line agree about
+  // what day it is even if the panel is open across midnight.
+  const today = getTodayString();
 
   const sortedPairs = useMemo(() => [...pairs].sort((a, b) => b.best - a.best), [pairs]);
   const sortedTasks = useMemo(() => [...tasks].sort((a, b) => b.best - a.best), [tasks]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+
+  // Both counts come from lib/xp so the Numbers tab and the Awards tab can
+  // never disagree about how much practice happened. This panel used to carry
+  // its own streak that counted a day as practised if any task was ticked,
+  // which xp.ts deliberately refuses to do; the two answers differed by weeks.
+  const totals = useMemo(() => {
+    const xp = computeXp(dailyLogs);
+    return {
+      days: xp.practiceDays,
+      results: xp.totalResults,
+      streak: restAdvice(dailyLogs, today).run,
+    };
+  }, [dailyLogs, today]);
 
   if (!any) {
     return (
@@ -92,71 +149,116 @@ export function ProgressPanel({ onPracticePair, onStartSession }: Props) {
   }
 
   // One chart, either family. Chord changes lead, because they are the measure
-  // the app prescribes tempo from.
+  // the app prescribes tempo from. Which one is on it is decided for the
+  // player; the rows below are a way to look elsewhere, not a step to take
+  // before the panel says anything.
   const everything: DrillStat[] = [...sortedPairs, ...sortedTasks];
-  // Open on something with a shape to it. Sorting by personal best alone put a
-  // single-session pair at the top, so the panel greeted you with a chart
-  // holding one dot — the highest number, and nothing to read from it.
-  const chartable = everything.filter((s) => s.series.length >= 2);
   const selected: DrillStat =
-    everything.find((s) => s.key === selectedKey) ?? chartable[0] ?? everything[0];
+    everything.find((s) => s.key === selectedKey) ?? pickFocus(everything) ?? everything[0];
 
-  const totalSessions = everything.reduce((sum, s) => sum + s.series.length, 0);
-  const topPair = sortedPairs.length ? sortedPairs[0].best : null;
-  const streak = currentStreak(userData?.dailyLogs ?? {});
+  const points = selected.series;
+  const latest = points[points.length - 1];
+  const bestPoint = points.reduce((best, p) => (p.value >= best.value ? p : best), points[0]);
+  const bestIsLatest = bestPoint.date === latest.date;
+  const trend = recentTrend(points);
+  const ready = readinessOf(selected, today);
   const recommendation = recommendNext(sortedPairs);
+  const verdict =
+    trend === null
+      ? null
+      : trend.direction === 'up'
+        ? 'Improving'
+        : trend.direction === 'down'
+          ? 'Slipping'
+          : 'Holding level';
 
   return (
     <div className="progress-root">
       {recommendation && onPracticePair && (
         <button
+          type="button"
           className="progress-reco"
           onClick={() => onPracticePair(recommendation.stat.from, recommendation.stat.to)}
         >
-          <TargetIcon size={20} className="progress-reco-icon" />
           <span className="progress-reco-text">
             <span className="progress-reco-label">Practice next</span>
-            <span className="progress-reco-pair">
-              {recommendation.stat.from} → {recommendation.stat.to}
-              <span className="progress-reco-reason"> · {recommendation.reason}</span>
+            {/* The stat's own label, so the pair is named identically here, on
+                the chart, and in the list. Two spellings of one pair on one
+                screen makes the reader check whether they are the same thing. */}
+            <span className="progress-reco-pair">{recommendation.stat.label}</span>
+            <span className="progress-reco-reason">
+              {recommendation.reason} · best {recommendation.stat.best} {recommendation.stat.unit}
             </span>
           </span>
           <span className="progress-reco-go">
-            <PlayIcon size={16} />
+            <PlayIcon size={18} />
           </span>
         </button>
       )}
 
-      <div className="progress-summary">
-        <div className="progress-stat">
-          {/* An em dash rather than a 0: no chord-change history is not a score
-              of zero, and this panel must not imply one. */}
-          <span className="progress-stat-value">{topPair ?? '—'}</span>
-          <span className="progress-stat-label">top cpm</span>
-        </div>
-        <div className="progress-stat">
-          <span className="progress-stat-value">{totalSessions}</span>
-          <span className="progress-stat-label">session{totalSessions === 1 ? '' : 's'}</span>
-        </div>
-        <div className="progress-stat">
-          <span className="progress-stat-value progress-stat-streak">
-            {streak > 0 && <FlameIcon size={18} />}
-            {streak}
-          </span>
-          <span className="progress-stat-label">day streak</span>
-        </div>
-      </div>
-
-      <div className="progress-chart-card">
-        <div className="progress-chart-head">
-          <div className="progress-chart-titles">
-            <span className="progress-chart-pair">{selected.label}</span>
-            <span className="progress-chart-sub">best {unitLabel(selected)}</span>
+      <section className="progress-focus" aria-label={`${selected.label} over time`}>
+        <header className="progress-focus-head">
+          <div className="progress-focus-titles">
+            <h3 className="progress-focus-title">{selected.label}</h3>
+            <p className="progress-focus-sub">
+              {unitLabel(selected)} · {plural(points.length, 'run')}
+              {selected.today !== null && ' · drilled today'}
+            </p>
           </div>
-          <span className="progress-chart-best">{selected.best}</span>
-        </div>
-        <ProgressChart series={selected.series} unitLabel={unitLabel(selected)} />
-      </div>
+          <div className="progress-focus-figure">
+            <span className="progress-focus-value">{latest.value}</span>
+            <span className="progress-focus-value-label">latest</span>
+          </div>
+        </header>
+
+        {/* The reading, done for the player. A chart alone asks them to work
+            out whether the last month meant anything; this says it, and then
+            names what was compared so the claim can be checked. */}
+        {trend && verdict && (
+          <p className="progress-focus-trend">
+            <span className="progress-focus-verdict">{verdict}</span>
+            <TrendChip trend={trend} size={13} />
+            <span className="progress-focus-basis">{trend.basis}</span>
+          </p>
+        )}
+
+        {/* Two readings of the same drill, and they answer different questions.
+            The line above says which way the number is going. This one says
+            whether it can be repeated, which is the one that decides whether
+            the player is done with this pair. It is stated, never celebrated:
+            the record gets the trophy, and this gets a tick. */}
+        {ready && ready.state !== 'none' && (
+          <p className={clsx('progress-standing-line', `is-${ready.state}`)}>
+            {ready.label && (
+              <>
+                <span className="progress-standing-label">
+                  {ready.state === 'held' && <CheckIcon size={13} aria-hidden="true" />}
+                  {ready.label}
+                </span>
+                {/* A real space, not the margin that draws one. Without it the
+                    two spans concatenate in the accessibility tree and "2 of 3"
+                    followed by "33 and 35" is announced as "2 of 333 and 35". */}
+                {' '}
+              </>
+            )}
+            <span className="progress-standing-evidence">{ready.evidence}</span>
+          </p>
+        )}
+
+        {points.length >= 2 ? (
+          <ProgressChart series={points} unitLabel={unitLabel(selected)} />
+        ) : (
+          <p className="progress-focus-single">
+            One run so far, on {shortDate(latest.date)}. A second gives this a shape to read.
+          </p>
+        )}
+
+        <p className="progress-focus-best">
+          <TrophyIcon size={13} />
+          Best {bestPoint.value} {selected.unit} on {shortDate(bestPoint.date)}
+          {bestIsLatest ? ', which is your latest run' : ''}
+        </p>
+      </section>
 
       {sortedPairs.length > 0 && (
         <section className="progress-section">
@@ -166,6 +268,7 @@ export function ProgressPanel({ onPracticePair, onStartSession }: Props) {
               <StatRow
                 key={s.key}
                 stat={s}
+                today={today}
                 isActive={s.key === selected.key}
                 onSelect={() => setSelectedKey(s.key)}
               />
@@ -185,6 +288,7 @@ export function ProgressPanel({ onPracticePair, onStartSession }: Props) {
               <StatRow
                 key={s.key}
                 stat={s}
+                today={today}
                 isActive={s.key === selected.key}
                 onSelect={() => setSelectedKey(s.key)}
               />
@@ -192,6 +296,25 @@ export function ProgressPanel({ onPracticePair, onStartSession }: Props) {
           </div>
         </section>
       )}
+
+      {/* A caption, not a scoreboard. Three hero figures at the top of the panel
+          were the loudest thing on it and answered none of the questions the
+          panel exists for. */}
+      {/* Each fact carries its own trailing separator rather than a leading
+          one, so a line that wraps ends on the divider instead of opening
+          with an orphaned mark. */}
+      <p className="progress-meta">
+        <span>{plural(totals.days, 'day')} measured</span>
+        <span>{plural(totals.results, 'result')} recorded</span>
+        {/* Omitted at zero rather than printed as "0 days running": no run is
+            an absence, and the app does not report absences as scores. */}
+        {totals.streak > 0 && (
+          <span className="progress-meta-streak">
+            <FlameIcon size={13} />
+            {plural(totals.streak, 'day')} running
+          </span>
+        )}
+      </p>
     </div>
   );
 }

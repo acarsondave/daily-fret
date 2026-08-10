@@ -6,26 +6,33 @@ interface Props {
   unitLabel: string;
 }
 
+const MONTHS = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 function shortDate(d: string): string {
   const [, m, day] = d.split('-');
-  const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${months[parseInt(m, 10)] ?? ''} ${parseInt(day, 10)}`;
+  return `${MONTHS[parseInt(m, 10)] ?? ''} ${parseInt(day, 10)}`;
 }
 
-// A labeled value-over-time chart: gridlines, an area-filled trend, value axis,
-// dotted points, and the latest value called out. Unit-agnostic, because it now
-// plots chord-change speed and shape-placement counts alike.
+// Beyond this many sessions a dot per point is a smear rather than a reading,
+// so only the two that carry meaning stay: the best, and the latest.
+const DOTS_UP_TO = 24;
+
+/**
+ * One drill's results over time: gridlines, a trend line, a value axis, the
+ * personal best marked, and the latest value called out.
+ *
+ * Two points is the contract. A single result is not a trend and must not be
+ * drawn as one, so the caller states it in words instead.
+ */
 export function ProgressChart({ series, unitLabel }: Props) {
+  if (series.length < 2) return null;
+
   const W = 520;
   const H = 200;
   const padL = 34;
   const padR = 16;
   const padT = 16;
   const padB = 26;
-
-  if (series.length === 0) {
-    return <div className="chart-empty">No data yet.</div>;
-  }
 
   const values = series.map((p) => p.value);
   const max = Math.max(...values);
@@ -39,7 +46,7 @@ export function ProgressChart({ series, unitLabel }: Props) {
   const innerH = H - padT - padB;
   const n = series.length;
 
-  const x = (i: number) => padL + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW);
+  const x = (i: number) => padL + (i / (n - 1)) * innerW;
   const y = (v: number) => padT + innerH - ((v - bottom) / span) * innerH;
 
   const pts = series.map((p, i) => [x(i), y(p.value)] as const);
@@ -47,10 +54,20 @@ export function ProgressChart({ series, unitLabel }: Props) {
   const area = `${line} L${pts[pts.length - 1][0].toFixed(1)} ${(padT + innerH).toFixed(1)} L${pts[0][0].toFixed(1)} ${(padT + innerH).toFixed(1)} Z`;
 
   const ticks = [top, Math.round((top + bottom) / 2), bottom];
+  const bestIndex = values.lastIndexOf(max);
   const [lastX, lastY] = pts[pts.length - 1];
+  const [bestX, bestY] = pts[bestIndex];
+
+  // A filled area measured from a baseline that is not zero exaggerates every
+  // wobble into a mountain. The axis has to be cropped for a change rate that
+  // lives between 40 and 60, so the fill is what gives way.
+  const zeroBased = bottom === 0;
+  const summary =
+    `${unitLabel} over ${n} sessions. Latest ${values[n - 1]} on ${shortDate(series[n - 1].date)}, ` +
+    `best ${max} on ${shortDate(series[bestIndex].date)}, lowest ${min}.`;
 
   return (
-    <svg className="progress-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${unitLabel} over time`}>
+    <svg className="progress-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={summary}>
       <defs>
         <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="var(--accent-primary)" stopOpacity="0.28" />
@@ -58,30 +75,50 @@ export function ProgressChart({ series, unitLabel }: Props) {
         </linearGradient>
       </defs>
 
-      {ticks.map((t, i) => {
+      {ticks.map((t) => {
         const gy = y(t);
         return (
-          <g key={i}>
-            <line x1={padL} y1={gy} x2={W - padR} y2={gy} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+          <g key={t}>
+            <line x1={padL} y1={gy} x2={W - padR} y2={gy} stroke="var(--border-subtle)" strokeWidth="1" />
             <text x={padL - 8} y={gy + 4} textAnchor="end" className="chart-axis">{t}</text>
           </g>
         );
       })}
 
-      <path d={area} fill="url(#chartFill)" />
+      {zeroBased && <path d={area} fill="url(#chartFill)" />}
       <path d={line} fill="none" stroke="var(--accent-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
 
-      {pts.map(([px, py], i) => (
-        <circle key={i} cx={px} cy={py} r={i === pts.length - 1 ? 4 : 2.5} fill="var(--accent-primary)" />
-      ))}
-      <circle cx={lastX} cy={lastY} r="7" fill="var(--accent-primary)" opacity="0.18" />
+      {n <= DOTS_UP_TO &&
+        pts.map(([px, py], i) => (
+          <circle key={series[i].date} cx={px} cy={py} r="2.5" fill="var(--accent-primary)" />
+        ))}
+
+      {/* When the latest run *is* the best, one marker carries both, in the
+          record colour. Stacking them hid the best under the newer dot. */}
+      {bestIndex !== n - 1 && (
+        <>
+          <circle cx={bestX} cy={bestY} r="6" fill="var(--record-color)" opacity="0.2" />
+          <circle cx={bestX} cy={bestY} r="3.5" fill="var(--record-color)" />
+        </>
+      )}
+      <circle
+        cx={lastX}
+        cy={lastY}
+        r="7"
+        fill={bestIndex === n - 1 ? 'var(--record-color)' : 'var(--accent-primary)'}
+        opacity="0.2"
+      />
+      <circle
+        cx={lastX}
+        cy={lastY}
+        r="4"
+        fill={bestIndex === n - 1 ? 'var(--record-color)' : 'var(--accent-primary)'}
+      />
 
       <text x={padL} y={H - 8} textAnchor="start" className="chart-axis">{shortDate(series[0].date)}</text>
-      {n > 1 && (
-        <text x={W - padR} y={H - 8} textAnchor="end" className="chart-axis">
-          {shortDate(series[n - 1].date)}
-        </text>
-      )}
+      <text x={W - padR} y={H - 8} textAnchor="end" className="chart-axis">
+        {shortDate(series[n - 1].date)}
+      </text>
     </svg>
   );
 }

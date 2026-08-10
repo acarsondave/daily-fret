@@ -1,12 +1,21 @@
 import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { CaretDownIcon, TrophyIcon } from '../icons';
-import { useUserData } from '../../store';
+import { getTodayString, useUserData } from '../../store';
 import { buildHistory, weeklyTotals, type HistoryDay } from '../../lib/history';
 import { EmptyState } from './EmptyState';
 import './history.css';
 
 const PAGE = 14;
+/** Half a year of weeks: long enough to show a habit, short enough to read. */
+const WEEKS_SHOWN = 26;
+
+const MONTHS = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function shortMonth(week: string): string {
+  const [, month, day] = week.split('-');
+  return `${parseInt(day, 10)} ${MONTHS[parseInt(month, 10)] ?? ''}`;
+}
 
 /**
  * What you actually did, day by day.
@@ -23,14 +32,21 @@ interface Props {
 export function HistoryPanel({ onStartSession }: Props) {
   const data = useUserData();
   const [shown, setShown] = useState(PAGE);
-  const [open, setOpen] = useState<string | null>(null);
+  // `undefined` means the player has not chosen yet, which is not the same as
+  // having closed everything: the newest day opens itself so the tab answers
+  // "what did I just do" without a click, and stays closable.
+  const [open, setOpen] = useState<string | null | undefined>(undefined);
 
   const days = useMemo(
     () => buildHistory(data.dailyLogs, data.routines),
     [data.dailyLogs, data.routines],
   );
-  const weeks = useMemo(() => weeklyTotals(days).slice(-26), [days]);
+  const weeks = useMemo(
+    () => weeklyTotals(days, getTodayString()).slice(-WEEKS_SHOWN),
+    [days],
+  );
   const busiest = useMemo(() => Math.max(1, ...weeks.map((w) => w.count)), [weeks]);
+  const practisedWeeks = useMemo(() => weeks.filter((w) => w.count > 0).length, [weeks]);
 
   if (!days.length) {
     return (
@@ -49,20 +65,36 @@ export function HistoryPanel({ onStartSession }: Props) {
         <section className="history-weeks">
           <h3 className="history-title">Days practised, by week</h3>
           {/* Bars rather than a heat grid: seven possible values a week does not
-              need a colour scale, and a bar can be read without a legend. */}
-          <ol className="history-bars">
+              need a colour scale, and a bar can be read without a legend.
+              Twenty-six of them read as a shape, not as twenty-six numbers, so
+              the screen reader gets the shape in one sentence instead. */}
+          <ol className="history-bars" aria-hidden="true">
             {weeks.map((w) => (
               <li key={w.week} className="history-bar-slot">
-                <span
-                  className="history-bar"
-                  style={{ height: `${Math.round((w.count / busiest) * 100)}%` }}
-                  title={`Week of ${w.week}: ${w.count} day${w.count === 1 ? '' : 's'}`}
-                />
+                {/* A week off leaves an empty slot. Drawing a stub for zero
+                    would make a gap look like a day of practice. */}
+                {w.count > 0 && (
+                  <span
+                    className="history-bar"
+                    style={{ height: `${Math.round((w.count / busiest) * 100)}%` }}
+                    title={`Week of ${w.week}: ${w.count} day${w.count === 1 ? '' : 's'}`}
+                  />
+                )}
               </li>
             ))}
           </ol>
+          <p className="history-axis" aria-hidden="true">
+            <span>{shortMonth(weeks[0].week)}</span>
+            <span>This week</span>
+          </p>
           <span className="history-scale">
-            {weeks.length} weeks · busiest {busiest} day{busiest === 1 ? '' : 's'}
+            Practised in {practisedWeeks} of the last {weeks.length} weeks, busiest {busiest} day
+            {busiest === 1 ? '' : 's'}.
+          </span>
+          <span className="sr-only">
+            Days practised each week over the last {weeks.length} weeks, from{' '}
+            {shortMonth(weeks[0].week)} to this week. You practised in {practisedWeeks} of them, and
+            the busiest week held {busiest} day{busiest === 1 ? '' : 's'}.
           </span>
         </section>
       )}
@@ -70,14 +102,17 @@ export function HistoryPanel({ onStartSession }: Props) {
       <section className="history-days">
         <h3 className="history-title">Every day you practised</h3>
         <ul className="history-list">
-          {days.slice(0, shown).map((day) => (
-            <DayRow
-              key={day.date}
-              day={day}
-              open={open === day.date}
-              onToggle={() => setOpen(open === day.date ? null : day.date)}
-            />
-          ))}
+          {days.slice(0, shown).map((day) => {
+            const isOpen = (open === undefined ? days[0].date : open) === day.date;
+            return (
+              <DayRow
+                key={day.date}
+                day={day}
+                open={isOpen}
+                onToggle={() => setOpen(isOpen ? null : day.date)}
+              />
+            );
+          })}
         </ul>
         {shown < days.length && (
           <button type="button" className="history-more" onClick={() => setShown((n) => n + PAGE)}>

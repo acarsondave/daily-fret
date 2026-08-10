@@ -136,12 +136,18 @@ export function buildHistory(
     const completed = log.completedTaskIds?.length ?? 0;
     if (!results.length && !completed && !log.feedback) continue;
 
+    // Routines are read as they stand now, so an edited routine can claim fewer
+    // tasks than the day actually completed. "5 of 3 done" is not a fact about
+    // that day, so the comparison is dropped rather than repaired.
+    const taskCount = routine?.tasks.length ?? null;
+    const planned = taskCount !== null && completed <= taskCount ? taskCount : null;
+
     days.push({
       date,
       label: formatDate(date),
       routineName: routine?.name ?? null,
       completed,
-      planned: routine?.tasks.length ?? null,
+      planned,
       results,
       feedback: log.feedback?.trim() || null,
       bests: results.filter((r) => r.isBest).length,
@@ -151,16 +157,52 @@ export function buildHistory(
   return days.reverse();
 }
 
-/** Practice days per week, for a year at a glance. */
-export function weeklyTotals(days: readonly HistoryDay[]): Array<{ week: string; count: number }> {
+/** The Monday of the week a date falls in, as an ISO date. Stable week key. */
+function mondayOf(date: string): string {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
+function weekAfter(monday: string): string {
+  const d = new Date(`${monday}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 7);
+  return d.toISOString().slice(0, 10);
+}
+
+export interface WeekTotal {
+  week: string;
+  count: number;
+}
+
+/**
+ * Practice days per week, for half a year at a glance.
+ *
+ * Weeks with no practice are emitted as zeros rather than skipped. Skipping
+ * them compressed time: a month away drew as no gap at all, so a run of
+ * practice that was broken read as unbroken, which is the one thing this chart
+ * exists to tell the truth about.
+ *
+ * `through` is any date in the week the caller considers "now". Without it the
+ * series stops at the last week practised, and someone who put the guitar down
+ * three weeks ago would see a chart that ends on a full bar.
+ */
+export function weeklyTotals(days: readonly HistoryDay[], through?: string): WeekTotal[] {
   const weeks = new Map<string, number>();
   for (const day of days) {
-    const d = new Date(`${day.date}T12:00:00Z`);
-    // ISO-ish: shift to the Monday of that week so the key is stable.
-    const monday = new Date(d);
-    monday.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
-    const key = monday.toISOString().slice(0, 10);
+    const key = mondayOf(day.date);
     weeks.set(key, (weeks.get(key) ?? 0) + 1);
   }
-  return [...weeks.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([week, count]) => ({ week, count }));
+  if (weeks.size === 0) return [];
+
+  const keys = [...weeks.keys()].sort();
+  const first = keys[0];
+  const lastPractised = keys[keys.length - 1];
+  const end = through ? [mondayOf(through), lastPractised].sort()[1] : lastPractised;
+
+  const totals: WeekTotal[] = [];
+  for (let week = first; week <= end; week = weekAfter(week)) {
+    totals.push({ week, count: weeks.get(week) ?? 0 });
+  }
+  return totals;
 }

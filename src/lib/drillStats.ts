@@ -11,7 +11,7 @@ export interface DrillHistory {
 }
 
 // History for a drill stored under its task id (e.g. Chord Perfect's placement
-// count), oldest first. The chord-changes drill is keyed by pair instead — see
+// count), oldest first. The chord-changes drill is keyed by pair instead; see
 // pairs.ts.
 export function taskDrillHistory(
   dailyLogs: Record<string, DailyLog>,
@@ -162,22 +162,111 @@ export function collectDrillStats(
   return { pairs, tasks, any: pairs.length > 0 || tasks.length > 0 };
 }
 
+export interface Trend {
+  direction: 'up' | 'down' | 'flat';
+  /**
+   * Percent change against the earlier window, unrounded. Null when the earlier
+   * window averaged zero, because there is no percentage of nothing.
+   */
+  percent: number | null;
+  /** How many sessions sit on each side of the comparison. */
+  window: number;
+  /** What was compared, in words, so the number is never a bare claim. */
+  basis: string;
+}
+
+const mean = (values: number[]): number => values.reduce((sum, v) => sum + v, 0) / values.length;
+
+/**
+ * How a drill is moving *now*.
+ *
+ * Progress used to compare the first result ever recorded to the latest, which
+ * on a long history is a biography rather than a trend: months of early
+ * improvement keep reporting a large gain while the last three weeks slide.
+ * This averages the recent sessions against the same number of sessions before
+ * them, so a plateau reads as a plateau and a decline reads as a decline.
+ */
+export function recentTrend(series: readonly SeriesPoint[], window = 3): Trend | null {
+  if (series.length < 2) return null;
+
+  const w = Math.min(window, Math.floor(series.length / 2));
+  const values = series.map((p) => p.value);
+  const recent = mean(values.slice(-w));
+  const prior = mean(values.slice(-2 * w, -w));
+  const delta = recent - prior;
+
+  // Direction comes from the raw difference, never from the rounded percentage.
+  // A 0.4% slide is a slide, and rounding it into a flat line flatters the
+  // player at the exact moment the app should be honest with them.
+  const direction = delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat';
+  const basis =
+    w === 1 ? 'latest session against the one before' : `last ${w} sessions against the ${w} before`;
+
+  return { direction, percent: prior > 0 ? (delta / prior) * 100 : null, window: w, basis };
+}
+
+/** A trend short enough for a chip, with no real move rounded away to nothing. */
+export function trendLabel(trend: Trend): string {
+  if (trend.direction === 'flat') return 'level';
+  if (trend.percent === null) return trend.direction === 'up' ? 'up' : 'down';
+  const rounded = Math.round(Math.abs(trend.percent));
+  const sign = trend.direction === 'up' ? '+' : '-';
+  return rounded === 0 ? `${sign}<1%` : `${sign}${rounded}%`;
+}
+
+/**
+ * The drill the panel should open on, chosen rather than asked for.
+ *
+ * Nothing here should need a click before it says something. Progress used to
+ * open on whichever drill sorted highest by personal best, which is the least
+ * informative choice available: a number that may not have moved in months.
+ * Today's run wins, because it is the thing the player just did; after that,
+ * whichever drill has moved furthest against its own recent runs.
+ */
+export function pickFocus(stats: readonly DrillStat[]): DrillStat | null {
+  if (stats.length === 0) return null;
+
+  const readable = stats.filter((s) => s.series.length >= 2);
+  if (readable.length === 0) return stats[0];
+
+  const scored = readable.map((stat) => {
+    const trend = recentTrend(stat.series);
+    return {
+      stat,
+      today: stat.today !== null ? 1 : 0,
+      movement: trend && trend.percent !== null ? Math.abs(trend.percent) : 0,
+    };
+  });
+  scored.sort((a, b) => b.today - a.today || b.movement - a.movement);
+  return scored[0].stat;
+}
+
 export interface Recommendation {
   stat: PairStat;
   reason: string;
 }
 
-// Pick the single pair most worth drilling next. Priority: a pair not yet
-// practiced today, then the weakest by personal best. Returns null with no data.
-export function recommendNext(stats: PairStat[]): Recommendation | null {
+/**
+ * The single pair most worth drilling next.
+ *
+ * Pairs already drilled today step aside unless they are all there is. Within
+ * what is left, a pair sliding backwards wins over a merely slow one: the slow
+ * pair is the one the player already knows about, the sliding one is not.
+ */
+export function recommendNext(stats: readonly PairStat[]): Recommendation | null {
   const withHistory = stats.filter((s) => s.series.length > 0);
   if (withHistory.length === 0) return null;
 
   const notToday = withHistory.filter((s) => s.today === null);
   const pool = notToday.length ? notToday : withHistory;
-  const pick = [...pool].sort((a, b) => a.best - b.best)[0];
 
-  const reason =
-    pick.today === null ? 'Not practiced today' : 'Your slowest pair — push it';
-  return { stat: pick, reason };
+  const sliding = pool
+    .map((stat) => ({ stat, trend: recentTrend(stat.series) }))
+    .filter((entry): entry is { stat: PairStat; trend: Trend } => entry.trend?.direction === 'down')
+    .sort((a, b) => (a.trend.percent ?? 0) - (b.trend.percent ?? 0));
+
+  if (sliding.length) return { stat: sliding[0].stat, reason: 'Slipping on your recent runs' };
+
+  const pick = [...pool].sort((a, b) => a.best - b.best)[0];
+  return { stat: pick, reason: pick.today === null ? 'Not drilled today' : 'Your slowest pair' };
 }

@@ -58,14 +58,26 @@
   opacity: 0.8;
 }
 
+/* Both ends of the window, named. Twenty-six unlabelled bars do not say which
+   end is now, and a chart you have to guess the direction of is not a chart. */
+.history-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-1);
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  color: var(--text-muted);
+}
+
+/* Sentence case, not the uppercase label treatment. This line grew from two
+   words into a reading of the chart, and 0.18em tracking on a sentence that
+   wraps costs more legibility than the label style was buying. */
 .history-scale {
   display: block;
   margin-top: var(--space-2);
   font-family: var(--font-secondary);
-  font-size: var(--text-micro);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--text-muted);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
 }
 
 /* --- Days ------------------------------------------------------------------ */
