@@ -1,5 +1,6 @@
 import { ArrowDownIcon, ArrowUpIcon } from '../icons';
 import { parseStrum } from '../../data/songs';
+import './strumRow.css';
 
 interface Props {
   strum: string; // D/U/- string, any length

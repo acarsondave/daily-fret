@@ -1,12 +1,15 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { DailyPath } from './components/DailyPath';
 import { Footer } from './components/Footer';
-// Settings, sign-in, the pattern manager, the routine backlog and a chord
-// diagram all hang off this modal, and none of it is needed to paint today's
-// practice. It opens on a tap, which is exactly when it can be fetched.
-const AccountModal = lazy(() =>
-  import('./components/AccountModal').then((m) => ({ default: m.AccountModal })),
+// Settings, sign-in, the pattern manager and a chord diagram all hang off this
+// surface, and none of it is needed to paint today's practice. It opens on a
+// tap, which is exactly when it can be fetched.
+const SettingsModal = lazy(() =>
+  import('./components/settings/SettingsModal').then((m) => ({ default: m.SettingsModal })),
 );
+// Not lazy: the capo state is painted in the header on first render, so the
+// chunk would be requested immediately anyway.
+import { QuickSetup } from './components/settings/QuickSetup';
 import { StreakGraph } from './components/StreakGraph';
 import { initAuthListener, useAuthStore } from './lib/auth';
 import { armOutputAudioUnlock } from './audio/outputContext';
@@ -16,7 +19,7 @@ import './App.css';
 
 function App() {
   const { loading, user } = useAuthStore();
-  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Read once per mount rather than on every render: the heading is a fixed
   // fact about this session, not something that should re-derive on each paint.
@@ -74,13 +77,14 @@ function App() {
               </h1>
               <div className="header-actions">
                 <StreakGraph />
+                <QuickSetup onOpenSettings={() => setIsSettingsOpen(true)} />
                 <button
                   className={user ? 'account-btn is-synced' : 'account-btn'}
-                  onClick={() => setIsAccountModalOpen(true)}
+                  onClick={() => setIsSettingsOpen(true)}
                   aria-label={
                     user
-                      ? 'Account. Your practice is synced to the cloud.'
-                      : 'Account. Your practice is saved on this device only.'
+                      ? 'Settings. Your practice is synced to the cloud.'
+                      : 'Settings. Your practice is saved on this device only.'
                   }
                 >
                   {user ? <CloudIcon size={16} /> : <DeviceIcon size={16} />}
@@ -98,10 +102,10 @@ function App() {
             <Footer />
 
             <Suspense fallback={null}>
-              {isAccountModalOpen && (
-                <AccountModal
-                  isOpen={isAccountModalOpen}
-                  onClose={() => setIsAccountModalOpen(false)}
+              {isSettingsOpen && (
+                <SettingsModal
+                  isOpen={isSettingsOpen}
+                  onClose={() => setIsSettingsOpen(false)}
                 />
               )}
             </Suspense>

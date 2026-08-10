@@ -1,0 +1,31 @@
+/* A strum as arrow art.
+ *
+ * These rules had no home for a long time: the component rendered
+ * .strum-row / .strum-arrow / .strum-rest-dot and nothing in the repo declared
+ * any of them, so every strum laid out as a vertical ladder one arrow per row.
+ * The pattern manager papered over it with its own scoped copy. The rules
+ * belong with the component that renders them, so a strum reads as a strum
+ * wherever it is used. */
+
+.strum-row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+}
+
+.strum-arrow {
+  display: inline-flex;
+  align-items: center;
+}
+
+.strum-arrow.is-rest {
+  color: var(--text-muted);
+}
+
+.strum-rest-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+}

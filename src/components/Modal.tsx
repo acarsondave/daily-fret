@@ -13,7 +13,12 @@ interface ModalProps {
   title?: string;
   /** Accessible name when the dialog shows no visible title. */
   label?: string;
-  position?: 'center' | 'bottom' | 'top-right';
+  /**
+   * `full` is a surface rather than a question: it takes the height of the
+   * viewport and lets its own content decide what scrolls, for panels that have
+   * internal sections instead of one column.
+   */
+  position?: 'center' | 'bottom' | 'top-right' | 'full';
   /** For panels that are a map rather than a question. */
   wide?: boolean;
 }
@@ -107,6 +112,11 @@ export function Modal({
       hidden: { opacity: 0, scale: 0.95, x: 20, y: -20 },
       visible: { opacity: 1, scale: 1, x: 0, y: 0 },
       exit: { opacity: 0, scale: 0.95, x: 20, y: -20 },
+    },
+    full: {
+      hidden: { opacity: 0, y: 16 },
+      visible: { opacity: 1, y: 0 },
+      exit: { opacity: 0, y: 16 },
     },
   };
 

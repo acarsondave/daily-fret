@@ -1,0 +1,125 @@
+/* The volatile settings, parked in the header where they can be checked before
+   a session without leaving the practice screen. */
+
+.quick-setup {
+  position: relative;
+  display: inline-flex;
+}
+
+.quick-setup-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--dur-base) ease, background var(--dur-base) ease,
+    border-color var(--dur-base) ease;
+}
+
+.quick-setup-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border-subtle);
+}
+
+.quick-setup-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* A capo transposes everything the detector hears, so a fitted one is stated in
+   the header rather than left to be remembered. */
+.quick-setup-btn.has-capo {
+  color: var(--accent-primary);
+  background: var(--accent-glow);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.quick-setup-btn[aria-expanded='true'] {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border-default);
+}
+
+.quick-setup-btn.has-capo[aria-expanded='true'] {
+  color: var(--accent-primary);
+}
+
+/* Placed from the trigger's measured rect (see QuickSetup.tsx), so it clears
+   the header on any viewport and can never cross the left edge. */
+.quick-setup-panel {
+  position: fixed;
+  z-index: 60;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-raised);
+  overflow: hidden;
+}
+
+/* Denser than the shared glass, which is tuned for a panel with headings on it.
+   This one carries a select and eight small chips over a moving task list, and
+   at 0.7 the list read straight through the labels. */
+.quick-setup-panel.glass-panel {
+  background: rgba(20, 20, 23, 0.94);
+}
+
+/* The panel is short by design, but a laptop windowed to 680px tall with three
+   settings in it still has to be able to reach the bottom one. */
+.quick-setup-body {
+  padding: var(--space-4);
+  overflow-y: auto;
+  max-height: min(60vh, 420px);
+}
+
+.quick-setup-more {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+
+.quick-setup-more:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.quick-setup-more:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Four across, two rows. Eight columns inside a 320px popover puts every capo
+   chip near 28px, and this is hit with a thumb while the other hand holds the
+   guitar. */
+.quick-setup-panel .capo-frets {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 600px) {
+  .quick-setup-btn {
+    padding: var(--space-2);
+  }
+  .quick-setup-label {
+    font-size: var(--text-micro);
+  }
+}

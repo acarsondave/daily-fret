@@ -1,0 +1,611 @@
+/* The vocabulary every settings control speaks: one block shape, one heading,
+   one action button. The surface shell that arranges them lives in
+   SettingsModal.css; this file is what a single setting looks like wherever it
+   is shown, which is now two places (the settings surface and the quick setup
+   popover). */
+
+.setting-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Separation between settings is a rule and real air, not a box around each
+   one. Cards would have made six identical containers the structure of the
+   pane, and the pane is already a container. More space above the heading than
+   below it, so a heading belongs to what follows it. */
+.setting-block + .setting-block {
+  margin-top: var(--space-6);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.setting-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-family: var(--font-primary);
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+}
+
+.setting-head-icon {
+  flex: 0 0 auto;
+  color: var(--accent-primary);
+}
+
+/* Explanatory line under a settings row. Also declared, identically, in the
+   practice stylesheet, which is where it was first written and the wrong home
+   for it: that sheet only loads with a drill or the calibration flow, so the
+   capo note in the header popover painted at body size in body color until this
+   rule existed. The declaration belongs here; the practice copy should go. */
+.setting-note {
+  max-width: 56ch;
+  margin: var(--space-1) 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.settings-action-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-3);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  font-family: var(--font-secondary);
+  font-size: var(--text-base);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease,
+    color var(--dur-fast) ease;
+}
+
+.settings-action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-default);
+}
+
+.settings-action-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.settings-action-btn.is-danger {
+  color: var(--danger-color);
+}
+
+.settings-action-btn.is-danger:hover {
+  background: var(--danger-glow);
+  border-color: rgba(248, 113, 113, 0.28);
+}
+
+/* Undoing a setting is not the same kind of act as configuring one. Given the
+   same weight as "add to my calendar" it competed with it; quieter puts the
+   hierarchy back without hiding it. */
+.settings-action-btn.is-quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-3);
+}
+
+.settings-action-btn.is-quiet:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.settings-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinner-icon {
+  animation: spin 1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner-icon { animation-duration: 2.4s; }
+}
+
+/* --- Microphone ---------------------------------------------------------- */
+
+.mic-setting-select {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.mic-setting-select:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.mic-setting-select option { background: var(--surface-color); color: var(--text-primary); }
+
+.mic-setting-unlock {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--accent-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.mic-setting-unlock:hover { text-decoration: underline; }
+.mic-setting-unlock:disabled { color: var(--text-secondary); cursor: default; }
+.mic-setting-unlock:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* --- Capo ---------------------------------------------------------------- */
+/* A row rather than a stepper: choosing "3" is one tap, and the whole range is
+   visible, which matters for a control that silently governs whether any drill
+   can hear you. */
+
+.capo-frets {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: var(--space-1);
+}
+
+/* Eight columns on a phone leave each chip near 41px wide, under the target
+   size for a control operated with a thumb while the other hand is on the
+   guitar. Two rows of four give every chip room in both directions. */
+@media (max-width: 480px) {
+  .capo-frets {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.capo-fret {
+  min-height: 44px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease,
+    border-color var(--dur-fast) ease;
+}
+
+/* "None" is a word among numbers, so it gets the room a word needs and the
+   frets share what is left equally. */
+.capo-fret.is-none {
+  font-size: var(--text-sm);
+}
+
+.capo-fret:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.capo-fret.is-on {
+  background: var(--accent-glow);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: var(--accent-primary);
+}
+
+.capo-fret:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* --- Handedness ---------------------------------------------------------- */
+/* Chosen by looking rather than by reading a label. */
+
+.handedness-options {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.handedness-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease,
+    border-color var(--dur-fast) ease;
+}
+
+.handedness-option .cd-dot {
+  fill: var(--text-muted);
+  transition: fill var(--dur-fast) ease;
+}
+
+.handedness-option.is-on {
+  background: var(--accent-glow);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: var(--accent-primary);
+}
+
+.handedness-option.is-on .cd-dot {
+  fill: var(--accent-primary);
+}
+
+.handedness-option:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* --- Guitars ------------------------------------------------------------- */
+/* The list exists so the instrument the detector is listening for is never a
+   guess. A calibration fitted to one guitar makes drills stop counting on
+   another, and that failure is silent, so the answer has to be on screen. */
+
+.guitar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.guitar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-color);
+  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+
+.guitar-row.is-active {
+  border-color: var(--accent-primary);
+  background: var(--accent-glow);
+}
+
+.guitar-pick {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Drawn as the app's own mark rather than a native radio, which cannot be
+   styled to match and reads as a form control in a list of instruments. */
+.guitar-mark {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--border-strong);
+  color: var(--bg-color);
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+
+.guitar-row.is-active .guitar-mark {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.guitar-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.guitar-name {
+  font-family: var(--font-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guitar-meta {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.guitar-name-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--accent-primary);
+  border-radius: var(--radius-sm);
+  background: var(--surface-color);
+  font-family: var(--font-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.guitar-name-input:focus {
+  outline: none;
+}
+
+.guitar-row-tools {
+  display: flex;
+  gap: 2px;
+}
+
+.guitar-tool {
+  width: 32px;
+  height: 32px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+
+/* Small mark, thumb-sized target. */
+.guitar-tool::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
+.guitar-tool:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+
+.guitar-tool.is-danger:hover {
+  color: var(--danger-color);
+  background: var(--danger-glow);
+}
+
+.guitar-pick:focus-visible,
+.guitar-tool:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* --- Practice reminder --------------------------------------------------- */
+
+.reminder-when {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.reminder-time {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.reminder-label {
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.reminder-input {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-color);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  color-scheme: dark; /* so the native time picker is not a white slab */
+}
+
+.reminder-input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.reminder-summary {
+  /* Lifted off the bottom edge so its baseline meets the time input's rather
+     than its descenders. The row aligns on flex-end. */
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* A grid, not a flex row. Seven fixed 40px chips plus gaps overflow a 360px
+   phone once the panel padding is taken out, and flex answered that by
+   shrinking them to 38px and wrapping the last one onto its own line. Seven
+   equal columns always fit on one row, at whatever width is going. */
+.reminder-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-1);
+}
+
+.reminder-day {
+  width: 100%;
+  min-height: 44px;
+  position: relative;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease,
+    color var(--dur-fast) ease;
+}
+
+/* Seven chips cannot each be 44px wide inside a dialog on a 360px phone: the
+   panel gives about 274px, so the painted chip lands near 40. The hit areas are
+   grown to tile edge to edge over the gaps, which recovers the target width
+   without shrinking the gap to nothing and jamming the row together. */
+.reminder-day::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+}
+
+.reminder-day.is-on {
+  border-color: var(--accent-primary);
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+}
+
+.reminder-day:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.reminder-error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--danger-color);
+}
+
+/* --- Strum patterns ------------------------------------------------------ */
+
+.pattern-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.pattern-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.pattern-item:hover { background: rgba(255, 255, 255, 0.03); }
+
+.pattern-item-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+/* Beside a `flex: 1` name the strum was squeezed to one glyph wide and wrapped
+   into a vertical ladder. How a strum looks is StrumRow's own business now
+   (practice/strumRow.css); this is only about how it sits in this row. */
+.pattern-item .strum-row {
+  flex: 0 0 auto;
+}
+
+.pattern-item-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color var(--dur-fast) ease;
+}
+
+.pattern-item-remove:hover { color: var(--danger-color); }
+.pattern-item-remove:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.pattern-add {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.pattern-add .task-input { flex: 1; min-width: 0; padding: var(--space-2) var(--space-3); font-size: var(--text-sm); }
+.pattern-add-code { flex: 0 1 110px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+.pattern-add-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--accent-primary);
+  color: #06141d;
+  cursor: pointer;
+  transition: opacity var(--dur-fast) ease;
+}
+
+.pattern-add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.pattern-add-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.pattern-hint {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Touch. On a coarse pointer every one of these is hit with a thumb while the
+   other hand is holding a guitar, so they get the full 44px target. Sizes are
+   raised only under this query, which keeps the mouse UI at its intended
+   density instead of inflating the whole interface for one input type. */
+@media (pointer: coarse) {
+  .pattern-add-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .pattern-item-remove {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
