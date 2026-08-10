@@ -1,18 +1,25 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { PlectrumIcon, PlusIcon } from '../icons';
 import { useStore, useUserData } from '../../store';
-import { CalibrationFlow } from '../practice/CalibrationFlow';
 import { activeProfileOf, profileIsUsable, profilesOf } from '../../lib/chordProfiles';
 import { GuitarPicker } from './GuitarPicker';
+
+interface CalibrationSettingProps {
+  /**
+   * Asks for calibration rather than rendering it. The flow listens to the
+   * guitar for a minute or two, and this row lives inside a tab pane: owning
+   * the flow here meant a change of tab, or closing settings, unmounted a
+   * calibration mid-capture. The settings surface owns it instead.
+   */
+  onCalibrate: () => void;
+}
 
 // The guitars the detector knows, and their calibration. The list itself is
 // GuitarPicker, because choosing the guitar in your hands is also a question the
 // quick setup popover asks; everything around it here is management.
-export function CalibrationSetting() {
+export function CalibrationSetting({ onCalibrate }: CalibrationSettingProps) {
   const account = useUserData();
   const addChordProfile = useStore((s) => s.addChordProfile);
-
-  const [open, setOpen] = useState(false);
 
   const profiles = useMemo(() => profilesOf(account), [account]);
   const active = useMemo(() => activeProfileOf(account), [account]);
@@ -33,7 +40,7 @@ export function CalibrationSetting() {
         <GuitarPicker manage />
       )}
 
-      <button type="button" className="settings-action-btn" onClick={() => setOpen(true)}>
+      <button type="button" className="settings-action-btn" onClick={onCalibrate}>
         <PlectrumIcon size={18} />
         <span>
           {active
@@ -50,8 +57,6 @@ export function CalibrationSetting() {
           <span>Add another guitar</span>
         </button>
       )}
-
-      {open && <CalibrationFlow onClose={() => setOpen(false)} />}
     </div>
   );
 }

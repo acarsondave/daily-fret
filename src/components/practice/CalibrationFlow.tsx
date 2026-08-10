@@ -10,7 +10,7 @@ import { SignalMeter } from './SignalMeter';
 import { useSignalMeter } from './signalQuality';
 import { sfx } from '../../audio/sfx';
 import { useStore, useUserData } from '../../store';
-import { pushOverlay } from '../overlayStack';
+import { containFocus, pushOverlay } from '../overlayStack';
 import { activeProfileOf } from '../../lib/chordProfiles';
 import { useCapoOffset } from '../../hooks/useCapo';
 import {
@@ -48,9 +48,23 @@ const MIN_STRUM_RMS = 0.02;
 type Phase = 'intro' | 'capturing' | 'done';
 
 interface Props {
+  /**
+   * Returns the player to whatever they left. Calibration is always launched
+   * from somewhere, and it owns the whole screen while it runs, so the surface
+   * it came from is responsible for putting focus back where it was.
+   */
   onClose: () => void;
 }
 
+/**
+ * Teaching the detector what this guitar's chords sound like.
+ *
+ * A layer of its own, never a panel inside one. It listens to the microphone and
+ * asks the player to hold eight chords in turn, which is the whole screen and
+ * the whole attention for a minute or two: it takes Escape, it takes Tab, and
+ * anything it was opened from steps aside rather than staying half-visible
+ * underneath with a second close button of its own.
+ */
 export function CalibrationFlow({ onClose }: Props) {
   const { status, error, start, stop } = useChordDetector();
   // Named throughout, because a calibration belongs to one instrument and the
@@ -62,6 +76,7 @@ export function CalibrationFlow({ onClose }: Props) {
   const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter();
 
   const capo = useCapoOffset();
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState<Phase>('intro');
   const [idx, setIdx] = useState(0);
   const [count, setCount] = useState(0);
@@ -174,18 +189,42 @@ export function CalibrationFlow({ onClose }: Props) {
     onClose();
   };
 
+  // Read through a ref so the one-shot effect below never holds a stale exit.
+  const onCloseRef = useRef(onClose);
   useEffect(() => {
-    // Opened from the settings dialog, so it has to claim Escape or both close.
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    // Opened from the settings dialog, so it has to claim the key and the layer
+    // or Escape closes the wrong thing and this paints underneath.
     const overlay = pushOverlay();
+    if (surfaceRef.current) surfaceRef.current.style.zIndex = String(overlay.layer);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && overlay.isTop()) onClose();
+      if (!overlay.isTop()) return;
+      if (e.key === 'Escape') {
+        onCloseRef.current();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const surface = surfaceRef.current;
+      if (!surface) return;
+      containFocus(surface, e);
     };
     window.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
+
     return () => {
       overlay.release();
       window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
+      // Restored, not cleared: the settings dialog underneath locked the page
+      // first and is still open. Clearing it let the page behind scroll again.
+      document.body.style.overflow = previousOverflow;
+      // Every exit lands here — the close button, Escape, "Done", "Got it",
+      // forgetting the calibration — so this is the one place the microphone
+      // has to be given back, and it is unconditional.
       void stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -321,7 +360,12 @@ export function CalibrationFlow({ onClose }: Props) {
 
   return createPortal(
     <motion.div
+      ref={surfaceRef}
       className="practice-overlay calibration-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Detector calibration"
+      tabIndex={-1}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

@@ -177,6 +177,17 @@
   border: 1px solid var(--border-default);
 }
 
+/* The block ran its clock out, which is how a timed task completes. The planned
+   time is therefore also the time practised, so it reports rather than plans and
+   this is the only place the row says so: a second line under the title reading
+   "5:00 practised" beside a planned "5 mins" was the same fact twice. Colour
+   alone does not carry it — the row's aria-label says it in words too. */
+.task-row.is-done .task-duration.is-spent {
+  color: var(--success-color);
+  background: var(--success-glow);
+  border-color: transparent;
+}
+
 /* The moment a task completes itself. One pass of the success wash across the
    row, then gone: being noticed, not congratulated. */
 .task-row.is-just-done {
@@ -267,9 +278,13 @@
 }
 
 /* Still readable when the row is done: a personal best is the one thing on a
-   completed row worth looking back at. */
+   completed row worth looking back at. Dimmed with a colour rather than with
+   opacity, which is the recorded rule here: opacity fades the glyph toward
+   whatever is behind it, and behind a task row is a lit ambient ground that
+   changes across the screen, so the same text would land at a different
+   contrast depending on where the row sat. */
 .task-row.is-done .task-drill-result {
-  opacity: 0.8;
+  color: color-mix(in srgb, var(--success-color) 82%, var(--surface-color));
 }
 
 /* The go mark. Not a second button — the whole row is the button — so it reads

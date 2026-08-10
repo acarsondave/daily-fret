@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CloseIcon } from './icons';
-import { pushOverlay } from './overlayStack';
+import { containFocus, pushOverlay } from './overlayStack';
+import type { OverlayClaim } from './overlayStack';
 import './Modal.css';
 
 interface ModalProps {
@@ -21,10 +22,16 @@ interface ModalProps {
   position?: 'center' | 'bottom' | 'top-right' | 'full';
   /** For panels that are a map rather than a question. */
   wide?: boolean;
+  /**
+   * The dialog has handed the screen to a layer opened from inside it.
+   *
+   * It stays mounted, so its tab, its scroll and anything half-typed survive,
+   * but it takes no keyboard, no focus and no clicks until that layer closes.
+   * Stepping aside is not the same as closing, and the difference is the whole
+   * point: closing would destroy what the user was in the middle of.
+   */
+  suspended?: boolean;
 }
-
-const FOCUSABLE =
-  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export function Modal({
   isOpen,
@@ -34,20 +41,37 @@ export function Modal({
   label,
   position = 'center',
   wide,
+  suspended = false,
 }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
+  const overlayRef = useRef<OverlayClaim | null>(null);
+  const suspendedRef = useRef(suspended);
   const titleId = useId();
 
-  // Escape closes, Tab stays inside, and the page behind stops scrolling. A
-  // dialog that leaks focus to the page underneath is a dialog in appearance
-  // only: a keyboard lands on controls it cannot see.
+  useEffect(() => {
+    suspendedRef.current = suspended;
+  }, [suspended]);
+
+  // The place in the overlay stack is claimed once per opening and never
+  // reclaimed. Reclaiming would move this dialog back to the top while
+  // something opened from inside it is still there, and every parent render was
+  // doing exactly that: `onClose` is almost always an inline arrow, so its
+  // identity changes on every render of whoever owns the dialog. That is why
+  // the claim is kept apart from the key handler, which does need the current
+  // `onClose`.
   useEffect(() => {
     if (!isOpen) return;
-
-    // Escape and the focus trap belong to whichever dialog is on top. Without
-    // this, a dialog opened from inside another closed both at once.
     const overlay = pushOverlay();
+    overlayRef.current = overlay;
+    // Written onto the elements rather than routed back through a render. Which
+    // layer this dialog paints at is a fact about what was already open when it
+    // opened, discovered here and true for as long as it lives; re-rendering
+    // the whole dialog to move it in z would be work for nothing.
+    if (backdropRef.current) backdropRef.current.style.zIndex = String(overlay.layer);
+    if (wrapperRef.current) wrapperRef.current.style.zIndex = String(overlay.layer + 1);
 
     restoreRef.current = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
@@ -58,8 +82,22 @@ export function Modal({
     // accident.
     const focusTimer = setTimeout(() => panelRef.current?.focus(), 0);
 
+    return () => {
+      overlay.release();
+      overlayRef.current = null;
+      clearTimeout(focusTimer);
+      document.body.style.overflow = previousOverflow;
+      restoreRef.current?.focus?.();
+    };
+  }, [isOpen]);
+
+  // Escape closes and Tab stays inside, both only while this is the dialog on
+  // top and not while it has stepped aside for one above it.
+  useEffect(() => {
+    if (!isOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (!overlay.isTop()) return;
+      if (suspendedRef.current) return;
+      if (!overlayRef.current?.isTop()) return;
       if (e.key === 'Escape') {
         onClose();
         return;
@@ -67,34 +105,11 @@ export function Modal({
       if (e.key !== 'Tab') return;
       const panel = panelRef.current;
       if (!panel) return;
-      const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-        (el) => el.offsetParent !== null || el === document.activeElement,
-      );
-      if (items.length === 0) {
-        e.preventDefault();
-        panel.focus();
-        return;
-      }
-      const first = items[0];
-      const last = items[items.length - 1];
-      const active = document.activeElement;
-      if (e.shiftKey && (active === first || active === panel)) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault();
-        first.focus();
-      }
+      containFocus(panel, e);
     };
 
     window.addEventListener('keydown', onKeyDown);
-    return () => {
-      overlay.release();
-      clearTimeout(focusTimer);
-      window.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = previousOverflow;
-      restoreRef.current?.focus?.();
-    };
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, [isOpen, onClose]);
 
   const variants = {
@@ -128,14 +143,18 @@ export function Modal({
               the close button are the keyboard paths, and putting the backdrop
               in the tab order would add a control that announces nothing. */}
           <motion.div
-            className="modal-backdrop"
+            ref={backdropRef}
+            className={suspended ? 'modal-backdrop is-suspended' : 'modal-backdrop'}
             aria-hidden="true"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
-          <div className={`modal-wrapper position-${position}`}>
+          <div
+            ref={wrapperRef}
+            className={`modal-wrapper position-${position}${suspended ? ' is-suspended' : ''}`}
+          >
             <motion.div
               ref={panelRef}
               className={wide ? "modal-content glass-panel is-wide" : "modal-content glass-panel"}

@@ -119,8 +119,18 @@ const sideways = (page) =>
   check('running a task to the end completes it', afterRun?.completedTaskIds.includes('q1'));
   check('recorded as time, not as a tick', afterRun?.taskRecords?.q1?.evidence === 'timed');
   check('and the clock is on the record', afterRun?.taskRecords?.q1?.ranToEnd === true);
-  check('the row states what happened',
-    /practised/.test(await row('Quick block').innerText()), await row('Quick block').innerText());
+  // The clock running out *is* how a timed task completes, so the time it ran
+  // and the time it was planned for are one number. The row used to print both:
+  // "0:03 practised" under the title against the planned time on the right. The
+  // planned time carries it now, marked as spent.
+  check('the row does not say the same thing twice',
+    (await row('Quick block').locator('.task-line').count()) === 0,
+    await row('Quick block').innerText());
+  check('the time it was given is marked as time it spent',
+    (await row('Quick block').locator('.task-duration.is-spent').count()) === 1);
+  check('and a screen reader is still told in words',
+    /practised/.test(await row('Quick block').getAttribute('aria-label')),
+    await row('Quick block').getAttribute('aria-label'));
 
   // Walking out half-way is honest about itself: the time it ran, and no claim.
   await row('Long block').click();
@@ -158,6 +168,19 @@ const sideways = (page) =>
   check('and forgets how it came about', afterClearing?.taskRecords?.q3 === undefined);
   check('while never touching what was measured',
     JSON.stringify(afterClearing?.drillResults ?? {}) === JSON.stringify(afterRun?.drillResults ?? {}));
+
+  // Last, because it completes a second task and a fully complete routine opens
+  // the reflection jotter over everything. A block the clock did not finish,
+  // counted by the player anyway: here the time it ran and the time it was
+  // planned for are *not* the same number, and the completion rests on their
+  // word, so both stay on the row in words.
+  await row('Long block').click({ button: 'right' });
+  await page.waitForSelector('.context-menu-content');
+  await page.getByRole('menuitem', { name: 'I did this' }).click();
+  await page.waitForTimeout(300);
+  check('a block the player counts short is attributed to them, with its clock',
+    /practised, counted by you/.test(await row('Long block').innerText()),
+    await row('Long block').innerText());
 
   check('no console errors', errors.length === 0, errors.join(' | '));
   await ctx.close();

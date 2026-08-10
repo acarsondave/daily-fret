@@ -1,3 +1,7 @@
+/* The z-index here is only the value for the first frame. The real layer is
+   handed out by components/overlayStack.ts when the dialog opens and written
+   inline, because which overlay is in front depends on what is already open and
+   no stylesheet can know that. */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -16,6 +20,15 @@
 
 .modal-wrapper > * {
   pointer-events: auto;
+}
+
+/* Stepped aside for a layer opened from inside it. Still mounted, so nothing
+   typed, scrolled or selected is lost; out of the way in every sense that
+   matters — not painted, not clickable, not in the tab order, not announced.
+   `visibility` rather than `display` so the panel keeps its scroll position. */
+.modal-backdrop.is-suspended,
+.modal-wrapper.is-suspended {
+  visibility: hidden;
 }
 
 .position-center {

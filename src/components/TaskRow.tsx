@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { useUndoStore } from '../store/undo';
-import { useStore, getTodayString } from '../store';
+import { useStore, getTodayString, drillLogsOf } from '../store';
 import { runsFor } from '../store/completion';
 import {
   CheckIcon,
@@ -18,6 +18,7 @@ import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
 import { chordPairs, pairKey } from '../lib/pairs';
+import { poolKey, ringKey, rotationRing, trainerPool } from '../lib/drillKeys';
 import { sanitizeMinutes, formatDuration } from '../lib/coached';
 import { looksLikeTab } from '../lib/tab';
 // One definition of what each drill's number means, shared with Progress.
@@ -38,6 +39,29 @@ const clock = (seconds: number): string => {
   const total = Math.max(0, Math.round(seconds));
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 };
+
+/** A timed task that earned its completion by running its own clock out. */
+function clockRanOut(record: TaskRecord | undefined, isCompleted: boolean): boolean {
+  return isCompleted && record?.evidence === 'timed' && record.ranToEnd === true;
+}
+
+/**
+ * The task's planned time, for the trailing chip.
+ *
+ * A multi-block task carries its minutes in the blocks rather than in a duration
+ * label, and the chip is where a timed task's state is now read, so it has to be
+ * derivable either way or a block task would complete with nothing on the row
+ * saying by what.
+ */
+function plannedTime(duration: string | undefined, blocks: TimedBlock[] | undefined): string | null {
+  const stated = formatDuration(duration);
+  if (stated) return stated;
+  const seconds = blocks?.reduce((total, block) => total + block.durationSec, 0) ?? 0;
+  if (seconds <= 0) return null;
+  if (seconds < 60) return clock(seconds);
+  const minutes = Math.round(seconds / 60);
+  return `${minutes} min${minutes === 1 ? '' : 's'}`;
+}
 
 /**
  * What the app can say about this task today, in the app's own voice.
@@ -65,8 +89,18 @@ function evidenceLine(
   }
   if (record.evidence === 'timed') {
     const spent = clock(record.seconds ?? 0);
+    // Part-way through, the clock and the plan are different numbers, and the
+    // difference is the whole point of saying it.
     if (!isCompleted) return `${spent} so far`;
-    return record.ranToEnd ? `${spent} practised` : `${spent} practised, counted by you`;
+    // Once the clock has run out they are the same number, and the row was
+    // printing it twice: "5:00 practised" on the left against a planned "5 mins"
+    // on the right. Running to the end *is* the completion condition, so the
+    // planned time carries it, marked as spent. See the trailing chip below.
+    if (record.ranToEnd) return null;
+    // Not the same fact. The clock stopped short and the player counted the
+    // block anyway, so both the time it really ran and whose word it rests on
+    // have to stay on the row.
+    return `${spent} practised, counted by you`;
   }
   if (record.evidence === 'silent') return 'Ran, nothing heard';
   return record.stated ? 'Marked done by you' : null;
@@ -103,13 +137,15 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
     (s) => s.accounts[s.currentAccountId]?.dailyLogs?.[today]?.completedTaskIds?.includes(taskId) ?? false,
   );
 
-  // The storage keys this task's results live under. Chord Perfect and the
-  // anchor rotation both write to the taskId; only the changes drill splits per
-  // chord pair. Rotation used to derive pair keys here and so could never find
-  // its own result, which is why its best badge never appeared.
+  // The storage keys this task's results live under. Every one of them names
+  // what the drill plays rather than the row it is played from, so the badge
+  // survives a rename or a rebuild (see lib/drillKeys.ts). Chord Perfect reports
+  // its block score against the pool it drills; the per-shape counts have their
+  // own keys and belong on Progress, not on a row summarising one task.
   const resultKeys = useMemo(() => {
     if (!drill) return [] as string[];
-    if (drill.kind === 'chord-trainer' || drill.kind === 'chord-rotation') return [taskId];
+    if (drill.kind === 'chord-trainer') return [poolKey(trainerPool(drill.chords))];
+    if (drill.kind === 'chord-rotation') return [ringKey(rotationRing(drill.chords))];
     if (drill.kind === 'song') return [] as string[];
     const chords = drill.chords?.length
       ? drill.chords
@@ -117,11 +153,12 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
         ? [drill.chordFrom, drill.chordTo]
         : [];
     return chordPairs(chords).map((p) => pairKey(p.from, p.to));
-  }, [drill, taskId]);
+  }, [drill]);
 
   const bestResult = useStore((s) => {
     if (resultKeys.length === 0) return null;
-    const logs = s.accounts[s.currentAccountId]?.dailyLogs;
+    const acc = s.accounts[s.currentAccountId];
+    const logs = acc ? drillLogsOf(acc) : null;
     if (!logs) return null;
     let best = -1;
     for (const dayLog of Object.values(logs)) {
@@ -140,7 +177,8 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
   // in for "what happened just now".
   const todayResult = useStore((s) => {
     if (resultKeys.length === 0) return null;
-    const dr = s.accounts[s.currentAccountId]?.dailyLogs?.[today]?.drillResults;
+    const acc = s.accounts[s.currentAccountId];
+    const dr = acc ? drillLogsOf(acc)[today]?.drillResults : undefined;
     if (!dr) return null;
     let best = -1;
     for (const k of resultKeys) {
@@ -158,7 +196,8 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
 
   const todayRuns = useStore((s) => {
     if (resultKeys.length === 0) return 0;
-    const log = s.accounts[s.currentAccountId]?.dailyLogs?.[today];
+    const acc = s.accounts[s.currentAccountId];
+    const log = acc ? drillLogsOf(acc)[today] : undefined;
     if (!log) return 0;
     let count = 0;
     for (const k of resultKeys) count += runsFor(log, k).length;
@@ -172,6 +211,14 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
     drill ? DRILL_UNIT[drill.kind] : '',
     todayRuns,
   );
+
+  // A block the app timed to the end. The planned time on the right reports it,
+  // rather than a second line on the left repeating the same number.
+  const timeSpent = clockRanOut(record, isCompleted);
+  const planned = plannedTime(duration, blocks);
+  // Screen readers get the fact in words either way: a chip that carries state
+  // through color alone says nothing to a keyboard or a voice.
+  const spoken = line ?? (timeSpent && planned ? `${planned} practised` : null);
 
   // A completion resting on nothing but the player's word. Kept visibly apart
   // from one the app measured, because the two mean different things and the
@@ -579,7 +626,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
         exit={{ opacity: 0, y: -10 }}
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
         className={clsx('task-row', state, restsOnWord && 'is-stated', justCompleted && 'is-just-done')}
-        aria-label={`Start ${title}${line ? `. ${line}` : ''}`}
+        aria-label={`Start ${title}${spoken ? `. ${spoken}` : ''}`}
         title={drill ? DRILL_LABEL[drill.kind] : 'Run the timer for this'}
         onClick={start}
         onTouchStart={handleTouchStart}
@@ -617,6 +664,9 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
           {line ? (
             <span className="task-line">{line}</span>
           ) : (
+            // A done task does not go back to reading like a plan, so the
+            // instructions do not return once the row has something to report.
+            !isCompleted &&
             description &&
             (looksLikeTab(description) ? (
               <span className="task-desc is-tab-note">Tab</span>
@@ -626,14 +676,21 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
           )}
         </span>
 
-        {(showBest || formatDuration(duration)) && (
+        {(showBest || planned) && (
           <span className="task-aside">
             {showBest && drill && (
               <span className="task-drill-result" title="Your best so far">
                 {bestResult} {DRILL_UNIT[drill.kind]}
               </span>
             )}
-            {formatDuration(duration) && <span className="task-duration">{formatDuration(duration)}</span>}
+            {planned && (
+              <span
+                className={clsx('task-duration', timeSpent && 'is-spent')}
+                title={timeSpent ? 'You ran this block to the end' : undefined}
+              >
+                {planned}
+              </span>
+            )}
           </span>
         )}
 

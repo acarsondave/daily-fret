@@ -17,8 +17,3 @@ export const DRILL_LABEL: Record<DrillKind, string> = {
   'chord-trainer': 'Chord Perfect',
   song: 'Song play-along',
 };
-
-// Drills whose result is stored under the task id rather than a chord pair.
-// The one-minute changes drill splits per pair; these two do not, which is why
-// Progress could never find them.
-export const TASK_KEYED_KINDS: DrillKind[] = ['chord-rotation', 'chord-trainer'];

@@ -12,7 +12,14 @@
 .practice-overlay {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  /* A first-frame floor, not a decision. This file is duplicated into more than
+     one built chunk, so a same-specificity override in another stylesheet wins
+     or loses on whichever chunk happened to load last: that is how the
+     calibration flow, written as z-index 1200, rendered behind a modal at 101
+     in production and correctly in dev. Which overlay is in front is a fact
+     about what is already open, so overlayStack.ts sets --overlay-layer at
+     runtime and this only holds the frame before it does. */
+  z-index: var(--overlay-layer, 100);
   display: flex;
   flex-direction: column;
   background: rgba(10, 10, 12, 0.86);
