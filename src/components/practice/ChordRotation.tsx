@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRightIcon, CycleIcon, HourglassIcon, MicIcon, PlayIcon, RetryIcon, TrophyIcon } from '../icons';
+import { rotationRing } from '../../lib/drillKeys';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { useCapoOffset } from '../../hooks/useCapo';
@@ -19,9 +20,22 @@ const MIN_CHANGE_MS = 130;
 
 type View = 'setup' | 'playing' | 'results';
 
+/**
+ * What one turn of the rotation produced.
+ *
+ * The ring comes back with the count because the ring is what the count is
+ * about: a rotation is only comparable with another turn of the same loop, and
+ * the caller cannot assume its own config was the ring that ran (a rotation with
+ * no ring of its own falls back to the classic set here).
+ */
+export interface ChordRotationResult {
+  ring: string[];
+  changes: number;
+}
+
 interface Props {
   config?: DrillConfig;
-  onResult?: (score: number) => void;
+  onResult?: (result: ChordRotationResult) => void;
   onClose?: () => void;
   personalBest?: number;
   autoStart?: boolean;
@@ -55,7 +69,7 @@ export function ChordRotation({
   const { status, error, start, stop, setHandlers } = detector ?? own;
 
   // The ordered ring to cycle. Falls back to the classic anchor set.
-  const ring = config?.chords && config.chords.length >= 2 ? config.chords : ['D', 'A', 'E'];
+  const ring = rotationRing(config?.chords);
   const duration = config?.durationSec ?? 60;
 
   const [view, setView] = useState<View>(autoStart ? 'playing' : 'setup');
@@ -121,7 +135,7 @@ export function ChordRotation({
     else sfx.complete();
     setResult({ value, prevBest: prev });
     setView('results');
-    onResult?.(value);
+    onResult?.({ ring, changes: value });
   };
 
   const startSession = async () => {

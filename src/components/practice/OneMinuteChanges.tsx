@@ -9,14 +9,13 @@ import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
 import { ChordDiagram } from './ChordDiagram';
 import { useSignalMeter } from './signalQuality';
-import { useStore } from '../../store';
+import { useDrillLogs } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import { sfx } from '../../audio/sfx';
 import { diag } from '../../audio/diagnostics';
 import type { DrillConfig } from '../../types';
 
 const CHORDS = ['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F'];
-const EMPTY_LOGS = {};
 const AUTO_ADVANCE_SECONDS = 5;
 
 type View = 'setup' | 'playing' | 'results';
@@ -69,7 +68,7 @@ export function OneMinuteChanges({
 
   // Per-pair history, sourced straight from the store so each pair keeps its own
   // benchmark and the setup badge reflects whatever pair is currently selected.
-  const dailyLogs = useStore((s) => s.accounts[s.currentAccountId]?.dailyLogs ?? EMPTY_LOGS);
+  const dailyLogs = useDrillLogs();
   const { pairBest, pairSeries } = useMemo(() => {
     const key = pairKey(from, to);
     const points = Object.values(dailyLogs)

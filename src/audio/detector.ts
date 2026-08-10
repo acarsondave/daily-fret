@@ -35,6 +35,29 @@ const RESTRICTED_MARGIN_MIN = 0.12;
 // (lower) or silence still counts (raise).
 const STRUM_RMS_RATIO = 3;
 const MIN_STRUM_RMS = 0.02;
+// Loudness alone does not separate a strum from the chord it is still ringing
+// out. Spectral flux spikes again part-way through a decay (its baseline is
+// still recovering from the silence before the strum) and again while a hand
+// comes off the strings, and each of those spikes used to reset the analysis
+// window onto whatever happened to be sounding — which, on a lift, is the open
+// strings. That is where the phantom chords came from.
+//
+// So an onset only becomes a strum if the level RISES across it: the loudest
+// frame in the few frames after it must beat the loudest frame in the window
+// before it. Measured this way a decay scores below 1 (it is quieter than it
+// just was) whether or not it is loud, while a fresh strum lands near 1.6 even
+// when it is played on top of a chord that has not finished ringing.
+const STRUM_ATTACK_RISE = 1.2;
+// The reference is the loudest frame in the ~140ms before the attack started,
+// skipping the two frames the attack is already bleeding into. Max, not min: a
+// frame that catches only the first milliseconds of a strum reads quiet, and
+// against a minimum that frame would make the chord's own sustain look like a
+// second strum.
+const ATTACK_REF_FRAMES = 6;
+const ATTACK_SKIP_FRAMES = 2;
+// A strum is spread across the strings and takes a few frames to reach full
+// level, so the rise is looked for over this many frames from the onset.
+const ATTACK_CONFIRM_FRAMES = 4;
 // The onset gate disarms after every counted chord and normally re-arms only on
 // a fresh strum. During continuous/fast playing the flux-based onset detector
 // misses strums (its baseline rises), which silently starves real chord changes.
@@ -55,6 +78,10 @@ export const DETECTOR_CONSTANTS: Record<string, number> = {
   RESTRICTED_MARGIN_MIN,
   STRUM_RMS_RATIO,
   MIN_STRUM_RMS,
+  STRUM_ATTACK_RISE,
+  ATTACK_REF_FRAMES,
+  ATTACK_SKIP_FRAMES,
+  ATTACK_CONFIRM_FRAMES,
   REARM_MS,
 };
 
@@ -79,6 +106,17 @@ export interface LevelEvent {
   // ingest only frames the detector already agrees with at high confidence.
   chord: string | null;
   margin: number;
+  /**
+   * A strum landed at or just before this frame.
+   *
+   * Latched rather than instantaneous: the frame carrying the attack resets the
+   * chromagram and therefore produces no chroma, so reporting the strum only on
+   * that frame would report it to nobody. It is carried to the first frame a
+   * listener actually receives, which is the first frame that can describe what
+   * was struck. Anything counting player actions must key off this, because a
+   * chord alone cannot tell a fresh placement from the one still ringing.
+   */
+  strum: boolean;
 }
 
 export interface DetectorHandlers {
@@ -112,6 +150,22 @@ export class ChordDetector {
   // Starts armed so the first strum of a session counts.
   private onsetSinceEmit = true;
   private lastEmitAt = 0; // epoch ms of the last emitted chord (drives REARM_MS)
+  // Rolling RMS of the last few frames, so an onset can be compared against the
+  // level the signal was already at. That comparison is what makes an attack an
+  // attack rather than a loud part of a decay.
+  private readonly recentRms = new Float32Array(ATTACK_REF_FRAMES + ATTACK_SKIP_FRAMES)
+    .fill(SILENCE_THRESHOLD);
+  private recentHead = 0;
+  // An onset waiting to be judged: the level it has to beat, how many frames it
+  // has left to do it in, and the RMS it fired at (kept only so the diagnostic
+  // record still describes the onset itself rather than the frame that settled
+  // it).
+  private candidateFrames = 0;
+  private candidateRef = 0;
+  private candidateRms = 0;
+  // Set when a strum is confirmed, cleared when it has been reported on a level
+  // event. See LevelEvent.strum for why it has to survive a frame or two.
+  private strumPending = false;
 
   constructor(opts: DetectorOptions) {
     this.chromagram = new Chromagram({
@@ -139,6 +193,55 @@ export class ChordDetector {
     diag.mark(this.restrictTo ? `restrict: ${this.restrictTo.join(', ')}` : 'restrict: open');
   }
 
+  /// The level an attack has to rise above: the loudest frame in the reference
+  /// window, which stops ATTACK_SKIP_FRAMES short of now so the leading edge of
+  /// the attack itself is never used as its own reference.
+  private attackReference(): number {
+    let max = 0;
+    // recentHead is the oldest slot, so the window runs from there forward and
+    // the newest ATTACK_SKIP_FRAMES entries sit at the end.
+    for (let i = 0; i < ATTACK_REF_FRAMES; i++) {
+      const v = this.recentRms[(this.recentHead + i) % this.recentRms.length];
+      if (v > max) max = v;
+    }
+    return max;
+  }
+
+  /// True on the frame an open onset candidate proves itself a strum. A
+  /// candidate that never reaches the level is dropped, and reported as an
+  /// onset that did not arm anything.
+  private settleCandidate(rms: number, loud: boolean): boolean {
+    if (this.candidateFrames === 0) return false;
+    if (loud && rms >= this.candidateRef * STRUM_ATTACK_RISE) {
+      this.candidateFrames = 0;
+      diag.onset(this.candidateRms, true);
+      return true;
+    }
+    this.candidateFrames -= 1;
+    if (this.candidateFrames === 0) diag.onset(this.candidateRms, false);
+    return false;
+  }
+
+  /// A strum has been established. Anchor the analysis window to it so the next
+  /// chroma describes what was just struck rather than what is still ringing,
+  /// let a change be emitted again, and hold the flag for the drills.
+  private acceptStrum(): void {
+    this.handlers.onOnset?.({ energy: this.candidateRms });
+    this.onsetSinceEmit = true;
+    this.strumPending = true;
+    this.chromagram.reset();
+    this.chordHistory = [];
+  }
+
+  /// Every level event goes through here so the latched strum flag is reported
+  /// exactly once, on the first frame a listener actually receives after it.
+  private emitLevel(ev: Omit<LevelEvent, 'strum'>): void {
+    const handler = this.handlers.onLevel;
+    const strum = this.strumPending;
+    this.strumPending = false;
+    handler?.({ ...ev, strum });
+  }
+
   /// Feed exactly one FRAME_SIZE block of mono samples.
   processFrame(frame: Float32Array): void {
     if (frame.length !== FRAME_SIZE) return;
@@ -146,11 +249,20 @@ export class ChordDetector {
     let sumSq = 0;
     for (let i = 0; i < frame.length; i++) sumSq += frame[i] * frame[i];
     const rms = Math.sqrt(sumSq / frame.length);
+    const attackRef = this.attackReference();
+    this.recentRms[this.recentHead] = rms;
+    this.recentHead = (this.recentHead + 1) % this.recentRms.length;
+
+    const loud = rms > Math.max(this.noiseFloor * STRUM_RMS_RATIO, MIN_STRUM_RMS);
+    // An onset opened on an earlier frame may prove itself on this one, silent
+    // frames included: a candidate that runs into silence has to be dropped, not
+    // left open for the next chord to inherit.
+    if (this.settleCandidate(rms, loud)) this.acceptStrum();
 
     const activeThreshold = Math.max(this.noiseFloor * 2, SILENCE_THRESHOLD);
     if (rms < activeThreshold) {
       this.noiseFloor = Math.min(this.noiseFloor * 0.98 + rms * 0.02, NOISE_FLOOR_MAX);
-      this.handlers.onLevel?.({
+      this.emitLevel({
         rms,
         noiseFloor: this.noiseFloor,
         salience: 0,
@@ -172,26 +284,27 @@ export class ChordDetector {
         this.onsetSinceEmit = true;
       }
       // Keep the rolling buffer current for when audio resumes, but skip the
-      // FFT/chroma compute: the result is unused on silent frames.
+      // 8192-point chroma compute: the result is unused on silent frames. The
+      // onset detector's much smaller transform does have to run, because its
+      // baseline is only meaningful if the quiet is in it.
       this.chromagram.advance(frame);
+      this.onsetDetector.observe(frame);
       return;
     }
 
     this.silentFrameCount = 0;
 
     if (this.onsetDetector.detect(frame)) {
-      this.handlers.onOnset?.({ energy: rms });
-      // Only a strum clearly above the noise floor arms a count, so a flux blip
-      // on room noise or handling can't register a phantom chord.
-      const armsCount = rms > Math.max(this.noiseFloor * STRUM_RMS_RATIO, MIN_STRUM_RMS);
-      if (armsCount) {
-        this.onsetSinceEmit = true;
-      }
-      diag.onset(rms, armsCount);
-      // Anchor analysis to the new chord so the next chroma reflects what is
-      // being played now instead of the previous chord lingering in the window.
-      this.chromagram.reset();
-      this.chordHistory = [];
+      // Open a candidate rather than acting on the onset directly. Whether this
+      // is a strum or the middle of a decay is not yet knowable: a strum reaches
+      // full level over the next few frames, and that is the part worth reading.
+      // A candidate still open here is superseded, and goes into the record as
+      // the onset it was: one that armed nothing.
+      if (this.candidateFrames > 0) diag.onset(this.candidateRms, false);
+      this.candidateFrames = ATTACK_CONFIRM_FRAMES;
+      this.candidateRef = attackRef;
+      this.candidateRms = rms;
+      if (this.settleCandidate(rms, loud)) this.acceptStrum();
     }
 
     const chroma = this.chromagram.next(frame);
@@ -234,13 +347,16 @@ export class ChordDetector {
       // two targets, e.g. fingers in flight) so we don't flap and over-count.
       if (match && this.restrictTo && match.margin < RESTRICTED_MARGIN_MIN) {
         diag.frame(DIAG_CODE.AMBIGUOUS, rms, this.noiseFloor, salience, match.margin, match.chord);
-        this.handlers.onLevel?.({
+        // The frame is being rejected as in-flight, so it must not be reported
+        // as a match either. Passing the name through was how a chroma the
+        // detector had just refused to believe still reached the drills.
+        this.emitLevel({
           rms,
           noiseFloor: this.noiseFloor,
           salience,
           chroma: normalized,
-          chord: frameChord,
-          margin: frameMargin,
+          chord: null,
+          margin: match.margin,
         });
         return;
       }
@@ -294,7 +410,7 @@ export class ChordDetector {
       this.chordHistory = [];
     }
 
-    this.handlers.onLevel?.({
+    this.emitLevel({
       rms,
       noiseFloor: this.noiseFloor,
       salience,

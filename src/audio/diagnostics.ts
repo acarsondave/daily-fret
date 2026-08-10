@@ -334,8 +334,13 @@ declare global {
     };
   }
 }
-window.dailyFretDiag = {
-  download: downloadDiagnostics,
-  summaries: storedSessionSummaries,
-  clear: clearDiagnostics,
-};
+// Guarded so the detection path can be imported outside a document — the audio
+// tests drive the real detector under Node, and a console hook is the one part
+// of this module that genuinely needs a window.
+if (typeof window !== 'undefined') {
+  window.dailyFretDiag = {
+    download: downloadDiagnostics,
+    summaries: storedSessionSummaries,
+    clear: clearDiagnostics,
+  };
+}

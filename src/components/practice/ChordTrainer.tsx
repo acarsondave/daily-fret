@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRightIcon, HourglassIcon, MicIcon, PlayIcon, RetryIcon, TrophyIcon } from '../icons';
+import { useDrillLogs } from '../../store';
+import { poolKey, trainerPool } from '../../lib/drillKeys';
+import { keyDrillHistory } from '../../lib/drillStats';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { useCapoOffset } from '../../hooks/useCapo';
@@ -12,30 +15,36 @@ import { ChordDiagram } from './ChordDiagram';
 import { useSignalMeter } from './signalQuality';
 import { sfx } from '../../audio/sfx';
 import { diag } from '../../audio/diagnostics';
+import { PlacementCounter } from '../../audio/placement';
+import type { LevelEvent } from '../../audio/detector';
 import type { DrillConfig } from '../../types';
 
 const ALL_CHORDS = ['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F'];
-const DEFAULT_POOL = ['A', 'D', 'E', 'G', 'C'];
 const AUTO_ADVANCE_SECONDS = 5;
 // Shortest sensible block. Below this a chord gets a couple of placements and
 // nothing sticks, which is the whole point of the drill.
 const MIN_CHORD_SECONDS = 20;
 
-// A placement is confirmed once the shape holds cleanly for this many frames
-// (~21ms each), and only counts again after the strings have been released for
-// RELEASE_FRAMES. That release is what makes this "place it again from nothing"
-// rather than "strum the shape you're already holding".
-const CONFIRM_FRAMES = 3;
-const RELEASE_FRAMES = 8;
-
 type View = 'setup' | 'playing' | 'results';
+
+/**
+ * What one Chord Perfect block produced.
+ *
+ * Both halves are reported because both are worth keeping and neither can be
+ * recovered from the other. The total is the block's score, comparable to
+ * another block over the same shapes. The per-shape counts are the answer to the
+ * question the drill could never answer before: which shape is the one holding
+ * the number down.
+ */
+export interface ChordTrainerResult {
+  perChord: Array<{ chord: string; placements: number }>;
+  total: number;
+}
 
 interface Props {
   config?: DrillConfig;
-  onResult?: (score: number) => void;
+  onResult?: (result: ChordTrainerResult) => void;
   onClose?: () => void;
-  personalBest?: number;
-  series?: number[];
   autoStart?: boolean;
   onNext?: () => void;
   autoAdvance?: boolean; // results auto-continue after a short countdown (no button)
@@ -49,16 +58,13 @@ interface Props {
 // deliberately NOT a changes drill — the target never moves mid-block, so the
 // hand keeps rebuilding the same shape from nothing.
 //
-// Placements are read from the held chord frame by frame rather than from the
-// detector's change events. Change events exist to catch a move from one chord
-// to another and are gated accordingly; asking them to report a shape being
-// replaced by itself is what produced the phantom neighbours in the logs.
+// Counting lives in PlacementCounter, not here: one strum of the shape on
+// screen is one placement. See src/audio/placement.ts for why it is anchored to
+// the strum and not to the chord coming and going.
 export function ChordTrainer({
   config,
   onResult,
   onClose,
-  personalBest = 0,
-  series = [],
   autoStart = false,
   onNext,
   autoAdvance = false,
@@ -74,10 +80,18 @@ export function ChordTrainer({
   const { status, error, start, stop, setHandlers } = detector ?? own;
 
   const duration = config?.durationSec ?? 60;
-  const [pool, setPool] = useState<string[]>(
-    config?.chords?.length ? config.chords : DEFAULT_POOL,
-  );
+  const [pool, setPool] = useState<string[]>(() => trainerPool(config?.chords));
   const perChord = Math.max(MIN_CHORD_SECONDS, Math.round(duration / Math.max(1, pool.length)));
+
+  // The block's own history, per pool, straight from the store. The pool is
+  // editable on the setup screen and it is part of the key, so a best carried in
+  // as a prop would be the previous pool's number sitting under a different set
+  // of shapes.
+  const dailyLogs = useDrillLogs();
+  const { best: poolBest, series: poolSeries } = useMemo(
+    () => keyDrillHistory(dailyLogs, poolKey(pool)),
+    [dailyLogs, pool],
+  );
 
   // Coached mode skips setup; start on 'playing' so the chord preselector never
   // flashes for a frame before auto-start kicks in.
@@ -93,17 +107,18 @@ export function ChordTrainer({
   const slotRef = useRef(0);
   const repsRef = useRef(0);
   const tallyRef = useRef<number[]>([]);
-  // Placement state machine, all read synchronously from the audio callback.
-  const holdRef = useRef(0); // consecutive frames matching the target
-  const releaseRef = useRef(RELEASE_FRAMES); // consecutive frames not matching it
-  const armedRef = useRef(true); // released since the last counted placement
+  // Placement machine, driven synchronously from the audio callback.
+  const counterRef = useRef(new PlacementCounter());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const heroRef = useRef<HTMLDivElement>(null);
   const shapeRef = useRef<HTMLDivElement>(null);
   const popTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [runningBest, setRunningBest] = useState(personalBest);
-  const [runningSeries, setRunningSeries] = useState<number[]>(series);
+  // What the pool stood at when this run began, so the results card compares
+  // against the pre-session best rather than against the number this very run
+  // has just written into the store.
+  const bestAtStart = useRef(0);
+  const seriesAtStart = useRef<number[]>([]);
   // Coached mode auto-continues from results after a brief beat (no tap needed).
   const [advanceLeft, setAdvanceLeft] = useState(AUTO_ADVANCE_SECONDS);
 
@@ -132,28 +147,16 @@ export function ChordTrainer({
 
   const target = () => poolRef.current[slotRef.current] ?? '';
 
-  // One frame of the placement machine. `chord` is what this frame matched, or
-  // null for silence / no clean match — which is exactly what a lifted hand
-  // looks like, so the same signal drives both halves of the cycle.
-  const onFrame = (chord: string | null) => {
-    if (chord && chord === target()) {
-      releaseRef.current = 0;
-      holdRef.current += 1;
-      if (holdRef.current >= CONFIRM_FRAMES) markHeld(true);
-      if (armedRef.current && holdRef.current >= CONFIRM_FRAMES) {
-        armedRef.current = false;
-        repsRef.current += 1;
-        setReps(repsRef.current);
-        popHero();
-        sfx.tick();
-        diag.mark(`chord-perfect placed ${target()} (${repsRef.current})`);
-      }
-      return;
-    }
-    holdRef.current = 0;
-    releaseRef.current += 1;
-    markHeld(false);
-    if (releaseRef.current >= RELEASE_FRAMES) armedRef.current = true;
+  // One frame of the placement machine.
+  const onFrame = (ev: LevelEvent) => {
+    const counted = counterRef.current.frame(ev, Date.now());
+    markHeld(counterRef.current.held);
+    if (!counted) return;
+    repsRef.current = counterRef.current.count;
+    setReps(repsRef.current);
+    popHero();
+    sfx.tick();
+    diag.mark(`chord-perfect placed ${target()} (${repsRef.current})`);
   };
 
   const finish = () => {
@@ -169,16 +172,20 @@ export function ChordTrainer({
     else void stop();
     passive.commit();
     setTally(perChordCounts);
-    const prevBest = runningBest;
+    const prevBest = bestAtStart.current;
     const celebrate = prevBest === 0 ? value > 0 : value > prevBest;
     if (celebrate) sfx.best();
     else sfx.complete();
-    const seriesSnapshot = [...runningSeries, value];
+    const seriesSnapshot = [...seriesAtStart.current, value];
     setResult({ value, prevBest, series: seriesSnapshot });
-    setRunningBest(Math.max(prevBest, value));
-    setRunningSeries(seriesSnapshot);
     setView('results');
-    onResult?.(value);
+    onResult?.({
+      total: value,
+      perChord: poolRef.current.map((chord, i) => ({
+        chord,
+        placements: perChordCounts[i] ?? 0,
+      })),
+    });
   };
 
   // Move to the next chord's block, or end the drill after the last one.
@@ -197,12 +204,7 @@ export function ChordTrainer({
     repsRef.current = 0;
     setReps(0);
     setTimeLeft(perChord);
-    // Start the block unarmed: the previous chord can still be ringing, and a
-    // half-released shape reads as its neighbour, which would hand over a free
-    // placement before the hand has done anything.
-    holdRef.current = 0;
-    releaseRef.current = 0;
-    armedRef.current = false;
+    counterRef.current.begin(poolRef.current[next]);
     sfx.go();
     diag.mark(`chord-perfect chord: ${target()} (${perChord}s)`);
   };
@@ -210,17 +212,15 @@ export function ChordTrainer({
   const startSession = async () => {
     sfx.go();
     poolRef.current = pool;
+    bestAtStart.current = poolBest;
+    seriesAtStart.current = poolSeries;
     slotRef.current = 0;
     setSlot(0);
     repsRef.current = 0;
     setReps(0);
     tallyRef.current = [];
     setTally([]);
-    // Unarmed until a real release, so a shape already under the hand when the
-    // drill opens does not score before it has been placed.
-    holdRef.current = 0;
-    releaseRef.current = 0;
-    armedRef.current = false;
+    counterRef.current.begin(pool[0]);
     setTimeLeft(perChord);
     resetSignal();
     onSessionStart?.();
@@ -232,7 +232,7 @@ export function ChordTrainer({
       {
         onLevel: (ev) => {
           pushSignal(ev);
-          onFrame(ev.chord);
+          onFrame(ev);
           passive.observe(target(), ev);
         },
       },
@@ -305,12 +305,12 @@ export function ChordTrainer({
   if (view === 'setup') {
     return (
       <div className="om-setup">
-        {runningBest > 0 && (
+        {poolBest > 0 && (
           <div className="om-best-badge">
             <TrophyIcon size={16} />
-            <span>Best {runningBest}</span>
-            {runningSeries.length >= 2 && (
-              <Sparkline values={runningSeries} className="om-best-spark" />
+            <span>Best {poolBest}</span>
+            {poolSeries.length >= 2 && (
+              <Sparkline values={poolSeries} className="om-best-spark" />
             )}
           </div>
         )}
@@ -402,9 +402,12 @@ export function ChordTrainer({
     );
   }
 
+  // Everything the card shows comes out of the run that just ended, which froze
+  // its own comparison at the moment it finished. The store has already moved on
+  // by the time this renders, so only the frozen copy can say what this run beat.
   const value = result?.value ?? tally.reduce((a, b) => a + b, 0);
-  const prevBest = result?.prevBest ?? personalBest;
-  const resultSeries = result?.series ?? [...runningSeries, value];
+  const prevBest = result?.prevBest ?? poolBest;
+  const resultSeries = result?.series ?? poolSeries;
 
   const isFirst = prevBest === 0;
   const isNewBest = !isFirst && value > prevBest;

@@ -49,11 +49,46 @@ export class OnsetDetector {
     this.framesSinceLastOnset = this.minFramesBetweenOnsets;
   }
 
+  /**
+   * Take in a frame that sits below the caller's activity gate.
+   *
+   * The history has to run continuously through the quiet stretches, not just
+   * the loud ones. Fed only the audible frames, this detector starts every pause
+   * with an empty history, and its own five-frame warm-up then swallows the
+   * whole of the next attack: the first strum after any silence — including the
+   * first strum of a session — could never fire an onset at all.
+   */
+  observe(frame: Float32Array): void {
+    if (frame.length !== this.window.length) return;
+    this.framesSinceLastOnset += 1;
+    this.pushFlux(frame);
+  }
+
   detect(frame: Float32Array): boolean {
     if (frame.length !== this.window.length) return false;
 
     this.framesSinceLastOnset += 1;
 
+    const flux = this.pushFlux(frame);
+
+    if (this.fluxHistory.length < 5) return false;
+
+    const sorted = [...this.fluxHistory].sort((a, b) => a - b);
+    const baseline = sorted[Math.floor(sorted.length * this.baselinePercentile)];
+    const threshold = baseline * this.thresholdMultiplier;
+
+    if (
+      flux > threshold &&
+      this.framesSinceLastOnset >= this.minFramesBetweenOnsets
+    ) {
+      this.framesSinceLastOnset = 0;
+      return true;
+    }
+    return false;
+  }
+
+  /// Spectral flux of this frame against the last, recorded in the history.
+  private pushFlux(frame: Float32Array): number {
     for (let i = 0; i < frame.length; i++) {
       this.re[i] = frame[i] * this.window[i];
       this.im[i] = 0;
@@ -74,20 +109,6 @@ export class OnsetDetector {
     if (this.fluxHistory.length > this.fluxHistorySize) {
       this.fluxHistory.shift();
     }
-
-    if (this.fluxHistory.length < 5) return false;
-
-    const sorted = [...this.fluxHistory].sort((a, b) => a - b);
-    const baseline = sorted[Math.floor(sorted.length * this.baselinePercentile)];
-    const threshold = baseline * this.thresholdMultiplier;
-
-    if (
-      flux > threshold &&
-      this.framesSinceLastOnset >= this.minFramesBetweenOnsets
-    ) {
-      this.framesSinceLastOnset = 0;
-      return true;
-    }
-    return false;
+    return flux;
   }
 }
