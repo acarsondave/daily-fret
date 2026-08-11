@@ -138,8 +138,12 @@ console.log('\nNothing the player did not do is counted\n');
 
 console.log('\nThe placement rule itself\n');
 
-const level = (chord, strum) => ({
-  rms: 0.2, noiseFloor: 0.005, salience: 2, chroma: null, chord, margin: 0.5, strum,
+// One frame as the detector would report it. A strum carries how hard it hit and
+// how far it rose above what it landed on, because a placement has to be paid
+// for by sound that belongs to the strum rather than by a chord already ringing.
+const level = (chord, strum, rms = 0.2, rise = 4) => ({
+  rms, noiseFloor: 0.005, salience: 2, chroma: null, chord, margin: 0.5, strum,
+  strumRms: strum ? rms : 0, strumRise: strum ? rise : 0,
 });
 
 {
@@ -180,11 +184,50 @@ const level = (chord, strum) => ({
   c.begin('Am');
   let t = 0;
   for (let rep = 0; rep < 10; rep++) {
-    c.frame(level('Am', true), t);
-    for (let i = 1; i < 30; i++) c.frame(level('Am', false), t + i * 23);
+    c.frame(level('Am', true, 0.4), t);
+    for (let i = 1; i < 30; i++) c.frame(level('Am', false, 0.3), t + i * 23);
     t += 700;
   }
   check('ten strums with no gap in the chord at all count ten', c.count === 10, `${c.count} counted`);
+}
+
+// Both of these come from a real session (diagnostics 2026-08-10) where they
+// were counted as placements. Neither is one: no shape was built, and in both
+// the frames that paid for the strum are the tail of a chord that was already
+// sounding before it.
+{
+  const c = new PlacementCounter();
+  c.begin('Em');
+  let t = 0;
+  c.frame(level('Em', true, 0.4), t);
+  for (let i = 1; i < 20; i++) c.frame(level('Em', false, 0.3), t + i * 23);
+  t += 20 * 23;
+  // The hand mutes the strings: a transient louder than the strum, with nothing
+  // behind it but the dying Em.
+  c.frame(level('Em', true, 0.94, 3.3), t);
+  for (let i = 1; i < 20; i++) c.frame(level('Em', false, 0.07), t + i * 23);
+  check('a mute is not a placement, however loud it is', c.count === 1, `${c.count} counted`);
+}
+
+{
+  const c = new PlacementCounter();
+  c.begin('Em');
+  let t = 0;
+  c.frame(level('Em', true, 0.4), t);
+  for (let i = 1; i < 12; i++) c.frame(level('Em', false, 0.23), t + i * 23);
+  t += 12 * 23;
+  // A swell inside the sustain of a chord that never went away. The onset
+  // detector reads the ripple as an attack — just barely, at 1.20 against its
+  // 1.2 bar — and the chord confirming it is the same one that was already
+  // sounding, at a level close enough to the swell to look like its own.
+  //
+  // This one is still counted, and the assertion says so on purpose. Every rule
+  // that separated it also threw away real reps: see the note in placement.ts.
+  // If a change makes this read 1, that is progress and this line should move.
+  c.frame(level('Em', true, 0.29, 1.2), t);
+  for (let i = 1; i < 20; i++) c.frame(level('Em', false, 0.22), t + i * 23);
+  check('KNOWN: a swell inside a ringing chord still counts as a placement',
+    c.count === 2, `${c.count} counted`);
 }
 
 {

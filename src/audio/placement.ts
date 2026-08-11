@@ -19,13 +19,58 @@
 // after it resolve to the shape being drilled, which is what makes the number
 // mean "you placed THIS chord" rather than "you made a noise".
 //
-// What this deliberately does not try to do is verify the lift. Two strums of
-// the same shape with a clean lift between them, and two strums without one,
-// are the same sound; there is nothing in the audio to tell them apart. The
-// drill asks for the lift on screen and counts the strums, rather than inventing
-// a signal it does not have.
+// Counting strums is not enough on its own, and a later export (2026-08-10)
+// shows why. Two things that are not strums pass the arming gate, because that
+// gate asks whether the level rose and never whether a note started:
+//
+//   - A hand muting the strings. In that export it is a 0.94 transient that
+//     falls to 0.07 in 46ms. It is *louder* than the strum it follows, so it
+//     clears the rise test easily, and it contains no chord at all.
+//   - A swell inside a chord that is still ringing. A guitar's sustain is not
+//     monotonic; strings beat against each other, and a 20% ripple across 140ms
+//     reads as an attack.
+//
+// Either one then gets credited by the dying tail of the chord that was already
+// sounding — several in that export at an RMS of 0.025 to 0.07, at the noise
+// gate. So the score drifted with how long a shape rings rather than with how
+// often it was placed: Em (three open strings) scored 27 where Am scored 14 off
+// the same number of strums. That is the original bug's mirror image. The old
+// rule needed silence and scored long-ringing chords too low; this one accepted
+// ringing as evidence and scored them too high. Both were measuring the room.
+//
+// So a strum has to be paid for three times over, and each test is about the
+// sound the player's hand actually made:
+//
+//   1. The chord confirming it must be loud enough to be a strum in its own
+//      right. Same bar the detector uses to arm one: no new number.
+//   2. It must be a fair fraction of the attack that armed it. This is the test
+//      a mute cannot pass, because a mute's attack is enormous and what follows
+//      it is a decay that has nothing to do with it.
+//
+// Replayed against that export, the two together keep the block that was already
+// clean at exactly its shipped count and take a fifth off each of the two
+// inflated ones, closing most of the gap between them.
+//
+// Two things were tried and are deliberately not here, both because the takes in
+// tests/placements.test.mjs show they cannot tell a real rep from a false one:
+//
+//   - Requiring the sound to fall away between reps — the lift, which is the
+//     drill's whole motion. A rep every 800ms with the chord damped at 700ms has
+//     the same envelope as a take with no lift in it at all: the next strum
+//     lands before the damp is audible. No rule can pass one and fail the other,
+//     and one that failed both would silently punish playing at pace.
+//   - Asking a strum to rise further above what it landed on than the detector
+//     needs to arm it. That reference is the loudest frame in the 140ms before
+//     the attack, which during continuous playing is the chord still ringing, so
+//     genuine strums sit barely above the bar too.
+//
+// The swell inside a sustaining chord therefore still gets through, and it is
+// the one over-count left. It is a detector-level question — a swell is not an
+// attack — and the changes drills read the same arming and currently do not miss
+// anything, so it is not worth risking them for it from here.
 
 import type { LevelEvent } from './detector';
+import { MIN_STRUM_RMS, STRUM_RMS_RATIO } from './detector';
 
 // Frames matching the target that must follow a strum before it is credited.
 // One frame is ~23ms, and the chromagram needs ~186ms after a strum to produce
@@ -41,11 +86,18 @@ const CONFIRM_WINDOW_MS = 600;
 // shape four times a second, so anything faster is the same strum being credited
 // twice, and this refuses it.
 const MIN_PLACEMENT_MS = 250;
+// How much of the strum's own attack the chord confirming it has to still carry.
+// Measured on the 2026-08-10 export: mutes confirm at 3-11% of their attack,
+// genuine placements at 41% and up, most of them above 90% or louder than the
+// attack frame itself (a strum spreads across the strings and peaks after the
+// frame that caught its leading edge). 0.3 sits in the empty band between.
+const STRUM_BODY_FRACTION = 0.3;
 
 export interface PlacementOptions {
   confirmFrames?: number;
   confirmWindowMs?: number;
   minPlacementMs?: number;
+  strumBodyFraction?: number;
 }
 
 /**
@@ -59,12 +111,14 @@ export class PlacementCounter {
   private readonly confirmFrames: number;
   private readonly confirmWindowMs: number;
   private readonly minPlacementMs: number;
+  private readonly strumBodyFraction: number;
 
   private target = '';
   private hold = 0; // consecutive frames matching the target
   private otherHold = 0; // consecutive frames matching some other chord
   private otherChord = '';
   private strumAt = -1; // when the uncredited strum landed, or -1 for none
+  private strumRms = 0; // how hard that strum hit
   private lastPlacementAt = -Infinity;
   private placements = 0;
 
@@ -72,6 +126,7 @@ export class PlacementCounter {
     this.confirmFrames = options.confirmFrames ?? CONFIRM_FRAMES;
     this.confirmWindowMs = options.confirmWindowMs ?? CONFIRM_WINDOW_MS;
     this.minPlacementMs = options.minPlacementMs ?? MIN_PLACEMENT_MS;
+    this.strumBodyFraction = options.strumBodyFraction ?? STRUM_BODY_FRACTION;
   }
 
   /**
@@ -87,8 +142,26 @@ export class PlacementCounter {
     this.otherHold = 0;
     this.otherChord = '';
     this.strumAt = -1;
+    this.strumRms = 0;
     this.lastPlacementAt = -Infinity;
     this.placements = 0;
+  }
+
+  /**
+   * Point the counter at a different shape without ending the run.
+   *
+   * For a rotation, where the target changes every time the player lands one and
+   * the count is of the whole loop rather than of one shape. Any strum in flight
+   * is dropped for the same reason `begin` drops it: it was aimed at the shape
+   * that has just been answered.
+   */
+  retarget(chord: string): void {
+    this.target = chord;
+    this.hold = 0;
+    this.otherHold = 0;
+    this.otherChord = '';
+    this.strumAt = -1;
+    this.strumRms = 0;
   }
 
   get count(): number {
@@ -105,6 +178,7 @@ export class PlacementCounter {
       // A new strum supersedes any older one still waiting: whatever sounds from
       // here belongs to this one.
       this.strumAt = nowMs;
+      this.strumRms = ev.strumRms;
       this.hold = 0;
       this.otherHold = 0;
       this.otherChord = '';
@@ -143,6 +217,13 @@ export class PlacementCounter {
       this.strumAt = -1;
       return false;
     }
+    // The chord has to be a sound in its own right, by the same bar the detector
+    // used to decide the strum was one.
+    if (ev.rms <= Math.max(ev.noiseFloor * STRUM_RMS_RATIO, MIN_STRUM_RMS)) return false;
+    // ...and it has to belong to the strum that armed it rather than to whatever
+    // was already ringing when a mute landed on top of it. Not spent on failure:
+    // the same strum's chord can still swell into range a frame or two later.
+    if (this.strumRms > 0 && ev.rms < this.strumBodyFraction * this.strumRms) return false;
 
     this.strumAt = -1;
     this.lastPlacementAt = nowMs;

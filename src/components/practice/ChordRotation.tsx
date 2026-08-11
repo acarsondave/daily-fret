@@ -104,18 +104,31 @@ export function ChordRotation({
   };
 
   const handleChord = (chord: string) => {
-    const expected = ring[targetIdxRef.current];
-    if (chord !== expected) return;
-    // Landing the cued chord is one change — except the very first placement,
-    // which just seeds the rotation and isn't a change yet.
-    if (lastChordRef.current !== '') {
-      const t = Date.now();
-      if (t - lastCountAtRef.current >= MIN_CHANGE_MS) {
-        changesRef.current += 1;
-        setChanges(changesRef.current);
-        popCount();
-        lastCountAtRef.current = t;
-      }
+    // A ring has no beginning. Before the first landing, take whichever chord of
+    // the ring the player actually plays and cue on from there. Insisting they
+    // start on the one the drill happened to list first is a rule with no
+    // musical reason behind it, and a diagnostics export (2026-08-10) shows what
+    // it costs: the player opened on A, the cue sat on D, and the drill counted
+    // nothing at all for the first 8.7 seconds of a 60-second run while they
+    // were playing the whole time.
+    if (lastChordRef.current === '') {
+      const at = ring.indexOf(chord);
+      if (at < 0) return;
+      lastChordRef.current = chord;
+      lastCountAtRef.current = Date.now();
+      const next = (at + 1) % ring.length;
+      targetIdxRef.current = next;
+      setTargetIdx(next);
+      return;
+    }
+
+    if (chord !== ring[targetIdxRef.current]) return;
+    const t = Date.now();
+    if (t - lastCountAtRef.current >= MIN_CHANGE_MS) {
+      changesRef.current += 1;
+      setChanges(changesRef.current);
+      popCount();
+      lastCountAtRef.current = t;
     }
     lastChordRef.current = chord;
     const next = (targetIdxRef.current + 1) % ring.length;

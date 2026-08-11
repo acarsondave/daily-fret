@@ -28,13 +28,24 @@ const CHROMA_SALIENCE_MIN_RESTRICTED = 1.15;
 // Reject ambiguous frames more firmly: a ringing/decaying chord drifting toward
 // the other target otherwise registers phantom transitions (false counts).
 const RESTRICTED_MARGIN_MIN = 0.12;
+// ...but ambiguity that never changes its mind is not ambiguity. The gate above
+// exists to throw away the chroma of a hand in flight between two shapes, and a
+// hand in flight drifts: its best guess wanders from frame to frame and is gone
+// inside ~150ms. A hand holding a chord the templates cannot cleanly separate
+// sits perfectly still and names the same chord for as long as you let it ring.
+// Without this exit, three-chord sets deadlock: a diagnostics export (2026-08-10)
+// has a D held through 32 consecutive frames at a median margin of 0.046, and
+// the anchor rotation reported nothing at all for 4.8 seconds while the player
+// was playing. Two-chord drills are untouched by this — in the same export their
+// ambiguous runs are one frame long.
+const AMBIGUOUS_PERSIST_FRAMES = 8;
 // A count must be backed by a strum that is clearly louder than the ambient
 // noise floor. This is the main guard against "it counted when I wasn't
 // playing": a flux blip on room noise can fire an onset, but it won't arm a
 // count unless the frame is genuinely loud. Tune if soft playing is missed
 // (lower) or silence still counts (raise).
-const STRUM_RMS_RATIO = 3;
-const MIN_STRUM_RMS = 0.02;
+export const STRUM_RMS_RATIO = 3;
+export const MIN_STRUM_RMS = 0.02;
 // Loudness alone does not separate a strum from the chord it is still ringing
 // out. Spectral flux spikes again part-way through a decay (its baseline is
 // still recovering from the silence before the strum) and again while a hand
@@ -83,6 +94,7 @@ export const DETECTOR_CONSTANTS: Record<string, number> = {
   ATTACK_SKIP_FRAMES,
   ATTACK_CONFIRM_FRAMES,
   REARM_MS,
+  AMBIGUOUS_PERSIST_FRAMES,
 };
 
 export const NO_CHORD = 'No Chord';
@@ -117,6 +129,31 @@ export interface LevelEvent {
    * chord alone cannot tell a fresh placement from the one still ringing.
    */
   strum: boolean;
+  /**
+   * How loud the strum being reported on this frame actually hit, or 0 on frames
+   * that carry no strum.
+   *
+   * Carried alongside the flag because a strum's level is the only thing that
+   * says whether the chord arriving after it belongs to it. A hand muting the
+   * strings is a huge transient with nothing behind it: the frames that follow
+   * are the dying tail of whatever was already ringing, and without the attack
+   * level to measure them against there is no way to tell that tail from the
+   * sound of a shape genuinely placed and struck.
+   */
+  strumRms: number;
+  /**
+   * How far the strum rose above the level it landed on: its attack over the
+   * loudest frame in the ~140ms before it. 0 on frames carrying no strum.
+   *
+   * The detector arms anything above STRUM_ATTACK_RISE, deliberately low so soft
+   * playing still registers. A guitar's sustain is not smooth — strings beat
+   * against each other — so a swell inside a chord that never went away can just
+   * clear that bar, and a drill counting placements would count it twice. The
+   * ratio is reported rather than acted on here, so a drill that needs a
+   * stronger claim than "something got louder" can ask for one without raising
+   * the bar for every drill that does not.
+   */
+  strumRise: number;
 }
 
 export interface DetectorHandlers {
@@ -166,6 +203,12 @@ export class ChordDetector {
   // Set when a strum is confirmed, cleared when it has been reported on a level
   // event. See LevelEvent.strum for why it has to survive a frame or two.
   private strumPending = false;
+  private strumRmsPending = 0;
+  private strumRisePending = 0;
+  // How many frames in a row have named the same chord while sitting under the
+  // restricted margin. See AMBIGUOUS_PERSIST_FRAMES.
+  private ambiguousChord: string | null = null;
+  private ambiguousRun = 0;
 
   constructor(opts: DetectorOptions) {
     this.chromagram = new Chromagram({
@@ -229,17 +272,25 @@ export class ChordDetector {
     this.handlers.onOnset?.({ energy: this.candidateRms });
     this.onsetSinceEmit = true;
     this.strumPending = true;
+    this.strumRmsPending = this.candidateRms;
+    this.strumRisePending = this.candidateRef > 0 ? this.candidateRms / this.candidateRef : 0;
     this.chromagram.reset();
     this.chordHistory = [];
+    // A fresh strum is a fresh question. Whatever the last shape was narrowing
+    // toward, this one has to earn its own persistence.
+    this.ambiguousRun = 0;
+    this.ambiguousChord = null;
   }
 
   /// Every level event goes through here so the latched strum flag is reported
   /// exactly once, on the first frame a listener actually receives after it.
-  private emitLevel(ev: Omit<LevelEvent, 'strum'>): void {
+  private emitLevel(ev: Omit<LevelEvent, 'strum' | 'strumRms' | 'strumRise'>): void {
     const handler = this.handlers.onLevel;
     const strum = this.strumPending;
+    const strumRms = strum ? this.strumRmsPending : 0;
+    const strumRise = strum ? this.strumRisePending : 0;
     this.strumPending = false;
-    handler?.({ ...ev, strum });
+    handler?.({ ...ev, strum, strumRms, strumRise });
   }
 
   /// Feed exactly one FRAME_SIZE block of mono samples.
@@ -273,6 +324,8 @@ export class ChordDetector {
 
       diag.silentFrame();
       this.silentFrameCount += 1;
+      this.ambiguousRun = 0;
+      this.ambiguousChord = null;
       if (this.silentFrameCount > 10) {
         if (this.lastEmittedChord !== NO_CHORD) {
           this.handlers.onChord?.({ chord: NO_CHORD, confidence: 1 });
@@ -344,9 +397,19 @@ export class ChordDetector {
         frameMargin = match.margin;
       }
       // In restricted mode reject ambiguous frames (the chroma is between the
-      // two targets, e.g. fingers in flight) so we don't flap and over-count.
-      if (match && this.restrictTo && match.margin < RESTRICTED_MARGIN_MIN) {
-        diag.frame(DIAG_CODE.AMBIGUOUS, rms, this.noiseFloor, salience, match.margin, match.chord);
+      // two targets, e.g. fingers in flight) so we don't flap and over-count —
+      // unless the same chord has been winning narrowly for long enough that a
+      // hand in flight would have landed by now.
+      const narrow = !!match && !!this.restrictTo && match.margin < RESTRICTED_MARGIN_MIN;
+      if (narrow) {
+        this.ambiguousRun = match!.chord === this.ambiguousChord ? this.ambiguousRun + 1 : 1;
+        this.ambiguousChord = match!.chord;
+      } else {
+        this.ambiguousRun = 0;
+        this.ambiguousChord = null;
+      }
+      if (narrow && this.ambiguousRun < AMBIGUOUS_PERSIST_FRAMES) {
+        diag.frame(DIAG_CODE.AMBIGUOUS, rms, this.noiseFloor, salience, match!.margin, match!.chord);
         // The frame is being rejected as in-flight, so it must not be reported
         // as a match either. Passing the name through was how a chroma the
         // detector had just refused to believe still reached the drills.
