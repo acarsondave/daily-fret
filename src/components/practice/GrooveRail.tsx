@@ -158,8 +158,8 @@ export function GrooveTrace({ offsets }: { offsets: readonly BeatOffset[] }) {
         ))}
       </div>
       <div className="groove-scale">
-        <span>ahead</span>
-        <span>behind</span>
+        <span>ahead of the click</span>
+        <span>behind it</span>
       </div>
     </div>
   );

@@ -7,6 +7,8 @@ import { sanitizeMinutes } from '../lib/coached';
 import { SongPicker } from './SongPicker';
 import { useSongs } from '../hooks/useSongs';
 import { StrumPatternSelect } from './StrumPatternSelect';
+import { DEFAULT_PRACTICE_BPM } from '../lib/tempo';
+import { MAX_BPM, MIN_BPM } from '../audio/metronome';
 import type { DrillConfig, DrillKind, TimedBlock } from '../types';
 import './TaskCreatorModal.css';
 import './drill-fields.css';
@@ -34,6 +36,10 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
   const [changesChords, setChangesChords] = useState<string[]>(['A', 'D', 'E']);
   const [trainerChords, setTrainerChords] = useState<string[]>(['A', 'D', 'E', 'G', 'C']);
   const [songId, setSongId] = useState<string>(firstSongId);
+  // The tempo a timing block is measured at. It is part of what the result means
+  // (holding 70 and holding 110 are different exercises and are filed apart), so
+  // it is set here rather than left to whatever the click happened to be on.
+  const [timingBpm, setTimingBpm] = useState(DEFAULT_PRACTICE_BPM);
   const [blocks, setBlocks] = useState<TimedBlock[]>([]);
 
   const resetForm = () => {
@@ -44,6 +50,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
     setChangesChords(['A', 'D', 'E']);
     setTrainerChords(['A', 'D', 'E', 'G', 'C']);
     setSongId(firstSongId);
+    setTimingBpm(DEFAULT_PRACTICE_BPM);
     setBlocks([]);
   };
 
@@ -76,6 +83,8 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
         chords: trainerChords.length >= 2 ? trainerChords : ['A', 'D', 'E', 'G', 'C'],
         durationSec: 60,
       };
+    } else if (drillKind === 'strum-timing') {
+      drill = { kind: 'strum-timing', durationSec: 60, bpm: timingBpm };
     } else if (drillKind === 'song') {
       drill = { kind: 'song', songId };
     }
@@ -162,6 +171,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
                 ['one-minute-changes', 'Changes'],
                 ['chord-rotation', 'Anchor'],
                 ['chord-trainer', 'Trainer'],
+                ['strum-timing', 'Timing'],
                 ['song', 'Song'],
               ] as const).map(([value, label]) => (
                 <button
@@ -174,6 +184,26 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
                 </button>
               ))}
             </div>
+            {drillKind === 'strum-timing' && (
+              <>
+                <span className="drill-hint">
+                  One down strum per click, measured against the click in the room. Needs speakers
+                  rather than headphones.
+                </span>
+                <label className="drill-bpm" htmlFor={`${fieldId}-bpm`}>
+                  <span>Tempo</span>
+                  <input
+                    id={`${fieldId}-bpm`}
+                    type="range"
+                    min={MIN_BPM}
+                    max={MAX_BPM}
+                    value={timingBpm}
+                    onChange={(e) => setTimingBpm(Number(e.target.value))}
+                  />
+                  <output htmlFor={`${fieldId}-bpm`}>{timingBpm} BPM</output>
+                </label>
+              </>
+            )}
             {drillKind === 'one-minute-changes' && (
               <>
                 <span className="drill-hint">Chords to switch between (pairs are auto-made)</span>

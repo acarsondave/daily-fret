@@ -40,10 +40,17 @@
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-subtle);
   /* Light from the beat outward, so the middle of the rail is where the eye
-     rests and the edges recede without anything being drawn there. */
+     rests and the far edges recede. The rail has to mean something before a
+     single strum has landed on it, and this is what says which end of it is
+     home. */
   background:
-    radial-gradient(120% 90% at 50% 50%, rgba(56, 189, 248, 0.07), transparent 70%),
-    rgba(255, 255, 255, 0.025);
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.045) 50%,
+      rgba(255, 255, 255, 0) 100%
+    ),
+    rgba(255, 255, 255, 0.02);
   overflow: hidden;
 }
 
@@ -54,10 +61,26 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  background: rgba(56, 189, 248, 0.06);
-  border-left: 1px solid rgba(56, 189, 248, 0.16);
-  border-right: 1px solid rgba(56, 189, 248, 0.16);
+  background: rgba(56, 189, 248, 0.1);
+  border-left: 1px solid rgba(56, 189, 248, 0.32);
+  border-right: 1px solid rgba(56, 189, 248, 0.32);
 }
+
+/* Caliper marks at the window's edges. Without them the window is a wash that
+   could be anything; with them it reads as a measurement with two ends, which
+   is what it is. */
+.groove-window::before,
+.groove-window::after {
+  content: '';
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  height: 7px;
+  border-left: 1px solid var(--accent-primary);
+  border-right: 1px solid var(--accent-primary);
+}
+.groove-window::before { top: 0; }
+.groove-window::after { bottom: 0; }
 
 /* The beat itself. */
 .groove-beat {
@@ -136,6 +159,10 @@
 }
 
 .groove-mark.is-age-0 {
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  top: 11px;
   box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.18), 0 4px 12px -4px rgba(56, 189, 248, 0.8);
 }
 
@@ -183,17 +210,25 @@
 
 /* The finished block, every beat at once. */
 .groove-trace .groove-rail {
-  --groove-height: 132px;
+  --groove-height: 150px;
 }
 
+/* A dash rather than a dot, which is not decoration. A minute of playing is
+   forty to eighty beats stacked down 150 pixels, and circles at that spacing
+   collide into a blob that hides exactly the drift the trace exists to show.
+   A flat mark overlaps gracefully and still reads as one row per beat. */
 .groove-tick {
   position: absolute;
-  width: 7px;
-  height: 7px;
-  margin-left: -3.5px;
-  margin-top: -3.5px;
-  border-radius: var(--radius-full);
+  width: 11px;
+  height: 2px;
+  margin-left: -5.5px;
+  margin-top: -1px;
+  border-radius: 1px;
   background: var(--accent-primary);
+}
+.groove-tick.is-beyond {
+  width: 6px;
+  margin-left: -3px;
 }
 
 .groove-scale {

@@ -127,7 +127,7 @@ const routine = (drill) => ({
 
 const DRILL = { kind: 'strum-timing', durationSec: 20, bpm: BPM };
 
-async function openWithAudio(wav) {
+async function openWithAudio(wav, viewport = { width: 1280, height: 1000 }) {
   const browser = await chromium.launch({
     args: [
       '--use-fake-ui-for-media-stream',
@@ -136,10 +136,7 @@ async function openWithAudio(wav) {
       `--use-file-for-fake-audio-capture=${DIR}/${wav}`,
     ],
   });
-  const ctx = await browser.newContext({
-    viewport: { width: 1280, height: 1000 },
-    permissions: ['microphone'],
-  });
+  const ctx = await browser.newContext({ viewport, permissions: ['microphone'] });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => {
@@ -255,6 +252,50 @@ console.log('\nOn headphones it refuses rather than inventing a beat\n');
     JSON.stringify(stored?.drillResults));
   check('but the day records that the drill ran and heard nothing',
     stored?.taskRecords?.t1?.evidence === 'silent', JSON.stringify(stored?.taskRecords));
+  check('no page errors', errors.length === 0, errors.join(' | '));
+  await browser.close();
+}
+
+// --- the live rail on the smallest phone the owner practises on -------------
+//
+// The setup screen is checked in both engines below, but the rail only exists
+// while audio is arriving, so the one viewport where it can actually overflow
+// has to be driven with a real take.
+
+console.log('\nThe rail on a 360px phone\n');
+{
+  const { browser, page, errors } = await openWithAudio('on-beat.wav', { width: 360, height: 780 });
+  await page.waitForFunction(
+    () => document.querySelectorAll('.groove-mark').length >= 3,
+    null, { timeout: 25000 },
+  );
+  const sideways = await page.evaluate(() =>
+    document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  check('the live rail fits', sideways <= 0, `${sideways}px over`);
+  const inside = await page.evaluate(() => {
+    const rail = document.querySelector('.groove-rail').getBoundingClientRect();
+    return [...document.querySelectorAll('.groove-mark')]
+      .every((m) => {
+        const r = m.getBoundingClientRect();
+        return r.left >= rail.left - 1 && r.right <= rail.right + 1;
+      });
+  });
+  check('and every mark is inside it', inside);
+  check('the three figures stay on one row', await page.evaluate(() => {
+    const tops = [...document.querySelectorAll('.st-figure')].map((f) => Math.round(f.getBoundingClientRect().top));
+    return tops.length === 3 && new Set(tops).size === 1;
+  }));
+  await page.screenshot({ path: `${OUT}/timing-live-360.png` });
+
+  await page.waitForSelector('.om-ring-value', { timeout: 30000 });
+  const afterResult = await page.evaluate(() =>
+    document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  check('and the result card fits too', afterResult <= 0, `${afterResult}px over`);
+  check('with its figures still on one row', await page.evaluate(() => {
+    const tops = [...document.querySelectorAll('.st-figure')].map((f) => Math.round(f.getBoundingClientRect().top));
+    return tops.length === 3 && new Set(tops).size === 1;
+  }));
+  await page.screenshot({ path: `${OUT}/timing-result-360.png` });
   check('no page errors', errors.length === 0, errors.join(' | '));
   await browser.close();
 }
