@@ -17,6 +17,15 @@ export const DIAG_CODE = {
   HOLD: 6, // stable chord equals the last emitted one (no change)
   BLOCKED_UNARMED: 7, // chord CHANGE ready but the arming gate blocked it
   EMIT: 8, // chord change emitted (this is what drills count)
+  // The strum-timing path (src/audio/timing.ts). It shares this table rather
+  // than starting one of its own so an export has a single legend to read, and
+  // it records events instead of per-frame outcomes because it has no per-frame
+  // gates: it is two attack detectors on two bands, and what matters is what
+  // each one heard and when.
+  CLICK_HEARD: 9, // a metronome click arrived in the high band
+  STRUM_TIMED: 10, // a strum arrived, and was matched to a beat
+  STRUM_NO_GRID: 11, // a strum arrived before any beat grid existed
+  GRID_LOST: 12, // the clicks stopped describing the metronome's tempo
 } as const;
 
 export type DiagCode = (typeof DIAG_CODE)[keyof typeof DIAG_CODE];
@@ -31,6 +40,10 @@ const CODE_LEGEND: Record<DiagCode, string> = {
   [DIAG_CODE.HOLD]: 'stable, same chord as last emit',
   [DIAG_CODE.BLOCKED_UNARMED]: 'change BLOCKED by arming gate',
   [DIAG_CODE.EMIT]: 'chord change emitted',
+  [DIAG_CODE.CLICK_HEARD]: 'metronome click heard in the room',
+  [DIAG_CODE.STRUM_TIMED]: 'strum timed against a beat',
+  [DIAG_CODE.STRUM_NO_GRID]: 'strum heard with no beat grid yet',
+  [DIAG_CODE.GRID_LOST]: 'beat grid lost (click no longer audible)',
 };
 
 // One frame = [tMs, code, rms, noiseFloor, salience, margin, chordIdx].
@@ -51,6 +64,9 @@ export interface DiagSession {
   // [tMs, "silence span"] durations of aggregated below-gate stretches
   silences: Array<[number, number]>;
   onsets: Array<{ t: number; rms: number; armed: boolean }>;
+  // [tMs, code, offsetMs]. Only the timing drill writes these; offsetMs is the
+  // signed distance to the nearest beat, and 0 where the code has no offset.
+  timings: Array<[number, number, number]>;
   emits: Array<{ t: number; chord: string; confidence: number }>;
   marks: Array<{ t: number; label: string }>;
   truncated: boolean;
@@ -131,6 +147,7 @@ class DiagRecorder {
       frames: [],
       silences: [],
       onsets: [],
+      timings: [],
       emits: [],
       marks: [],
       truncated: false,
@@ -164,6 +181,19 @@ class DiagRecorder {
 
   onset(rms: number, armed: boolean): void {
     this.session?.onsets.push({ t: this.now(), rms: round4(rms), armed });
+  }
+
+  /**
+   * One event from the strum-timing path.
+   *
+   * Kept as its own list rather than folded into `frames`, because a frame tuple
+   * is a statement about chroma and salience and this path produces neither.
+   * Writing zeros into those columns would make an export read as though the
+   * chord detector had run and found nothing, which is a different and much
+   * more alarming thing than what actually happened.
+   */
+  timing(code: DiagCode, offsetMs: number): void {
+    this.session?.timings.push([this.now(), code, Math.round(offsetMs * 10) / 10]);
   }
 
   emit(chord: string, confidence: number): void {
@@ -269,7 +299,14 @@ function loadStored(): Promise<DiagSession[]> {
 
 async function persistSession(session: DiagSession): Promise<void> {
   // Sessions with no audio activity at all (mic opened then closed) are noise.
-  if (session.frames.length === 0 && session.emits.length === 0 && session.silences.length === 0) return;
+  if (
+    session.frames.length === 0 &&
+    session.emits.length === 0 &&
+    session.silences.length === 0 &&
+    session.timings.length === 0
+  ) {
+    return;
+  }
   await request((store) => store.put(session) as IDBRequest<unknown>, 'readwrite', null);
   // Keep only the newest few. No quota-shedding retry loop: this store is not
   // fighting for a 5MB budget shared with the app's own persisted state.
@@ -301,7 +338,7 @@ export async function downloadDiagnostics(): Promise<boolean> {
     exportedAt: new Date().toISOString(),
     codeLegend: CODE_LEGEND,
     frameFields: FRAME_FIELDS,
-    note: 'frames are [tMs, code, rms, noiseFloor, salience, margin, chordIdx]; chordIdx indexes chordTable; silences are [startMs, durationMs] spans below the RMS gate',
+    note: 'frames are [tMs, code, rms, noiseFloor, salience, margin, chordIdx]; chordIdx indexes chordTable; silences are [startMs, durationMs] spans below the RMS gate; timings are [tMs, code, offsetMs] from the strum-timing drill',
     sessions,
   };
   const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });

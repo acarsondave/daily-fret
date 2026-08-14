@@ -1,0 +1,314 @@
+/* Strum timing: the groove rail and the readout under it.
+   Imported by StrumTiming.tsx rather than by practice.css, because the rail is
+   the only surface in the app that uses any of it and every other drill would
+   otherwise carry it. */
+
+.st-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+}
+
+/* --- The rail ------------------------------------------------------------- */
+
+.groove {
+  width: min(560px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.groove-rail {
+  /* The vertical axis is time, newest at the top, so the column reads as the
+     last few seconds of playing rather than as a scatter with no order in it. */
+  --groove-height: 168px;
+  --groove-gap: 19px;
+  position: relative;
+  height: var(--groove-height);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  /* Light from the beat outward, so the middle of the rail is where the eye
+     rests and the edges recede without anything being drawn there. */
+  background:
+    radial-gradient(120% 90% at 50% 50%, rgba(56, 189, 248, 0.07), transparent 70%),
+    rgba(255, 255, 255, 0.025);
+  overflow: hidden;
+}
+
+/* The window that still counts as on time. Deliberately a ground rather than an
+   outline: crossing its edge is not an event, and a hard border would make it
+   one. */
+.groove-window {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(56, 189, 248, 0.06);
+  border-left: 1px solid rgba(56, 189, 248, 0.16);
+  border-right: 1px solid rgba(56, 189, 248, 0.16);
+}
+
+/* The beat itself. */
+.groove-beat {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--accent-primary);
+  box-shadow: 0 0 16px -2px rgba(56, 189, 248, 0.65);
+}
+
+/* One click, heard in the room. This is the only motion on the surface driven
+   by the microphone rather than by a timer, and it is worth having for that
+   alone: it is the app visibly hearing what the player hears. */
+.groove-pulse {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: #fff;
+  animation: groove-pulse 420ms var(--ease-out) forwards;
+  pointer-events: none;
+}
+
+@keyframes groove-pulse {
+  0% {
+    opacity: 0.85;
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.5);
+  }
+  100% {
+    opacity: 0;
+    box-shadow: 0 0 0 26px rgba(56, 189, 248, 0);
+  }
+}
+
+/* Where the playing is sitting, and how wide it is. The one element on the rail
+   that carries a verdict, and it is about the run rather than about any strum:
+   it slides toward the beat and narrows as the groove tightens, which is the
+   thing being practised. */
+.groove-band {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  border-radius: var(--radius-md);
+  background: rgba(56, 189, 248, 0.13);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  transition:
+    left 0.5s var(--ease-out),
+    right 0.5s var(--ease-out),
+    background 0.5s ease,
+    border-color 0.5s ease;
+}
+
+.groove-band.is-locked {
+  background: rgba(52, 211, 153, 0.16);
+  border-color: rgba(52, 211, 153, 0.42);
+}
+
+/* One strum. Never right or wrong: it has a position and nothing else. Age is
+   carried by size and by a token colour rather than by fading toward the
+   background, so an older mark stays as legible as the newest at arm's length. */
+.groove-mark {
+  position: absolute;
+  top: 12px;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+  transform: translateY(calc(var(--groove-age) * var(--groove-gap)));
+  transition: transform 0.4s var(--ease-out);
+}
+
+.groove-mark.is-age-0 {
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.18), 0 4px 12px -4px rgba(56, 189, 248, 0.8);
+}
+
+.groove-mark.is-age-1,
+.groove-mark.is-age-2 {
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  top: 13px;
+}
+
+.groove-mark.is-age-3,
+.groove-mark.is-age-4 {
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  top: 13.5px;
+  background: #2C7EA1;
+}
+
+.groove-mark.is-age-5 {
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  top: 14px;
+  background: var(--text-muted);
+}
+
+/* The finished block, every beat at once. */
+.groove-trace .groove-rail {
+  --groove-height: 132px;
+}
+
+.groove-tick {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  margin-top: -3.5px;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+}
+
+.groove-scale {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* --- The readout ---------------------------------------------------------- */
+
+.st-call {
+  font-family: var(--font-primary);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+  max-width: min(560px, 92vw);
+  transition: color var(--dur-slow) ease;
+}
+
+.st-call.is-locked {
+  color: var(--success-color);
+}
+
+.st-figures {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--space-8);
+}
+
+.st-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 82px;
+}
+
+.st-figure-value {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: var(--text-xl);
+  line-height: 1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.st-figure-label {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.st-footnote {
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-muted);
+  max-width: min(460px, 92vw);
+}
+
+/* --- Setup and the states it can open into -------------------------------- */
+
+.st-setup {
+  gap: var(--space-6);
+}
+
+.st-crest {
+  color: var(--accent-primary);
+}
+
+.st-brief {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: min(420px, 92vw);
+}
+
+.st-brief-line {
+  font-family: var(--font-primary);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+}
+
+.st-deaf-title {
+  font-family: var(--font-primary);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--warning-color);
+}
+
+.st-results .st-figures {
+  gap: var(--space-6);
+}
+
+/* --- Small screens --------------------------------------------------------- */
+
+@media (max-width: 600px) {
+  .groove-rail {
+    --groove-height: 148px;
+    --groove-gap: 17px;
+  }
+  .st-figures {
+    gap: var(--space-5);
+  }
+  .st-figure {
+    min-width: 72px;
+  }
+  .st-call {
+    font-size: var(--text-md);
+  }
+}
+
+/* At 360 the three figures still have to sit on one row: stacking them would
+   push the timer and the signal meter under the fold on a short phone, and the
+   rail is the thing that must stay visible while both hands are busy. */
+@media (max-width: 400px) {
+  .groove-rail {
+    --groove-height: 132px;
+    --groove-gap: 15px;
+  }
+  .st-figures {
+    gap: var(--space-3);
+  }
+  .st-figure {
+    min-width: 0;
+    flex: 1;
+  }
+  .st-figure-value {
+    font-size: var(--text-lg);
+  }
+  .groove-scale {
+    letter-spacing: 0.08em;
+  }
+}

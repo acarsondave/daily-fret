@@ -15,6 +15,7 @@
 //   chord:F         one shape, placed from nothing
 //   pool:A|C|D|E|G  one Chord Perfect block, scored across the pool it drilled
 //   ring:A>E>D      one turn of an anchor rotation
+//   timing:80       one strum-timing block, at the tempo it was measured at
 //
 // A key with no prefix is a result written before this existed, under a task id.
 // Those are never rewritten. They are read through `resolveDrillLogs`, which
@@ -27,9 +28,21 @@ import { PAIR_PREFIX, parsePairKey } from './pairs';
 export const CHORD_PREFIX = 'chord:';
 export const POOL_PREFIX = 'pool:';
 export const RING_PREFIX = 'ring:';
+export const TIMING_PREFIX = 'timing:';
 
 const POOL_SEP = '|';
 const RING_SEP = '>';
+
+/**
+ * Tempos are bucketed to the nearest ten for the key.
+ *
+ * Holding 84 and holding 86 is the same practice, and keying them apart would
+ * scatter a month of runs across a dozen series none of which has a trend in it.
+ * Ten is coarse enough to keep a series together through the small adjustments a
+ * player makes on the slider and fine enough that 80 and 100 stay the different
+ * exercises they are.
+ */
+const TEMPO_BUCKET = 10;
 
 /** Chord Perfect's pool when a task never said which shapes to drill. */
 export const DEFAULT_TRAINER_POOL = ['A', 'D', 'E', 'G', 'C'];
@@ -97,6 +110,17 @@ export function parseRingKey(key: string): string[] | null {
   return chords.length ? chords : null;
 }
 
+/** One strum-timing block, named by the tempo it was held at. */
+export function timingKey(bpm: number): string {
+  return `${TIMING_PREFIX}${Math.round(bpm / TEMPO_BUCKET) * TEMPO_BUCKET}`;
+}
+
+export function parseTimingKey(key: string): number | null {
+  if (!key.startsWith(TIMING_PREFIX)) return null;
+  const bpm = Number(key.slice(TIMING_PREFIX.length));
+  return Number.isFinite(bpm) && bpm > 0 ? bpm : null;
+}
+
 /** The shapes a Chord Perfect block will drill, config first. */
 export function trainerPool(chords: readonly string[] | undefined): string[] {
   return chords?.length ? [...new Set(chords)] : [...DEFAULT_TRAINER_POOL];
@@ -107,7 +131,7 @@ export function rotationRing(chords: readonly string[] | undefined): string[] {
   return chords && chords.length >= 2 ? [...chords] : [...DEFAULT_ROTATION_RING];
 }
 
-export type DrillKeyKind = 'pair' | 'chord' | 'pool' | 'ring' | 'retired';
+export type DrillKeyKind = 'pair' | 'chord' | 'pool' | 'ring' | 'timing' | 'retired';
 
 export interface DrillKeyDescription {
   kind: DrillKeyKind;
@@ -159,6 +183,10 @@ export function describeDrillKey(key: string): DrillKeyDescription {
   if (ring) {
     return { kind: 'ring', label: ring.join(' → '), unit: DRILL_UNIT['chord-rotation'] };
   }
+  const bpm = parseTimingKey(key);
+  if (bpm) {
+    return { kind: 'timing', label: `${bpm} BPM`, unit: DRILL_UNIT['strum-timing'] };
+  }
   return RETIRED;
 }
 
@@ -167,7 +195,8 @@ export const isDrillKey = (key: string): boolean =>
   key.startsWith(PAIR_PREFIX) ||
   key.startsWith(CHORD_PREFIX) ||
   key.startsWith(POOL_PREFIX) ||
-  key.startsWith(RING_PREFIX);
+  key.startsWith(RING_PREFIX) ||
+  key.startsWith(TIMING_PREFIX);
 
 /**
  * The key a task's *score* is written under, or null when it has no single one.

@@ -1,4 +1,9 @@
-export type DrillKind = 'one-minute-changes' | 'chord-trainer' | 'song' | 'chord-rotation';
+export type DrillKind =
+  | 'one-minute-changes'
+  | 'chord-trainer'
+  | 'song'
+  | 'chord-rotation'
+  | 'strum-timing';
 
 export interface DrillConfig {
   kind: DrillKind;
@@ -15,6 +20,11 @@ export interface DrillConfig {
   // every pair. `chords` is still carried as a fallback for older app builds.
   pairs?: Array<{ from: string; to: string }>;
   songId?: string; // song-player: which song from the catalog to play along to
+  // strum-timing: the tempo to measure at. The drill is about holding a tempo
+  // rather than beating one, so nothing in its own history implies a next
+  // number the way a change rate does; a routine states it, or the standard
+  // practice click is used.
+  bpm?: number;
 }
 
 // One labeled block inside a configurable timed task. Lets a single task (e.g.

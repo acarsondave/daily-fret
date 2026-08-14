@@ -4,9 +4,9 @@ import { motion } from 'framer-motion';
 import { CloseIcon } from '../icons';
 import { useStore, getTodayString, drillLogsOf } from '../../store';
 import { pairKey } from '../../lib/pairs';
-import { chordKey, poolKey, ringKey, rotationRing, trainerPool } from '../../lib/drillKeys';
+import { chordKey, poolKey, ringKey, rotationRing, timingKey, trainerPool } from '../../lib/drillKeys';
 import { keyDrillHistory } from '../../lib/drillStats';
-import { drillSeries, planTempo, fixedTempo, type TempoPlan } from '../../lib/tempo';
+import { drillSeries, planTempo, fixedTempo, DEFAULT_PRACTICE_BPM, type TempoPlan } from '../../lib/tempo';
 import { timedBlocks } from '../../lib/coached';
 import type { DrillMeasurement } from '../../store/completion';
 import { useSongs } from '../../hooks/useSongs';
@@ -15,6 +15,7 @@ import type { Task } from '../../types';
 import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
 import { ChordRotation } from './ChordRotation';
+import { StrumTiming } from './StrumTiming';
 import { SongPlayer } from './SongPlayer';
 import { TimedSegment } from './TimedSegment';
 import { Metronome } from './Metronome';
@@ -52,6 +53,17 @@ export function PracticeOverlay({ task, onClose }: Props) {
     if (!acc) return 0;
     return keyDrillHistory(drillLogsOf(acc), ringKey(ring)).best;
   }, [ring]);
+
+  // Same snapshot, for the tempo this timing block will run at. Keyed by the
+  // bucketed BPM, so a series survives the small adjustments a player makes on
+  // the slider (src/lib/drillKeys.ts).
+  const timingBest = useMemo(() => {
+    if (drill?.kind !== 'strum-timing') return 0;
+    const state = useStore.getState();
+    const acc = state.accounts[state.currentAccountId];
+    if (!acc) return 0;
+    return keyDrillHistory(drillLogsOf(acc), timingKey(drill.bpm ?? DEFAULT_PRACTICE_BPM)).best;
+  }, [drill]);
 
   // A changes drill can prescribe exact pairs (Justin's Module 3 set). When it
   // does, walk them in order here — the same experience as Coached mode — instead
@@ -95,7 +107,9 @@ export function PracticeOverlay({ task, onClose }: Props) {
 
   const tempoKey = !drill
     ? `block-${blockIdx}`
-    : drill.kind === 'one-minute-changes'
+    : drill.kind === 'strum-timing'
+      ? `timing-${drill.bpm ?? 'default'}`
+      : drill.kind === 'one-minute-changes'
       ? explicitPairs.length
         ? `pair-${Math.min(pairIdx, explicitPairs.length - 1)}`
         : livePair
@@ -110,6 +124,15 @@ export function PracticeOverlay({ task, onClose }: Props) {
     const state = useStore.getState();
     const acc = state.accounts[state.currentAccountId];
     const logs = acc ? drillLogsOf(acc) : {};
+    // A timing drill's number is a percentage, not a change rate, so there is
+    // nothing in its history that implies a next tempo. It states one, or takes
+    // the standard practice click, and the player moves it when they are ready.
+    if (drill.kind === 'strum-timing') {
+      return fixedTempo(
+        drill.bpm,
+        `Hold ${drill.bpm ?? DEFAULT_PRACTICE_BPM} in 4/4. One down strum on every click.`,
+      );
+    }
     if (drill.kind === 'one-minute-changes') {
       const pair = explicitPairs.length
         ? explicitPairs[Math.min(pairIdx, explicitPairs.length - 1)]
@@ -316,6 +339,22 @@ export function PracticeOverlay({ task, onClose }: Props) {
                 { key: poolKey(perChord.map((p) => p.chord)), value: total },
                 ...perChord.map((p) => ({ key: chordKey(p.chord), value: p.placements })),
               ]);
+              settleTask(today, task.id);
+            }}
+            onClose={leave}
+          />
+        )}
+        {drill?.kind === 'strum-timing' && (
+          <StrumTiming
+            config={drill}
+            bpm={tempoPlan?.bpm ?? DEFAULT_PRACTICE_BPM}
+            personalBest={timingBest}
+            onSessionStart={beginDrill}
+            onResult={({ bpm, summary }) => {
+              // A run that could not be measured still reports, with a score of
+              // zero, so the day records that the drill ran and heard nothing
+              // rather than looking as though it was never opened.
+              measured([{ key: timingKey(bpm), value: summary.score }]);
               settleTask(today, task.id);
             }}
             onClose={leave}
