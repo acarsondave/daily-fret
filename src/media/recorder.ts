@@ -12,7 +12,7 @@
 // phone locks. Both look like a recording that is still running and producing
 // nothing.
 
-import { liveMicTrack } from '../audio/liveMic';
+import { awaitLiveMicTrack } from '../audio/liveMic';
 import { openCameraPreview } from './cameraDevice';
 import { RecordingError, describeCameraFailure, describeStorageFailure } from './failure';
 import { chooseMimeType, extensionFor, presetFor } from './quality';
@@ -44,6 +44,17 @@ const TIMESLICE_MS = 2000;
 
 /** A track flickers muted when a camera warms up; only a sustained one counts. */
 const MUTE_GRACE_MS = 1500;
+
+/**
+ * How long to let a microphone that is already opening finish opening.
+ *
+ * Only ever spent when a drill's own getUserMedia is genuinely in flight, and
+ * the wait ends the moment that track is registered rather than running the
+ * clock out. Two seconds is well past a local permission-already-granted open
+ * (measured at roughly 400ms) and short enough that a getUserMedia which never
+ * settles costs the footage two seconds of its start rather than all of it.
+ */
+const MIC_HANDOVER_MS = 2000;
 
 export interface CaptureRequest {
   sessionId: string;
@@ -244,7 +255,13 @@ export class PracticeRecorder {
     const stream = this.stream;
     if (!stream) return;
 
-    const live = liveMicTrack();
+    // Waited for rather than sampled. A coached session mounts the drill and the
+    // recording in the same commit, and the drill's getUserMedia had not yet
+    // resolved when this asked: the recorder then opened a second audio session
+    // against the same microphone, which is what liveMic.ts exists to prevent
+    // and what drops the drill's own capture on iOS. Costs nothing when no
+    // microphone is opening, which is every timed block and every song.
+    const live = await awaitLiveMicTrack(MIC_HANDOVER_MS);
     if (live) {
       stream.addTrack(live.clone());
       this.hasAudio = true;
