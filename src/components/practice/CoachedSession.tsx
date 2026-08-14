@@ -67,7 +67,10 @@ export function CoachedSession({ routine, onClose }: Props) {
   // in this list, but the play-along has had no mic since the learn pass was
   // retired, so a song-only routine was asking for a permission it never uses.
   const needsMic = useMemo(
-    () => segments.some((s) => s.kind === 'changes' || s.kind === 'trainer' || s.kind === 'rotation'),
+    () =>
+      segments.some(
+        (s) => s.kind === 'changes' || s.kind === 'trainer' || s.kind === 'rotation' || s.kind === 'timing',
+      ),
     [segments],
   );
   const today = getTodayString();
@@ -207,7 +210,13 @@ export function CoachedSession({ routine, onClose }: Props) {
   // nobody played, and holding an input audio session against playback.
   useEffect(() => {
     if (!seg) return;
-    if (seg.kind === 'timed' || seg.kind === 'song') void detector.stop();
+    // Timing is in this list even though it does listen, because it listens
+    // through its own capture: it needs millisecond attack times and a band
+    // split, not a chromagram. Leaving the shared one open would hold two input
+    // audio sessions at once, which is the thing Safari is least forgiving
+    // about, and would run a chord matcher over a drill that never asks it
+    // anything.
+    if (seg.kind === 'timed' || seg.kind === 'song' || seg.kind === 'timing') void detector.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
 

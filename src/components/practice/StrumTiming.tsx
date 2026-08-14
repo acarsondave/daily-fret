@@ -379,24 +379,20 @@ export function StrumTiming({
         </p>
 
         <div className="st-figures">
-          <div className="st-figure">
-            <span className="st-figure-value">
-              {measuring && summary.enough ? signedMs(summary.medianMs) : '--'}
-            </span>
-            <span className="st-figure-label">push or drag</span>
-          </div>
-          <div className="st-figure">
-            <span className="st-figure-value">
-              {measuring && summary.enough ? `±${Math.round(summary.spreadMs)}` : '--'}
-            </span>
-            <span className="st-figure-label">spread, ms</span>
-          </div>
-          <div className="st-figure">
-            <span className="st-figure-value">
-              {measuring ? `${summary.beatsInTime}/${summary.expectedBeats}` : '--'}
-            </span>
-            <span className="st-figure-label">beats in time</span>
-          </div>
+          <Figure
+            value={measuring && summary.enough ? signedMs(summary.medianMs) : null}
+            unit="ms"
+            label="off the beat"
+          />
+          <Figure
+            value={measuring && summary.enough ? `±${Math.round(summary.spreadMs)}` : null}
+            unit="ms"
+            label="spread"
+          />
+          <Figure
+            value={measuring ? `${summary.beatsInTime}/${summary.expectedBeats}` : null}
+            label="in time"
+          />
         </div>
 
         <div className="om-timer">
@@ -445,20 +441,9 @@ export function StrumTiming({
           <p className="st-call">{describeTiming(summary)}</p>
           <GrooveTrace offsets={summary.offsets} />
           <div className="st-figures">
-            <div className="st-figure">
-              <span className="st-figure-value">{signedMs(summary.medianMs)}</span>
-              <span className="st-figure-label">push or drag</span>
-            </div>
-            <div className="st-figure">
-              <span className="st-figure-value">±{Math.round(summary.spreadMs)}</span>
-              <span className="st-figure-label">spread, ms</span>
-            </div>
-            <div className="st-figure">
-              <span className="st-figure-value">
-                {summary.beatsInTime}/{summary.expectedBeats}
-              </span>
-              <span className="st-figure-label">beats in time</span>
-            </div>
+            <Figure value={signedMs(summary.medianMs)} unit="ms" label="off the beat" />
+            <Figure value={`±${Math.round(summary.spreadMs)}`} unit="ms" label="spread" />
+            <Figure value={`${summary.beatsInTime}/${summary.expectedBeats}`} label="in time" />
           </div>
           <p className="st-footnote">
             In time means within {IN_TIME_MS} ms of the click, at {result?.bpm} BPM. A strum is timed
@@ -496,6 +481,26 @@ export function StrumTiming({
         </div>
       )}
     </motion.div>
+  );
+}
+
+/**
+ * One number under the rail.
+ *
+ * The unit rides with the value at a smaller size rather than sitting in the
+ * label, which is what lets every label stay to one line on a 360 pixel phone:
+ * "spread, ms" and "beats in time" both wrapped there, and three figures with
+ * differently ragged bottoms read as a mistake rather than as a row.
+ */
+function Figure({ value, unit, label }: { value: string | null; unit?: string; label: string }) {
+  return (
+    <div className="st-figure">
+      <span className="st-figure-value">
+        {value ?? <span className="st-figure-waiting" aria-label="not measured yet">·</span>}
+        {value !== null && unit && <i className="st-figure-unit">{unit}</i>}
+      </span>
+      <span className="st-figure-label">{label}</span>
+    </div>
   );
 }
 

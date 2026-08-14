@@ -185,7 +185,9 @@ const SKILLS: Skill[] = [
     requires: ['technique.finger-placement'],
     measure: {
       kind: 'measurable',
-      needs: 'onset timing with attack direction, which the boolean onset detector does not report',
+      needs:
+        'a shorter refractory than the 200 ms the timing analyser holds, since alternate picking ' +
+        'puts successive attacks closer together than that',
       metric: 'evenness of the gap between successive attacks',
     },
     lessons: ['b1-601'],

@@ -160,6 +160,10 @@ async function openWithAudio(wav, viewport = { width: 1280, height: 1000 }) {
 const figures = (page) =>
   page.locator('.st-figure').allInnerTexts().then((rows) => rows.map((r) => r.split('\n')[0].trim()));
 
+/** The number out of a figure, which carries its unit and its sign with it. */
+const numeric = (text) =>
+  Number(text.replace('\u2212', '-').replace('+', '').replace('\u00b1', '').replace('ms', '').trim());
+
 console.log('\nThe drill hears the click in the room\n');
 {
   const { browser, page, errors } = await openWithAudio('on-beat.wav');
@@ -185,9 +189,9 @@ console.log('\nThe drill hears the click in the room\n');
   check(`playing on the click scores high (${score}% in time)`, score >= 85, `${score}`);
   const [lean, spread, beats] = await figures(page);
   check('the lean is reported inside the resolution the drill claims',
-    Math.abs(Number(lean.replace('−', '-'))) <= 25, lean);
+    Math.abs(numeric(lean)) <= 25, lean);
   check('the spread is a real number, not a suspiciously perfect one',
-    Number(spread.replace('±', '')) > 0, spread);
+    numeric(spread) > 0, spread);
   check('and the beats counted look like a block of playing at this tempo',
     /^\d+\/\d+$/.test(beats) && Number(beats.split('/')[1]) >= 12, beats);
   check('the finished block is drawn as a trace',
@@ -205,7 +209,7 @@ console.log('\nA player who is rushing is told so, and not marked in time\n');
   await page.waitForSelector('.om-ring-value', { timeout: 40000 });
   const score = Number((await page.locator('.om-ring-value').innerText()).trim());
   const [lean] = await figures(page);
-  const leanMs = Number(lean.replace('\u2212', '-').replace('+', ''));
+  const leanMs = numeric(lean);
 
   // The take is played 70 ms early with a tidy player's wobble on top. A strum
   // is timed when its sound arrives, which for this fixture's sweep is about

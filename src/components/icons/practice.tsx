@@ -109,7 +109,7 @@ export const OnBeatIcon = (p: IconProps) => (
     <path d="M12 3.2v17.6" />
     <path d="M7.5 7.3a6.1 6.1 0 0 0 0 9.4" />
     <path d="M16.5 7.3a6.1 6.1 0 0 1 0 9.4" />
-    <circle cx="14.1" cy="12" r="1.55" fill="currentColor" stroke="none" />
+    <circle cx="14.4" cy="12" r="1.95" fill="currentColor" stroke="none" />
   </IconBase>
 );
 
