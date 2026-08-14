@@ -369,13 +369,7 @@ export function StrumTiming({
         />
 
         <p className={locked ? 'st-call is-locked' : 'st-call'} aria-live="polite">
-          {clicksHeard === 0
-            ? 'Listening for the click…'
-            : marks.length === 0
-              ? 'Strum down on every click.'
-              : summary && summary.enough
-                ? describeTiming(summary)
-                : `${MIN_MEASURED_BEATS - (summary?.expectedBeats ?? 0)} more beats to measure.`}
+          {liveCall(clicksHeard, marks.length, summary)}
         </p>
 
         <div className="st-figures">
@@ -487,6 +481,23 @@ export function StrumTiming({
       )}
     </motion.div>
   );
+}
+
+/**
+ * The one line under the rail, in the order the run actually goes through.
+ *
+ * Split out because the last branch used to subtract the beats played from the
+ * minimum and print the result, which counts down correctly and then keeps going
+ * into negative numbers the moment a run is rejected for any reason other than
+ * being short.
+ */
+function liveCall(clicksHeard: number, markCount: number, summary: TimingSummary | null): string {
+  if (clicksHeard === 0) return 'Listening for the click…';
+  if (markCount === 0) return 'Strum down on every click.';
+  if (summary?.selfReferential) return 'The click is not reaching the microphone.';
+  if (summary?.enough) return describeTiming(summary);
+  const left = Math.max(1, MIN_MEASURED_BEATS - (summary?.expectedBeats ?? 0));
+  return `${left} more ${left === 1 ? 'beat' : 'beats'} to measure.`;
 }
 
 /**

@@ -9,12 +9,17 @@
 //
 // The way out is that a click and a strum do not occupy the same frequencies. A
 // strummed guitar puts nearly all of its energy in fundamentals and low
-// harmonics, under about 1.2 kHz. The app's own click (src/audio/metronome.ts)
+// harmonics, under about 800 Hz. The app's own click (src/audio/metronome.ts)
 // is deliberately centred between 2 and 5 kHz, where the ear is most sensitive
 // and the instrument is least dense — a choice made for audibility that turns
 // out to be exactly what makes the two separable. So the signal is split into
 // two disjoint bands by steep filters and each band gets its own attack
-// detector. Neither can see the other's events.
+// detector. Neither can see the other's events. The click still leaks a little
+// into the guitar's band, because any fast attack is broadband by definition;
+// a one millisecond fade-in on the click (see ATTACK_S in metronome.ts) takes
+// that leak down by more than ten times, and the level floors below cover what
+// is left. Measured: the loudest click voice puts 0.0066 into the guitar band
+// against a detection bar of 0.027, and the quietest 0.0005.
 //
 // Reading the click out of the microphone rather than off the AudioContext clock
 // is not a workaround, it is the correct reference. What a player is trying to
