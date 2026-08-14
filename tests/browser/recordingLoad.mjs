@@ -64,7 +64,7 @@ const account = {
  * `quality` of null is the control: recording switched off entirely, which is
  * what every one of these numbers has to be read against.
  */
-async function measure(quality) {
+async function measure(quality, throttle = 1) {
   const browser = await chromium.launch({
     args: [
       '--use-fake-ui-for-media-stream',
@@ -111,6 +111,13 @@ async function measure(quality) {
 
   const cdp = await ctx.newCDPSession(page);
   await cdp.send('Performance.enable');
+  // A laptop that is not this one. The fake camera hands the encoder a synthetic
+  // pattern that costs almost nothing to compress, so an unthrottled run flatters
+  // the feature: it proves the wiring is not pathological, not that the budget is
+  // safe. Slowing the whole renderer is the closest this harness gets to a real
+  // camera on a mid-range machine, and it is where a detector that is only just
+  // keeping up starts dropping frames.
+  if (throttle > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle });
   const readMetrics = async () => {
     const { metrics } = await cdp.send('Performance.getMetrics');
     return Object.fromEntries(metrics.map((m) => [m.name, m.value]));
@@ -207,6 +214,7 @@ async function measure(quality) {
 
   return {
     quality: quality ?? 'off',
+    throttle,
     counted,
     errors,
     gum,
@@ -286,6 +294,39 @@ check('with recording off the drill still opens exactly one audio session',
   controlAudio === 1, `${controlAudio}`);
 check('and no camera was opened at all',
   control.gum.every((c) => !c.video), JSON.stringify(control.gum));
+
+// --- the same question on a slower machine -----------------------------------
+//
+// The runs above all sat near 8% of one main thread, which is a long way from
+// the ceiling, so nothing was ever going to be squeezed out. That is a real
+// result and it is also the easy case. These repeat the two extremes with the
+// renderer slowed down, which is the condition under which "recording is free"
+// would stop being true, and it is the honest test of the claim.
+console.log('\nthe same drill on a slower machine\n');
+
+const throttled = [];
+for (const rate of [4, 6]) {
+  for (const quality of [null, 'detail']) {
+    const r = await measure(quality, rate);
+    throttled.push(r);
+    console.log(
+      `  ${rate}x slower, ${String(r.quality).padEnd(8)} counted ${String(r.counted).padStart(2)}  ` +
+      `main-thread ${r.dutyPct.toFixed(1).padStart(5)}%  frames ${String(r.frames).padStart(4)}  ` +
+      `late ${String(r.late).padStart(3)}  worst gap ${r.worstGap.toFixed(0).padStart(4)}ms`,
+    );
+    if (r.errors.length) console.log(`            page errors: ${r.errors.join(' | ')}`);
+  }
+}
+
+for (const rate of [4, 6]) {
+  const off = throttled.find((r) => r.throttle === rate && r.quality === 'off');
+  const on = throttled.find((r) => r.throttle === rate && r.quality === 'detail');
+  check(`at ${rate}x slower, filming at Detail costs no counted changes`,
+    on.counted >= off.counted - 3,
+    `${on.counted} filming against ${off.counted} not filming`);
+  check(`at ${rate}x slower, no page errors while filming`,
+    on.errors.length === 0, on.errors.join(' | '));
+}
 
 console.log(failures ? `\n${failures} FAILED\n` : '\nALL PASS\n');
 process.exit(failures ? 1 : 0);
