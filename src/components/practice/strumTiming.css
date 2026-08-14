@@ -343,11 +343,16 @@
   text-wrap: balance;
 }
 
-.st-deaf-title {
+/* Two classes deep on purpose. This sits inside `.mic-gate`, whose own
+   `.mic-gate p` rule is more specific than a single class and was quietly
+   holding the title at body size, so the heading rendered smaller than the
+   paragraph under it. */
+.st-deaf .st-deaf-title {
   font-family: var(--font-primary);
   font-size: var(--text-lg);
   font-weight: 600;
   letter-spacing: var(--tracking-tight);
+  line-height: 1.25;
   color: var(--warning-color);
 }
 
@@ -398,5 +403,10 @@
   }
   .groove-scale {
     letter-spacing: 0.08em;
+  }
+  /* The result card is the tallest surface in the app. Every pixel the trace
+     gives back here is a pixel of the score that stays on screen. */
+  .groove-trace .groove-rail {
+    --groove-height: 118px;
   }
 }

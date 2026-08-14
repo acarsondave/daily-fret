@@ -447,8 +447,8 @@ export function StrumTiming({
           </div>
           <p className="st-footnote">
             In time means within {IN_TIME_MS} ms of the click, at {result?.bpm} BPM. A strum is timed
-            when its sound arrives, which for a downstroke is a few milliseconds after the pick, so a
-            lean under {TIMING_RESOLUTION_MS} ms is shown as a number but never called a lean.
+            when its sound arrives, a few milliseconds after the pick, so leans under{' '}
+            {TIMING_RESOLUTION_MS} ms are shown but never named.
           </p>
         </>
       )}
@@ -475,7 +475,12 @@ export function StrumTiming({
           <button className="practice-btn ghost" onClick={() => onClose?.()}>
             {onNext ? 'End session' : 'Done'}
           </button>
-          <button className="practice-btn primary" onClick={onNext ?? (() => setView('setup'))} autoFocus>
+          {/* No autoFocus, unlike the other drills' result cards. Focusing a
+              button at the bottom scrolls it into view, and this card is the
+              tallest in the app: on a small phone that pushes the score itself
+              off the top of the screen, which is the one thing the player came
+              back to see. */}
+          <button className="practice-btn primary" onClick={onNext ?? (() => setView('setup'))}>
             {onNext ? 'Next drill' : 'Again'} <ArrowRightIcon size={18} />
           </button>
         </div>
