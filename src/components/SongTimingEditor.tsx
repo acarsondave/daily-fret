@@ -65,7 +65,9 @@ export function SongTimingEditor({ draft, onPatch, onClose }: Props) {
         isEnd: false,
         at: typeof s.atSeconds === 'number' ? s.atSeconds : null,
       })),
-      { label: 'End of the last bar', isEnd: true, at: draft.endSeconds },
+      // Short on purpose. It shares a row with a timecode and four controls, and
+      // a label that ellipsises to "End of the l..." tells the author nothing.
+      { label: 'Song end', isEnd: true, at: draft.endSeconds },
     ],
     [charted, draft.endSeconds],
   );

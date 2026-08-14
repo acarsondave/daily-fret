@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { loadYouTubeApi, type YTPlayer, type YTPlayerStates } from '../../lib/youtube';
+import './youtubePlayer.css';
 
 /** What the recording is doing, named rather than left as YouTube's integers. */
 export type PlaybackPhase = 'idle' | 'playing' | 'paused' | 'buffering' | 'ended';
