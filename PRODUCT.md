@@ -92,9 +92,14 @@ Constraints:
 
 - The detector recognises nine chords: A, C, D, E, G, Am, Dm, Em, F. Everything
   authored, including songs, must stay inside that set.
-- Rhythm and strum-timing grading is deliberately rejected. It is not reliable from
-  a single microphone, and a wrong verdict on timing destroys trust faster than no
-  verdict.
+- Strum timing against the click is graded, and it is the only rhythm judgement the
+  app makes. It became available by making the click and the guitar separable in the
+  signal rather than by relaxing the standard: the click sits between 2 and 5 kHz
+  where a strummed guitar is thinnest, the input is split into two bands and each is
+  detected on its own, and the beat is read from the click as the microphone hears
+  it. It requires the click to reach the microphone, so the drill cannot be
+  practised on headphones and says so. Pattern, direction and up-strum grading stay
+  out of scope: nothing in the signal yet says which way the hand was moving.
 - Full tab or notation transcription is out of scope with the current engine.
   Chords only.
 - No page navigation. Overlays, modals, and panels preserve context.
