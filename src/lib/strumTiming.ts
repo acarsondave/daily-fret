@@ -188,7 +188,11 @@ export interface TimingSummary {
   medianMs: number;
   /** Spread of the offsets in ms. See the note on `spreadOf`. */
   spreadMs: number;
-  /** Percentage of expected beats struck inside IN_TIME_MS. The stored score. */
+  /**
+   * Percentage of expected beats struck inside IN_TIME_MS. The stored score.
+   * Zero whenever `enough` is false, so a run that is not a measurement cannot
+   * be read as a good one by anything that forgets to check.
+   */
   score: number;
   /** One offset per beat played, in beat order, for the results chart. */
   offsets: BeatOffset[];
@@ -254,9 +258,10 @@ export function summariseTiming(strums: readonly number[], grid: BeatGrid): Timi
   const mid = median(values);
   const spreadMs = spreadOf(values, mid);
   const selfReferential = expectedBeats >= MIN_MEASURED_BEATS && spreadMs < HUMAN_SPREAD_FLOOR_MS;
+  const enough = expectedBeats >= MIN_MEASURED_BEATS && !selfReferential;
 
   return {
-    enough: expectedBeats >= MIN_MEASURED_BEATS && !selfReferential,
+    enough,
     selfReferential,
     expectedBeats,
     beatsPlayed: beats.length,
@@ -265,7 +270,7 @@ export function summariseTiming(strums: readonly number[], grid: BeatGrid): Timi
     meanMs: values.reduce((sum, v) => sum + v, 0) / values.length,
     medianMs: mid,
     spreadMs,
-    score: Math.round((100 * beatsInTime) / expectedBeats),
+    score: enough ? Math.round((100 * beatsInTime) / expectedBeats) : 0,
     offsets: beats.map((beat) => ({ beat, offsetMs: closest.get(beat)! })),
   };
 }
