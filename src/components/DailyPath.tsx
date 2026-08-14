@@ -25,6 +25,7 @@ import {
   SlidersIcon,
   ChartIcon,
   FramingIcon,
+  CameraIcon,
   SessionIcon,
   TuningForkIcon,
 } from './icons';
@@ -59,6 +60,12 @@ const HistoryPanel = lazy(() =>
 const Onboarding = lazy(() => import('./Onboarding').then((m) => ({ default: m.Onboarding })));
 // The camera surface. Split out because it pulls the whole media layer, and
 // the majority of visits never open a camera at all.
+// Split for the same reason as the camera surface: the review library pulls the
+// media layer, and most visits never open it.
+const RecordingLibrary = lazy(() =>
+  import('./practice/RecordingLibrary').then((m) => ({ default: m.RecordingLibrary })),
+);
+
 const TechniqueCheck = lazy(() =>
   import('./practice/TechniqueCheck').then((m) => ({ default: m.TechniqueCheck })),
 );
@@ -120,10 +127,12 @@ export function DailyPath() {
   const [isCoachedOpen, setIsCoachedOpen] = useState(false);
   const [isTunerOpen, setIsTunerOpen] = useState(false);
   const [isTechniqueOpen, setIsTechniqueOpen] = useState(false);
+  const [isFootageOpen, setIsFootageOpen] = useState(false);
   // The camera entry point appears only for someone who has opted in. Offering
   // it to a player who has declined recording would be advertising a camera at
   // them on the screen they open every day.
   const recordingOn = useRecordingStore((s) => s.settings.enabled);
+  const hasFootage = useRecordingStore((s) => s.recordings.length > 0);
   const [practiceTask, setPracticeTask] = useState<Task | null>(null);
   const [prevAllCompleted, setPrevAllCompleted] = useState(false);
   const [limitNotice, setLimitNotice] = useState(false);
@@ -439,6 +448,20 @@ export function DailyPath() {
           </button>
         )}
 
+        {/* Only once there is something to watch. A camera that films and then
+            offers nowhere to see the footage is the state this closes, but an
+            empty shelf advertised on the main screen is its own small lie. */}
+        {recordingOn && hasFootage && (
+          <button
+            className="progress-launch"
+            onClick={() => setIsFootageOpen(true)}
+            title="Watch back what you have filmed"
+          >
+            <CameraIcon size={18} className="progress-launch-icon" />
+            <span>Footage</span>
+          </button>
+        )}
+
         {/* Not gated on having drill results any more: the Journey is a map of
             the course, and day zero is precisely when someone needs one. */}
         <button
@@ -615,6 +638,18 @@ export function DailyPath() {
           )}
         </div>
       </div>
+
+      <Modal
+        isOpen={isFootageOpen}
+        onClose={() => setIsFootageOpen(false)}
+        title="Footage"
+        position="full"
+        wide
+      >
+        <Suspense fallback={<Loader label="Opening your footage…" />}>
+          <RecordingLibrary />
+        </Suspense>
+      </Modal>
 
       <Modal
         isOpen={isJotterOpen}
