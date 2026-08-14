@@ -266,16 +266,20 @@ console.log('\nOn headphones it refuses rather than inventing a beat\n');
 // while audio is arriving, so the one viewport where it can actually overflow
 // has to be driven with a real take.
 
-console.log('\nThe rail on a 360px phone\n');
-{
-  const { browser, page, errors } = await openWithAudio('on-beat.wav', { width: 360, height: 780 });
+for (const [label, viewport] of [
+  ['360', { width: 360, height: 780 }],
+  ['390', { width: 390, height: 844 }],
+  ['430', { width: 430, height: 932 }],
+]) {
+  console.log(`\nThe rail on a ${label}px phone\n`);
+  const { browser, page, errors } = await openWithAudio('on-beat.wav', viewport);
   await page.waitForFunction(
     () => document.querySelectorAll('.groove-mark').length >= 3,
     null, { timeout: 25000 },
   );
   const sideways = await page.evaluate(() =>
     document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  check('the live rail fits', sideways <= 0, `${sideways}px over`);
+  check(`${label}: the live rail fits`, sideways <= 0, `${sideways}px over`);
   const inside = await page.evaluate(() => {
     const rail = document.querySelector('.groove-rail').getBoundingClientRect();
     return [...document.querySelectorAll('.groove-mark')]
@@ -284,23 +288,23 @@ console.log('\nThe rail on a 360px phone\n');
         return r.left >= rail.left - 1 && r.right <= rail.right + 1;
       });
   });
-  check('and every mark is inside it', inside);
-  check('the three figures stay on one row', await page.evaluate(() => {
+  check(`${label}: every mark is inside it`, inside);
+  check(`${label}: the three figures stay on one row`, await page.evaluate(() => {
     const tops = [...document.querySelectorAll('.st-figure')].map((f) => Math.round(f.getBoundingClientRect().top));
     return tops.length === 3 && new Set(tops).size === 1;
   }));
-  await page.screenshot({ path: `${OUT}/timing-live-360.png` });
+  await page.screenshot({ path: `${OUT}/timing-live-${label}.png` });
 
   await page.waitForSelector('.om-ring-value', { timeout: 30000 });
   const afterResult = await page.evaluate(() =>
     document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  check('and the result card fits too', afterResult <= 0, `${afterResult}px over`);
-  check('with its figures still on one row', await page.evaluate(() => {
+  check(`${label}: the result card fits too`, afterResult <= 0, `${afterResult}px over`);
+  check(`${label}: its figures are still on one row`, await page.evaluate(() => {
     const tops = [...document.querySelectorAll('.st-figure')].map((f) => Math.round(f.getBoundingClientRect().top));
     return tops.length === 3 && new Set(tops).size === 1;
   }));
-  await page.screenshot({ path: `${OUT}/timing-result-360.png` });
-  check('no page errors', errors.length === 0, errors.join(' | '));
+  await page.screenshot({ path: `${OUT}/timing-result-${label}.png` });
+  check(`${label}: no page errors`, errors.length === 0, errors.join(' | '));
   await browser.close();
 }
 
