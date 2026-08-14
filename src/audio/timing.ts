@@ -124,11 +124,21 @@ const CLICK_RISE_RATIO = 2.6;
  * the level of the loudest strum leaking into its band, so taking the largest
  * jump in the window resolves it every time.
  *
+ * The window has to be wider than the largest offset the drill means to measure,
+ * and this is what sets its size. A player who is consistently 70 ms early was
+ * having every one of their own strums promoted to a click, because the strum
+ * opened the window, the window closed before the real click arrived, and the
+ * refractory then swallowed it: the beat grid ended up fitted to the guitar and
+ * the run came back looking flawless. The drill's own inhuman-precision guard
+ * caught it, which is what that guard is for, but a heavy rusher is exactly the
+ * player this drill exists for and refusing to measure them is not a fix. 130 ms
+ * is two and a half times the in-time window and covers any lean worth naming.
+ *
  * Zero for the play band, which wants the first crossing: nothing can leak into
  * it loudly enough to compete, and a strum's own attack keeps climbing for tens
  * of milliseconds, so "biggest" there would mean "latest".
  */
-const CLICK_HOLD_MS = 45;
+const CLICK_HOLD_MS = 130;
 
 /**
  * Where on the attack the onset is timed, as a fraction of the climb that
@@ -162,18 +172,25 @@ const CLICK_LEVEL_FLOOR = 0.012;
  * A detector goes quiet for this long after firing, and then must also see the
  * rise fall back before it will fire again.
  *
- * 200 ms is a quarter of a beat at the drill's slowest tempo and not quite half
- * of one at its fastest, so it can never swallow a beat, and it is well past the
- * ring-out ripple that follows a strum's own attack. The re-arm is the part that
- * matters for a strum: an attack that keeps climbing for tens of milliseconds
- * would otherwise fire again the moment the refractory expired.
+ * The two bands need different amounts of it. A strum rings, and its ring-out
+ * ripple is what 200 ms is sized against: it is a quarter of a beat at the
+ * drill's slowest tempo and not quite half of one at its fastest, so it can
+ * never swallow a beat. It does mean this analyser cannot see two strums closer
+ * together than a fifth of a second, which is deliberate: the drill measures one
+ * down strum per beat, and reading up strums needs their direction as well as
+ * their time, neither of which is available here.
  *
- * It does mean this analyser cannot see two strums closer together than a fifth
- * of a second, which is deliberate. The drill measures one down strum per beat.
- * Reading up strums needs their direction as well as their time, and neither is
- * available here.
+ * The click has no ring to suppress, and its refractory has to be short because
+ * it is spent on top of the hold window above: the two together are how long the
+ * detector is blind after a candidate opens, and that total has to stay under a
+ * beat at the fastest tempo the metronome allows.
+ *
+ * The re-arm is the part that matters for a strum: an attack that keeps climbing
+ * for tens of milliseconds would otherwise fire again the moment the refractory
+ * expired.
  */
-const REFRACTORY_MS = 200;
+const PLAY_REFRACTORY_MS = 200;
+const CLICK_REFRACTORY_MS = 100;
 const RE_ARM_RATIO = 1.12;
 
 // Noise floor tracking for the signal meter, mirroring the chord detector's.
@@ -199,7 +216,8 @@ export const TIMING_CONSTANTS: Record<string, number> = {
   CROSS_FRACTION,
   PLAY_LEVEL_FLOOR,
   CLICK_LEVEL_FLOOR,
-  REFRACTORY_MS,
+  PLAY_REFRACTORY_MS,
+  CLICK_REFRACTORY_MS,
   RE_ARM_RATIO,
 };
 
@@ -336,6 +354,7 @@ interface AttackShape {
   floor: number;
   /** How long to keep looking for a bigger jump before reporting. 0 fires at once. */
   holdMs: number;
+  refractoryMs: number;
 }
 
 interface Attack {
@@ -387,7 +406,7 @@ class AttackPicker {
     this.floor = shape.floor;
     this.holdSteps = Math.round(shape.holdMs / 1000 / stepSeconds);
     this.ring = new Float32Array(this.span + 1);
-    this.minSteps = Math.max(1, Math.round(REFRACTORY_MS / 1000 / stepSeconds));
+    this.minSteps = Math.max(1, Math.round(shape.refractoryMs / 1000 / stepSeconds));
   }
 
   /** Feed one envelope sample. Returns a confirmed attack, or null. */
@@ -509,11 +528,23 @@ export class TimingAnalyser {
     );
 
     this.playPicker = new AttackPicker(
-      { spanMs: PLAY_RISE_SPAN_MS, ratio: PLAY_RISE_RATIO, floor: PLAY_LEVEL_FLOOR, holdMs: 0 },
+      {
+        spanMs: PLAY_RISE_SPAN_MS,
+        ratio: PLAY_RISE_RATIO,
+        floor: PLAY_LEVEL_FLOOR,
+        holdMs: 0,
+        refractoryMs: PLAY_REFRACTORY_MS,
+      },
       this.stepSeconds,
     );
     this.clickPicker = new AttackPicker(
-      { spanMs: CLICK_RISE_SPAN_MS, ratio: CLICK_RISE_RATIO, floor: CLICK_LEVEL_FLOOR, holdMs: CLICK_HOLD_MS },
+      {
+        spanMs: CLICK_RISE_SPAN_MS,
+        ratio: CLICK_RISE_RATIO,
+        floor: CLICK_LEVEL_FLOOR,
+        holdMs: CLICK_HOLD_MS,
+        refractoryMs: CLICK_REFRACTORY_MS,
+      },
       this.stepSeconds,
     );
   }

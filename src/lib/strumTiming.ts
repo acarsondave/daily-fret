@@ -9,19 +9,25 @@
 export const IN_TIME_MS = 50;
 
 /**
- * How finely the measurement can honestly be read, in milliseconds either way.
+ * How finely a lean can honestly be read, in milliseconds either way.
  *
- * Two things set it. The analysis itself is good to about five milliseconds on
- * synthesised takes with known answers. What dominates is the strum: a
+ * Two things set it, and the second is much the larger. The analysis itself is
+ * good to about five milliseconds: measured against synthesised takes with known
+ * answers, one strum's offset can be told from another's to within 3 ms on an
+ * ordinary take and 11 ms on the worst one tried. What dominates is the strum. A
  * downstroke is six strings struck in succession, and the moment its sound
- * arrives sits somewhere between nine and eighteen milliseconds after the pick
- * met the first string depending on how briskly it was swept. Nothing in the
- * signal says which, so a lean smaller than this is not a lean, and the drill
- * refuses to describe one. It is the width of the band drawn around the beat on
- * screen, and the deadband in `describeTiming`, so the picture and the words
- * cannot disagree about what counts as centred.
+ * arrives lands 9 ms after the pick met the first string when the sweep is brisk
+ * and 24 ms when it is slow. Nothing in the signal says which kind of sweep it
+ * was, so anything inside that range is a fact about how the player strums
+ * rather than about where they strummed.
+ *
+ * So the drill reports the number, which is a true statement about when the
+ * sound arrived, and refuses to call it a lean until it is bigger than a strum's
+ * own shape could explain. The same figure is the width of the band drawn around
+ * the beat on screen, so the picture and the words cannot disagree about what
+ * counts as centred.
  */
-export const TIMING_RESOLUTION_MS = 20;
+export const TIMING_RESOLUTION_MS = 25;
 
 /**
  * A spread tighter than this is not a person.

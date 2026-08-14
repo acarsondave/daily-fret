@@ -140,6 +140,11 @@ function errorsAgainstTruth(summary, truth) {
 }
 
 const mean = (values) => values.reduce((sum, v) => sum + v, 0) / values.length;
+const median = (values) => {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+};
 const sd = (values) => {
   const m = mean(values);
   return Math.sqrt(mean(values.map((v) => (v - m) ** 2)));
@@ -234,6 +239,13 @@ console.log('\nA played take, against what was played\n');
     ['110 BPM, never damped', { bpm: 110, offsetsMs: played, ring: 3 }],
     ['80 BPM, an E chord', { offsetsMs: played, chord: 'E' }],
     ['80 BPM, five beats missed', { offsetsMs: played, skip: (k) => k % 8 === 3 }],
+    // The case the browser suite found. A player this far ahead of the click was
+    // having each of their own strums promoted to a click, because the strum
+    // opened the click detector's window and the real click arrived after it had
+    // closed. The grid was then fitted to the guitar and the run came back
+    // looking perfect. See CLICK_HOLD_MS in src/audio/timing.ts.
+    ['80 BPM, rushing 70 ms', { offsetsMs: (k) => -70 + played(k) * 0.3 }],
+    ['80 BPM, dragging 70 ms', { offsetsMs: (k) => 70 + played(k) * 0.3 }],
   ];
 
   for (const [label, config] of CASES) {
@@ -261,6 +273,31 @@ console.log('\nA played take, against what was played\n');
     const jitter = sd(errors);
     check(`${label}: offsets are recovered to within 12 ms of each other (spread ${ms(jitter)})`,
       jitter < 12, `${unmatched} unmatched`);
+  }
+}
+
+console.log('\nThe spread it reports, against the spread that was played\n');
+{
+  // The consistency statistic is the headline number of the drill, so it is not
+  // enough that offsets are recovered: the width of them has to survive too.
+  const scaledMad = (values) => {
+    const mid = median(values);
+    return 1.4826 * median(values.map((v) => Math.abs(v - mid)));
+  };
+  const patterns = [
+    ['tight', [-9, 6, -3, 11, -7, 4, 8, -5]],
+    ['ordinary', [-32, 18, -6, 41, -21, 9, 27, -14]],
+    ['loose', [-64, 37, -12, 78, -44, 19, 55, -28]],
+  ];
+  for (const [label, pattern] of patterns) {
+    const t = take({ beats: 32, offsetsMs: (k) => pattern[k % pattern.length] });
+    const { strums, clicks } = analyse(t.audio);
+    const summary = summariseTiming(strums, fitBeatGrid(clicks, t.period));
+    const played = scaledMad(t.truth.map((x) => x.offsetMs));
+    const ratio = summary.spreadMs / played;
+    check(`a ${label} run's spread is reported within a fifth of what was played`,
+      ratio > 0.8 && ratio < 1.2,
+      `played ${ms(played)}, reported ${ms(summary.spreadMs)} (${(ratio * 100).toFixed(0)}%)`);
   }
 }
 

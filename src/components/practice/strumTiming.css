@@ -14,10 +14,20 @@
 /* --- The rail ------------------------------------------------------------- */
 
 .groove {
-  width: min(560px, 92vw);
+  /* 100% rather than a vw fraction: the overlay body already owns the page
+     padding, and a rail sized against the viewport overflows it by exactly that
+     padding on a 360px phone. */
+  width: min(560px, 100%);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+
+  /* Two steps of the accent toward the ground, given as colours rather than as
+     opacity on one colour. An older strum is still a fact that happened and has
+     to stay as readable at arm's length as the newest; fading it toward the
+     background is how the rest of this app used to lose its recessive states. */
+  --groove-mark-recent: #2C7EA1;
+  --groove-mark-past: var(--text-muted);
 }
 
 .groove-rail {
@@ -71,7 +81,7 @@
   left: 50%;
   width: 2px;
   margin-left: -1px;
-  background: #fff;
+  background: var(--text-primary);
   animation: groove-pulse 420ms var(--ease-out) forwards;
   pointer-events: none;
 }
@@ -143,7 +153,7 @@
   height: 7px;
   margin-left: -3.5px;
   top: 13.5px;
-  background: #2C7EA1;
+  background: var(--groove-mark-recent);
 }
 
 .groove-mark.is-age-5 {
@@ -151,7 +161,24 @@
   height: 6px;
   margin-left: -3px;
   top: 14px;
-  background: var(--text-muted);
+  background: var(--groove-mark-past);
+}
+
+/* Further out than the rail can show. Squared off against the edge it ran past,
+   so it reads as "off this scale" rather than as a strum that happened to land
+   exactly on the end. */
+.groove-mark.is-beyond {
+  border-radius: 2px;
+  width: 5px;
+  margin-left: -2.5px;
+}
+.groove-mark.is-beyond.is-early {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.groove-mark.is-beyond.is-late {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 /* The finished block, every beat at once. */
@@ -187,7 +214,7 @@
   font-weight: 600;
   letter-spacing: var(--tracking-tight);
   color: var(--text-primary);
-  max-width: min(560px, 92vw);
+  max-width: min(560px, 100%);
   transition: color var(--dur-slow) ease;
 }
 
@@ -232,7 +259,7 @@
   font-size: var(--text-sm);
   line-height: 1.5;
   color: var(--text-muted);
-  max-width: min(460px, 92vw);
+  max-width: min(460px, 100%);
 }
 
 /* --- Setup and the states it can open into -------------------------------- */
@@ -249,7 +276,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  max-width: min(420px, 92vw);
+  max-width: min(420px, 100%);
 }
 
 .st-brief-line {
@@ -298,7 +325,12 @@
     --groove-height: 132px;
     --groove-gap: 15px;
   }
-  .st-figures {
+  /* Both selectors, because `.st-results .st-figures` outranks a bare
+     `.st-figures` whatever order they appear in and whatever query they are
+     inside. Matching its specificity is the only thing that reaches the results
+     card on a small phone. */
+  .st-figures,
+  .st-results .st-figures {
     gap: var(--space-3);
   }
   .st-figure {

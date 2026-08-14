@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { IN_TIME_MS, TIMING_RESOLUTION_MS, type BeatOffset } from '../../lib/strumTiming';
 
 /**
@@ -8,7 +9,7 @@ import { IN_TIME_MS, TIMING_RESOLUTION_MS, type BeatOffset } from '../../lib/str
  * eighth of the rail, where nothing is legible and nothing appears to move.
  * 140 ms is a little under three times the in-time window, so the window sits in
  * the middle third and an ordinary beginner's spread fills the rail rather than
- * hiding in it. Anything wider is pinned to the edge and drawn as an arrow,
+ * hiding in it. Anything wider is pinned to the edge and squared off against it,
  * because a strum that missed by 300 ms is a fact worth showing and its exact
  * size is not.
  */
@@ -90,7 +91,7 @@ export function GrooveRail({ marks, centreMs, spreadMs, locked, clickPulse }: Li
         {marks.map((mark, age) => (
           <span
             key={mark.id}
-            className={`groove-mark is-age-${Math.min(age, 5)}`}
+            className={`groove-mark is-age-${Math.min(age, 5)}${edgeClass(mark.offsetMs)}`}
             style={{ left: percent(railPosition(mark.offsetMs)), '--groove-age': age } as GrooveMarkStyle}
           />
         ))}
@@ -106,8 +107,15 @@ export function GrooveRail({ marks, centreMs, spreadMs, locked, clickPulse }: Li
   );
 }
 
-interface GrooveMarkStyle extends React.CSSProperties {
+interface GrooveMarkStyle extends CSSProperties {
   '--groove-age': number;
+}
+
+/** A mark the rail could not fit is squared off against the edge it ran past. */
+function edgeClass(offsetMs: number): string {
+  if (offsetMs < -RAIL_SPAN_MS) return ' is-beyond is-early';
+  if (offsetMs > RAIL_SPAN_MS) return ' is-beyond is-late';
+  return '';
 }
 
 function grooveLabel(centreMs: number | null, spreadMs: number, count: number): string {
@@ -141,7 +149,7 @@ export function GrooveTrace({ offsets }: { offsets: readonly BeatOffset[] }) {
         {offsets.map((offset, index) => (
           <span
             key={offset.beat}
-            className="groove-tick"
+            className={`groove-tick${edgeClass(offset.offsetMs)}`}
             style={{
               left: percent(railPosition(offset.offsetMs)),
               top: `${(index * step).toFixed(3)}%`,
