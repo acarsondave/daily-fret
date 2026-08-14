@@ -348,6 +348,11 @@ export class PracticeRecorder {
       });
     }
 
+    // Nothing may reach the file after this point. onstop is fired after the
+    // last dataavailable, so by here every chunk is in; detaching makes a late
+    // one from a browser that disagrees impossible rather than merely handled.
+    if (recorder) recorder.ondataavailable = null;
+
     let bytes = 0;
     let failure: RecordingError | null = null;
     if (this.sink) {

@@ -57,9 +57,13 @@ export const indexedDbStore: RecordingStore = {
     const chunks: Blob[] = [];
     let written = 0;
     let type = '';
+    // Same rule as the OPFS sink: a chunk that arrives after the file is
+    // finished is dropped rather than reopening a closed record.
+    let sealed = false;
 
     return {
       write(chunk: Blob): void {
+        if (sealed) return;
         // The first chunk carries the type MediaRecorder actually produced,
         // which is what makes the reassembled Blob playable.
         if (!type && chunk.type) type = chunk.type;
@@ -67,11 +71,14 @@ export const indexedDbStore: RecordingStore = {
         written += chunk.size;
       },
       async close(): Promise<number> {
+        if (sealed) return written;
+        sealed = true;
         await run('readwrite', (store) => store.put(new Blob(chunks, { type }), key));
         chunks.length = 0;
         return written;
       },
       async abort(): Promise<void> {
+        sealed = true;
         chunks.length = 0;
       },
     };

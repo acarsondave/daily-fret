@@ -261,6 +261,15 @@
   color: var(--text-secondary);
 }
 
+/* The primary action on each step. `.practice-btn` sizes itself from its own
+   padding and lands at 35px here, which is under the 44px this app holds itself
+   to for anything hit with a thumb while the other hand is on a guitar, and
+   these are hit while setting a camera up at arm's length. */
+.tc-start,
+.tc-instruction .practice-btn {
+  min-height: 44px;
+}
+
 .tc-start {
   align-self: flex-start;
 }

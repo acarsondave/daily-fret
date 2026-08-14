@@ -146,11 +146,19 @@ export function useSessionRecording(clip: ActiveClip | null): SessionRecordingSt
   }, [enabled, key]);
 
   // Give the camera back when the surface goes, whatever route it took out.
+  //
+  // Through the queue, and this matters. Effect cleanups run in declaration
+  // order, so the clip effect above has already queued the stop that saves the
+  // footage. Cancelling straight away raced it: abort() removed the file that
+  // stop() was still writing, and every recording made by leaving a drill with
+  // Escape vanished with a "closing writable stream" error behind it. Queued,
+  // this runs after the save and finds nothing left to cancel.
   useEffect(() => {
     return () => {
       const recorder = recorderRef.current;
       recorderRef.current = null;
-      if (recorder) void recorder.cancel();
+      if (!recorder) return;
+      queueRef.current = queueRef.current.then(() => recorder.cancel()).catch(() => {});
     };
   }, []);
 

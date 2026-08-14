@@ -60,12 +60,20 @@ export const opfsStore: RecordingStore = {
     let queue: Promise<void> = Promise.resolve();
     let written = 0;
     let failure: unknown = null;
+    // MediaRecorder can deliver one more chunk after it has been told to stop,
+    // and a write to a stream that is already closing throws asynchronously
+    // where nothing is waiting to catch it. A chunk that arrives after the file
+    // is finished is dropped rather than thrown: it is a fraction of a second
+    // of footage, and the alternative was an unhandled rejection tearing down
+    // the save that had already succeeded.
+    let sealed = false;
 
     return {
       write(chunk: Blob): void {
+        if (sealed) return;
         written += chunk.size;
         queue = queue.then(
-          () => stream.write(chunk),
+          () => (sealed ? undefined : stream.write(chunk)),
           // Once one write has failed the file is already wrong; keep the first
           // reason and stop trying, rather than reporting the tenth failure.
           (err) => {
@@ -74,7 +82,9 @@ export const opfsStore: RecordingStore = {
         );
       },
       async close(): Promise<number> {
+        if (sealed) return written;
         await queue;
+        sealed = true;
         try {
           await stream.close();
         } catch (err) {
@@ -84,6 +94,8 @@ export const opfsStore: RecordingStore = {
         return written;
       },
       async abort(): Promise<void> {
+        if (sealed) return;
+        sealed = true;
         await queue.catch(() => {});
         await stream.abort().catch(() => {});
         await opfsStore.remove(key).catch(() => {});
