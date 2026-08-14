@@ -43,7 +43,7 @@ for (const vp of VIEWPORTS) {
   console.log(`\n${vp.name}\n`);
   const ctx = await browser.newContext({
     viewport: { width: vp.width, height: vp.height },
-    permissions: ['microphone'],
+    permissions: ['microphone', 'camera'],
   });
   const page = await ctx.newPage();
   const errors = [];
@@ -121,6 +121,28 @@ for (const vp of VIEWPORTS) {
   await page.waitForSelector('.onboarding-mic.is-live', { timeout: 15000 });
   await shot('6-mic-live');
   check('a real signal meter appears', (await page.locator('.signal-meter').count()) === 1);
+
+  await page.getByRole('button', { name: /^next/i }).click();
+
+  // --- camera --------------------------------------------------------------
+  // Off until it is turned on, and the screen says where the video goes before
+  // the browser prompt rather than after it. Both are the point of the step.
+  await shot('6b-camera-ask');
+  const cameraText = await page.locator('.onboarding-body').innerText();
+  check('the ask says the video stays on the device', /stays on this device/i.test(cameraText));
+  check('and that it can all be deleted', /deletes all of it/i.test(cameraText));
+  check('declining is a control, not a footnote',
+    (await page.locator('.onboarding-footnote-btn').count()) === 1);
+  check('nothing is enabled by looking at the step', await page.evaluate(() => {
+    const raw = localStorage.getItem('daily-fret-recordings');
+    return raw === null || JSON.parse(raw).state?.settings?.enabled !== true;
+  }));
+
+  await page.getByRole('button', { name: /record my practice/i }).click();
+  await page.waitForSelector('.onboarding-camera-video', { timeout: 15000 });
+  await shot('6c-camera-live');
+  check('saying yes turns it on', await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('daily-fret-recordings')).state.settings.enabled === true));
 
   await page.getByRole('button', { name: /build my routine/i }).click();
 
@@ -219,6 +241,29 @@ for (const vp of VIEWPORTS) {
   check('and offers a way on regardless',
     await page.getByRole('button', { name: /skip for now/i }).isVisible());
   await page.getByRole('button', { name: /skip for now/i }).click();
+
+  // The same browser refuses the camera, which is the other half of this case:
+  // a refused permission must name itself and never leave the flow stuck.
+  await page.waitForSelector('.onboarding-camera');
+  await page.getByRole('button', { name: /record my practice/i }).click();
+  await page.waitForSelector('.onboarding-camera.is-blocked', { timeout: 15000 });
+  const cameraBlocked = await page.locator('.onboarding-camera').innerText();
+  check('a refused camera names itself', /did not open/i.test(cameraBlocked), cameraBlocked.split('\n')[0]);
+  // Which failure a bare headless Chromium produces is its own business: no
+  // camera, refused, or a browser that will not open one at all. Each has a
+  // different way out and the flow must print that way out rather than only the
+  // reason, which is the whole reason the recovery lives beside the failure.
+  const help = await page.locator('.onboarding-mic-help').innerText();
+  const reason = await page.locator('.onboarding-mic-reason').innerText();
+  check('and says what to do about it, not only what happened',
+    help.length > 20 && help !== reason, help);
+  check('and recording stays off', await page.evaluate(() => {
+    const raw = localStorage.getItem('daily-fret-recordings');
+    return raw === null || JSON.parse(raw).state?.settings?.enabled !== true;
+  }));
+  await page.screenshot({ path: `${OUT}/camera-blocked.png` });
+
+  await page.getByRole('button', { name: /build my routine/i }).click();
   await page.waitForSelector('.onboarding-preview-item');
   const ready = await page.locator('.onboarding-body').innerText();
   check('and the routine says the counting is waiting on the microphone',

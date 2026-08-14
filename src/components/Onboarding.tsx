@@ -5,11 +5,16 @@ import clsx from 'clsx';
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
+  CameraIcon,
   CheckIcon,
   HourglassIcon,
   MicIcon,
   TallyIcon,
 } from './icons';
+import { openCameraPreview } from '../media/cameraDevice';
+import { RecordingError, recoveryFor } from '../media/failure';
+import { presetFor } from '../media/quality';
+import { useRecordingStore } from '../media/recordingStore';
 import { ChordDiagram } from './practice/ChordDiagram';
 import { SignalMeter } from './practice/SignalMeter';
 import { useSignalMeter } from './practice/signalQuality';
@@ -54,9 +59,9 @@ import './Onboarding.css';
  * empty list as before.
  */
 
-type Step = 'intro' | 'course' | 'module' | 'chords' | 'mic' | 'ready';
+type Step = 'intro' | 'course' | 'module' | 'chords' | 'mic' | 'camera' | 'ready';
 
-const ALL_STEPS: readonly Step[] = ['intro', 'course', 'module', 'chords', 'mic', 'ready'];
+const ALL_STEPS: readonly Step[] = ['intro', 'course', 'module', 'chords', 'mic', 'camera', 'ready'];
 
 const SAVE_KEY = 'daily-fret-onboarding';
 
@@ -150,6 +155,17 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter();
   const [heard, setHeard] = useState<string | null>(null);
   const [micGranted, setMicGranted] = useState(false);
+
+  // The camera opt-in. Held here rather than in the media layer's own store
+  // until the player says yes, so nothing about this screen turns recording on
+  // as a side effect of being looked at.
+  const setRecordingEnabled = useRecordingStore((s) => s.setEnabled);
+  const recordingOn = useRecordingStore((s) => s.settings.enabled);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraOpening, setCameraOpening] = useState(false);
+  const [cameraError, setCameraError] = useState<RecordingError | null>(null);
+  const cameraVideoRef = useRef<HTMLVideoElement>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -245,11 +261,54 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     if (live) setMicGranted(true);
   }, [detector, pushSignal, resetSignal]);
 
+  // Giving the camera back is unconditional and happens on every route out of
+  // this screen. A first-run flow that leaves a webcam light on behind it has
+  // said one thing and done another on the first day.
+  const closeCamera = useCallback(() => {
+    cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
+    cameraStreamRef.current = null;
+    setCameraStream(null);
+  }, []);
+
+  useEffect(() => closeCamera, [closeCamera]);
+
+  useEffect(() => {
+    const video = cameraVideoRef.current;
+    if (video && video.srcObject !== cameraStream) video.srcObject = cameraStream;
+  }, [cameraStream]);
+
+  // Yes is a single act: the browser prompt, the picture, and the setting all
+  // land together, so nobody agrees to recording and then finds the browser
+  // quietly said no.
+  const askForCamera = useCallback(async () => {
+    setCameraOpening(true);
+    setCameraError(null);
+    try {
+      const preset = presetFor(useRecordingStore.getState().settings.quality);
+      const live = await openCameraPreview(null, preset.width, preset.height);
+      cameraStreamRef.current = live;
+      setCameraStream(live);
+      setRecordingEnabled(true);
+    } catch (err) {
+      setCameraError(
+        err instanceof RecordingError ? err : new RecordingError('failed', 'The camera could not be opened.'),
+      );
+    } finally {
+      setCameraOpening(false);
+    }
+  }, [setRecordingEnabled]);
+
+  const declineCamera = useCallback(() => {
+    closeCamera();
+    setRecordingEnabled(false);
+  }, [closeCamera, setRecordingEnabled]);
+
   const leave = useCallback(() => {
     stopListening();
+    closeCamera();
     writeSaved(null);
     onDone();
-  }, [onDone, stopListening]);
+  }, [closeCamera, onDone, stopListening]);
 
   const chooseCourse = (code: string | null) => {
     setTrack(code);
@@ -270,6 +329,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
 
   const finish = () => {
     stopListening();
+    closeCamera();
     addRoutine(routine);
     setActiveRoutine(routine.id);
     // The first lesson of the chosen module: enough for the Journey to know
@@ -286,6 +346,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
 
   const back = (to: Step) => () => {
     if (step === 'mic') stopListening();
+    if (step === 'camera') closeCamera();
     setStep(to);
   };
 
@@ -595,12 +656,108 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                   className="onboarding-next is-primary"
                   onClick={() => {
                     stopListening();
+                    setStep('camera');
+                  }}
+                >
+                  {micGranted ? 'Next' : 'Skip for now'} <ArrowRightIcon size={16} />
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* The camera. Offered once, plainly, with the promise it has to keep
+              stated before the browser prompt rather than after it. This is the
+              only screen in the app that asks for a camera, and "No" here is a
+              complete answer: nothing later nags, and the Technique button does
+              not appear on the day's screen at all. */}
+          {step === 'camera' && (
+            <>
+              <h1 className="onboarding-title" ref={headingRef} tabIndex={-1}>
+                Let it watch your hands.
+              </h1>
+              <p className="onboarding-lead">
+                The app can hear what you play, but it cannot see how you are playing it, and that
+                is the part a teacher would fix. With this on it films each drill as it runs, so
+                there is footage of your hands without setting a camera up every day.
+              </p>
+              <p className="onboarding-lead">
+                The video stays on this device. Nothing is uploaded, the screen says so whenever the
+                camera is rolling, and one tap in Settings deletes all of it.
+              </p>
+
+              <div
+                className={clsx(
+                  'onboarding-mic',
+                  'onboarding-camera',
+                  recordingOn && 'is-live',
+                  cameraError && 'is-blocked',
+                )}
+              >
+                {cameraStream ? (
+                  <>
+                    <video
+                      ref={cameraVideoRef}
+                      className="onboarding-camera-video"
+                      autoPlay
+                      playsInline
+                      muted
+                    />
+                    <p className="onboarding-mic-state" role="status">
+                      <CheckIcon size={16} /> That is the shot. Point it at your hands, not your
+                      face.
+                    </p>
+                  </>
+                ) : cameraError ? (
+                  <>
+                    <p className="onboarding-mic-state is-problem" role="status">
+                      The camera did not open.
+                    </p>
+                    <p className="onboarding-mic-reason">{cameraError.message}</p>
+                    <p className="onboarding-mic-help">{recoveryFor(cameraError.kind)}</p>
+                    <button type="button" className="onboarding-mic-btn" onClick={() => void askForCamera()}>
+                      <CameraIcon size={18} /> Try again
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="onboarding-mic-btn"
+                    onClick={() => void askForCamera()}
+                    disabled={cameraOpening}
+                  >
+                    <CameraIcon size={18} />
+                    {cameraOpening ? 'Waiting for the browser…' : 'Record my practice'}
+                  </button>
+                )}
+              </div>
+
+              <div className="onboarding-actions">
+                <button type="button" className="onboarding-back" onClick={back('mic')}>
+                  <ArrowLeftIcon size={16} /> Back
+                </button>
+                <button
+                  type="button"
+                  className="onboarding-next is-primary"
+                  onClick={() => {
+                    closeCamera();
                     setStep('ready');
                   }}
                 >
-                  {micGranted ? 'Build my routine' : 'Skip for now'} <ArrowRightIcon size={16} />
+                  Build my routine <ArrowRightIcon size={16} />
                 </button>
               </div>
+              {!recordingOn && (
+                <button
+                  type="button"
+                  className="onboarding-footnote-btn"
+                  onClick={() => {
+                    declineCamera();
+                    setStep('ready');
+                  }}
+                >
+                  No camera, thanks. Everything else works the same.
+                </button>
+              )}
             </>
           )}
 
@@ -645,7 +802,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                 ))}
               </ol>
               <div className="onboarding-actions">
-                <button type="button" className="onboarding-back" onClick={back('mic')}>
+                <button type="button" className="onboarding-back" onClick={back('camera')}>
                   <ArrowLeftIcon size={16} /> Back
                 </button>
                 <button type="button" className="onboarding-next is-primary" onClick={finish}>

@@ -6,6 +6,7 @@ import { MicSetting } from './MicSetting';
 import { CalibrationSetting } from './CalibrationSetting';
 import { CapoSetting } from './CapoSetting';
 import { HandednessSetting } from './HandednessSetting';
+import { RecordingSetting } from './RecordingSetting';
 import { ReminderSetting } from './ReminderSetting';
 import { PatternManager } from './PatternManager';
 import { AccountSection } from './AccountSection';
@@ -174,6 +175,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <MicSetting />
                 <CalibrationSetting onCalibrate={openCalibration} />
                 <HandednessSetting />
+                {/* Last in the group, and deliberately below everything the app
+                    listens with. This is the only setting here that points a
+                    camera at the room, and putting it above the microphone
+                    would have it read as part of the standard setup rather
+                    than as the deliberate opt-in it is. */}
+                <RecordingSetting />
               </>
             )}
 
