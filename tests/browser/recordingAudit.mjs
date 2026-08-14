@@ -397,5 +397,119 @@ await expectSurvivesFailure('storage that is already full', {
   },
 });
 
+// ============================================================================
+// Item 7, second half: failures that arrive part-way through a recording
+// ============================================================================
+console.log('\nwhen it breaks with footage already on the disk\n');
+//
+// The claim being checked is the specific one the model makes: footage cut short
+// is kept and says how it ended, rather than being discarded or offered as a
+// complete take. Three ways that happens, and each has to produce both halves.
+
+/** Film for a while, break something, then leave and read back what was filed. */
+async function breakMidRecording(label, { stub, breakIt, expect }) {
+  const { browser, page, errors } = await open({ stub });
+  await startTask(page, 'Spider walk');
+  await page.waitForSelector('.capture-pill', { timeout: 20000 });
+  // Several chunks in, so there is real footage to either keep or lose.
+  await page.waitForTimeout(6000);
+
+  if (breakIt) await breakIt(page);
+  await page.waitForTimeout(4000);
+
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(3000);
+
+  const lib = await library(page);
+  const files = await filesOnDisk(page);
+  const clip = lib?.recordings?.[0];
+
+  check(`${label}: the footage up to that point was kept`,
+    !!clip && clip.bytes > 10_000, clip ? `${clip.bytes} bytes` : 'nothing filed');
+  check(`${label}: and the clip says how it ended`,
+    clip?.endedBy === expect, `endedBy ${clip?.endedBy}, wanted ${expect}`);
+  check(`${label}: the bytes are really on the disk`,
+    files?.length === 1 && files[0].size === clip?.bytes,
+    JSON.stringify(files));
+  check(`${label}: no uncaught page errors`,
+    errors.filter((e) => e.startsWith('PAGEERROR')).length === 0, errors.join(' | '));
+
+  await browser.close();
+}
+
+await breakMidRecording('the camera is unplugged', {
+  // Dispatched rather than calling stop(). Per spec `ended` fires when a track
+  // stops for a reason outside the page's control, and stop() deliberately does
+  // not fire it, which is what lets the recorder's own teardown stop a track
+  // without being mistaken for a device going away. Unplugging fires it.
+  breakIt: (page) => page.evaluate(() => {
+    for (const s of window.__streams) {
+      for (const t of s.getVideoTracks()) t.dispatchEvent(new Event('ended'));
+    }
+  }),
+  expect: 'device-lost',
+});
+
+await breakMidRecording('the screen goes away', {
+  stub: () => {
+    Object.defineProperty(document, 'hidden', { get: () => true, configurable: true });
+  },
+  // A phone locking looks like this from inside: the track stays live and every
+  // frame it hands over is black, which MediaRecorder reports as a mute.
+  breakIt: (page) => page.evaluate(() => {
+    for (const s of window.__streams) {
+      for (const t of s.getVideoTracks()) t.dispatchEvent(new Event('mute'));
+    }
+  }),
+  expect: 'hidden',
+});
+
+await breakMidRecording('the disk fills up part-way', {
+  stub: () => {
+    const real = FileSystemFileHandle.prototype.createWritable;
+    FileSystemFileHandle.prototype.createWritable = async function (...args) {
+      const stream = await real.apply(this, args);
+      let writes = 0;
+      const write = stream.write.bind(stream);
+      stream.write = (chunk) => {
+        writes += 1;
+        if (writes > 2) return Promise.reject(new DOMException('Full', 'QuotaExceededError'));
+        return write(chunk);
+      };
+      return stream;
+    };
+  },
+  // Nothing to break by hand: the write itself fails once enough chunks have
+  // gone by, which is how a disk actually fills during a session.
+  expect: 'storage-full',
+});
+
+// The one failure that must not stop the filming: no microphone to be had.
+{
+  const { browser, page, errors } = await open({
+    stub: () => {
+      const real = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      navigator.mediaDevices.getUserMedia = (c) =>
+        c?.video ? real(c) : Promise.reject(new DOMException('No mic', 'NotAllowedError'));
+    },
+  });
+  await startTask(page, 'Spider walk');
+  await page.waitForSelector('.capture-pill', { timeout: 20000 });
+  await page.waitForTimeout(5000);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(3000);
+
+  const clip = (await library(page))?.recordings?.[0];
+  check('a refused microphone still gets the session filmed',
+    !!clip && clip.bytes > 10_000, clip ? `${clip.bytes} bytes` : 'nothing filed');
+  check('and the clip says it has no sound on it',
+    clip?.hasAudio === false, `hasAudio ${clip?.hasAudio}`);
+  check('and it is not reported as a broken take',
+    clip?.endedBy === 'complete', clip?.endedBy);
+  check('no uncaught page errors',
+    errors.filter((e) => e.startsWith('PAGEERROR')).length === 0, errors.join(' | '));
+  await browser.close();
+}
+
 console.log(failures ? `\n${failures} FAILED\n` : '\nALL PASS\n');
 process.exit(failures ? 1 : 0);

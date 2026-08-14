@@ -199,7 +199,11 @@ export class PracticeRecorder {
     this.backend = store.backend;
     this.key = `${newId()}.${extensionFor(mimeType)}`;
     try {
-      this.sink = await store.open(this.key);
+      // The disk filling mid-take is reported the moment a write fails rather
+      // than at close(): the recorder stops, the clip is filed with what did
+      // land, and it says storage ran out. Left until close(), the camera would
+      // carry on filming into a file that had stopped accepting bytes.
+      this.sink = await store.open(this.key, () => this.failStorage());
     } catch (err) {
       throw describeStorageFailure(err);
     }
@@ -318,6 +322,27 @@ export class PracticeRecorder {
       clearMute();
       this.detach = null;
     };
+  }
+
+  /**
+   * A write failed, so there is no point filming any more of this.
+   *
+   * Stops the MediaRecorder as well as marking the clip, which is the half that
+   * matters: chunks that arrive after the sink has failed are dropped, so a
+   * recorder left running is a camera, an encoder and a battery spent producing
+   * nothing.
+   */
+  private failStorage(): void {
+    if (this.phase !== 'recording') return;
+    this.finishBecause('storage-full');
+    const recorder = this.recorder;
+    if (recorder && recorder.state !== 'inactive') {
+      try {
+        recorder.stop();
+      } catch {
+        // Already stopped by the browser. The clip is marked either way.
+      }
+    }
   }
 
   // A running recording ending on its own. Stop() does the rest; this only
