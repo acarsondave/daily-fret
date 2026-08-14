@@ -55,6 +55,46 @@
   font-family: var(--font-secondary);
   font-size: var(--text-sm);
   color: var(--text-secondary);
+  margin-right: auto;
+}
+
+/* The recording has stalled. Said quietly, because the chart has already
+   stopped moving and the player can see that; this only names the reason. */
+.song-buffering {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+/* The one promise this screen makes, kept in plain sight rather than buried in
+   a help page. Nothing here is scored, and saying so is what lets someone play
+   badly in front of it without flinching. */
+.song-honest {
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.song-honest.is-inline {
+  font-size: var(--text-micro);
+  letter-spacing: 0.04em;
+}
+
+/* A chart with no timing says so. The alternative is a chart that scrolls to
+   roughly the right place, which the player trusts and then blames their own
+   hands for. */
+.song-untimed {
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-align: center;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .song-skip {
@@ -127,9 +167,25 @@
   justify-content: flex-end;
   gap: var(--space-3);
   flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+.song-real-foot .song-honest.is-inline {
+  margin-right: auto;
+  white-space: nowrap;
 }
 .song-real-foot .song-skip {
-  margin-right: auto;
+  white-space: nowrap;
+}
+/* On a phone the three of these will not share a line without breaking words,
+   and a promise split across two lines stops reading as a promise. It takes the
+   row above instead, where it is also the first thing read. */
+@media (max-width: 480px) {
+  .song-real-foot .song-honest.is-inline {
+    order: -1;
+    flex: 1 0 100%;
+    margin-right: 0;
+    text-align: center;
+  }
 }
 
 /* --- Theater -------------------------------------------------------------
@@ -157,9 +213,22 @@
   justify-content: center;
 }
 
+/* With a chart under it the recording stops taking the whole stage. The video
+   still has to be a real, watchable size (people want to see the hands, and
+   YouTube's terms require the player be visible and unobscured), so rather than
+   shrinking it arbitrarily the chrome measurement grows by exactly what the
+   chart, its controls and the gaps between them occupy. Whatever height is left
+   after that is the video's, on every screen, with no breakpoint guessing. */
+.song-real.is-theater.has-chart {
+  --theater-chrome: 452px;
+}
+
 @media (max-width: 600px) {
   .song-real.is-theater {
     --theater-chrome: 170px;
+  }
+  .song-real.is-theater.has-chart {
+    --theater-chrome: 412px;
   }
   .practice-body:has(.song-real.is-theater) {
     padding: var(--space-2) var(--space-3) var(--space-4);

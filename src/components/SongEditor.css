@@ -391,6 +391,61 @@
   color: var(--accent-primary);
 }
 
+/* --- timing --- */
+/* The entrance to the timing tool, written as a row rather than a button label
+   because "time it to the recording" needs a sentence to mean anything, and the
+   sentence is what makes anyone open it. */
+
+.se-timing-open {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-color);
+  color: var(--accent-primary);
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s;
+}
+
+.se-timing-open:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+.se-timing-open:disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.se-timing-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.se-timing-title {
+  font-family: var(--font-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.se-timing-open:disabled .se-timing-title {
+  color: var(--text-muted);
+}
+
+.se-timing-note {
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
 /* --- quick chords --- */
 
 .se-quick {

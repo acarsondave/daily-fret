@@ -53,6 +53,16 @@ export const SkipIcon = ({ size = 20, className, color }: IconProps) => (
   </svg>
 );
 
+// A section set to run round again. The rail is a bar's shape rather than a
+// circle, because what repeats here is a stretch of the song and not a setting,
+// and the gap at the top is where the chevron sends you back to the start.
+export const LoopIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <path d="M13.4 6.4h2.2a4.4 4.4 0 0 1 4.4 4.4v2.4a4.4 4.4 0 0 1-4.4 4.4H8.4A4.4 4.4 0 0 1 4 13.2v-2.4a4.4 4.4 0 0 1 4.4-4.4h2" />
+    <path d="M11 4.2 13.4 6.4 11 8.6" />
+  </IconBase>
+);
+
 // A plectrum. This is the app's signature mark: it launches a drill, and it is
 // the one object every user of this product is physically holding.
 export const PlectrumIcon = (p: IconProps) => (

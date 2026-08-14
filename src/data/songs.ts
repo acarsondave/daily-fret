@@ -12,6 +12,12 @@
 //              bar: s('A') or s('A','lyric sung here') or s('E','','DDDDDD') to
 //              override the strum for a long-held chord.
 //
+//   atSeconds  OPTIONAL, per section: where its first downbeat lands in the
+//              linked recording. Tapped in, not typed — the song editor's timing
+//              mode captures a whole song in one pass. With every section
+//              anchored (plus the song's `endSeconds`) the chart scrolls in time
+//              with the record; without them it stays a plain play-along.
+//
 // `s(chord, lyric?, strum?)` keeps authoring terse. That's the whole job.
 
 export type StrumDir = 'D' | 'U' | '-';
@@ -26,6 +32,20 @@ export interface SongStepDef {
 export interface SongSection {
   label: string;
   steps: SongStepDef[];
+  // Where this section's first downbeat lands in the linked recording.
+  //
+  // The chart scrolls in time with the record, and extrapolating four minutes
+  // of bars from one tempo and one offset does not survive contact with a real
+  // performance: half a percent of tempo error is over a bar out by the last
+  // chorus, which is worse than showing no chart. So every section carries its
+  // own anchor and bars are interpolated only inside it. Error stays bounded to
+  // the length of one section, where half a percent is a tenth of a second.
+  //
+  // Optional because a chart is perfectly playable untimed. A song where these
+  // are missing falls back to the plain video, and says so.
+  atSeconds?: number;
+  // Beats in a bar through this section, when it differs from the song's.
+  beatsPerBar?: number;
 }
 
 export interface Song {
@@ -43,6 +63,12 @@ export interface Song {
   // Where the song actually starts in the linked video, so the real-play pass
   // doesn't open on a minute of intro before there's anything to play.
   startSeconds?: number;
+  // Beats in a bar, when the song is not in four. A section may override it.
+  beatsPerBar?: number;
+  // Where the last charted bar finishes in the recording. The final section has
+  // no following anchor to interpolate towards, so it is given one explicitly
+  // rather than guessed at from the nominal tempo.
+  endSeconds?: number;
 }
 
 const s = (chord: string, lyric?: string, strum?: string): SongStepDef => ({
