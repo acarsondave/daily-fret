@@ -68,6 +68,38 @@
   font-size: var(--text-micro);
 }
 
+/* The tempo a timing block is measured at. A slider rather than a number field:
+   this is a musical decision made by feel against the click, not a value anyone
+   types. */
+.drill-bpm {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.drill-bpm output {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Six options where there were five. Wrapping keeps every label readable on a
+   360px phone instead of squeezing them all to three letters. */
+.drill-segment {
+  flex-wrap: wrap;
+}
+
+.drill-segment-btn {
+  flex: 1 1 28%;
+}
+
 .drill-hint {
   font-size: var(--text-micro);
   color: var(--text-secondary);

@@ -133,6 +133,19 @@ export const VOICES: Record<BeatAccent, ClickVoice> = {
 };
 
 const TAPER_S = 0.003; // fade the tail to zero; a truncated decay is its own click
+// Raised-cosine fade-in on the leading edge.
+//
+// A click that starts on a discontinuity is, by definition, broadband: the step
+// spreads energy across the whole spectrum including the two hundred to eight
+// hundred hertz where a strummed guitar lives. That did not matter while nothing
+// listened to the click, and it matters a great deal now that the strum timing
+// drill has to tell the two apart in the microphone. Measured on the shipping
+// voices, one millisecond of ramp costs between three and thirteen per cent of
+// the click's own 2 to 7 kHz body and takes its bleed into the guitar's band
+// down by six to thirty times, depending on the voice. It is still an attack: a
+// millisecond is a fraction of the shortest rise the ear resolves as one, and
+// the click is unchanged to listen to.
+const ATTACK_S = 0.001;
 
 // Renders one click to a mono sample buffer. Rendering once and replaying the
 // buffer beats synthesising per beat on two counts: the whole waveform is
@@ -161,6 +174,11 @@ export function renderClick(
     v += voice.noiseAmp * (white - previousNoise) * Math.exp(-t / voice.noiseDecay);
     previousNoise = white;
     out[i] = v;
+  }
+
+  const attack = Math.min(n, Math.max(2, Math.round(ATTACK_S * sampleRate)));
+  for (let i = 0; i < attack; i++) {
+    out[i] *= 0.5 * (1 - Math.cos((Math.PI * i) / (attack - 1)));
   }
 
   // Raised cosine down to exactly zero on the final sample. A decay simply cut

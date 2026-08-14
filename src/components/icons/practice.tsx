@@ -109,6 +109,20 @@ export const MetronomeIcon = (p: IconProps) => (
   </IconBase>
 );
 
+// Strum timing. The beat as a full-height line, the window either side of it
+// that still counts as on time, and one strum sitting inside that window a
+// little late. Drawn as the measurement itself rather than as a clock or a
+// waveform: the drill's whole subject is the distance between a mark and a line,
+// and that distance is the only thing in the glyph.
+export const OnBeatIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <path d="M12 3.2v17.6" />
+    <path d="M7.5 7.3a6.1 6.1 0 0 0 0 9.4" />
+    <path d="M16.5 7.3a6.1 6.1 0 0 1 0 9.4" />
+    <circle cx="14.4" cy="12" r="1.95" fill="currentColor" stroke="none" />
+  </IconBase>
+);
+
 // The coach's voice. A cone with two arcs, sized so the arcs stay separable at
 // the 20px the top bar uses.
 export const SpeakerIcon = (p: IconProps) => (

@@ -10,6 +10,7 @@ export type CoachSegment =
   | { kind: 'trainer'; taskId: string; title: string; chords: string[]; seconds: number }
   | { kind: 'rotation'; taskId: string; title: string; chords: string[]; seconds: number }
   | { kind: 'song'; taskId: string; title: string; songId: string }
+  | { kind: 'timing'; taskId: string; title: string; seconds: number; bpm?: number }
   | { kind: 'timed'; taskId: string; title: string; description?: string; seconds: number; pattern?: string; bpm?: number };
 
 // Parse a free-form duration label ("5 mins", "2-3 mins", "90s") into seconds.
@@ -111,6 +112,18 @@ export function buildSegments(routine: Routine | undefined): CoachSegment[] {
         title: task.title,
         chords: task.drill?.chords?.length ? task.drill.chords : learned,
         seconds: drillSeconds,
+      });
+    } else if (kind === 'strum-timing') {
+      // Strum timing runs as its own segment rather than falling through to a
+      // plain timer. It has to: the timer branch below would announce it, count
+      // it in and then measure nothing, which is exactly the "the app says it
+      // heard something it did not" failure the product is built to avoid.
+      segments.push({
+        kind: 'timing',
+        taskId: task.id,
+        title: task.title,
+        seconds: drillSeconds,
+        bpm: task.drill?.bpm,
       });
     } else if (kind === 'song' && task.drill?.songId) {
       // Play-along: no fixed length, it ends when the record does.

@@ -12,10 +12,10 @@ import {
 } from '../icons';
 import { useStore, getTodayString, drillLogsOf, type CoachStepResult } from '../../store';
 import { pairKey } from '../../lib/pairs';
-import { chordKey, poolKey, ringKey, rotationRing, trainerPool } from '../../lib/drillKeys';
+import { chordKey, poolKey, ringKey, rotationRing, timingKey, trainerPool } from '../../lib/drillKeys';
 import { buildSegments } from '../../lib/coached';
 import { keyDrillHistory } from '../../lib/drillStats';
-import { drillSeries, planTempo, fixedTempo, type TempoPlan } from '../../lib/tempo';
+import { drillSeries, planTempo, fixedTempo, DEFAULT_PRACTICE_BPM, type TempoPlan } from '../../lib/tempo';
 import { useSongs } from '../../hooks/useSongs';
 import { findSong } from '../../lib/songCatalog';
 import { sfx } from '../../audio/sfx';
@@ -26,6 +26,7 @@ import type { Routine } from '../../types';
 import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
 import { ChordRotation } from './ChordRotation';
+import { StrumTiming } from './StrumTiming';
 import { SongPlayer } from './SongPlayer';
 import { TimedSegment } from './TimedSegment';
 import { MicPermissionHint } from './MicPermissionHint';
@@ -66,7 +67,10 @@ export function CoachedSession({ routine, onClose }: Props) {
   // in this list, but the play-along has had no mic since the learn pass was
   // retired, so a song-only routine was asking for a permission it never uses.
   const needsMic = useMemo(
-    () => segments.some((s) => s.kind === 'changes' || s.kind === 'trainer' || s.kind === 'rotation'),
+    () =>
+      segments.some(
+        (s) => s.kind === 'changes' || s.kind === 'trainer' || s.kind === 'rotation' || s.kind === 'timing',
+      ),
     [segments],
   );
   const today = getTodayString();
@@ -108,6 +112,16 @@ export function CoachedSession({ routine, onClose }: Props) {
   // opens, before this run is recorded, so "First benchmark" only shows when
   // there genuinely is no prior turn of this ring. Chord Perfect reads its own,
   // per pool, because the pool is part of its key.
+  // The tempo this timing block will run at, so its best is read from the same
+  // series the result will be filed under.
+  const timingBest = useMemo(() => {
+    if (seg?.kind !== 'timing') return 0;
+    const state = useStore.getState();
+    const acc = state.accounts[state.currentAccountId];
+    if (!acc) return 0;
+    return keyDrillHistory(drillLogsOf(acc), timingKey(seg.bpm ?? DEFAULT_PRACTICE_BPM)).best;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
   const rotationBest = useMemo(() => {
     if (!ring) return 0;
     const state = useStore.getState();
@@ -134,6 +148,11 @@ export function CoachedSession({ routine, onClose }: Props) {
       return planTempo(drillSeries(logs, ringKey(rotationRing(seg.chords)), seg.seconds), today);
     }
     if (seg.kind === 'timed') return fixedTempo(seg.bpm);
+    // Timing states its tempo rather than deriving one: its result is a
+    // percentage, and a percentage implies nothing about how fast to go next.
+    if (seg.kind === 'timing') {
+      return fixedTempo(seg.bpm, `Hold ${seg.bpm ?? DEFAULT_PRACTICE_BPM} in 4/4. One down strum on every click.`);
+    }
     // Songs are played to the record, not to a click. The tempo is still loaded
     // so one tap gives the right click if the player wants it while learning.
     const song = findSong(songs, seg.songId);
@@ -191,7 +210,13 @@ export function CoachedSession({ routine, onClose }: Props) {
   // nobody played, and holding an input audio session against playback.
   useEffect(() => {
     if (!seg) return;
-    if (seg.kind === 'timed' || seg.kind === 'song') void detector.stop();
+    // Timing is in this list even though it does listen, because it listens
+    // through its own capture: it needs millisecond attack times and a band
+    // split, not a chromagram. Leaving the shared one open would hold two input
+    // audio sessions at once, which is the thing Safari is least forgiving
+    // about, and would run a chord matcher over a drill that never asks it
+    // anything.
+    if (seg.kind === 'timed' || seg.kind === 'song' || seg.kind === 'timing') void detector.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
 
@@ -326,7 +351,9 @@ export function CoachedSession({ routine, onClose }: Props) {
           ? seg.chords.join(' → ')
           : seg.kind === 'song'
             ? 'Play along with the real song'
-            : mins(seg.seconds);
+            : seg.kind === 'timing'
+              ? 'One down strum on every click'
+              : mins(seg.seconds);
 
   return createPortal(
     <motion.div
@@ -488,6 +515,30 @@ export function CoachedSession({ routine, onClose }: Props) {
               title: seg.title,
               value: lastValueRef.current,
               unit: 'changes',
+              done: (lastValueRef.current ?? 0) > 0,
+            })}
+            onClose={exit}
+          />
+        )}
+
+        {phase === 'segment' && seg.kind === 'timing' && (
+          <StrumTiming
+            key={`seg-${index}`}
+            config={{ kind: 'strum-timing', durationSec: seg.seconds, bpm: seg.bpm }}
+            bpm={tempoPlan?.bpm ?? DEFAULT_PRACTICE_BPM}
+            personalBest={timingBest}
+            autoStart
+            autoAdvance
+            nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
+            onResult={({ bpm, summary }) => {
+              recordMeasurements(today, seg.taskId, [{ key: timingKey(bpm), value: summary.score }]);
+              lastValueRef.current = summary.score;
+              void speak('done');
+            }}
+            onNext={() => advance({
+              title: seg.title,
+              value: lastValueRef.current,
+              unit: '% in time',
               done: (lastValueRef.current ?? 0) > 0,
             })}
             onClose={exit}

@@ -6,8 +6,12 @@
 //
 // The capability column is deliberately blunt. A practice assistant that claims
 // to grade something it cannot hear is worse than one that honestly says "this
-// one is on a timer" — a wrong verdict costs more trust than no verdict, which
-// is the same standing rule that kept rhythm grading out of the drills.
+// one is on a timer": a wrong verdict costs more trust than no verdict. That
+// rule kept rhythm out of the drills for a long time, and the way out of it was
+// not to relax the rule but to satisfy it. Strum timing is now graded because
+// the click and the guitar were made separable in the signal and the accuracy
+// was measured against takes with known answers (tests/timing.test.mjs), not
+// because grading rhythm stopped being risky.
 //
 // Lesson codes are the curriculum's own, from src/data/curriculum.ts.
 
@@ -181,7 +185,9 @@ const SKILLS: Skill[] = [
     requires: ['technique.finger-placement'],
     measure: {
       kind: 'measurable',
-      needs: 'onset timing with attack direction, which the boolean onset detector does not report',
+      needs:
+        'a shorter refractory than the 200 ms the timing analyser holds, since alternate picking ' +
+        'puts successive attacks closer together than that',
       metric: 'evenness of the gap between successive attacks',
     },
     lessons: ['b1-601'],
@@ -285,10 +291,19 @@ const SKILLS: Skill[] = [
     summary: 'One down strum per beat, landing where the beat is.',
     family: 'rhythm',
     requires: ['chord.A', 'rhythm.foot'],
+    // The one entry in this column that has moved from measurable to measured,
+    // and it took the thing the header calls the standing rule with it: rhythm
+    // was excluded because a single microphone hears the click and the guitar at
+    // once. It still does. What changed is that they no longer have to be told
+    // apart from one signal: the click is engineered to sit between 2 and 5 kHz
+    // where a strummed guitar is thinnest, so the input is split into two bands
+    // and each is detected on its own (src/audio/timing.ts). The beat is then
+    // read from the click as it arrives in the room, which also removes any need
+    // to trust the browser's own latency figure.
     measure: {
-      kind: 'measurable',
-      needs: 'attack timing against the metronome clock, which means an onset that reports when, not just whether',
-      metric: 'milliseconds early or late per strum',
+      kind: 'measured',
+      drill: 'strum-timing',
+      metric: 'beats struck within 50 ms of the click, and the spread around it',
     },
     lessons: ['b1-111', 'b1-204', 'b1-205'],
   },
@@ -298,10 +313,16 @@ const SKILLS: Skill[] = [
     summary: 'Hold a tempo you did not choose.',
     family: 'rhythm',
     requires: ['rhythm.on-the-beat'],
+    // Both halves of this are on the results card: whether the playing sits
+    // ahead of or behind the click, and how wide it is around wherever it sits.
+    // Deliberately not claiming more: what is measured is a block at one tempo,
+    // so "holding a tempo you did not choose" is evidenced by the score at the
+    // tempo the drill prescribed and not by anything about tempo changes inside
+    // a block, which the drill restarts rather than measures across.
     measure: {
-      kind: 'measurable',
-      needs: 'attack timing against the metronome clock',
-      metric: 'drift over a block, and spread around the beat',
+      kind: 'measured',
+      drill: 'strum-timing',
+      metric: 'push or drag against the click, and the spread around it, per block',
     },
     lessons: ['b1-403'],
   },
@@ -326,7 +347,9 @@ const SKILLS: Skill[] = [
     requires: ['rhythm.up-strums'],
     measure: {
       kind: 'measurable',
-      needs: 'attack timing against a pattern template',
+      needs:
+        'up strums, and then a matcher that reads a written pattern as expected positions ' +
+        'on the beat grid the timing drill already fits',
       metric: 'attacks matched to the pattern, misses and extras counted separately',
     },
     lessons: ['b1-307', 'b1-404', 'b1-502', 'b1-503'],
@@ -339,7 +362,7 @@ const SKILLS: Skill[] = [
     requires: ['rhythm.patterns', 'theory.time-signatures'],
     measure: {
       kind: 'measurable',
-      needs: 'attack timing against a pattern template in a compound meter',
+      needs: 'the pattern matcher above, in a compound meter',
       metric: 'attacks matched to the pattern',
     },
     lessons: ['b1-604'],
@@ -352,7 +375,9 @@ const SKILLS: Skill[] = [
     requires: ['rhythm.patterns'],
     measure: {
       kind: 'measurable',
-      needs: 'nothing new: level per strum is already on every frame',
+      needs:
+        'nothing new: the timing analyser already reports how far each attack rose, ' +
+        'so this is a component and a stored number rather than an algorithm',
       metric: 'spread of attack loudness across a block',
     },
     lessons: ['b1-705', 'b1-706'],
@@ -368,8 +393,9 @@ const SKILLS: Skill[] = [
     measure: {
       kind: 'measurable',
       needs:
-        'nothing new: the tuner shipped a monophonic pitch detector accurate to a fraction of a cent, ' +
-        'so a note sequence can be followed. It needs a component, not an algorithm',
+        'nothing new: the tuner shipped a monophonic pitch detector accurate to a fraction of a cent ' +
+        'and the timing drill shipped a beat grid, so a note sequence and its timing can both be ' +
+        'followed. It needs a component, not an algorithm',
       metric: 'notes hit in order, and each one’s timing against the click',
     },
     lessons: ['b1-207', 'b1-309', 'b1-406', 'b1-506'],

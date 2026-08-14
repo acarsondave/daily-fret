@@ -1,0 +1,418 @@
+/* Strum timing: the groove rail and the readout under it.
+   Imported by StrumTiming.tsx rather than by practice.css, because the rail is
+   the only surface in the app that uses any of it and every other drill would
+   otherwise carry it. */
+
+.st-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+}
+
+/* --- The rail ------------------------------------------------------------- */
+
+.groove {
+  /* 100% rather than a vw fraction: the overlay body already owns the page
+     padding, and a rail sized against the viewport overflows it by exactly that
+     padding on a 360px phone. */
+  width: min(560px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  /* Two steps of the accent toward the ground, given as colours rather than as
+     opacity on one colour. An older strum is still a fact that happened and has
+     to stay as readable at arm's length as the newest; fading it toward the
+     background is how the rest of this app used to lose its recessive states. */
+  --groove-mark-recent: #2C7EA1;
+  --groove-mark-past: var(--text-muted);
+}
+
+.groove-rail {
+  /* The vertical axis is time, newest at the top, so the column reads as the
+     last few seconds of playing rather than as a scatter with no order in it. */
+  --groove-height: 168px;
+  --groove-gap: 19px;
+  position: relative;
+  height: var(--groove-height);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  /* Light from the beat outward, so the middle of the rail is where the eye
+     rests and the far edges recede. The rail has to mean something before a
+     single strum has landed on it, and this is what says which end of it is
+     home. */
+  background:
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.028) 50%,
+      rgba(255, 255, 255, 0) 100%
+    ),
+    rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+
+/* The window that still counts as on time.
+   Neutral rather than accented, and that is the whole colour rule of this
+   surface: white is the grid the player is measured against, and the accent is
+   the player. Drawn earlier in both, the window and the band that reports the
+   run were the same blue on top of each other, and the one thing a reader has to
+   be able to separate at a glance is the tolerance from their own playing.
+   A ground rather than an outline, because crossing its edge is not an event
+   and a hard border would make it one. */
+.groove-window {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
+  border-right: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+/* Caliper marks at the window's edges. Without them the window is a wash that
+   could be anything; with them it reads as a measurement with two ends, which
+   is what it is. */
+.groove-window::before,
+.groove-window::after {
+  content: '';
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  height: 7px;
+  border-left: 1px solid var(--text-secondary);
+  border-right: 1px solid var(--text-secondary);
+}
+.groove-window::before { top: 0; }
+.groove-window::after { bottom: 0; }
+
+/* The beat itself: the brightest thing on the rail, because it is the one line
+   everything else is a distance from. */
+.groove-beat {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--text-primary);
+  box-shadow: 0 0 18px -2px rgba(226, 232, 240, 0.5);
+}
+
+/* One click, heard in the room. This is the only motion on the surface driven
+   by the microphone rather than by a timer, and it is worth having for that
+   alone: it is the app visibly hearing what the player hears. */
+.groove-pulse {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--accent-primary);
+  animation: groove-pulse 420ms var(--ease-out) forwards;
+  pointer-events: none;
+}
+
+@keyframes groove-pulse {
+  0% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.55);
+  }
+  100% {
+    opacity: 0;
+    box-shadow: 0 0 0 30px rgba(56, 189, 248, 0);
+  }
+}
+
+/* Where the playing is sitting, and how wide it is. The one element on the rail
+   that carries a verdict, and it is about the run rather than about any strum:
+   it slides toward the beat and narrows as the groove tightens, which is the
+   thing being practised. */
+.groove-band {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  border-radius: var(--radius-md);
+  background: rgba(56, 189, 248, 0.13);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  transition:
+    left 0.5s var(--ease-out),
+    right 0.5s var(--ease-out),
+    background 0.5s ease,
+    border-color 0.5s ease;
+}
+
+.groove-band.is-locked {
+  background: rgba(52, 211, 153, 0.16);
+  border-color: rgba(52, 211, 153, 0.42);
+}
+
+/* One strum. Never right or wrong: it has a position and nothing else. Age is
+   carried by size and by a token colour rather than by fading toward the
+   background, so an older mark stays as legible as the newest at arm's length. */
+.groove-mark {
+  position: absolute;
+  top: 12px;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+  transform: translateY(calc(var(--groove-age) * var(--groove-gap)));
+  transition: transform 0.4s var(--ease-out);
+}
+
+.groove-mark.is-age-0 {
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  top: 11px;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.18), 0 4px 12px -4px rgba(56, 189, 248, 0.8);
+}
+
+.groove-mark.is-age-1,
+.groove-mark.is-age-2 {
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  top: 13px;
+}
+
+.groove-mark.is-age-3,
+.groove-mark.is-age-4 {
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  top: 13.5px;
+  background: var(--groove-mark-recent);
+}
+
+.groove-mark.is-age-5 {
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  top: 14px;
+  background: var(--groove-mark-past);
+}
+
+/* Further out than the rail can show. Squared off against the edge it ran past,
+   so it reads as "off this scale" rather than as a strum that happened to land
+   exactly on the end. */
+.groove-mark.is-beyond {
+  border-radius: 2px;
+  width: 5px;
+  margin-left: -2.5px;
+}
+.groove-mark.is-beyond.is-early {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.groove-mark.is-beyond.is-late {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* The finished block, every beat at once. */
+.groove-trace .groove-rail {
+  --groove-height: 150px;
+}
+
+/* A dash rather than a dot, which is not decoration. A minute of playing is
+   forty to eighty beats stacked down 150 pixels, and circles at that spacing
+   collide into a blob that hides exactly the drift the trace exists to show.
+   A flat mark overlaps gracefully and still reads as one row per beat. */
+.groove-tick {
+  position: absolute;
+  width: 11px;
+  height: 2px;
+  margin-left: -5.5px;
+  margin-top: -1px;
+  border-radius: 1px;
+  background: var(--accent-primary);
+}
+.groove-tick.is-beyond {
+  width: 6px;
+  margin-left: -3px;
+}
+
+.groove-scale {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* --- The readout ---------------------------------------------------------- */
+
+.st-call {
+  font-family: var(--font-primary);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+  max-width: min(560px, 100%);
+  text-wrap: balance;
+  transition: color var(--dur-slow) ease;
+}
+
+.st-call.is-locked {
+  color: var(--success-color);
+}
+
+.st-figures {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--space-8);
+}
+
+.st-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 82px;
+}
+
+.st-figure-value {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: var(--text-xl);
+  line-height: 1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.st-figure-unit {
+  font-family: var(--font-secondary);
+  font-style: normal;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-left: 2px;
+}
+
+/* Before the run is long enough to measure. A middle dot rather than two
+   hyphens: a dash beside a signed number reads as a minus sign, which is the one
+   thing this figure must never be mistaken for. */
+.st-figure-waiting {
+  color: var(--text-muted);
+}
+
+.st-figure-label {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.st-footnote {
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-muted);
+  max-width: min(460px, 100%);
+}
+
+/* --- Setup and the states it can open into -------------------------------- */
+
+.st-setup {
+  gap: var(--space-6);
+}
+
+.st-crest {
+  color: var(--accent-primary);
+}
+
+.st-brief {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: min(420px, 100%);
+}
+
+.st-brief-line {
+  font-family: var(--font-primary);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+  /* Two words on the second line reads as a mistake on a phone. Browsers that
+     do not know this property simply wrap as before. */
+  text-wrap: balance;
+}
+
+/* Two classes deep on purpose. This sits inside `.mic-gate`, whose own
+   `.mic-gate p` rule is more specific than a single class and was quietly
+   holding the title at body size, so the heading rendered smaller than the
+   paragraph under it. */
+.st-deaf .st-deaf-title {
+  font-family: var(--font-primary);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.25;
+  color: var(--warning-color);
+}
+
+.st-results .st-figures {
+  gap: var(--space-6);
+}
+
+/* --- Small screens --------------------------------------------------------- */
+
+@media (max-width: 600px) {
+  .groove-rail {
+    --groove-height: 148px;
+    --groove-gap: 17px;
+  }
+  .st-figures {
+    gap: var(--space-5);
+  }
+  .st-figure {
+    min-width: 72px;
+  }
+  .st-call {
+    font-size: var(--text-md);
+  }
+}
+
+/* At 360 the three figures still have to sit on one row: stacking them would
+   push the timer and the signal meter under the fold on a short phone, and the
+   rail is the thing that must stay visible while both hands are busy. */
+@media (max-width: 400px) {
+  .groove-rail {
+    --groove-height: 132px;
+    --groove-gap: 15px;
+  }
+  /* Both selectors, because `.st-results .st-figures` outranks a bare
+     `.st-figures` whatever order they appear in and whatever query they are
+     inside. Matching its specificity is the only thing that reaches the results
+     card on a small phone. */
+  .st-figures,
+  .st-results .st-figures {
+    gap: var(--space-3);
+  }
+  .st-figure {
+    min-width: 0;
+    flex: 1;
+  }
+  .st-figure-value {
+    font-size: var(--text-lg);
+  }
+  .groove-scale {
+    letter-spacing: 0.08em;
+  }
+  /* The result card is the tallest surface in the app. Every pixel the trace
+     gives back here is a pixel of the score that stays on screen. */
+  .groove-trace .groove-rail {
+    --groove-height: 118px;
+  }
+}
