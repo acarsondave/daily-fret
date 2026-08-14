@@ -47,23 +47,28 @@
     linear-gradient(
       90deg,
       rgba(255, 255, 255, 0) 0%,
-      rgba(255, 255, 255, 0.045) 50%,
+      rgba(255, 255, 255, 0.028) 50%,
       rgba(255, 255, 255, 0) 100%
     ),
     rgba(255, 255, 255, 0.02);
   overflow: hidden;
 }
 
-/* The window that still counts as on time. Deliberately a ground rather than an
-   outline: crossing its edge is not an event, and a hard border would make it
-   one. */
+/* The window that still counts as on time.
+   Neutral rather than accented, and that is the whole colour rule of this
+   surface: white is the grid the player is measured against, and the accent is
+   the player. Drawn earlier in both, the window and the band that reports the
+   run were the same blue on top of each other, and the one thing a reader has to
+   be able to separate at a glance is the tolerance from their own playing.
+   A ground rather than an outline, because crossing its edge is not an event
+   and a hard border would make it one. */
 .groove-window {
   position: absolute;
   top: 0;
   bottom: 0;
-  background: rgba(56, 189, 248, 0.1);
-  border-left: 1px solid rgba(56, 189, 248, 0.32);
-  border-right: 1px solid rgba(56, 189, 248, 0.32);
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
+  border-right: 1px solid rgba(255, 255, 255, 0.16);
 }
 
 /* Caliper marks at the window's edges. Without them the window is a wash that
@@ -76,13 +81,14 @@
   left: -1px;
   right: -1px;
   height: 7px;
-  border-left: 1px solid var(--accent-primary);
-  border-right: 1px solid var(--accent-primary);
+  border-left: 1px solid var(--text-secondary);
+  border-right: 1px solid var(--text-secondary);
 }
 .groove-window::before { top: 0; }
 .groove-window::after { bottom: 0; }
 
-/* The beat itself. */
+/* The beat itself: the brightest thing on the rail, because it is the one line
+   everything else is a distance from. */
 .groove-beat {
   position: absolute;
   top: 0;
@@ -90,8 +96,8 @@
   left: 50%;
   width: 2px;
   margin-left: -1px;
-  background: var(--accent-primary);
-  box-shadow: 0 0 16px -2px rgba(56, 189, 248, 0.65);
+  background: var(--text-primary);
+  box-shadow: 0 0 18px -2px rgba(226, 232, 240, 0.5);
 }
 
 /* One click, heard in the room. This is the only motion on the surface driven
@@ -104,19 +110,19 @@
   left: 50%;
   width: 2px;
   margin-left: -1px;
-  background: var(--text-primary);
+  background: var(--accent-primary);
   animation: groove-pulse 420ms var(--ease-out) forwards;
   pointer-events: none;
 }
 
 @keyframes groove-pulse {
   0% {
-    opacity: 0.85;
-    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.5);
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.55);
   }
   100% {
     opacity: 0;
-    box-shadow: 0 0 0 26px rgba(56, 189, 248, 0);
+    box-shadow: 0 0 0 30px rgba(56, 189, 248, 0);
   }
 }
 
