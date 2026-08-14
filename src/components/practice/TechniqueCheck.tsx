@@ -12,6 +12,13 @@ import { PracticeRecorder } from '../../media/recorder';
 import { fileRecording, useRecordingStore } from '../../media/recordingStore';
 import { TECHNIQUE_VIEWS, type Recording, type TechniqueView } from '../../media/types';
 import { TechniqueGuide } from './TechniqueGuide';
+// The shell this surface sits in, imported directly rather than through
+// practice.css, which is the entry point for the five drill stylesheets and
+// pulls 35 kB behind it that a camera screen has no use for. The tuner made the
+// same choice; what it did not do, and what the shell's own comment warns
+// about, is forget the import altogether and render as an ordinary block laid
+// out below the fold. Both stylesheets are needed, and both are named here.
+import './overlayShell.css';
 import './recording.css';
 
 /**
@@ -296,14 +303,14 @@ export function TechniqueCheck({ onClose }: { onClose: () => void }) {
               <div className="tc-error" role="alert">
                 <p className="tc-error-head">{error.message}</p>
                 <p className="tc-error-help">{recoveryFor(error.kind)}</p>
-                <button type="button" className="practice-btn ghost" onClick={() => void openCamera()}>
+                <button type="button" className="tc-btn is-ghost" onClick={() => void openCamera()}>
                   Try again
                 </button>
               </div>
             ) : (
               <button
                 type="button"
-                className="practice-btn primary tc-start"
+                className="tc-btn is-primary tc-start"
                 onClick={() => void openCamera()}
                 disabled={opening}
                 autoFocus
@@ -337,7 +344,7 @@ export function TechniqueCheck({ onClose }: { onClose: () => void }) {
               {phase === 'framing' ? (
                 <>
                   <p className="tc-shot-shows">{copy.shows}</p>
-                  <button type="button" className="practice-btn primary" onClick={() => void startClip()} autoFocus>
+                  <button type="button" className="tc-btn is-primary" onClick={() => void startClip()} autoFocus>
                     <RecordIcon size={18} /> {isLast ? 'Film the last angle' : 'Film this angle'}
                   </button>
                 </>
@@ -346,7 +353,7 @@ export function TechniqueCheck({ onClose }: { onClose: () => void }) {
                   <p className="tc-shot-shows" role="status">
                     Playing. {secondsLeft} second{secondsLeft === 1 ? '' : 's'} left.
                   </p>
-                  <button type="button" className="practice-btn ghost" onClick={() => void finishClip()}>
+                  <button type="button" className="tc-btn is-ghost" onClick={() => void finishClip()}>
                     Stop this one early
                   </button>
                 </>
@@ -386,7 +393,7 @@ export function TechniqueCheck({ onClose }: { onClose: () => void }) {
               {formatMegabytes(totalBytes)} in total, on this device. Delete them whenever you like
               from Settings, under Practice video.
             </p>
-            <button type="button" className="practice-btn primary tc-start" onClick={onClose} autoFocus>
+            <button type="button" className="tc-btn is-primary tc-start" onClick={onClose} autoFocus>
               Done <ArrowRightIcon size={16} />
             </button>
           </motion.div>

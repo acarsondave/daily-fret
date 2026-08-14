@@ -222,6 +222,12 @@
    the framing step: this is what the shot looks like. */
 .tc-angle-mark {
   flex: 0 0 auto;
+  /* The guide inside is absolutely positioned, so this has to be its
+     containing block. Without it the SVG escaped to the overlay, spread itself
+     across the whole surface, and sat invisibly on top of the button below,
+     which was still there and still perfectly unclickable. */
+  position: relative;
+  overflow: hidden;
   width: 96px;
   aspect-ratio: 16 / 9;
   border-radius: var(--radius-md);
@@ -261,13 +267,61 @@
   color: var(--text-secondary);
 }
 
-/* The primary action on each step. `.practice-btn` sizes itself from its own
-   padding and lands at 35px here, which is under the 44px this app holds itself
-   to for anything hit with a thumb while the other hand is on a guitar, and
-   these are hit while setting a camera up at arm's length. */
-.tc-start,
-.tc-instruction .practice-btn {
+/* This surface's own controls.
+   Not `.practice-btn`: that lives in practice.css, which the technique check
+   deliberately does not load, and borrowing it is how a screen ends up styled
+   only when some other screen happens to have been opened first. Same shape and
+   same voice as the drill buttons, declared where this surface can see it, and
+   at the 44px this app holds itself to for anything pressed with a thumb while
+   the other hand is on a guitar. */
+.tc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
   min-height: 44px;
+  padding: var(--space-3) var(--space-8);
+  border: none;
+  border-radius: var(--radius-full);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-base) ease,
+    opacity var(--dur-base) ease;
+}
+
+.tc-btn:active {
+  transform: scale(0.97);
+}
+
+.tc-btn.is-primary {
+  background: var(--accent-primary);
+  color: #06141d;
+  box-shadow: var(--shadow-glow);
+}
+
+.tc-btn.is-primary:hover {
+  filter: brightness(1.06);
+}
+
+.tc-btn.is-ghost {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.tc-btn.is-ghost:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.tc-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.tc-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .tc-start {
@@ -316,6 +370,9 @@
   inset: 0;
   width: 100%;
   height: 100%;
+  /* Decoration over a picture. It is never the thing being pressed, and an
+     SVG that quietly eats taps is the hardest kind of dead button to explain. */
+  pointer-events: none;
   color: rgba(56, 189, 248, 0.66);
   transition: opacity var(--dur-slow) var(--ease-out), color var(--dur-slow) ease;
 }
@@ -476,8 +533,7 @@
   .tc-angle-mark {
     width: 76px;
   }
-  .tc-start,
-  .tc-instruction .practice-btn {
+  .tc-btn {
     align-self: stretch;
     width: 100%;
   }

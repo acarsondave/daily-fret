@@ -40,26 +40,55 @@ const account = {
   capoFret: 0,
 };
 
-const recordingState = (over = {}) => ({
+const recordingState = (over = {}, recordings = []) => ({
   state: {
     settings: { enabled: true, quality: 'standard', keepSessions: 8, cameraId: null, ...over },
-    recordings: [],
+    recordings,
     lastPrune: null,
   },
   version: 0,
 });
+
+// A library with something in it, so the settings pane is measured in the shape
+// it has once the feature has been used rather than only in its empty state.
+const SEEDED_CLIPS = [
+  {
+    id: 'seed-1', sessionId: 'seed-session', kind: 'technique-check', date: '2026-08-13',
+    taskId: null, routineId: null, label: 'Straight on', view: 'front',
+    startedAt: 1_770_000_000_000, durationMs: 25_000, bytes: 4_600_000,
+    mimeType: 'video/webm;codecs=vp9,opus', quality: 'standard', width: 1280, height: 720,
+    hasAudio: true, starred: true, endedBy: 'complete',
+    location: { backend: 'opfs', key: 'seed-1.webm' },
+  },
+  {
+    id: 'seed-2', sessionId: 'seed-session-2', kind: 'session', date: '2026-08-13',
+    taskId: 't1', routineId: 'r1', label: 'Spider walk',
+    startedAt: 1_770_000_100_000, durationMs: 120_000, bytes: 21_000_000,
+    mimeType: 'video/webm;codecs=vp9,opus', quality: 'standard', width: 1280, height: 720,
+    hasAudio: true, starred: false, endedBy: 'complete',
+    location: { backend: 'opfs', key: 'seed-2.webm' },
+  },
+];
+
+// Two browsers for the whole suite, not one per case.
+//
+// A case needs its own storage, which is a fresh BrowserContext: each one gets
+// its own localStorage and its own Origin Private File System, which is exactly
+// the isolation these cases want. Launching a browser per case was thirteen
+// launches, and on a loaded machine one of them would be killed part-way
+// through and take the run with it. The two differ only in whether Chromium is
+// pretending to have a camera.
+const withCamera = await chromium.launch({
+  args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
+});
+const withoutCamera = await chromium.launch();
 
 async function open({
   viewport = { width: 1366, height: 768 },
   fake = true,
   recording = recordingState(),
 } = {}) {
-  const browser = await chromium.launch(
-    fake
-      ? { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] }
-      : {},
-  );
-  const ctx = await browser.newContext({
+  const ctx = await (fake ? withCamera : withoutCamera).newContext({
     viewport,
     permissions: fake ? ['microphone', 'camera'] : [],
   });
@@ -82,7 +111,7 @@ async function open({
   await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 25000 });
   await page.waitForSelector('.task-container', { timeout: 25000 });
   await page.waitForTimeout(600);
-  return { browser, page, errors };
+  return { ctx, page, errors };
 }
 
 const sideways = (page) =>
@@ -118,7 +147,7 @@ const filesOnDisk = (page) =>
 // --- a timed task is filmed, and the file is really there -------------------
 {
   console.log('\nfilming a drill\n');
-  const { browser, page, errors } = await open();
+  const { ctx, page, errors } = await open();
 
   check('the camera entry point is offered once recording is on',
     (await page.locator('.progress-launch', { hasText: /Technique/ }).count()) === 1);
@@ -196,7 +225,7 @@ const filesOnDisk = (page) =>
   ));
 
   check('no console errors', errors.length === 0, errors.join(' | '));
-  await browser.close();
+  await ctx.close();
 }
 
 // --- what a minute actually costs, at each setting --------------------------
@@ -213,7 +242,7 @@ const filesOnDisk = (page) =>
 {
   console.log('\nmegabytes a minute, measured\n');
   for (const quality of ['light', 'standard', 'detail']) {
-    const { browser, page, errors } = await open({ recording: recordingState({ quality }) });
+    const { ctx, page, errors } = await open({ recording: recordingState({ quality }) });
     await page.locator('.task-row', { hasText: 'Spider walk' }).locator('.task-go').click();
     await page.waitForSelector('.practice-overlay', { timeout: 20000 });
     await page.waitForSelector('.capture-pill', { timeout: 20000 });
@@ -224,7 +253,7 @@ const filesOnDisk = (page) =>
     const clip = (await library(page))?.recordings?.[0];
     if (!clip) {
       check(`${quality}: a clip was produced`, false);
-      await browser.close();
+      await ctx.close();
       continue;
     }
     const rate = (clip.bytes / (clip.durationMs / 60000)) / (1024 * 1024);
@@ -235,14 +264,14 @@ const filesOnDisk = (page) =>
     );
     check(`${quality}: filmed at the size it promised`, clip.quality === quality);
     check(`${quality}: no console errors`, errors.length === 0, errors.join(' | '));
-    await browser.close();
+    await ctx.close();
   }
 }
 
 // --- deleting is one action, and it reaches the disk ------------------------
 {
   console.log('\ndeleting all of it\n');
-  const { browser, page, errors } = await open();
+  const { ctx, page, errors } = await open();
 
   await page.locator('.task-row', { hasText: 'Spider walk' }).locator('.task-go').click();
   await page.waitForSelector('.practice-overlay', { timeout: 20000 });
@@ -271,7 +300,7 @@ const filesOnDisk = (page) =>
   check('and so is the disk', (await filesOnDisk(page))?.length === 0,
     JSON.stringify(await filesOnDisk(page)));
   check('no console errors', errors.length === 0, errors.join(' | '));
-  await browser.close();
+  await ctx.close();
 }
 
 // --- the settings surface, at the widths the owner practises on -------------
@@ -282,7 +311,10 @@ for (const [label, viewport] of [
   ['1366x768', { width: 1366, height: 768 }],
 ]) {
   console.log(`\npractice video settings at ${label}\n`);
-  const { browser, page, errors } = await open({ viewport });
+  const { ctx, page, errors } = await open({
+    viewport,
+    recording: recordingState({}, SEEDED_CLIPS),
+  });
   await page.click('.account-btn');
   await page.waitForSelector('.settings-surface', { timeout: 15000 });
   await page.locator('.setting-head', { hasText: 'Practice video' }).scrollIntoViewIfNeeded();
@@ -300,18 +332,76 @@ for (const [label, viewport] of [
   check('the quality choices each state their cost', await page.evaluate(
     () => document.querySelectorAll('.rec-quality-rate').length === 3,
   ));
+  check('a stored technique check is listed with its own controls',
+    (await page.locator('.rec-clip').count()) === 1
+    && (await page.locator('.rec-clip-tool').count()) === 2);
+  check('and the total is stated in a unit a person reads', await page.evaluate(
+    () => /^\d+(\.\d+)? (MB|GB)$/.test(
+      document.querySelector('.rec-usage-total')?.textContent ?? '',
+    ),
+  ), await page.locator('.rec-usage-total').innerText());
   await page.screenshot({ path: `${OUT}/settings-${label}.png`, fullPage: false });
+
+  // The bottom of the section: retention, what it is costing, and the way out.
+  await page.evaluate(() => {
+    const pane = document.querySelector('.settings-pane');
+    if (pane) pane.scrollTop = pane.scrollHeight;
+  });
+  await page.waitForTimeout(400);
+  check('the bottom of the section fits too', (await sideways(page)) <= 0);
+  check('and the way out of it is reachable', await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll('.settings-action-btn'))
+      .find((b) => /delete all recordings/i.test(b.textContent ?? ''));
+    if (!btn) return false;
+    const box = btn.getBoundingClientRect();
+    return box.left >= -1 && box.right <= innerWidth + 1 && box.height >= 44;
+  }));
+  await page.screenshot({ path: `${OUT}/settings-${label}-bottom.png`, fullPage: false });
   check('no console errors', errors.length === 0, errors.join(' | '));
-  await browser.close();
+  await ctx.close();
 }
 
 // --- the technique check ----------------------------------------------------
 {
   console.log('\nthe technique check\n');
-  const { browser, page, errors } = await open();
+  const { ctx, page, errors } = await open();
   await page.locator('.progress-launch', { hasText: /Technique/ }).click();
   await page.waitForSelector('.tc-overlay', { timeout: 20000 });
   await page.waitForTimeout(400);
+
+  // The shell, asked of the built CSS rather than assumed from the source.
+  //
+  // The overlay shell lives in its own stylesheet and this surface imports it
+  // directly rather than through practice.css. Forget that import and the whole
+  // screen renders as an ordinary block laid out below the fold with the task
+  // list showing through it, which is exactly what happened, and which every
+  // check about text and counts still passed straight through.
+  const shell = await page.evaluate(() => {
+    const overlay = document.querySelector('.tc-overlay');
+    const style = getComputedStyle(overlay);
+    const box = overlay.getBoundingClientRect();
+    const front = document.elementFromPoint(Math.round(innerWidth / 2), Math.round(innerHeight / 2));
+    return {
+      position: style.position,
+      covers: box.top <= 0 && box.left <= 0 && box.width >= innerWidth && box.height >= innerHeight,
+      opaque: style.backgroundColor !== 'rgba(0, 0, 0, 0)',
+      frontIsOverlay: overlay.contains(front),
+      layer: Number(style.zIndex),
+    };
+  });
+  check('it covers the viewport', shell.position === 'fixed' && shell.covers === true,
+    JSON.stringify(shell));
+  check('and hides the day behind it', shell.opaque === true && shell.frontIsOverlay === true,
+    JSON.stringify(shell));
+  check('and paints above the page', shell.layer >= 1100, `${shell.layer}`);
+  check('its own buttons are styled by a stylesheet it actually loads', await page.evaluate(() => {
+    const btn = document.querySelector('.tc-btn.is-primary');
+    if (!btn) return false;
+    const style = getComputedStyle(btn);
+    return style.borderRadius !== '0px'
+      && style.backgroundColor !== 'rgba(0, 0, 0, 0)'
+      && btn.getBoundingClientRect().height >= 44;
+  }));
 
   const intro = await page.locator('.tc-intro').innerText();
   check('it names all three angles', /Straight on/.test(intro) && /Down the neck/.test(intro)
@@ -352,14 +442,18 @@ for (const [label, viewport] of [
   check('it moved on to the second angle',
     /Down the neck/.test(await page.locator('.tc-shot-title').innerText()));
 
+  // Waited for rather than slept past: the surface plays an exit animation, and
+  // a fixed sleep makes this a check on how loaded the machine is.
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(800);
-  check('Escape leaves the check', (await page.locator('.tc-overlay').count()) === 0);
+  const left = await page.waitForSelector('.tc-overlay', { state: 'detached', timeout: 10000 })
+    .then(() => true, () => false);
+  check('Escape leaves the check', left);
+  await page.waitForTimeout(400);
   check('and gives the camera back', await page.evaluate(
     () => !document.querySelector('video'),
   ));
   check('no console errors', errors.length === 0, errors.join(' | '));
-  await browser.close();
+  await ctx.close();
 }
 
 // --- the technique check at phone widths ------------------------------------
@@ -368,7 +462,7 @@ for (const [label, viewport] of [
   ['430x932', { width: 430, height: 932 }],
 ]) {
   console.log(`\ntechnique check at ${label}\n`);
-  const { browser, page, errors } = await open({ viewport });
+  const { ctx, page, errors } = await open({ viewport });
   await page.locator('.progress-launch', { hasText: /Technique/ }).click();
   await page.waitForSelector('.tc-overlay', { timeout: 20000 });
   await page.waitForTimeout(400);
@@ -380,7 +474,7 @@ for (const [label, viewport] of [
   // The one control this step exists for. It has to be reachable without a
   // sideways scroll and big enough to hit with a thumb while holding a guitar.
   const filmButton = await page.evaluate(() => {
-    const btn = Array.from(document.querySelectorAll('.practice-btn'))
+    const btn = Array.from(document.querySelectorAll('.tc-btn'))
       .find((b) => /film/i.test(b.textContent ?? ''));
     if (!btn) return { found: false };
     const box = btn.getBoundingClientRect();
@@ -392,13 +486,13 @@ for (const [label, viewport] of [
     JSON.stringify(filmButton));
   await page.screenshot({ path: `${OUT}/technique-${label}.png` });
   check('no console errors', errors.length === 0, errors.join(' | '));
-  await browser.close();
+  await ctx.close();
 }
 
 // --- recording turned off ---------------------------------------------------
 {
   console.log('\nwith recording off, which is the default\n');
-  const { browser, page, errors } = await open({ recording: null });
+  const { ctx, page, errors } = await open({ recording: null });
 
   check('nothing has enabled it behind the user',
     (await library(page)) === null || (await library(page)).settings.enabled === false);
@@ -424,7 +518,7 @@ for (const [label, viewport] of [
     return !!day?.taskRecords?.t1;
   }));
   check('no console errors', errors.length === 0, errors.join(' | '));
-  await browser.close();
+  await ctx.close();
 }
 
 // --- the camera refused -----------------------------------------------------
@@ -432,7 +526,7 @@ for (const [label, viewport] of [
   console.log('\nwith the camera refused mid-session\n');
   // No fake device and no granted permission: every getUserMedia for video
   // fails. The drill must not notice.
-  const { browser, page, errors } = await open({ fake: false });
+  const { ctx, page, errors } = await open({ fake: false });
 
   await page.locator('.task-row', { hasText: 'Spider walk' }).locator('.task-go').click();
   await page.waitForSelector('.practice-overlay', { timeout: 20000 });
@@ -469,8 +563,11 @@ for (const [label, viewport] of [
   }));
   check('and no empty clip was filed', (await library(page))?.recordings?.length === 0);
   check('no console errors', errors.length === 0, errors.join(' | '));
-  await browser.close();
+  await ctx.close();
 }
+
+await withCamera.close();
+await withoutCamera.close();
 
 console.log(failures ? `\n${failures} FAILED\n` : '\nALL PASS\n');
 process.exit(failures ? 1 : 0);

@@ -855,17 +855,20 @@
   overflow: hidden;
 }
 
+/* Both segments are sized inline from the byte counts. Deliberately not
+   animated: they are two flex siblings on one track, so the only property that
+   could move them is `width`, which is layout, and the value only ever changes
+   between one opening of this pane and the next. An animation nobody is on
+   screen to watch, paid for in layout passes, is not motion with a job. */
 .rec-bar-fill {
   height: 100%;
   min-width: 2px;
   background: var(--accent-primary);
-  transition: width var(--dur-slow) var(--ease-out);
 }
 
 .rec-bar-others {
   height: 100%;
   background: rgba(255, 255, 255, 0.18);
-  transition: width var(--dur-slow) var(--ease-out);
 }
 
 /* A prune that happened. It stays until it is read, because the alternative is

@@ -4,6 +4,7 @@ import { CameraIcon, KeepIcon, MinusIcon, PlusIcon, StorageIcon, TrashIcon } fro
 import { camerasAreNamed, listCameras, openCameraPreview, type CameraInput } from '../../media/cameraDevice';
 import { RecordingError, recoveryFor } from '../../media/failure';
 import {
+  BYTES_PER_MB,
   QUALITY_PRESETS,
   chooseMimeType,
   formatMegabytes,
@@ -300,8 +301,11 @@ export function RecordingSetting() {
           <p className="setting-note">
             Older sessions are deleted to make room. At {mbPerMinute.toFixed(1)} MB a minute, twenty
             minutes of practice a day works out at roughly{' '}
-            {Math.round(mbPerMinute * 20 * settings.keepSessions)} MB in total. Technique checks are
-            never deleted this way, and nor is anything you have kept.
+            {/* Through the same formatter as every other size on this screen, so
+                a figure past a thousand reads as gigabytes rather than as
+                "1826 MB", which is a number nobody converts in their head. */}
+            {formatMegabytes(mbPerMinute * 20 * settings.keepSessions * BYTES_PER_MB)} in total.
+            Technique checks are never deleted this way, and nor is anything you have kept.
           </p>
 
           {/* --- What it is costing right now ----------------------------- */}
@@ -380,15 +384,19 @@ export function RecordingSetting() {
               </div>
             </div>
           ) : (
-            <button
-              type="button"
-              className="settings-action-btn is-danger"
-              onClick={() => setConfirmingDelete(true)}
-              disabled={recordings.length === 0}
-            >
-              <TrashIcon size={18} />
-              <span>Delete all recordings</span>
-            </button>
+            // Absent rather than disabled when there is nothing to delete. A
+            // greyed-out destructive control is a promise about a state the
+            // user is not in, and this app does not dim text to say so.
+            recordings.length > 0 && (
+              <button
+                type="button"
+                className="settings-action-btn is-danger"
+                onClick={() => setConfirmingDelete(true)}
+              >
+                <TrashIcon size={18} />
+                <span>Delete all recordings</span>
+              </button>
+            )
           )}
 
           <button type="button" className="settings-action-btn is-quiet" onClick={turnOff}>
@@ -434,14 +442,21 @@ function RoomBar({ used, room }: { used: number; room: StorageRoom | null }) {
   return (
     <>
       <div className="rec-bar" aria-hidden="true">
-        <span className="rec-bar-fill" style={{ width: `${Math.min(100, (used / quota) * 100)}%` }} />
-        <span
-          className="rec-bar-others"
-          style={{ width: `${Math.min(100, (others / quota) * 100)}%` }}
-        />
+        {/* No fill at all when nothing has been recorded. The minimum width
+            that keeps a sliver of a very small recording visible would
+            otherwise paint a mark for zero bytes. */}
+        {used > 0 && (
+          <span className="rec-bar-fill" style={{ width: `${Math.min(100, (used / quota) * 100)}%` }} />
+        )}
+        {others > 0 && (
+          <span
+            className="rec-bar-others"
+            style={{ width: `${Math.min(100, (others / quota) * 100)}%` }}
+          />
+        )}
       </div>
       <p className="rec-usage-note">
-        Of about {formatMegabytes(quota)} this browser will let the app use.
+        Of the roughly {formatMegabytes(quota)} this browser will let the app use.
       </p>
     </>
   );
