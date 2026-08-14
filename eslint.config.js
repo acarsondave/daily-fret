@@ -6,7 +6,11 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // .claude holds git worktrees, which are whole copies of this repo. Linting
+  // them is wasted work, and their tsconfigs make the type-aware parser see
+  // several candidate roots and refuse to parse anything at all, including the
+  // real source next door.
+  globalIgnores(['dist', '.claude']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

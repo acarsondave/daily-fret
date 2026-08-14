@@ -44,3 +44,6 @@ daily-fret-diagnostics-*.json
 *.sw?
 curriculum/.browser-profile/
 curriculum/lessons/
+
+# Agent worktrees: whole copies of this repo, never committed from here.
+.claude/
