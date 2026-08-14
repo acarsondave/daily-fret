@@ -139,11 +139,12 @@ const TAPER_S = 0.003; // fade the tail to zero; a truncated decay is its own cl
 // spreads energy across the whole spectrum including the two hundred to eight
 // hundred hertz where a strummed guitar lives. That did not matter while nothing
 // listened to the click, and it matters a great deal now that the strum timing
-// drill has to tell the two apart in the microphone. One millisecond of ramp
-// costs about six per cent of the click's own 2-4 kHz body and takes its
-// bleed into the guitar's band down by a factor of ten to twenty, measured in
-// tests/timing.test.mjs. It is still an attack: a millisecond is a fifth of the
-// shortest rise the ear resolves as one, and the click is unchanged to listen to.
+// drill has to tell the two apart in the microphone. Measured on the shipping
+// voices, one millisecond of ramp costs between three and thirteen per cent of
+// the click's own 2 to 7 kHz body and takes its bleed into the guitar's band
+// down by six to thirty times, depending on the voice. It is still an attack: a
+// millisecond is a fraction of the shortest rise the ear resolves as one, and
+// the click is unchanged to listen to.
 const ATTACK_S = 0.001;
 
 // Renders one click to a mono sample buffer. Rendering once and replaying the
