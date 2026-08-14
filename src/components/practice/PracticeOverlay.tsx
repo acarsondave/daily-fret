@@ -19,6 +19,8 @@ import { SongPlayer } from './SongPlayer';
 import { TimedSegment } from './TimedSegment';
 import { Metronome } from './Metronome';
 import { CapoBadge } from './CapoBadge';
+import { RecordingIndicator } from './RecordingIndicator';
+import { useSessionRecording, type ActiveClip } from '../../media/useSessionRecording';
 import './practice.css';
 
 interface Props {
@@ -32,6 +34,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
   const settleTask = useStore((s) => s.settleTask);
   const setLastPair = useStore((s) => s.setLastPair);
   const lastPair = useStore((s) => s.accounts[s.currentAccountId]?.lastPair);
+  const activeRoutineId = useStore((s) => s.accounts[s.currentAccountId]?.activeRoutineId ?? null);
   const songs = useSongs();
   const drill = task.drill;
 
@@ -170,6 +173,23 @@ export function PracticeOverlay({ task, onClose }: Props) {
     if (drillLive) runStartedAt.current = Date.now();
   }, [drillLive]);
 
+  // What the camera should be filming right now, if the user has recording on.
+  //
+  // Stated as a value rather than driven by start/stop calls in each drill's
+  // callbacks: this surface already knows exactly what is being played, and
+  // deriving the clip from that is what stops a camera being left running over
+  // the results card. Null means nothing is under way and nothing is filmed.
+  const clip = useMemo<ActiveClip | null>(() => {
+    const base = { date: today, taskId: task.id, routineId: activeRoutineId, label: task.title };
+    if (!drill) return block ? { ...base, key: `block-${blockIdx}`, label: `${task.title} · ${block.label}` } : null;
+    // The play-along has no start button of its own; the record runs from the
+    // moment the surface opens, and so does the camera.
+    if (drill.kind === 'song') return { ...base, key: 'song' };
+    return drillLive ? { ...base, key: `drill-${tempoKey}` } : null;
+  }, [drill, drillLive, block, blockIdx, tempoKey, task.id, task.title, today, activeRoutineId]);
+
+  const recording = useSessionRecording(clip);
+
   const beginDrill = () => setDrillLive(true);
 
   // One measured run has landed. Recording and settling are separate calls on
@@ -207,6 +227,12 @@ export function PracticeOverlay({ task, onClose }: Props) {
         </span>
         <CapoBadge />
         <div className="practice-topbar-actions">
+          <RecordingIndicator
+            rolling={recording.rolling}
+            elapsedMs={recording.elapsedMs}
+            failure={recording.failure}
+            onDismissFailure={recording.dismissFailure}
+          />
           <Metronome
             plan={tempoPlan}
             planKey={tempoKey}

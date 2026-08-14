@@ -31,6 +31,8 @@ import { TimedSegment } from './TimedSegment';
 import { MicPermissionHint } from './MicPermissionHint';
 import { Metronome } from './Metronome';
 import { CapoBadge } from './CapoBadge';
+import { RecordingIndicator } from './RecordingIndicator';
+import { useSessionRecording, type ActiveClip } from '../../media/useSessionRecording';
 import './practice.css';
 
 type Phase = 'resume' | 'intro' | 'rest' | 'segment' | 'summary';
@@ -143,6 +145,28 @@ export function CoachedSession({ routine, onClose }: Props) {
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
+
+  // The camera follows the segments rather than the session.
+  //
+  // One clip per drill, filed under the task it belongs to, which is what makes
+  // "show me the last time I played this" answerable later. It also means the
+  // rests are not filmed: thirty seconds of an empty chair, eight times a
+  // session, is storage spent on nothing and footage nobody will scrub past.
+  const clip = useMemo<ActiveClip | null>(
+    () =>
+      phase === 'segment' && seg
+        ? {
+            key: `seg-${index}`,
+            date: today,
+            taskId: seg.taskId,
+            routineId: routine.id,
+            label: seg.title,
+          }
+        : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [phase, index, seg?.taskId, seg?.title],
+  );
+  const recording = useSessionRecording(clip);
 
   // A task can fan out into several segments (e.g. one-minute-changes → one per
   // chord pair). It only counts as "done" once its *final* segment is finished,
@@ -342,6 +366,12 @@ export function CoachedSession({ routine, onClose }: Props) {
         </span>
         <CapoBadge />
         <div className="practice-topbar-actions">
+          <RecordingIndicator
+            rolling={recording.rolling}
+            elapsedMs={recording.elapsedMs}
+            failure={recording.failure}
+            onDismissFailure={recording.dismissFailure}
+          />
           <Metronome
             plan={tempoPlan}
             planKey={`${index}`}

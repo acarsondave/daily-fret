@@ -1,0 +1,482 @@
+/* Being filmed, and the technique check.
+
+   Everything here is governed by one colour, --capture-color, and it appears
+   nowhere else in the app. Seeing it means the camera is on. */
+
+/* --- The frame ------------------------------------------------------------
+   A hairline around the whole viewport. It sits at the very edge of the screen
+   where peripheral vision lives, so it is unmissable without ever being in the
+   way of a chord diagram, and it breathes on a five-second cycle: slow enough
+   to read as alive rather than as an alarm.
+
+   `inset: 0` with a border rather than an outline, so it follows the safe area
+   on a notched phone and never lands under the status bar. */
+.capture-frame {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border: 2px solid var(--capture-edge);
+  box-shadow: inset 0 0 24px -6px var(--capture-glow);
+  animation: capture-breathe 5s var(--ease-out) infinite;
+}
+
+/* Both ends of the cycle sit at the resting state, so a browser that collapses
+   the animation to a single 1ms run (the reduced-motion rule in index.css)
+   leaves the frame exactly where a still frame belongs: present, at full
+   strength, not mid-fade. */
+@keyframes capture-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.42; }
+}
+
+/* --- The pill -------------------------------------------------------------
+   Lives in the practice top bar, beside the metronome and the way out. */
+.capture-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--capture-glow);
+  border: 1px solid var(--capture-edge);
+  color: var(--capture-color);
+  font-family: var(--font-primary);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.capture-pill-mark {
+  animation: capture-blink 2.4s var(--ease-out) infinite;
+}
+
+@keyframes capture-blink {
+  0%, 100% { opacity: 1; }
+  55% { opacity: 0.35; }
+}
+
+.capture-pill-clock {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  letter-spacing: 0;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* --- What went wrong ------------------------------------------------------
+   Below the top bar, across the middle, and it never covers the drill: a drill
+   is still running underneath this and it is the thing that matters. */
+.capture-notice {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 76px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  width: min(560px, calc(100vw - var(--space-8)));
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: rgba(24, 24, 27, 0.92);
+  border: 1px solid var(--capture-edge);
+  box-shadow: var(--shadow-panel);
+  text-align: left;
+  animation: capture-notice-in var(--dur-slow) var(--ease-out) both;
+}
+
+@keyframes capture-notice-in {
+  from { opacity: 0; transform: translate(-50%, -10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.capture-notice-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.capture-notice-head {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--capture-color);
+}
+
+.capture-notice-help {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.capture-notice-dismiss {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+
+.capture-notice-dismiss:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-strong);
+}
+
+.capture-notice-dismiss:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+@media (max-width: 600px) {
+  /* The word goes, the clock stays. A red dot beside a running timer has never
+     meant anything but "this is being recorded", and the top bar on a 360px
+     phone has three other controls to hold. */
+  .capture-pill-word {
+    display: none;
+  }
+  .capture-pill {
+    padding: 0 var(--space-2);
+    gap: var(--space-1);
+  }
+  .capture-notice {
+    top: calc(env(safe-area-inset-top) + 64px);
+    flex-direction: column;
+    gap: var(--space-3);
+    align-items: stretch;
+  }
+  .capture-notice-dismiss {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capture-frame,
+  .capture-pill-mark {
+    animation: none;
+  }
+}
+
+/* --- Technique check ------------------------------------------------------
+   A full-attention surface: three angles, seventy-five seconds, and the whole
+   job of the layout is putting the drawing of the shot and the live picture in
+   the same place so the player can match one to the other without looking away
+   from either. */
+
+.tc-body {
+  justify-content: flex-start;
+  gap: var(--space-6);
+}
+
+.tc-intro {
+  width: 100%;
+  max-width: 620px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.tc-title {
+  margin: 0;
+  font-family: var(--font-primary);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: var(--tracking-display);
+  color: var(--text-primary);
+}
+
+.tc-lead {
+  margin: 0;
+  max-width: 60ch;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+.tc-angle-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.tc-angle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* The diagram at thumbnail size, doing the same job the full-size one does on
+   the framing step: this is what the shot looks like. */
+.tc-angle-mark {
+  flex: 0 0 auto;
+  width: 96px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(56, 189, 248, 0.7);
+  display: block;
+}
+
+.tc-angle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tc-angle-name {
+  font-family: var(--font-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tc-angle-shows {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* The promise about these clips, given the weight of a promise. */
+.tc-promise {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.tc-start {
+  align-self: flex-start;
+}
+
+/* --- The stage ----------------------------------------------------------- */
+
+.tc-stage {
+  width: 100%;
+  max-width: 980px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+  text-align: left;
+}
+
+.tc-shot {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: #000;
+  border: 1px solid var(--border-default);
+  transition: border-color var(--dur-base) ease, box-shadow var(--dur-base) ease;
+}
+
+.tc-shot.is-live {
+  border-color: var(--capture-edge);
+  box-shadow: 0 0 0 1px var(--capture-edge), 0 18px 40px -20px rgba(255, 77, 109, 0.5);
+}
+
+.tc-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.tc-guide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: rgba(56, 189, 248, 0.66);
+  transition: opacity var(--dur-slow) var(--ease-out), color var(--dur-slow) ease;
+}
+
+/* Once the camera is rolling the drawing has done its job and steps back, so
+   what is on screen is the player rather than the instruction. */
+.tc-shot.is-live .tc-guide {
+  opacity: 0.32;
+}
+
+.tc-guide-edge {
+  color: rgba(255, 255, 255, 0.34);
+}
+
+/* The one authored moment on this surface: the shot diagram is wiped on from
+   the left, the way a shot is set up, rather than fading in the way a loading
+   state does. Clip-path so every dashed mark keeps its own dashes. */
+.tc-guide.is-drawing .tc-guide-art {
+  animation: tc-wipe 0.75s var(--ease-out) both;
+}
+
+@keyframes tc-wipe {
+  from { clip-path: inset(0 100% 0 0); opacity: 0.15; }
+  to { clip-path: inset(0 -2% 0 0); opacity: 1; }
+}
+
+/* Where the hands go, pulsing just enough to be the thing you look at first. */
+.tc-guide-hand {
+  animation: tc-hand 2.8s ease-in-out infinite;
+}
+
+@keyframes tc-hand {
+  0%, 100% { stroke-opacity: 1; }
+  50% { stroke-opacity: 0.4; }
+}
+
+/* Time left, along the bottom edge of the picture, in the recording colour.
+   A bar rather than a ring: it reads at a glance from across the room, which
+   is where the player is. */
+.tc-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 4px;
+  transform-origin: left center;
+  background: var(--capture-color);
+  transition: transform 0.22s linear;
+}
+
+.tc-instruction {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.tc-shot-title {
+  margin: 0;
+  font-family: var(--font-primary);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+}
+
+.tc-shot-place {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.tc-shot-shows {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.tc-error {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--capture-glow);
+  border: 1px solid var(--capture-edge);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.tc-error-head {
+  margin: 0;
+  font-family: var(--font-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--capture-color);
+}
+
+.tc-error-help {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.tc-saved {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.tc-saved-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+}
+
+.tc-saved-mark {
+  flex: 0 0 auto;
+  color: var(--success-color);
+}
+
+.tc-saved-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tc-saved-size {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* One column below the point where two columns would leave the picture too
+   small to frame a shot in. The picture comes first either way. */
+@media (max-width: 860px) {
+  .tc-stage {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+}
+
+@media (max-width: 600px) {
+  .tc-title {
+    font-size: var(--text-lg);
+  }
+  .tc-angle-mark {
+    width: 76px;
+  }
+  .tc-start,
+  .tc-instruction .practice-btn {
+    align-self: stretch;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tc-guide.is-drawing .tc-guide-art,
+  .tc-guide-hand {
+    animation: none;
+  }
+}

@@ -15,6 +15,7 @@ import { ProgressPanel } from './practice/ProgressPanel';
 import { TunerLauncher } from './practice/TunerLauncher';
 import { preloadTuner } from './practice/tunerChunk';
 import { sanitizeMinutes } from '../lib/coached';
+import { useRecordingStore } from '../media/recordingStore';
 import type { Task } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -23,6 +24,7 @@ import {
   CaretDownIcon,
   SlidersIcon,
   ChartIcon,
+  FramingIcon,
   SessionIcon,
   TuningForkIcon,
 } from './icons';
@@ -55,6 +57,11 @@ const HistoryPanel = lazy(() =>
 );
 // First run only, and it reaches the curriculum through the routine builder.
 const Onboarding = lazy(() => import('./Onboarding').then((m) => ({ default: m.Onboarding })));
+// The camera surface. Split out because it pulls the whole media layer, and
+// the majority of visits never open a camera at all.
+const TechniqueCheck = lazy(() =>
+  import('./practice/TechniqueCheck').then((m) => ({ default: m.TechniqueCheck })),
+);
 
 type ProgressView = 'journey' | 'numbers' | 'awards' | 'history';
 
@@ -112,6 +119,11 @@ export function DailyPath() {
   };
   const [isCoachedOpen, setIsCoachedOpen] = useState(false);
   const [isTunerOpen, setIsTunerOpen] = useState(false);
+  const [isTechniqueOpen, setIsTechniqueOpen] = useState(false);
+  // The camera entry point appears only for someone who has opted in. Offering
+  // it to a player who has declined recording would be advertising a camera at
+  // them on the screen they open every day.
+  const recordingOn = useRecordingStore((s) => s.settings.enabled);
   const [practiceTask, setPracticeTask] = useState<Task | null>(null);
   const [prevAllCompleted, setPrevAllCompleted] = useState(false);
   const [limitNotice, setLimitNotice] = useState(false);
@@ -416,6 +428,17 @@ export function DailyPath() {
           <span>Tune</span>
         </button>
 
+        {recordingOn && (
+          <button
+            className="progress-launch"
+            onClick={() => setIsTechniqueOpen(true)}
+            title="Film three angles of your hands, seventy-five seconds"
+          >
+            <FramingIcon size={18} className="progress-launch-icon" />
+            <span>Technique</span>
+          </button>
+        )}
+
         {/* Not gated on having drill results any more: the Journey is a map of
             the course, and day zero is precisely when someone needs one. */}
         <button
@@ -712,6 +735,14 @@ export function DailyPath() {
       <AnimatePresence>
         {isTunerOpen && <TunerLauncher key="tuner" onClose={() => setIsTunerOpen(false)} />}
       </AnimatePresence>
+
+      <Suspense fallback={isTechniqueOpen ? <Loader overlay label="Opening the camera…" /> : null}>
+        <AnimatePresence>
+          {isTechniqueOpen && (
+            <TechniqueCheck key="technique" onClose={() => setIsTechniqueOpen(false)} />
+          )}
+        </AnimatePresence>
+      </Suspense>
 
       <Suspense fallback={isCoachedOpen ? <Loader overlay label="Tuning up…" /> : null}>
         <AnimatePresence>

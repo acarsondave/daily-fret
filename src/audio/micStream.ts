@@ -6,6 +6,8 @@
 // teardown on failure, StrictMode double-invoke, iOS suspended contexts, a dead
 // preferred device — are exactly the parts nobody should own twice.
 
+import { clearLiveMic, registerLiveMic } from './liveMic';
+
 // Served verbatim from /public so addModule always gets a real, same-origin
 // classic script. BASE_URL keeps it correct under any deploy sub-path.
 const WORKLET_URL = `${import.meta.env.BASE_URL}pcm-worklet.js`;
@@ -203,6 +205,12 @@ export class MicStream {
     this.node.connect(this.sink);
     this.sink.connect(ctx.destination);
 
+    // Offer this track to anything that needs guitar audio without opening a
+    // second microphone (see ./liveMic.ts). Registered only once the graph is
+    // complete, so nothing can clone a track from a capture that is about to
+    // fail and be torn down.
+    registerLiveMic(this.stream.getAudioTracks()[0] ?? null);
+
     this.watchRoute(ctx);
     this.attachResumeOnGesture(ctx);
     this.wake();
@@ -320,6 +328,7 @@ export class MicStream {
     this.source = null;
     this.sink?.disconnect();
     this.sink = null;
+    clearLiveMic(this.stream?.getAudioTracks()[0] ?? null);
     this.stream?.getTracks().forEach((t) => t.stop());
     this.stream = null;
     if (this.ctx) {

@@ -609,3 +609,398 @@
     min-height: 44px;
   }
 }
+
+/* --- Practice video ------------------------------------------------------
+   The one setting in this pane that points a camera at the room, so it carries
+   more explanation than the others and states every number it claims. */
+
+.rec-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.rec-field-label {
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* The shot. Sized by aspect ratio rather than height, so it is the same
+   proportion as the footage it is previewing at every width. */
+.rec-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-default);
+}
+
+.rec-preview-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Closed by default, and it says why. A settings pane that turns the camera on
+   the moment it opens is one nobody opens twice. */
+.rec-preview-open {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+
+.rec-preview-open:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.rec-preview-open:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.rec-preview-open:disabled {
+  cursor: default;
+}
+
+.rec-preview-hint {
+  max-width: 32ch;
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* Quality. Three named choices, each carrying the number it costs, because
+   "Standard" without "10.7 MB a minute" beside it is not a choice. */
+.rec-quality {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.rec-quality-option {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease,
+    color var(--dur-fast) ease;
+}
+
+.rec-quality-option:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-primary);
+}
+
+.rec-quality-option.is-on {
+  background: var(--accent-glow);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: var(--accent-primary);
+}
+
+.rec-quality-option:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.rec-quality-name {
+  font-family: var(--font-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: inherit;
+}
+
+.rec-quality-rate {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  color: var(--text-primary);
+}
+
+.rec-quality-blurb {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* Retention. A stepper rather than a slider: the number means whole sessions
+   and there are only twenty-eight of them. */
+.rec-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.rec-stepper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+
+.rec-stepper-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-strong);
+}
+
+.rec-stepper-btn:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.rec-stepper-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.rec-stepper-value {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-family: var(--font-primary);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.rec-stepper-unit {
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+/* What it is costing, right now. */
+.rec-usage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.rec-usage-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.rec-usage-icon {
+  align-self: center;
+  color: var(--accent-primary);
+}
+
+.rec-usage-total {
+  font-family: var(--font-primary);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.rec-usage-detail {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.rec-usage-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* Two fills on one track: what the recordings cost, and what the rest of this
+   site's storage costs. Drawn together because the second is why the first has
+   less room than the quota suggests. */
+.rec-bar {
+  display: flex;
+  width: 100%;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.rec-bar-fill {
+  height: 100%;
+  min-width: 2px;
+  background: var(--accent-primary);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+
+.rec-bar-others {
+  height: 100%;
+  background: rgba(255, 255, 255, 0.18);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+
+/* A prune that happened. It stays until it is read, because the alternative is
+   an app that deletes your practice footage and never mentions it. */
+.rec-prune {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  background: var(--warning-glow);
+}
+
+.rec-prune-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.rec-prune .settings-action-btn.is-quiet {
+  align-self: flex-start;
+}
+
+/* The kept clips. */
+.rec-clips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.rec-clip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.rec-clip-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.rec-clip-name {
+  font-family: var(--font-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rec-clip-meta {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.rec-clip-tool {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+
+.rec-clip-tool:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+
+.rec-clip-tool.is-kept {
+  color: var(--record-color);
+}
+
+.rec-clip-tool.is-danger:hover {
+  color: var(--danger-color);
+  background: var(--danger-glow);
+}
+
+.rec-clip-tool:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* A camera that would not open, named alongside the way out of it. */
+.rec-problem {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--capture-glow);
+  border: 1px solid var(--capture-edge);
+}
+
+.rec-problem-head {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--capture-color);
+}
+
+.rec-problem-help {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* Three quality cards side by side leave about 78px each inside the settings
+   pane on a 360px phone, which is narrower than the word "Standard". One
+   column, full width, at that size. */
+@media (max-width: 560px) {
+  .rec-quality {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (pointer: coarse) {
+  .rec-clip-tool {
+    width: 44px;
+    height: 44px;
+  }
+}

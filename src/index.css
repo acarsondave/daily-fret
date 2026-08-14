@@ -37,6 +37,17 @@
      defined, so every destructive control rendered in plain body text. */
   --error-color: var(--danger-color);
 
+  /* The camera is rolling. Red, and deliberately: every device anyone has ever
+     been filmed by says so in red, and inventing a house colour for it would
+     buy uniqueness with the one signal that has to be understood without being
+     learned. Pinker and more saturated than --danger-color so the two are
+     separable where both appear (a delete button beside a live indicator), and
+     measured at 5.8:1 on the page ground. Nothing else in the app uses it, so
+     seeing this colour anywhere means one thing. */
+  --capture-color: #FF4D6D;
+  --capture-glow: rgba(255, 77, 109, 0.14);
+  --capture-edge: rgba(255, 77, 109, 0.42);
+
   /* The room behind the day's list. Two lights whose centres sit outside the
      frame, given as channel triples because App.css composes them at several
      alphas. Warm lamp low and right, cold room air high and left; deliberately
