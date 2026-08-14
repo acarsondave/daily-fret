@@ -11,8 +11,8 @@
 // strummed guitar puts nearly all of its energy in fundamentals and low
 // harmonics, under about 800 Hz. The app's own click (src/audio/metronome.ts)
 // is deliberately centred between 2 and 5 kHz, where the ear is most sensitive
-// and the instrument is least dense — a choice made for audibility that turns
-// out to be exactly what makes the two separable. So the signal is split into
+// and the instrument is least dense. That was a choice made for audibility, and
+// it turns out to be exactly what makes the two separable. So the signal is split into
 // two disjoint bands by steep filters and each band gets its own attack
 // detector. Neither can see the other's events. The click still leaks a little
 // into the guitar's band, because any fast attack is broadband by definition;
@@ -38,12 +38,12 @@
 // Flux was tried first and is the wrong tool here: a ringing open chord holds
 // dozens of partials inside every analysis bin, they beat against each other,
 // and the resulting frame-to-frame magnitude churn is the same size as a real
-// attack. An envelope asks the question that actually separates them — did the
-// level in this band jump — which is the same principle the chord detector's
-// attack-rise arming already rests on. Filtering rather than transforming also
-// removes the analysis window from the timing path, and the window was the
-// largest single source of error: a 512-point window smears an attack across
-// twelve milliseconds no matter how finely it is hopped.
+// attack. An envelope asks the question that actually separates them, which is
+// whether the level in this band jumped, and that is the same principle the
+// chord detector's attack-rise arming already rests on. Filtering rather than
+// transforming also removes the analysis window from the timing path, and the
+// window was the largest single source of error: a 512-point window smears an
+// attack across twelve milliseconds no matter how finely it is hopped.
 
 /** Input frame size, matching the worklet's fixed block (src/audio/capture.ts). */
 export const TIMING_FRAME_SIZE = 1024;
