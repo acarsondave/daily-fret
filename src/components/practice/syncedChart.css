@@ -1,0 +1,376 @@
+/* The chart that moves with the record.
+ *
+ * The whole surface is built on one hierarchy: where you are is bright and
+ * still, what is coming is accent, what has gone is quiet. Nothing is ever red,
+ * because nothing here is graded.
+ *
+ * Only transform and opacity animate. The chart runs beside a decoding video on
+ * a phone, and anything that touches layout during playback is a frame dropped
+ * in front of someone who is trying to keep time. Colour and class changes
+ * happen once a bar, which is slow enough to transition freely. */
+
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+}
+
+/* --- The still readout ---------------------------------------------------- */
+/* Fixed in place on purpose. The ribbon is where the movement is; this is the
+   thing you glance at with both hands on the guitar, and a glance costs less
+   when the answer is always in the same spot. */
+.chart-now {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 44px;
+  min-width: 0;
+  /* The ribbon below has a hairline border that insets its contents. Without
+     the same inset here the display chord sits a couple of pixels further left
+     than everything under it and reads as having been shaved by the edge. */
+  padding-inline: var(--space-1);
+}
+.chart-now-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.chart-now-chord {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: clamp(1.9rem, 8.5vw, 2.8rem);
+  line-height: 1;
+  letter-spacing: var(--tracking-display);
+  color: var(--text-primary);
+  animation: chart-chord-in 0.34s var(--ease-out);
+}
+@keyframes chart-chord-in {
+  from {
+    opacity: 0.35;
+    transform: translate3d(0, 6px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Beats of the current bar, filling rather than blinking: a bar you can see
+   yourself moving through reads as momentum, where a single travelling dot
+   reads as a countdown. */
+.chart-pips {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.chart-pip {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--border-strong);
+  transition: background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+}
+.chart-pip[data-lit='yes'] {
+  background: var(--accent-primary);
+  transform: scale(1.2);
+}
+
+/* The single most important element on the screen: the chord you have not
+   reached yet, named while there is still time to move a hand to it. */
+.chart-next {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+.chart-next-label {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.chart-next-chord {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-lg);
+  line-height: 1;
+  letter-spacing: var(--tracking-tight);
+  color: var(--accent-primary);
+}
+
+.chart-lyric {
+  padding-inline: var(--space-1);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 1.4em;
+}
+
+/* --- The ribbon ----------------------------------------------------------- */
+.chart-ribbon {
+  --playhead-x: 30%;
+  position: relative;
+  height: 96px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012));
+  contain: layout paint;
+}
+
+.chart-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  /* Bars arrive and leave through a fade rather than off a hard edge, so the
+     strip reads as something passing by and not as a window onto a list. */
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 13%, #000 87%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 13%, #000 87%, transparent 100%);
+}
+
+.chart-track {
+  position: absolute;
+  left: var(--playhead-x);
+  top: 0;
+  bottom: 0;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.chart-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-5) var(--space-1) var(--space-2);
+  border-left: 1px solid var(--border-subtle);
+}
+/* The lit plate behind a bar. Drawn as a pseudo-element so the state change is
+   a background on a box that already exists, not a new node per bar. */
+.chart-bar::before {
+  content: '';
+  position: absolute;
+  inset: var(--space-3) 2px var(--space-2);
+  border-radius: var(--radius-md);
+  background: transparent;
+  transition: background var(--dur-base) ease;
+}
+.chart-bar.is-now::before {
+  background: rgba(255, 255, 255, 0.085);
+}
+.chart-bar.is-next::before {
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.chart-bar-chord {
+  position: relative;
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-md);
+  line-height: 1;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-muted);
+  transition: color var(--dur-base) ease;
+}
+.chart-bar.is-now .chart-bar-chord {
+  color: var(--text-primary);
+}
+.chart-bar.is-next .chart-bar-chord {
+  color: var(--accent-primary);
+}
+
+.chart-bar .strum-row {
+  position: relative;
+  gap: 2px;
+  color: var(--text-muted);
+  transition: color var(--dur-base) ease;
+}
+.chart-bar.is-now .strum-row {
+  color: var(--text-secondary);
+}
+
+.chart-flag {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.chart-bar-tag {
+  position: relative;
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  color: var(--text-muted);
+}
+
+/* --- The playhead --------------------------------------------------------- */
+/* A shaft of light the bars pass through, breathing on the beat. The pulse is
+   set from the video's own clock, so it is the record's tempo and never a
+   second timer running alongside it and disagreeing. */
+.chart-playhead {
+  position: absolute;
+  left: var(--playhead-x);
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 0,
+    var(--accent-primary) 16%,
+    var(--accent-primary) 84%,
+    transparent 100%
+  );
+}
+.chart-playhead-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border-radius: var(--radius-full);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.5), rgba(56, 189, 248, 0) 68%);
+  transform: scale(calc(0.66 + var(--pulse, 0) * 0.44));
+  opacity: calc(0.3 + var(--pulse, 0) * 0.7);
+  will-change: transform, opacity;
+}
+
+/* --- The count-in --------------------------------------------------------- */
+.chart-countin {
+  position: absolute;
+  left: var(--playhead-x);
+  top: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.chart-countin-number {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  border-radius: var(--radius-full);
+  background: radial-gradient(circle, rgba(15, 15, 17, 0.92) 42%, rgba(15, 15, 17, 0) 72%);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: 2.4rem;
+  line-height: 1;
+  color: var(--accent-primary);
+  animation: chart-countin 0.42s var(--ease-out);
+}
+@keyframes chart-countin {
+  from {
+    opacity: 0;
+    transform: scale(1.3);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* --- Waiting on the recording --------------------------------------------- */
+/* The frame, at its real size, with bars where bars will be. It holds the
+   layout so the screen does not lurch when the clock arrives, and it reads as
+   the chart getting ready rather than as an error. */
+.chart.is-standin .chart-ribbon {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.008));
+}
+.chart-standin-bars {
+  position: absolute;
+  inset: var(--space-3) 0 var(--space-2);
+  display: flex;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+}
+.chart-standin-bars span {
+  flex: 1;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.035);
+  animation: chart-standin 1.9s var(--ease-out) infinite;
+}
+.chart-standin-bars span:nth-child(2) {
+  animation-delay: 0.14s;
+}
+.chart-standin-bars span:nth-child(3) {
+  animation-delay: 0.28s;
+}
+.chart-standin-bars span:nth-child(4) {
+  animation-delay: 0.42s;
+}
+@keyframes chart-standin {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  45% {
+    opacity: 1;
+  }
+}
+.chart-note {
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* --- Small phones --------------------------------------------------------- */
+/* Verified at 360, 390 and 430 wide in portrait with the video on screen. The
+   ribbon loses ten pixels and the readout tightens; nothing moves off screen
+   and nothing scrolls sideways. */
+@media (max-width: 420px) {
+  .chart-ribbon {
+    height: 86px;
+    --playhead-x: 28%;
+  }
+  .chart-next-chord {
+    font-size: var(--text-md);
+  }
+  .chart-countin-number {
+    width: 58px;
+    height: 58px;
+    font-size: 2rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The ribbon already steps bar to bar instead of gliding; what is left to
+     remove is everything that moves on its own. */
+  .chart-now-chord,
+  .chart-countin-number {
+    animation: none;
+  }
+  .chart-playhead-glow {
+    transform: none;
+    opacity: 0.45;
+  }
+  .chart-pip[data-lit='yes'] {
+    transform: none;
+  }
+  .chart-standin-bars span {
+    animation: none;
+  }
+}

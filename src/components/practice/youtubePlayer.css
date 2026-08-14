@@ -1,0 +1,29 @@
+/* The recording's frame.
+ *
+ * These rules used to live in song.css, which is reached only through
+ * practice.css, which is imported only by the practice overlay. The moment the
+ * player was mounted anywhere else — the song editor's timing mode — it had no
+ * styles at all, and `aspect-ratio` with it: the frame collapsed to nothing and
+ * the video was simply absent from a panel whose entire job is watching it.
+ *
+ * Same lesson as the strum row before it. Rules belong with the component that
+ * renders them, so a player looks like a player wherever it is used. */
+
+.song-real-video {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: #06141d;
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.8), 0 0 0 1px var(--border-subtle);
+}
+
+.song-real-video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}

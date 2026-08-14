@@ -93,6 +93,16 @@ export interface SongDraft {
   bpm: string;
   youtubeLink: string;
   sections: SongSection[];
+  /**
+   * Where the last charted bar ends in the recording, in seconds.
+   *
+   * A number rather than a string like `bpm`, because this one is never typed:
+   * it is tapped in against the record, and there is no partially-entered state
+   * to preserve. Null means the chart has not been timed.
+   */
+  endSeconds: number | null;
+  /** Beats in a bar. A string because it is typed, and blank means four. */
+  beatsPerBar: string;
 }
 
 export interface DraftProblem {
@@ -152,11 +162,16 @@ export function youtubeIdFrom(raw: string): string | null {
  * would preload the metronome with nonsense.
  */
 export function draftToSong(draft: SongDraft): Song {
+  // Spread rather than rebuilt, so the timing anchors a section carries survive
+  // a save. They were dropped here once and the symptom was a chart that timed
+  // perfectly in the editor and had no timing at all the moment it was opened.
   const sections = draft.sections
-    .map((s) => ({ label: s.label.trim() || 'Section', steps: s.steps }))
+    .map((s) => ({ ...s, label: s.label.trim() || 'Section', steps: s.steps }))
     .filter((s) => s.steps.length > 0);
   const bpm = Number.parseInt(draft.bpm, 10);
+  const beatsPerBar = Number.parseInt(draft.beatsPerBar, 10);
   const videoId = youtubeIdFrom(draft.youtubeLink);
+  const end = draft.endSeconds;
 
   return {
     id: draft.id,
@@ -167,6 +182,8 @@ export function draftToSong(draft: SongDraft): Song {
     sections,
     ...(Number.isFinite(bpm) && bpm > 0 ? { bpm } : {}),
     ...(videoId ? { youtubeId: videoId } : {}),
+    ...(Number.isFinite(beatsPerBar) && beatsPerBar > 0 ? { beatsPerBar } : {}),
+    ...(end !== null && Number.isFinite(end) && end > 0 ? { endSeconds: end } : {}),
   };
 }
 
@@ -179,7 +196,9 @@ export function songToDraft(song: Song): SongDraft {
     strum: song.strum,
     bpm: song.bpm ? String(song.bpm) : '',
     youtubeLink: song.youtubeId ?? '',
-    sections: song.sections.map((s) => ({ label: s.label, steps: s.steps.map((st) => ({ ...st })) })),
+    sections: song.sections.map((s) => ({ ...s, steps: s.steps.map((st) => ({ ...st })) })),
+    endSeconds: song.endSeconds ?? null,
+    beatsPerBar: song.beatsPerBar ? String(song.beatsPerBar) : '',
   };
 }
 
@@ -209,6 +228,8 @@ export function emptyDraft(id: string): SongDraft {
     bpm: '',
     youtubeLink: '',
     sections: [{ label: 'Verse', steps: [] }],
+    endSeconds: null,
+    beatsPerBar: '',
   };
 }
 

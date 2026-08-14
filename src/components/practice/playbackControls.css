@@ -1,0 +1,193 @@
+/* Speed and section loop.
+ *
+ * One row, always. A speed control that has to be scrolled to is a speed control
+ * nobody uses, so the widget is a stepper rather than a rank of every rate the
+ * video offers: eight pills do not fit across a 360px phone and five of them are
+ * speeds no one has ever wanted. */
+
+.pbc {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+}
+
+/* --- Speed ---------------------------------------------------------------- */
+.pbc-speed {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  flex: 0 0 auto;
+}
+
+.pbc-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease,
+    transform var(--dur-fast) var(--ease-out);
+}
+.pbc-step:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-primary);
+}
+.pbc-step:active:not(:disabled) {
+  transform: scale(0.94);
+}
+.pbc-step:disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+.pbc-step:focus-visible,
+.pbc-rate:focus-visible,
+.pbc-loop:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.pbc-rate {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 66px;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease;
+}
+.pbc-rate:disabled {
+  cursor: default;
+}
+.pbc-rate.is-off-normal {
+  background: var(--accent-glow);
+}
+.pbc-rate.is-off-normal:hover {
+  background: rgba(56, 189, 248, 0.28);
+}
+.pbc-rate-value {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-md);
+  line-height: 1;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.pbc-rate.is-off-normal .pbc-rate-value {
+  color: var(--accent-primary);
+}
+/* The reassurance the control needs to be trusted: slowing a record down
+   normally drops it out of key, and this one does not. */
+.pbc-rate-label {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  line-height: 1;
+}
+.pbc-rate.is-off-normal .pbc-rate-label {
+  color: var(--text-secondary);
+}
+
+/* --- Loop ----------------------------------------------------------------- */
+.pbc-loop {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease,
+    border-color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+}
+.pbc-loop:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: rgba(255, 255, 255, 0.05);
+}
+.pbc-loop:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.pbc-loop:disabled {
+  color: var(--text-muted);
+  border-color: var(--border-subtle);
+  cursor: default;
+}
+.pbc-loop.is-on {
+  background: var(--accent-glow);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: var(--accent-primary);
+}
+.pbc-loop.is-on .icon-glyph {
+  animation: pbc-loop-turn 2.4s linear infinite;
+}
+@keyframes pbc-loop-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.pbc-loop-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .pbc-loop {
+    padding: var(--space-2) var(--space-3);
+    max-width: 46%;
+  }
+  .pbc-step {
+    width: 34px;
+  }
+  .pbc-rate {
+    min-width: 60px;
+  }
+}
+
+/* Both hands are on a guitar and these are hit with a thumb, so on a touch
+   screen every target takes the full 44px. */
+@media (pointer: coarse) {
+  .pbc-step,
+  .pbc-rate,
+  .pbc-loop {
+    min-height: 44px;
+  }
+  .pbc-speed {
+    padding: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pbc-loop.is-on .icon-glyph {
+    animation: none;
+  }
+  .pbc-step:active:not(:disabled),
+  .pbc-loop:active:not(:disabled) {
+    transform: none;
+  }
+}

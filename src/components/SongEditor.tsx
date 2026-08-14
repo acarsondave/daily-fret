@@ -26,6 +26,7 @@ import {
   ArrowDownIcon,
   CloseIcon,
   CycleIcon,
+  MetronomeIcon,
   MusicNoteIcon,
   PlusIcon,
   TrashIcon,
@@ -35,10 +36,13 @@ import {
   chordsUsed,
   chordsWithoutDiagram,
   draftProblems,
+  draftToSong,
   normaliseStrum,
   parseChordLine,
   type SongDraft,
 } from '../lib/songCatalog';
+import { buildTimeline } from '../lib/songTiming';
+import { SongTimingEditor } from './SongTimingEditor';
 import './SongEditor.css';
 
 // Offered only while the chart is empty and there is nothing better to suggest.
@@ -65,6 +69,7 @@ export function SongEditor({ draft: initial, existing, onSave, onCancel, onDelet
   const [lines, setLines] = useState<Record<number, string>>({});
   const [showProblems, setShowProblems] = useState(false);
   const [confirm, setConfirm] = useState<'close' | 'delete' | null>(null);
+  const [timingOpen, setTimingOpen] = useState(false);
   const gridRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   // The editor owns its own dialog, and therefore its own close policy. When it
@@ -81,6 +86,9 @@ export function SongEditor({ draft: initial, existing, onSave, onCancel, onDelet
   const used = useMemo(() => chordsUsed(draft.sections), [draft.sections]);
   const undrawable = useMemo(() => chordsWithoutDiagram(draft.sections), [draft.sections]);
   const totalBars = draft.sections.reduce((n, s) => n + s.steps.length, 0);
+  // What the play-along would make of this chart's timing right now, said in the
+  // same words the timing panel uses, so the summary and the tool never disagree.
+  const timing = useMemo(() => buildTimeline(draftToSong(draft)), [draft]);
 
   const patch = (updates: Partial<SongDraft>) => setDraft((d) => ({ ...d, ...updates }));
 
@@ -451,6 +459,40 @@ export function SongEditor({ draft: initial, existing, onSave, onCancel, onDelet
         <button className="se-add-section" onClick={addSection}>
           <PlusIcon size={16} /> Add a section
         </button>
+
+        {/* Timing sits after the chart because it is timing of the chart: there
+            is nothing to anchor until the sections exist, and offering it first
+            would be offering the second half of the job. */}
+        {timingOpen ? (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <SongTimingEditor draft={draft} onPatch={patch} onClose={() => setTimingOpen(false)} />
+          </motion.div>
+        ) : (
+          <button
+            className="se-timing-open"
+            onClick={() => setTimingOpen(true)}
+            disabled={totalBars === 0}
+          >
+            <MetronomeIcon size={18} />
+            <span className="se-timing-text">
+              <span className="se-timing-title">
+                {timing.ok ? 'Timed to the recording' : 'Time it to the recording'}
+              </span>
+              <span className="se-timing-note">
+                {totalBars === 0
+                  ? 'Write the chart first, then tap the sections against the record.'
+                  : timing.ok
+                    ? 'The chart scrolls with the video. Open to check or adjust it.'
+                    : 'Tap through the song once and the chart moves with the record.'}
+              </span>
+            </span>
+            <ArrowRightIcon size={16} />
+          </button>
+        )}
 
         {/* The chords this song already uses. Contextual rather than exhaustive:
             after the first line it is precisely the set the rest of the song needs,
