@@ -251,8 +251,14 @@ console.log('\nWhat the panel is allowed to say\n');
     BEGINNER_MODULE_PATH.every((m) => (m.paidNotListed > 0) === (paidGap(m) !== null)));
 
   const find = (id) => standings.find((s) => s.skill.id === id);
+  // rhythm.patterns rather than rhythm.metronome, which used to be the example
+  // here and is now measured by the strum timing drill. Patterns still needs up
+  // strums and a pattern matcher, so it is the honest stand-in.
   check('a skill with no analysis says so, and does not say "Ready" forever',
-    stateLabel(find('rhythm.metronome')) === 'Not measured yet',
+    stateLabel(find('rhythm.patterns')) === 'Not measured yet',
+    stateLabel(find('rhythm.patterns')));
+  check('and a skill that has just gained one no longer says it',
+    stateLabel(find('rhythm.metronome')) !== 'Not measured yet',
     stateLabel(find('rhythm.metronome')));
   check('a timed skill says the clock is the measure',
     stateLabel(find('technique.stretches')) === 'On the clock',
@@ -268,7 +274,7 @@ console.log('\nWhat the panel is allowed to say\n');
     lines.every((l) => !/mark it/i.test(l)),
     lines.filter((l) => /mark it/i.test(l)).join(' | '));
   check('the two chips that carry their own story print no second sentence',
-    evidenceLine(find('rhythm.metronome')) === null &&
+    evidenceLine(find('rhythm.patterns')) === null &&
       evidenceLine(find('technique.stretches')) === null);
   check('a measured skill keeps its real evidence',
     (evidenceLine(find('chord.D')) ?? '').includes('No change drill has used D yet'),
