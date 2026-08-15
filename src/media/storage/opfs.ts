@@ -14,7 +14,7 @@
 // other half of why it suits footage of someone's living room.
 
 import type { RecordingSink, RecordingStore } from './backend';
-import { describeStorageFailure } from '../failure';
+import { describeStorageFailure, type RecordingError } from '../failure';
 
 const DIRECTORY = 'daily-fret-recordings';
 
@@ -43,7 +43,7 @@ async function directory(): Promise<FileSystemDirectoryHandle> {
 export const opfsStore: RecordingStore = {
   backend: 'opfs',
 
-  async open(key: string): Promise<RecordingSink> {
+  async open(key: string, onFailure?: (error: RecordingError) => void): Promise<RecordingSink> {
     let stream: FileSystemWritableFileStream;
     try {
       const dir = await directory();
@@ -58,7 +58,8 @@ export const opfsStore: RecordingStore = {
     // chunks arrive while a write is in flight and both call write(), the
     // stream throws "already locked" and the tail of the recording is lost.
     let queue: Promise<void> = Promise.resolve();
-    let written = 0;
+    /** Bytes confirmed onto the disk, which is not the same as bytes offered. */
+    let flushed = 0;
     let failure: unknown = null;
     // MediaRecorder can deliver one more chunk after it has been told to stop,
     // and a write to a stream that is already closing throws asynchronously
@@ -70,19 +71,29 @@ export const opfsStore: RecordingStore = {
 
     return {
       write(chunk: Blob): void {
-        if (sealed) return;
-        written += chunk.size;
-        queue = queue.then(
-          () => (sealed ? undefined : stream.write(chunk)),
-          // Once one write has failed the file is already wrong; keep the first
-          // reason and stop trying, rather than reporting the tenth failure.
-          (err) => {
-            failure ??= err;
-          },
-        );
+        if (sealed || failure) return;
+        queue = queue
+          .then(async () => {
+            if (sealed || failure) return;
+            await stream.write(chunk);
+            flushed += chunk.size;
+          })
+          // Caught on this link rather than on the next one's rejection handler.
+          // Deferring it left a rejected promise with nothing attached to it for
+          // a whole timeslice, which every browser reports as an unhandled
+          // rejection: a full disk printed "QuotaExceededError" into the
+          // console of a drill that was still running perfectly well.
+          .catch((err: unknown) => {
+            if (failure) return;
+            failure = err;
+            // Told now rather than at close(), so the recorder can stop filming
+            // into a file that has stopped accepting bytes and mark the clip
+            // for what it is.
+            onFailure?.(describeStorageFailure(err));
+          });
       },
       async close(): Promise<number> {
-        if (sealed) return written;
+        if (sealed) return flushed;
         await queue;
         sealed = true;
         try {
@@ -90,8 +101,12 @@ export const opfsStore: RecordingStore = {
         } catch (err) {
           failure ??= err;
         }
-        if (failure) throw describeStorageFailure(failure);
-        return written;
+        // Only a file with nothing in it is a failure. A write that ran out of
+        // room part-way leaves a shorter clip, and the footage that did land is
+        // footage the player filmed: throwing here would delete it and report
+        // "no room" about a recording that already existed.
+        if (failure && flushed === 0) throw describeStorageFailure(failure);
+        return flushed;
       },
       async abort(): Promise<void> {
         if (sealed) return;

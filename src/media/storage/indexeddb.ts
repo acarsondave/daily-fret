@@ -12,7 +12,7 @@
 // history lives and where a hundred megabytes would take the whole app down.
 
 import type { RecordingSink, RecordingStore } from './backend';
-import { describeStorageFailure } from '../failure';
+import { describeStorageFailure, type RecordingError } from '../failure';
 
 const DB_NAME = 'daily-fret-recordings';
 const DB_VERSION = 1;
@@ -53,7 +53,7 @@ export function indexedDbAvailable(): boolean {
 export const indexedDbStore: RecordingStore = {
   backend: 'indexeddb',
 
-  async open(key: string): Promise<RecordingSink> {
+  async open(key: string, onFailure?: (error: RecordingError) => void): Promise<RecordingSink> {
     const chunks: Blob[] = [];
     let written = 0;
     let type = '';
@@ -73,7 +73,18 @@ export const indexedDbStore: RecordingStore = {
       async close(): Promise<number> {
         if (sealed) return written;
         sealed = true;
-        await run('readwrite', (store) => store.put(new Blob(chunks, { type }), key));
+        try {
+          await run('readwrite', (store) => store.put(new Blob(chunks, { type }), key));
+        } catch (err) {
+          // Nothing partial to keep: this backend holds the whole clip in memory
+          // and writes it once, so a failed put means no file at all. Reported
+          // through both channels for the same reason the OPFS sink does, so a
+          // caller that only listens to one of them still hears about it.
+          const failure = describeStorageFailure(err);
+          onFailure?.(failure);
+          chunks.length = 0;
+          throw failure;
+        }
         chunks.length = 0;
         return written;
       },

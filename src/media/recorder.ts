@@ -12,15 +12,17 @@
 // phone locks. Both look like a recording that is still running and producing
 // nothing.
 
-import { liveMicTrack } from '../audio/liveMic';
+import { awaitLiveMicTrack } from '../audio/liveMic';
 import { openCameraPreview } from './cameraDevice';
 import { RecordingError, describeCameraFailure, describeStorageFailure } from './failure';
+import { measureVideoSize } from './measure';
 import { chooseMimeType, extensionFor, presetFor } from './quality';
-import { preferredStore, type RecordingSink } from './storage';
+import { deleteRecording, preferredStore, readRecording, type RecordingSink } from './storage';
 import type {
   Recording,
   RecordingEnd,
   RecordingKind,
+  RecordingLocation,
   RecordingQuality,
   StorageBackend,
   TechniqueView,
@@ -44,6 +46,17 @@ const TIMESLICE_MS = 2000;
 
 /** A track flickers muted when a camera warms up; only a sustained one counts. */
 const MUTE_GRACE_MS = 1500;
+
+/**
+ * How long to let a microphone that is already opening finish opening.
+ *
+ * Only ever spent when a drill's own getUserMedia is genuinely in flight, and
+ * the wait ends the moment that track is registered rather than running the
+ * clock out. Two seconds is well past a local permission-already-granted open
+ * (measured at roughly 400ms) and short enough that a getUserMedia which never
+ * settles costs the footage two seconds of its start rather than all of it.
+ */
+const MIC_HANDOVER_MS = 2000;
 
 export interface CaptureRequest {
   sessionId: string;
@@ -188,7 +201,11 @@ export class PracticeRecorder {
     this.backend = store.backend;
     this.key = `${newId()}.${extensionFor(mimeType)}`;
     try {
-      this.sink = await store.open(this.key);
+      // The disk filling mid-take is reported the moment a write fails rather
+      // than at close(): the recorder stops, the clip is filed with what did
+      // land, and it says storage ran out. Left until close(), the camera would
+      // carry on filming into a file that had stopped accepting bytes.
+      this.sink = await store.open(this.key, () => this.failStorage());
     } catch (err) {
       throw describeStorageFailure(err);
     }
@@ -244,7 +261,13 @@ export class PracticeRecorder {
     const stream = this.stream;
     if (!stream) return;
 
-    const live = liveMicTrack();
+    // Waited for rather than sampled. A coached session mounts the drill and the
+    // recording in the same commit, and the drill's getUserMedia had not yet
+    // resolved when this asked: the recorder then opened a second audio session
+    // against the same microphone, which is what liveMic.ts exists to prevent
+    // and what drops the drill's own capture on iOS. Costs nothing when no
+    // microphone is opening, which is every timed block and every song.
+    const live = await awaitLiveMicTrack(MIC_HANDOVER_MS);
     if (live) {
       stream.addTrack(live.clone());
       this.hasAudio = true;
@@ -301,6 +324,27 @@ export class PracticeRecorder {
       clearMute();
       this.detach = null;
     };
+  }
+
+  /**
+   * A write failed, so there is no point filming any more of this.
+   *
+   * Stops the MediaRecorder as well as marking the clip, which is the half that
+   * matters: chunks that arrive after the sink has failed are dropped, so a
+   * recorder left running is a camera, an encoder and a battery spent producing
+   * nothing.
+   */
+  private failStorage(): void {
+    if (this.phase !== 'recording') return;
+    this.finishBecause('storage-full');
+    const recorder = this.recorder;
+    if (recorder && recorder.state !== 'inactive') {
+      try {
+        recorder.stop();
+      } catch {
+        // Already stopped by the browser. The clip is marked either way.
+      }
+    }
   }
 
   // A running recording ending on its own. Stop() does the rest; this only
@@ -373,7 +417,23 @@ export class PracticeRecorder {
       this.report(failure);
       return null;
     }
-    if (!request || !store || bytes === 0) return null;
+    // Nothing worth keeping, so nothing is left behind either. Leaving a drill
+    // while the camera was still opening got as far as creating the file and no
+    // further, and the empty file then sat in the directory with no index row
+    // pointing at it: invisible to the library, invisible to "delete all
+    // recordings" until it swept the whole directory, and counting against the
+    // quota the whole time.
+    if (!request || !store || bytes === 0) {
+      if (store) await deleteRecording({ backend: this.backend, key: this.key }).catch(() => {});
+      return null;
+    }
+
+    const location = { backend: this.backend, key: this.key };
+    // The camera's own account of its size is not good enough (see ./measure.ts).
+    // Asked of the finished file, and only after it is safely written: a
+    // measurement that fails leaves the negotiated size in place rather than
+    // costing the player the clip, which is the one thing this file never does.
+    const size = await this.measureSaved(location);
 
     return {
       id: newId(),
@@ -389,13 +449,33 @@ export class PracticeRecorder {
       bytes,
       mimeType: this.mimeType,
       quality: request.quality,
-      width: this.size.width,
-      height: this.size.height,
+      width: size.width,
+      height: size.height,
       hasAudio: this.hasAudio,
       starred: request.starred ?? false,
       endedBy: this.endedBy,
-      location: { backend: this.backend, key: this.key },
+      location,
     };
+  }
+
+  /**
+   * The size of the clip that was just written, measured rather than assumed.
+   *
+   * Falls back to what the track negotiated, which is the only fallback in this
+   * file and is deliberate: by the time this runs the footage is already safely
+   * on disk, and refusing to file a clip because its dimensions could not be
+   * confirmed would throw away a recording over a label.
+   */
+  private async measureSaved(location: RecordingLocation): Promise<{ width: number; height: number }> {
+    try {
+      const measured = await measureVideoSize(await readRecording(location));
+      if (measured) return measured;
+    } catch {
+      // Unreadable straight after writing is worth knowing about, but not at the
+      // cost of the clip: the index keeps the negotiated size and the library
+      // will report the file as missing if it really is.
+    }
+    return this.size;
   }
 
   /** Stop and keep nothing. Used when a surface is dismissed mid-capture. */

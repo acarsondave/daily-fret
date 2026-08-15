@@ -6,7 +6,7 @@
 // teardown on failure, StrictMode double-invoke, iOS suspended contexts, a dead
 // preferred device — are exactly the parts nobody should own twice.
 
-import { clearLiveMic, registerLiveMic } from './liveMic';
+import { beginMicOpen, clearLiveMic, endMicOpen, registerLiveMic } from './liveMic';
 
 // Served verbatim from /public so addModule always gets a real, same-origin
 // classic script. BASE_URL keeps it correct under any deploy sub-path.
@@ -129,8 +129,27 @@ export class MicStream {
     return this.muted ? 'muted' : 'running';
   }
 
+  /**
+   * Open the microphone and build the graph.
+   *
+   * The body is `openGraph`; this wrapper exists only to bracket it with the
+   * live-mic registry's "a microphone is on its way" flag. Bracketing here
+   * rather than inside means no exit path can forget it: the body throws from
+   * six places and returns early from three more, and a recorder left waiting
+   * on a microphone that failed to open would sit there until its timeout and
+   * then film silence.
+   */
   async start(handlers: MicStreamHandlers): Promise<void> {
     if (this.ctx || this.starting) return;
+    beginMicOpen();
+    try {
+      await this.openGraph(handlers);
+    } finally {
+      endMicOpen();
+    }
+  }
+
+  private async openGraph(handlers: MicStreamHandlers): Promise<void> {
     this.disposed = false;
     this.starting = true;
     this.onRouteChange = handlers.onRouteChange ?? null;
