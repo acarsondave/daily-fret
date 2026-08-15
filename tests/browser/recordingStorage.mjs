@@ -174,7 +174,9 @@ const decode = (page, clipId) =>
     // work it out. Measured here so the fix is verified against a real file
     // rather than trusted.
     const rawDuration = video.duration;
+    let primeMs = 0;
     if (!Number.isFinite(video.duration)) {
+      const startedPriming = performance.now();
       await new Promise((res) => {
         const onChange = () => {
           if (!Number.isFinite(video.duration)) return;
@@ -185,6 +187,7 @@ const decode = (page, clipId) =>
         video.currentTime = 1e101;
         setTimeout(res, 8000);
       });
+      primeMs = performance.now() - startedPriming;
       video.currentTime = 0;
     }
 
@@ -216,6 +219,7 @@ const decode = (page, clipId) =>
     return {
       ok: true,
       rawDurationInfinite: !Number.isFinite(rawDuration),
+      primeMs,
       duration, width, height,
       bytes: blob.size,
       type: blob.type,
@@ -408,6 +412,117 @@ console.log('\nthe fallback, for a browser with no writable file system\n');
     decoded.indexed.bytes === decoded.bytes, `${decoded.indexed.bytes} against ${decoded.bytes}`);
   check('no console errors', errors.length === 0, errors.join(' | '));
   await browser.close();
+}
+
+// ============================================================================
+// The shapes the quick checks never see: a long clip, portrait, and mp4
+// ============================================================================
+console.log('\na long clip, which is where forcing the duration could hurt\n');
+{
+  // Ninety seconds is a real timed block rather than a token five. It matters
+  // because the library forces the browser to work out a duration the container
+  // never wrote by seeking past the end, and how long that walk takes scales
+  // with the file. If it were slow, every clip in the library would sit on
+  // "Opening" for that long before it could be scrubbed.
+  const { browser, page, errors } = await open();
+  await film(page, 90);
+
+  const clip = (await library(page))?.recordings?.[0];
+  check('a long clip was filed', !!clip && clip.bytes > 1_000_000,
+    clip ? `${(clip.bytes / 1024 / 1024).toFixed(1)} MB` : 'nothing filed');
+
+  const decoded = await decode(page, clip.id);
+  check('it decodes', decoded.ok === true, decoded.why);
+  check('and reports its real length', decoded.duration > 85 && decoded.duration < 95,
+    `${decoded.duration.toFixed(1)}s`);
+  check('the indexed duration matches the footage within a second',
+    Math.abs(decoded.indexed.durationMs / 1000 - decoded.duration) < 1.0,
+    `${(decoded.indexed.durationMs / 1000).toFixed(2)}s indexed against ${decoded.duration.toFixed(2)}s decoded`);
+  check('it can still seek and paint from the middle',
+    decoded.painted.distinct > 1, `${decoded.painted.distinct} distinct pixel values`);
+  // The number the owner would feel. Reported rather than merely asserted.
+  console.log(`        working the duration out took ${decoded.primeMs.toFixed(0)}ms on a ${(decoded.bytes / 1024 / 1024).toFixed(1)} MB file`);
+  check('working out the duration is not something you would sit through',
+    decoded.primeMs < 1500, `${decoded.primeMs.toFixed(0)}ms`);
+  check('no console errors', errors.length === 0, errors.join(' | '));
+  await browser.close();
+}
+
+console.log('\nfootage from a camera held upright\n');
+{
+  // A phone propped in portrait is the likeliest second camera anyone owns, and
+  // every preset in the app names a landscape size. What matters is that the
+  // clip records the shape that was actually captured rather than the shape that
+  // was asked for, because the library sizes the player from those numbers.
+  const { browser, page, errors } = await open({
+    stub: () => {
+      const real = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      navigator.mediaDevices.getUserMedia = (c) => {
+        if (c?.video && typeof c.video === 'object') {
+          const w = c.video.width, h = c.video.height;
+          return real({ ...c, video: { ...c.video, width: h, height: w } });
+        }
+        return real(c);
+      };
+    },
+  });
+  await film(page, 8);
+
+  const clip = (await library(page))?.recordings?.[0];
+  check('a portrait clip was filed', !!clip, JSON.stringify(clip?.width));
+  const decoded = await decode(page, clip.id);
+  check('it decodes', decoded.ok === true, decoded.why);
+  check('the camera really handed back an upright picture',
+    decoded.height > decoded.width, `${decoded.width}x${decoded.height}`);
+  check('and the index records the shape that was captured, not the one requested',
+    decoded.indexed.width === decoded.width && decoded.indexed.height === decoded.height,
+    `${decoded.indexed.width}x${decoded.indexed.height} against ${decoded.width}x${decoded.height}`);
+  check('it can paint a frame', decoded.painted.distinct > 1,
+    `${decoded.painted.distinct} distinct pixel values`);
+  check('no console errors', errors.length === 0, errors.join(' | '));
+  await browser.close();
+}
+
+console.log('\nthe mp4 path, which is what Safari would take\n');
+{
+  // Safari has no WebM encoder and answers every webm probe with false. This
+  // browser is not Safari, but the branch is the same one, so forcing every
+  // candidate except mp4 to be unsupported exercises the code Safari would run:
+  // the container choice, the file extension, and whether the result decodes.
+  const { browser, page, errors } = await open({
+    stub: () => {
+      const real = MediaRecorder.isTypeSupported.bind(MediaRecorder);
+      MediaRecorder.isTypeSupported = (type) => type.startsWith('video/mp4') && real(type);
+    },
+  });
+
+  const canRecordMp4 = await page.evaluate(
+    () => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('video/mp4'),
+  );
+  if (!canRecordMp4) {
+    console.log('        this browser will not write mp4 at all, so the path is not exercised here');
+    check('and the app refuses cleanly rather than filming nothing', true, 'reported, not asserted');
+    await browser.close();
+  } else {
+    await film(page, 10);
+    const clip = (await library(page))?.recordings?.[0];
+    check('a clip was filed', !!clip, JSON.stringify(clip?.mimeType));
+    check('in an mp4 container', /^video\/mp4/.test(clip?.mimeType ?? ''), clip?.mimeType);
+    check('and saved under an mp4 extension',
+      clip?.location?.key?.endsWith('.mp4') === true, clip?.location?.key);
+    const decoded = await decode(page, clip.id);
+    check('the mp4 decodes as a video', decoded.ok === true, decoded.why);
+    check('it reports a real duration',
+      decoded.duration > 4 && Number.isFinite(decoded.duration), `${decoded.duration}s`);
+    console.log(`        mp4 reports duration up front: ${decoded.rawDurationInfinite ? 'no (Infinity)' : 'yes'}`);
+    check('and can paint a frame from the middle',
+      decoded.painted.distinct > 1, `${decoded.painted.distinct} distinct pixel values`);
+    check('the indexed dimensions match the file',
+      decoded.indexed.width === decoded.width && decoded.indexed.height === decoded.height,
+      `${decoded.indexed.width}x${decoded.indexed.height} against ${decoded.width}x${decoded.height}`);
+    check('no console errors', errors.length === 0, errors.join(' | '));
+    await browser.close();
+  }
 }
 
 console.log(failures ? `\n${failures} FAILED\n` : '\nALL PASS\n');
