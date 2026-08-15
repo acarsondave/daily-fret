@@ -15,12 +15,14 @@
 import { awaitLiveMicTrack } from '../audio/liveMic';
 import { openCameraPreview } from './cameraDevice';
 import { RecordingError, describeCameraFailure, describeStorageFailure } from './failure';
+import { measureVideoSize } from './measure';
 import { chooseMimeType, extensionFor, presetFor } from './quality';
-import { preferredStore, type RecordingSink } from './storage';
+import { preferredStore, readRecording, type RecordingSink } from './storage';
 import type {
   Recording,
   RecordingEnd,
   RecordingKind,
+  RecordingLocation,
   RecordingQuality,
   StorageBackend,
   TechniqueView,
@@ -417,6 +419,13 @@ export class PracticeRecorder {
     }
     if (!request || !store || bytes === 0) return null;
 
+    const location = { backend: this.backend, key: this.key };
+    // The camera's own account of its size is not good enough (see ./measure.ts).
+    // Asked of the finished file, and only after it is safely written: a
+    // measurement that fails leaves the negotiated size in place rather than
+    // costing the player the clip, which is the one thing this file never does.
+    const size = await this.measureSaved(location);
+
     return {
       id: newId(),
       sessionId: request.sessionId,
@@ -431,13 +440,33 @@ export class PracticeRecorder {
       bytes,
       mimeType: this.mimeType,
       quality: request.quality,
-      width: this.size.width,
-      height: this.size.height,
+      width: size.width,
+      height: size.height,
       hasAudio: this.hasAudio,
       starred: request.starred ?? false,
       endedBy: this.endedBy,
-      location: { backend: this.backend, key: this.key },
+      location,
     };
+  }
+
+  /**
+   * The size of the clip that was just written, measured rather than assumed.
+   *
+   * Falls back to what the track negotiated, which is the only fallback in this
+   * file and is deliberate: by the time this runs the footage is already safely
+   * on disk, and refusing to file a clip because its dimensions could not be
+   * confirmed would throw away a recording over a label.
+   */
+  private async measureSaved(location: RecordingLocation): Promise<{ width: number; height: number }> {
+    try {
+      const measured = await measureVideoSize(await readRecording(location));
+      if (measured) return measured;
+    } catch {
+      // Unreadable straight after writing is worth knowing about, but not at the
+      // cost of the clip: the index keeps the negotiated size and the library
+      // will report the file as missing if it really is.
+    }
+    return this.size;
   }
 
   /** Stop and keep nothing. Used when a surface is dismissed mid-capture. */
