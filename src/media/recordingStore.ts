@@ -22,7 +22,8 @@ import { persist } from 'zustand/middleware';
 import { DEFAULT_QUALITY } from './quality';
 import { DEFAULT_KEEP_SESSIONS, clampKeepSessions, planPrune, pruneEvent } from './retention';
 import { deleteEverything, deleteRecording } from './storage';
-import type { PruneEvent, Recording, RecordingQuality, RecordingSettings } from './types';
+import { forgetPoster } from './posterFrames';
+import type { PruneEvent, Recording, RecordingCadence, RecordingQuality, RecordingSettings } from './types';
 
 interface RecordingState {
   settings: RecordingSettings;
@@ -32,6 +33,7 @@ interface RecordingState {
   lastPrune: PruneEvent | null;
 
   setEnabled: (enabled: boolean) => void;
+  setCadence: (cadence: RecordingCadence) => void;
   setQuality: (quality: RecordingQuality) => void;
   setKeepSessions: (keep: number) => void;
   setCameraId: (deviceId: string | null) => void;
@@ -41,10 +43,13 @@ interface RecordingState {
 
 const DEFAULT_SETTINGS: RecordingSettings = {
   enabled: false,
+  cadence: 'weekly',
   quality: DEFAULT_QUALITY,
   keepSessions: DEFAULT_KEEP_SESSIONS,
   cameraId: null,
 };
+
+const CADENCES: readonly RecordingCadence[] = ['weekly', 'every-session', 'manual'];
 
 export const useRecordingStore = create<RecordingState>()(
   persist(
@@ -54,6 +59,7 @@ export const useRecordingStore = create<RecordingState>()(
       lastPrune: null,
 
       setEnabled: (enabled) => set((s) => ({ settings: { ...s.settings, enabled } })),
+      setCadence: (cadence) => set((s) => ({ settings: { ...s.settings, cadence } })),
       setQuality: (quality) => set((s) => ({ settings: { ...s.settings, quality } })),
       setKeepSessions: (keep) =>
         set((s) => ({ settings: { ...s.settings, keepSessions: clampKeepSessions(keep) } })),
@@ -81,6 +87,11 @@ export const useRecordingStore = create<RecordingState>()(
           lastPrune: saved?.lastPrune ?? null,
           settings: {
             enabled: settings?.enabled === true,
+            // An unreadable cadence falls to the cheapest one, never to the one
+            // that fills the disk. Same reasoning as `enabled` above.
+            cadence: CADENCES.includes(settings?.cadence as RecordingCadence)
+              ? (settings!.cadence as RecordingCadence)
+              : 'weekly',
             quality: settings?.quality ?? DEFAULT_QUALITY,
             keepSessions: clampKeepSessions(settings?.keepSessions ?? DEFAULT_KEEP_SESSIONS),
             cameraId: settings?.cameraId ?? null,
@@ -123,13 +134,15 @@ export async function fileRecording(recording: Recording): Promise<void> {
   }));
 
   await Promise.all(drop.map((r) => deleteRecording(r.location).catch(() => {})));
+  await Promise.all(drop.map((r) => forgetPoster(r).catch(() => {})));
 }
 
-/** Forget one clip and delete its file. */
+/** Forget one clip, its file, and the still made from it. */
 export async function forgetRecording(id: string): Promise<void> {
   const target = useRecordingStore.getState().recordings.find((r) => r.id === id);
   if (!target) return;
   useRecordingStore.setState((s) => ({ recordings: s.recordings.filter((r) => r.id !== id) }));
+  await forgetPoster(target);
   await deleteRecording(target.location);
 }
 
@@ -141,6 +154,8 @@ export async function forgetRecording(id: string): Promise<void> {
  * deleted.
  */
 export async function forgetAllRecordings(): Promise<void> {
+  const { recordings } = useRecordingStore.getState();
   useRecordingStore.setState({ recordings: [], lastPrune: null });
+  await Promise.all(recordings.map((r) => forgetPoster(r).catch(() => {})));
   await deleteEverything();
 }

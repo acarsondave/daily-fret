@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RecordingError } from './failure';
 import { PracticeRecorder } from './recorder';
 import { fileRecording, useRecordingStore } from './recordingStore';
+import { shouldFilmSession } from './cadence';
 import type { RecordingKind, TechniqueView } from './types';
 
 export interface ActiveClip {
@@ -58,6 +59,15 @@ export function useSessionRecording(clip: ActiveClip | null): SessionRecordingSt
   const sessionRef = useRef<string | null>(null);
   if (sessionRef.current === null) sessionRef.current = newSessionId();
 
+  // Whether this session is the one that gets filmed. Decided when the first
+  // clip arrives and then held for the life of the surface: asking again
+  // mid-session would let a session that started filming stop filming halfway
+  // through, because the clip it just filed is itself the most recent recording
+  // and would answer "not due".
+  //
+  // A technique check is never subject to it: the player asked for that one.
+  const dueRef = useRef<boolean | null>(null);
+
   // Camera work is asynchronous and React is not. Two clips in quick succession
   // (a coached session advancing) would otherwise have the second start()
   // land before the first stop() finished, and MediaRecorder answers that by
@@ -88,6 +98,13 @@ export function useSessionRecording(clip: ActiveClip | null): SessionRecordingSt
     if (!enabled || key === null) return;
     const request = clipRef.current;
     if (!request) return;
+
+    if (dueRef.current === null) {
+      const { recordings, settings } = useRecordingStore.getState();
+      dueRef.current = request.kind === 'technique-check'
+        || shouldFilmSession(recordings, settings.cadence, Date.now());
+    }
+    if (!dueRef.current) return;
 
     let cancelled = false;
     const recorder = recorderRef.current ?? new PracticeRecorder();

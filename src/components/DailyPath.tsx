@@ -644,7 +644,6 @@ export function DailyPath() {
         onClose={() => setIsFootageOpen(false)}
         title="Footage"
         position="full"
-        wide
       >
         <Suspense fallback={<Loader label="Opening your footage…" />}>
           <RecordingLibrary />

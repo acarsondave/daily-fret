@@ -11,6 +11,9 @@ import {
   megabytesPerMinute,
   presetFor,
 } from '../../media/quality';
+import { nextFilmingDue } from '../../media/cadence';
+import type { RecordingCadence } from '../../media/types';
+
 import {
   MAX_KEEP_SESSIONS,
   MIN_KEEP_SESSIONS,
@@ -24,6 +27,42 @@ import {
 } from '../../media/recordingStore';
 import { storageRoom, type StorageRoom } from '../../media/storage';
 import type { Recording } from '../../media/types';
+
+/** When the most recent automatic session was filmed, or 0 if none ever was. */
+function lastFilmedAt(recordings: readonly Recording[]): number {
+  return recordings.reduce((latest, r) => (r.kind === 'session' ? Math.max(latest, r.startedAt) : latest), 0);
+}
+
+/**
+ * How often to film, in the order a player should consider them.
+ *
+ * Weekly leads and is the default because the owner asked for it after living
+ * with the alternative: filming every coached session is heavy, and twenty
+ * takes a week is a landfill nobody opens. The cost line is the honest reason
+ * to pick one, so it sits where the quality rows put their megabytes.
+ */
+const CADENCE_CHOICES: readonly {
+  id: RecordingCadence; label: string; cost: string; blurb: string;
+}[] = [
+  {
+    id: 'weekly',
+    label: 'Once a week',
+    cost: 'about 4 a month',
+    blurb: 'Enough to see a month of change without filling the disk.',
+  },
+  {
+    id: 'every-session',
+    label: 'Every session',
+    cost: 'a few GB a month',
+    blurb: 'Everything you practise, at the cost of storage and some CPU.',
+  },
+  {
+    id: 'manual',
+    label: 'Only when I ask',
+    cost: 'nothing on its own',
+    blurb: 'Technique checks only. Practice sessions are never filmed.',
+  },
+];
 
 /**
  * Practice video, as a thing the user decides about.
@@ -45,6 +84,7 @@ export function RecordingSetting() {
   const lastPrune = useRecordingStore((s) => s.lastPrune);
   const setEnabled = useRecordingStore((s) => s.setEnabled);
   const setQuality = useRecordingStore((s) => s.setQuality);
+  const setCadence = useRecordingStore((s) => s.setCadence);
   const setKeepSessions = useRecordingStore((s) => s.setKeepSessions);
   const setCameraId = useRecordingStore((s) => s.setCameraId);
   const toggleStar = useRecordingStore((s) => s.toggleStar);
@@ -164,6 +204,14 @@ export function RecordingSetting() {
     }
   };
 
+  // Read off the last filmed session rather than the wall clock, so the pane
+  // states a date that stays true however long it sits open. A countdown would
+  // be wrong the moment midnight passed behind it.
+  const nextDue = useMemo(
+    () => nextFilmingDue(recordings, settings.cadence, lastFilmedAt(recordings)),
+    [recordings, settings.cadence],
+  );
+
   const mbPerMinute = megabytesPerMinute(settings.quality);
   const named = camerasAreNamed(cameras);
 
@@ -247,6 +295,37 @@ export function RecordingSetting() {
               Camera names appear once you have shown the shot at least once.
             </p>
           )}
+
+          {/* --- How often ------------------------------------------------ */}
+          <div className="rec-field">
+            <span className="rec-field-label">Film a session</span>
+            <div className="rec-quality">
+              {CADENCE_CHOICES.map((choice) => (
+                <button
+                  key={choice.id}
+                  type="button"
+                  aria-pressed={settings.cadence === choice.id}
+                  className={clsx('rec-quality-option', settings.cadence === choice.id && 'is-on')}
+                  onClick={() => setCadence(choice.id)}
+                >
+                  <span className="rec-quality-name">{choice.label}</span>
+                  <span className="rec-quality-rate">{choice.cost}</span>
+                  <span className="rec-quality-blurb">{choice.blurb}</span>
+                </button>
+              ))}
+            </div>
+            {/* Where the player actually stands, rather than leaving them to
+                work it out from the rule. */}
+            <p className="rec-field-note">
+              {settings.cadence === 'weekly'
+                ? nextDue === null
+                  ? 'The next practice session you run will be filmed.'
+                  : `Next one from ${new Date(nextDue).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}. Technique checks are never held back.`
+                : settings.cadence === 'manual'
+                  ? 'Only technique checks are filmed, when you ask for one.'
+                  : 'Every coached session is filmed. This fills the disk quickly.'}
+            </p>
+          </div>
 
           {/* --- What it costs -------------------------------------------- */}
           <div className="rec-field">

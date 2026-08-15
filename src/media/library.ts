@@ -104,6 +104,147 @@ export function buildLibrary(recordings: readonly Recording[]): Library {
   return { checks, days: days.sort((a, b) => (a.date < b.date ? 1 : -1)) };
 }
 
+// --- the spine ---------------------------------------------------------------
+//
+// The library above answers "what is there". The spine answers the question the
+// footage actually exists to answer, which is "what have I been doing since
+// May". It is the same rows arranged as a calendar rather than a feed: months in
+// order, the days inside them that have footage, and for each month how much of
+// it was filmed at all. A month with two entries and a month with nine should
+// not look alike, and in a list they do.
+
+export interface SpineDay {
+  date: string;
+  dayOfMonth: number;
+  /** Three letters. The spine is scanned, not read. */
+  weekday: string;
+  sessions: LibrarySession[];
+  totalMs: number;
+  /** A technique check sits on the spine like anything else, but marked. */
+  hasCheck: boolean;
+}
+
+export interface SpineMonth {
+  /** YYYY-MM, which is also its sort key. */
+  key: string;
+  label: string;
+  year: number;
+  days: SpineDay[];
+  totalMs: number;
+  /** Days of this month with footage, against days the month actually has. */
+  filmedDays: number;
+  daysInMonth: number;
+}
+
+export interface Spine {
+  months: SpineMonth[];
+  filmedDays: number;
+  totalMs: number;
+  totalBytes: number;
+  earliest: string | null;
+  latest: string | null;
+}
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTH_LABELS = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+
+/**
+ * Parsed as local time, deliberately.
+ *
+ * `new Date('2026-08-15')` is UTC midnight, which in any negative offset renders
+ * as the fourteenth. A practice diary that files a session under the day before
+ * the one the player remembers is worse than no diary.
+ */
+function localDate(date: string): Date {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+export function buildSpine(recordings: readonly Recording[]): Spine {
+  const sessions = toSessions(recordings);
+
+  const byDate = new Map<string, LibrarySession[]>();
+  for (const session of sessions) {
+    const existing = byDate.get(session.date);
+    if (existing) existing.push(session);
+    else byDate.set(session.date, [session]);
+  }
+
+  const byMonth = new Map<string, SpineDay[]>();
+  for (const [date, group] of byDate) {
+    const when = localDate(date);
+    const day: SpineDay = {
+      date,
+      dayOfMonth: when.getDate(),
+      weekday: WEEKDAYS[when.getDay()],
+      sessions: group,
+      totalMs: group.reduce((sum, s) => sum + s.totalMs, 0),
+      hasCheck: group.some((s) => s.clips.some((c) => c.kind === 'technique-check')),
+    };
+    const key = date.slice(0, 7);
+    const existing = byMonth.get(key);
+    if (existing) existing.push(day);
+    else byMonth.set(key, [day]);
+  }
+
+  const months: SpineMonth[] = [];
+  for (const [key, days] of byMonth) {
+    const [year, month] = key.split('-').map(Number);
+    months.push({
+      key,
+      label: MONTH_LABELS[month - 1],
+      year,
+      days: days.sort((a, b) => b.dayOfMonth - a.dayOfMonth),
+      totalMs: days.reduce((sum, d) => sum + d.totalMs, 0),
+      filmedDays: days.length,
+      // Day zero of the next month is the last day of this one.
+      daysInMonth: new Date(year, month, 0).getDate(),
+    });
+  }
+
+  const dates = [...byDate.keys()].sort();
+  return {
+    months: months.sort((a, b) => (a.key < b.key ? 1 : -1)),
+    filmedDays: byDate.size,
+    totalMs: sessions.reduce((sum, s) => sum + s.totalMs, 0),
+    totalBytes: recordings.reduce((sum, r) => sum + r.bytes, 0),
+    earliest: dates[0] ?? null,
+    latest: dates[dates.length - 1] ?? null,
+  };
+}
+
+/**
+ * Earlier technique clips shot from the same angle, newest first.
+ *
+ * This is the one comparison the footage can honestly support. Two takes of the
+ * same angle months apart show a hand that has changed; two different angles
+ * show nothing at all, and offering that pairing would be inviting the player to
+ * read a difference that is only the camera having moved.
+ */
+export function sameViewBefore(
+  recordings: readonly Recording[],
+  clip: Recording,
+): Recording[] {
+  if (clip.kind !== 'technique-check' || !clip.view) return [];
+  return recordings
+    .filter((r) => r.kind === 'technique-check'
+      && r.view === clip.view
+      && r.id !== clip.id
+      && r.startedAt < clip.startedAt)
+    .sort((a, b) => b.startedAt - a.startedAt);
+}
+
+/** How long ago, for a label that sits beside a comparison. */
+export function gapLabel(fromMs: number, toMs: number): string {
+  const days = Math.round(Math.abs(toMs - fromMs) / 86_400_000);
+  if (days < 1) return 'the same day';
+  if (days === 1) return 'a day apart';
+  if (days < 14) return `${days} days apart`;
+  if (days < 60) return `${Math.round(days / 7)} weeks apart`;
+  return `${Math.round(days / 30)} months apart`;
+}
+
 /** mm:ss, or h:mm:ss once a sitting runs past the hour. */
 export function formatDuration(ms: number): string {
   const total = Math.max(0, Math.round(ms / 1000));

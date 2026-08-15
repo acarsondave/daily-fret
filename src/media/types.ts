@@ -42,6 +42,15 @@ export const TECHNIQUE_VIEWS: readonly TechniqueView[] = ['front', 'neck', 'stru
 export type RecordingQuality = 'light' | 'standard' | 'detail';
 
 /**
+ * How often practice sessions are filmed automatically.
+ *
+ * `weekly` is the default and the reason the feature is affordable: one filmed
+ * session a week is a record of a month, where one filmed session a day is
+ * twenty gigabytes nobody opens. See ./cadence.ts for the rule.
+ */
+export type RecordingCadence = 'weekly' | 'every-session' | 'manual';
+
+/**
  * Where a clip's bytes live.
  *
  * A union rather than a boolean, so adding 'cloud' later is an addition and not
@@ -143,6 +152,7 @@ export interface PruneEvent {
 export interface RecordingSettings {
   /** Off until the user turns it on. There is no default-on path to this. */
   enabled: boolean;
+  cadence: RecordingCadence;
   quality: RecordingQuality;
   /** How many practice sessions of footage to keep before the oldest goes. */
   keepSessions: number;

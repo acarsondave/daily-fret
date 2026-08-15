@@ -7,8 +7,11 @@
 
 import {
   buildLibrary,
+  buildSpine,
   endNote,
   formatDuration,
+  gapLabel,
+  sameViewBefore,
   viewName,
 } from '../src/media/library.ts';
 
@@ -100,6 +103,96 @@ console.log('\nWhat the rows say\n');
     .every((e) => typeof endNote(e) === 'string' && endNote(e).length > 0));
 
   check('angles are named for a person', viewName('neck') === 'Down the neck', viewName('neck'));
+}
+
+console.log('\nThe spine\n');
+{
+  const spine = buildSpine([
+    clip({ id: 'a', sessionId: 's1', date: '2026-08-14' }),
+    clip({ id: 'b', sessionId: 's2', date: '2026-08-02' }),
+    clip({ id: 'c', sessionId: 's3', date: '2026-07-28' }),
+    clip({ id: 'd', sessionId: 's4', date: '2026-07-28' }),
+  ]);
+
+  check('months come back newest first', spine.months.map((m) => m.key).join(',') === '2026-08,2026-07',
+    spine.months.map((m) => m.key).join(','));
+  check('a month is named for a person', spine.months[0].label === 'August', spine.months[0].label);
+  check('days inside a month run newest first',
+    spine.months[0].days.map((d) => d.dayOfMonth).join(',') === '14,2',
+    spine.months[0].days.map((d) => d.dayOfMonth).join(','));
+  check('two sittings on one day stay one day',
+    spine.months[1].days.length === 1 && spine.months[1].days[0].sessions.length === 2,
+    String(spine.months[1].days[0].sessions.length));
+  check('filmed days are counted, not clips', spine.filmedDays === 3, String(spine.filmedDays));
+
+  // The density row is one tick per real day, so August must offer 31 and July 31.
+  check('a month knows its own length',
+    spine.months[0].daysInMonth === 31 && spine.months[1].daysInMonth === 31,
+    `${spine.months[0].daysInMonth}/${spine.months[1].daysInMonth}`);
+  check('and how much of it was filmed', spine.months[0].filmedDays === 2,
+    String(spine.months[0].filmedDays));
+
+  check('the span is reported from the real dates',
+    spine.earliest === '2026-07-28' && spine.latest === '2026-08-14',
+    `${spine.earliest}..${spine.latest}`);
+}
+
+{
+  // A date is parsed as local time on purpose: UTC midnight renders as the day
+  // before in any negative offset, and a practice diary that files a session
+  // under the wrong day is worse than no diary.
+  const spine = buildSpine([clip({ date: '2026-03-01' })]);
+  check('the first of a month stays the first', spine.months[0].days[0].dayOfMonth === 1,
+    String(spine.months[0].days[0].dayOfMonth));
+  check('February is measured, not assumed', buildSpine([clip({ date: '2024-02-10' })])
+    .months[0].daysInMonth === 29, String(buildSpine([clip({ date: '2024-02-10' })]).months[0].daysInMonth));
+}
+
+{
+  const spine = buildSpine([
+    clip({ sessionId: 'k', kind: 'technique-check', view: 'front', date: '2026-08-14' }),
+  ]);
+  check('a day with a check is marked as one', spine.months[0].days[0].hasCheck === true);
+}
+
+{
+  check('an empty spine is empty, not broken',
+    buildSpine([]).months.length === 0 && buildSpine([]).earliest === null);
+}
+
+console.log('\nHolding one take against another\n');
+{
+  const now = clip({ id: 'now', kind: 'technique-check', view: 'neck', startedAt: 5000 });
+  const pool = [
+    now,
+    clip({ id: 'older', kind: 'technique-check', view: 'neck', startedAt: 3000 }),
+    clip({ id: 'oldest', kind: 'technique-check', view: 'neck', startedAt: 1000 }),
+    clip({ id: 'other-angle', kind: 'technique-check', view: 'front', startedAt: 2000 }),
+    clip({ id: 'later', kind: 'technique-check', view: 'neck', startedAt: 9000 }),
+    clip({ id: 'a-session', kind: 'session', startedAt: 2500 }),
+  ];
+  const found = sameViewBefore(pool, now);
+
+  check('only the same angle is offered', found.every((r) => r.view === 'neck'),
+    found.map((r) => r.view).join(','));
+  check('only earlier takes', found.every((r) => r.startedAt < now.startedAt),
+    found.map((r) => r.startedAt).join(','));
+  check('newest of them first', found.map((r) => r.id).join(',') === 'older,oldest',
+    found.map((r) => r.id).join(','));
+  check('a practice session is never offered as a comparison',
+    !found.some((r) => r.kind === 'session'));
+  check('a session clip has nothing to compare against',
+    sameViewBefore(pool, clip({ id: 'x', kind: 'session' })).length === 0);
+}
+
+{
+  const DAY = 86_400_000;
+  check('same day', gapLabel(0, 1000) === 'the same day', gapLabel(0, 1000));
+  check('a day', gapLabel(0, DAY) === 'a day apart', gapLabel(0, DAY));
+  check('within a fortnight, days', gapLabel(0, 9 * DAY) === '9 days apart', gapLabel(0, 9 * DAY));
+  check('past that, weeks', gapLabel(0, 28 * DAY) === '4 weeks apart', gapLabel(0, 28 * DAY));
+  check('past two months, months', gapLabel(0, 90 * DAY) === '3 months apart', gapLabel(0, 90 * DAY));
+  check('order does not matter', gapLabel(90 * DAY, 0) === '3 months apart', gapLabel(90 * DAY, 0));
 }
 
 console.log(failures ? `\n${failures} FAILED\n` : '\nALL PASS\n');

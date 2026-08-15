@@ -1,108 +1,96 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+/*
+THESIS: footage is the visible record of months of practice, not a folder of
+files. This screen refuses the media-library grid, where every clip is the same
+size and a heavy month looks like a thin one.
+OWN-WORLD: daily-fret's own dark ground, hand-drawn 24-grid marks, mono only
+where a number is a measurement. One rule runs the length of the screen; months
+hang off it, and a month's own bar shows how much of it was filmed.
+STORY: the player scans down months, sees where practice thickened and thinned,
+recognises a sitting by its still, and opens it to watch. On a technique take
+they hold it against the same angle from months back.
+FIRST VIEWPORT: one plain sentence of accumulated fact at the top left, the
+month rail pinned right, and the newest month already open beneath, its days
+carrying real stills.
+FORM: vertical timeline (journey spine), pinned by the owner over four
+structures offered.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the
+finish review, the verdict, and DESIGN.md.
+*/
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CameraIcon, FramingIcon, KeepIcon, TrashIcon } from '../icons';
+import { CameraIcon, FramingIcon, KeepIcon } from '../icons';
 import { useRecordingStore, forgetRecording } from '../../media/recordingStore';
-import { readRecording } from '../../media/storage';
 import { formatMegabytes } from '../../media/quality';
-import { buildLibrary, endNote, formatDuration, viewName } from '../../media/library';
-import type { Recording } from '../../media/types';
+import { buildSpine, formatDuration, sameViewBefore, viewName } from '../../media/library';
+import type { LibrarySession, SpineMonth } from '../../media/library';
 import { EmptyState } from './EmptyState';
+import { PosterTile } from './PosterTile';
+import { FootageStage } from './FootageStage';
 import './recordingLibrary.css';
 
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-function longDate(date: string): string {
-  const [y, m, d] = date.split('-').map(Number);
-  const when = new Date(y, m - 1, d);
-  return `${DAY_NAMES[when.getDay()]} ${d} ${MONTHS[m - 1]}`;
+function monthOf(date: string): string {
+  return MONTHS_SHORT[Number(date.slice(5, 7)) - 1];
 }
 
-function clockTime(at: number): string {
-  return new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+/** "14 May" without leaning on locale ordering, which reorders the spine's rhythm. */
+function shortDate(date: string): string {
+  return `${Number(date.slice(8, 10))} ${monthOf(date)}`;
 }
 
-/** What the player is doing with the bytes of the clip it is showing. */
-type Playing =
-  | { state: 'loading'; id: string }
-  | { state: 'ready'; id: string; url: string }
-  | { state: 'missing'; id: string; why: string };
+function totalHours(ms: number): string {
+  const minutes = Math.round(ms / 60000);
+  if (minutes < 60) return `${minutes} minutes`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (rest === 0) return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  return `${hours}h ${rest}m`;
+}
 
-/**
- * Watch back what you filmed.
- *
- * The app cannot see the player's hands, so the recordings are the closest
- * thing to a teacher looking at them, and this is where that actually happens.
- * It is deliberately not a file manager: the unit is a sitting rather than a
- * file, technique checks are kept apart from ordinary practice because
- * comparing one against another months later is their whole point, and a clip
- * that was cut short says so rather than presenting itself as a complete take.
- */
 export function RecordingLibrary() {
   const recordings = useRecordingStore((s) => s.recordings);
   const toggleStar = useRecordingStore((s) => s.toggleStar);
-  const library = useMemo(() => buildLibrary(recordings), [recordings]);
+  const spine = useMemo(() => buildSpine(recordings), [recordings]);
 
-  const [playing, setPlaying] = useState<Playing | null>(null);
-  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [activeMonth, setActiveMonth] = useState<string | null>(null);
+  const monthRefs = useRef(new Map<string, HTMLElement>());
 
-  // The object URL holds the whole clip in memory for as long as it exists, and
-  // a two hundred megabyte leak per row clicked is not an abstraction. It is
-  // revoked when the selection changes and when this unmounts, and the effect
-  // owns creation and revocation together so neither can happen without the
-  // other.
+  const open = useMemo(
+    () => (openId ? recordings.find((r) => r.id === openId) ?? null : null),
+    [openId, recordings],
+  );
+  const earlier = useMemo(
+    () => (open ? sameViewBefore(recordings, open) : []),
+    [open, recordings],
+  );
+
+  // Which month the reader is actually in, so the rail says where they are
+  // rather than only where they can go.
   useEffect(() => {
-    if (!playing || playing.state !== 'ready') return;
-    const { url } = playing;
-    return () => URL.revokeObjectURL(url);
-  }, [playing]);
+    if (spine.months.length === 0) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (visible) setActiveMonth(visible.target.getAttribute('data-month'));
+      },
+      { rootMargin: '-20% 0px -70% 0px' },
+    );
+    for (const node of monthRefs.current.values()) observer.observe(node);
+    return () => observer.disconnect();
+  }, [spine.months]);
 
-  const open = useCallback(async (recording: Recording) => {
-    setConfirmingDelete(null);
-    setPlaying({ state: 'loading', id: recording.id });
-    try {
-      const blob = await readRecording(recording.location);
-      setPlaying({ state: 'ready', id: recording.id, url: URL.createObjectURL(blob) });
-    } catch {
-      // The index lives in localStorage and the footage lives in the origin's
-      // private file system. Clearing site data can take one and leave the
-      // other, so a row with no bytes behind it is a real state and not a bug
-      // to hide: it says so, and offers the only thing left to do about it.
-      setPlaying({
-        state: 'missing',
-        id: recording.id,
-        why: 'The video file is gone, though this entry survived. Clearing browser storage does this.',
-      });
-    }
-  }, []);
-
-  // MediaRecorder writes its container as it goes, so it cannot put a duration
-  // in the header of a file whose end it has not reached. The browser then
-  // reports `Infinity`, and the scrubber on the native controls has no length to
-  // work against: the clip plays from the start and cannot be moved through.
-  //
-  // For a review library that is close to fatal, because reviewing technique is
-  // almost entirely scrubbing to the bar where the change goes wrong.
-  //
-  // Seeking past the end forces the browser to walk the file and work the real
-  // duration out, after which it announces it and we return to the start. It
-  // runs the moment the metadata lands, before the player can have touched
-  // anything, and does nothing at all for a container that knew its own length.
-  const primeDuration = useCallback((video: HTMLVideoElement) => {
-    if (video.duration !== Infinity) return;
-    const onDurationChange = () => {
-      if (video.duration === Infinity) return;
-      video.removeEventListener('durationchange', onDurationChange);
-      video.currentTime = 0;
-    };
-    video.addEventListener('durationchange', onDurationChange);
-    video.currentTime = 1e101;
+  const jump = useCallback((key: string) => {
+    monthRefs.current.get(key)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
   const remove = useCallback(async (id: string) => {
-    setConfirmingDelete(null);
-    setPlaying((current) => (current?.id === id ? null : current));
+    setOpenId(null);
     await forgetRecording(id);
   }, []);
 
@@ -110,163 +98,139 @@ export function RecordingLibrary() {
     return (
       <EmptyState
         icon={<CameraIcon size={26} />}
-        title="No footage yet"
-        body="Practice sessions you film land here, alongside the day you played them."
+        title="Nothing filmed yet"
+        body="Once a week, a practice session is filmed and lands here beside the day you played it."
       />
     );
   }
 
-  const renderClip = (clip: Recording, index: number) => {
-    const isOpen = playing?.id === clip.id;
-    const note = endNote(clip.endedBy);
-    return (
-      <li key={clip.id} className={isOpen ? 'reclib-clip is-open' : 'reclib-clip'}>
-        <div className="reclib-clip-row">
-          <button
-            className="reclib-clip-open"
-            onClick={() => (isOpen ? setPlaying(null) : open(clip))}
-            aria-expanded={isOpen}
-          >
-            <span className="reclib-clip-name">
-              {clip.view ? viewName(clip.view) : `Take ${index + 1}`}
-            </span>
-            <span className="reclib-clip-meta">
-              {formatDuration(clip.durationMs)}
-              <span className="reclib-dot" aria-hidden="true" />
-              {formatMegabytes(clip.bytes)}
-              {!clip.hasAudio && (
-                <>
-                  <span className="reclib-dot" aria-hidden="true" />
-                  no sound
-                </>
-              )}
-            </span>
-          </button>
-
-          <button
-            className={clip.starred ? 'reclib-act is-on' : 'reclib-act'}
-            onClick={() => toggleStar(clip.id)}
-            aria-pressed={clip.starred}
-            title={clip.starred ? 'Kept: never deleted to make room' : 'Keep this one'}
-          >
-            <KeepIcon size={16} />
-          </button>
-
-          <button
-            className="reclib-act is-danger"
-            onClick={() => setConfirmingDelete(confirmingDelete === clip.id ? null : clip.id)}
-            title="Delete this take"
-          >
-            <TrashIcon size={16} />
-          </button>
-        </div>
-
-        {note && <p className="reclib-cut">{note}</p>}
-
-        {confirmingDelete === clip.id && (
-          <div className="reclib-confirm">
-            <span>Delete this take for good?</span>
-            <div className="reclib-confirm-acts">
-              <button className="reclib-confirm-no" onClick={() => setConfirmingDelete(null)}>
-                Keep it
-              </button>
-              <button className="reclib-confirm-yes" onClick={() => remove(clip.id)}>
-                Delete
-              </button>
-            </div>
-          </div>
-        )}
-
-        {isOpen && playing.state === 'loading' && (
-          <p className="reclib-status">Opening…</p>
-        )}
-        {isOpen && playing.state === 'missing' && (
-          <p className="reclib-status is-warn">{playing.why}</p>
-        )}
-        {isOpen && playing.state === 'ready' && (
-          <motion.div
-            className="reclib-player"
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <video
-              className="reclib-video"
-              src={playing.url}
-              controls
-              playsInline
-              preload="metadata"
-              onLoadedMetadata={(e) => primeDuration(e.currentTarget)}
-            />
-          </motion.div>
-        )}
-      </li>
-    );
-  };
-
-  const renderSitting = (
-    session: (typeof library.days)[number]['sessions'][number],
-    heading: string,
-  ) => (
-    <li key={session.sessionId} className="reclib-sitting">
-      <div className="reclib-sitting-head">
-        <h4 className="reclib-sitting-title">{heading}</h4>
-        <span className="reclib-sitting-meta">
-          {formatDuration(session.totalMs)}
-          <span className="reclib-dot" aria-hidden="true" />
-          {formatMegabytes(session.totalBytes)}
-        </span>
-      </div>
-      <ul className="reclib-clips">{session.clips.map(renderClip)}</ul>
+  const renderSession = (session: LibrarySession) => (
+    <li key={session.sessionId} className="spine-sitting">
+      <ul className="spine-takes">
+        {session.clips.map((clip) => (
+          <li key={clip.id}>
+            <motion.button
+              layoutId={`take-${clip.id}`}
+              className={clip.id === openId ? 'take is-open' : 'take'}
+              onClick={() => setOpenId(clip.id === openId ? null : clip.id)}
+              aria-expanded={clip.id === openId}
+            >
+              <PosterTile
+                recording={clip}
+                alt={`Still from ${clip.view ? viewName(clip.view) : clip.label}`}
+              />
+              <span className="take-body">
+                <span className="take-name">
+                  {clip.view ? viewName(clip.view) : clip.label}
+                </span>
+                <span className="take-meta">
+                  {formatDuration(clip.durationMs)}
+                  <span className="take-dot" aria-hidden="true" />
+                  {formatMegabytes(clip.bytes)}
+                </span>
+              </span>
+              {clip.starred && <KeepIcon size={13} className="take-kept" />}
+            </motion.button>
+          </li>
+        ))}
+      </ul>
     </li>
   );
 
-  return (
-    <div className="reclib">
-      {library.checks.length > 0 && (
-        <section className="reclib-section">
-          <div className="reclib-section-head">
-            <FramingIcon size={18} className="reclib-section-icon" />
-            <h3 className="reclib-section-title">Technique checks</h3>
-          </div>
-          {/* Kept apart and kept forever. Watching one of these against the same
-              angles from months ago is the only way this app can show a player
-              their own hands changing. */}
-          <p className="reclib-section-note">
-            Three angles, filmed on purpose. These are never deleted to make room.
-          </p>
-          <ul className="reclib-sittings">
-            {library.checks.map((s) =>
-              renderSitting(s, `${longDate(s.date)}, ${clockTime(s.startedAt)}`),
-            )}
-          </ul>
-        </section>
-      )}
+  const renderMonth = (month: SpineMonth) => (
+    <section
+      key={month.key}
+      className="spine-month"
+      data-month={month.key}
+      ref={(node) => {
+        if (node) monthRefs.current.set(month.key, node);
+        else monthRefs.current.delete(month.key);
+      }}
+    >
+      <header className="spine-month-head">
+        <h3 className="spine-month-name">
+          {month.label}
+          <span className="spine-month-year">{month.year}</span>
+        </h3>
+        {/* Density, not decoration: one mark per day of the month, lit on the
+            days with footage. A heavy month and a thin one cannot look alike. */}
+        <span
+          className="spine-density"
+          role="img"
+          aria-label={`Filmed on ${month.filmedDays} of ${month.daysInMonth} days`}
+        >
+          {Array.from({ length: month.daysInMonth }, (_, i) => {
+            const day = i + 1;
+            const on = month.days.some((d) => d.dayOfMonth === day);
+            return <span key={day} className={on ? 'spine-tick is-on' : 'spine-tick'} />;
+          })}
+        </span>
+        <span className="spine-month-sum">{totalHours(month.totalMs)}</span>
+      </header>
 
-      {library.days.length > 0 && (
-        <section className="reclib-section">
-          <div className="reclib-section-head">
-            <CameraIcon size={18} className="reclib-section-icon" />
-            <h3 className="reclib-section-title">Practice</h3>
-          </div>
-          <ul className="reclib-days">
-            {library.days.map((day) => (
-              <li key={day.date} className="reclib-day">
-                <div className="reclib-day-head">
-                  <h4 className="reclib-day-title">{longDate(day.date)}</h4>
-                  <span className="reclib-day-meta">
-                    {formatDuration(day.totalMs)}
-                    <span className="reclib-dot" aria-hidden="true" />
-                    {formatMegabytes(day.totalBytes)}
-                  </span>
-                </div>
-                <ul className="reclib-sittings">
-                  {day.sessions.map((s) => renderSitting(s, s.label))}
-                </ul>
-              </li>
-            ))}
-          </ul>
-        </section>
+      <ol className="spine-days">
+        {month.days.map((day) => (
+          <li key={day.date} className="spine-day">
+            <div className="spine-marker" aria-hidden="true">
+              {day.hasCheck
+                ? <span className="spine-check"><FramingIcon size={12} /></span>
+                : <span className="spine-node" />}
+            </div>
+            <div className="spine-day-body">
+              <h4 className="spine-day-title">
+                <span className="spine-day-num">{day.dayOfMonth}</span>
+                <span className="spine-day-weekday">{day.weekday}</span>
+              </h4>
+              <ul className="spine-sittings">{day.sessions.map(renderSession)}</ul>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+
+  return (
+    <div className="spine">
+      <header className="spine-head">
+        <p className="spine-fact">
+          Filmed on <strong>{spine.filmedDays}</strong>{' '}
+          {spine.filmedDays === 1 ? 'day' : 'days'}
+          {spine.earliest && <> since {shortDate(spine.earliest)}</>}.
+        </p>
+        <p className="spine-fact is-quiet">
+          {totalHours(spine.totalMs)} of playing, {formatMegabytes(spine.totalBytes)} on this machine.
+        </p>
+      </header>
+
+      <div className="spine-body">
+        <nav className="spine-rail" aria-label="Jump to a month">
+          {spine.months.map((m) => (
+            <button
+              key={m.key}
+              className={m.key === activeMonth ? 'spine-rail-mark is-here' : 'spine-rail-mark'}
+              onClick={() => jump(m.key)}
+              aria-current={m.key === activeMonth ? 'true' : undefined}
+            >
+              <span className="spine-rail-name">{MONTHS_SHORT[Number(m.key.slice(5, 7)) - 1]}</span>
+              <span
+                className="spine-rail-bar"
+                style={{ '--fill': `${Math.round((m.filmedDays / m.daysInMonth) * 100)}%` } as React.CSSProperties}
+              />
+            </button>
+          ))}
+        </nav>
+
+        <div className="spine-track">{spine.months.map(renderMonth)}</div>
+      </div>
+
+      {open && (
+        <FootageStage
+            clip={open}
+            earlier={earlier}
+            onClose={() => setOpenId(null)}
+            onStar={toggleStar}
+            onDelete={remove}
+        />
       )}
     </div>
   );
