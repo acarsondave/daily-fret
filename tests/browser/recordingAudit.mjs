@@ -296,6 +296,41 @@ console.log('\nleaving a drill with Escape, repeatedly\n');
     survived === 5, `${survived}/5 — ${JSON.stringify(sizes)}`);
 }
 
+{
+  // The other end of the same race. Leaving while the camera is still opening
+  // means the cleanup queues a stop against a start that has not returned, and
+  // the recorder has to end up idle with nothing half-written behind it. The
+  // wrong outcome here is not a lost clip but a camera left on.
+  let clean = 0;
+  const notes = [];
+  for (let run = 0; run < 4; run++) {
+    const { browser, page, errors } = await open();
+    await startTask(page, 'Spider walk');
+    // Deliberately inside the window where the camera is opening: no wait for
+    // the pill, which is what appears once it is already rolling.
+    await page.waitForTimeout(120 + run * 220);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(3500);
+
+    const lib = await library(page);
+    const files = await filesOnDisk(page);
+    const cameraLeftOn = await page.evaluate(() => !!document.querySelector('video'));
+    const rows = lib?.recordings?.length ?? 0;
+    // Either a real clip or nothing at all. What must never survive is an index
+    // row with no bytes, or bytes with no row.
+    const consistent = rows === files.length
+      && (lib?.recordings ?? []).every((r) => files.some((f) => f.name === r.location.key && f.size === r.bytes));
+
+    if (consistent && !cameraLeftOn && errors.filter((e) => e.startsWith('PAGEERROR')).length === 0) {
+      clean += 1;
+    }
+    notes.push(`${rows} rows / ${files.length} files${cameraLeftOn ? ' CAMERA ON' : ''}`);
+    await browser.close();
+  }
+  check('leaving while the camera is still opening leaves nothing behind',
+    clean === 4, `${clean}/4 — ${JSON.stringify(notes)}`);
+}
+
 // ============================================================================
 // Item 7: the documented failure modes
 // ============================================================================
@@ -317,8 +352,15 @@ async function expectSurvivesFailure(label, options, expectations = {}) {
   check(`${label}: the drill is still running`, stillRunning);
   check(`${label}: nothing claims to be recording`, !claimsToRecord);
   if (expectations.notice !== false) {
-    check(`${label}: it says what happened and what to do`,
-      !!notice && notice.length > 25, notice ? notice.split('\n')[0] : 'no notice shown');
+    // Both halves, read separately. The recovery line is rendered from
+    // `recoveryFor(error.kind)`, so its presence is what proves a structured
+    // RecordingError with a kind the app recognises arrived here, rather than
+    // some other throwable whose message happened to reach the screen.
+    const head = await page.locator('.capture-notice-head').innerText().catch(() => '');
+    const help = await page.locator('.capture-notice-help').innerText().catch(() => '');
+    check(`${label}: it names the problem`, head.length > 12, head);
+    check(`${label}: and carries the recovery for its kind`,
+      help.length > 12 && help !== head, help);
   }
 
   // The practice itself must be logged regardless, which is the actual promise.

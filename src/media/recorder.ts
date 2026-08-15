@@ -17,7 +17,7 @@ import { openCameraPreview } from './cameraDevice';
 import { RecordingError, describeCameraFailure, describeStorageFailure } from './failure';
 import { measureVideoSize } from './measure';
 import { chooseMimeType, extensionFor, presetFor } from './quality';
-import { preferredStore, readRecording, type RecordingSink } from './storage';
+import { deleteRecording, preferredStore, readRecording, type RecordingSink } from './storage';
 import type {
   Recording,
   RecordingEnd,
@@ -417,7 +417,16 @@ export class PracticeRecorder {
       this.report(failure);
       return null;
     }
-    if (!request || !store || bytes === 0) return null;
+    // Nothing worth keeping, so nothing is left behind either. Leaving a drill
+    // while the camera was still opening got as far as creating the file and no
+    // further, and the empty file then sat in the directory with no index row
+    // pointing at it: invisible to the library, invisible to "delete all
+    // recordings" until it swept the whole directory, and counting against the
+    // quota the whole time.
+    if (!request || !store || bytes === 0) {
+      if (store) await deleteRecording({ backend: this.backend, key: this.key }).catch(() => {});
+      return null;
+    }
 
     const location = { backend: this.backend, key: this.key };
     // The camera's own account of its size is not good enough (see ./measure.ts).
