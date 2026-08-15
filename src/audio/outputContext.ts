@@ -11,15 +11,26 @@
 
 const UNLOCK_EVENTS = ['pointerdown', 'touchend', 'keydown'] as const;
 const RETRY_MS = 1000;
-const RETRY_LIMIT = 20;
 const RESUME_GAP_MS = 750;
 
 let ctx: AudioContext | null = null;
 let detachUnlock: (() => void) | null = null;
 let lastResumeAt = 0;
 let retryTimer: ReturnType<typeof setInterval> | null = null;
-let retriesLeft = 0;
+// Whether anything currently wants to be heard, as opposed to whether we happen
+// to be asking right now. The two came apart badly: filming a session opens a
+// microphone, the browser hands the output route away, and the click gave up
+// after twenty seconds while the camera held that route for the whole drill.
+// The metronome, the coach and the cues were then silent for the rest of the
+// session with nothing left asking for them back.
+let wanted = false;
 const listeners = new Set<(ready: boolean) => void>();
+
+function stopRetries(): void {
+  if (!retryTimer) return;
+  clearInterval(retryTimer);
+  retryTimer = null;
+}
 
 function notify(): void {
   const ready = isOutputAudioReady();
@@ -54,7 +65,15 @@ export function getOutputContext(): AudioContext | null {
       ctx.addEventListener('statechange', () => {
         if (isOutputAudioReady()) {
           detachUnlock?.();
-          releaseOutputAudio();
+          stopRetries();
+        } else if (wanted) {
+          // The route was taken away while something was still trying to be
+          // heard. Opening a camera does exactly this, and so does a call or
+          // another tab. Start asking again from a full budget rather than
+          // letting an earlier interruption's spent retries decide this one.
+          armOutputAudioUnlock();
+          resumeOutputAudio();
+          startRetries();
         }
         notify();
       });
@@ -121,36 +140,58 @@ export function armOutputAudioUnlock(): void {
 // Keep asking for audio while something actually wants to be heard. Safari can
 // hand the audio session to a media element (the coach's voice clips) and leave
 // this context suspended with no statechange to react to, so a single attempt at
-// start time can lose the click for the rest of the session. Once a second, at
-// most for RETRY_LIMIT tries, is enough to recover without loading the media
-// stack — the failure mode this replaced was resuming 40 times a second.
+// start time can lose the click for the rest of the session. Once a second is
+// enough to recover without loading the media stack — the failure mode this
+// replaced was resuming 40 times a second.
 export function requestOutputAudio(): void {
+  wanted = true;
   if (isOutputAudioReady()) return;
   armOutputAudioUnlock(); // a tap is still the fastest route back
   resumeOutputAudio();
+  startRetries();
+}
+
+function startRetries(): void {
   if (retryTimer) return;
-  retriesLeft = RETRY_LIMIT;
   retryTimer = setInterval(() => {
     if (isOutputAudioReady()) {
-      releaseOutputAudio();
+      stopRetries();
       // Announce it here too. WebKit does not always emit a statechange for a
       // context that comes back on its own, and polling is what noticed.
       notify();
       return;
     }
-    if (retriesLeft-- <= 0) {
-      releaseOutputAudio();
-      return;
-    }
-    resumeOutputAudio();
+    // Keep asking for as long as something wants to be heard, and no longer.
+    //
+    // This used to give up after a fixed number of tries, which was the whole
+    // bug: a suspended context never resumes itself, so once the asking stopped
+    // the click was gone for the rest of the session however long the camera
+    // held the route. `wanted` is the honest bound, because it is false the
+    // moment the metronome stops, and once a second is gentle enough that the
+    // media stack never notices.
+    if (wanted) resumeOutputAudio();
+    else stopRetries();
   }, RETRY_MS);
+}
+
+/**
+ * Something opened an audio input and may have taken the output route with it.
+ *
+ * Not a request: it makes no claim that anything wants to be heard, so a camera
+ * opening during a silent timed block does not start the app asking for audio
+ * nobody is waiting on. It only revives the asking that is already justified,
+ * for the browsers that suspend a context without ever firing a statechange.
+ */
+export function nudgeOutputAudio(): void {
+  if (!wanted || isOutputAudioReady()) return;
+  resumeOutputAudio(true);
+  startRetries();
 }
 
 // Nothing wants to be heard any more; stop asking.
 export function releaseOutputAudio(): void {
-  if (!retryTimer) return;
-  clearInterval(retryTimer);
-  retryTimer = null;
+  wanted = false;
+  stopRetries();
 }
 
 // Readable state for diagnosing a silent session in the field.

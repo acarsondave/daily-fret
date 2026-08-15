@@ -363,9 +363,13 @@ console.log('\na clip that has to prove it is a video\n');
   // Driven through the interface rather than a module handle: the library is
   // where a person deletes a clip, so that is the path worth proving.
   await page.locator('.progress-launch', { hasText: /Footage/ }).click();
-  await page.waitForSelector('.reclib', { timeout: 20000 });
-  await page.locator('.reclib-act.is-danger').first().click();
-  await page.locator('.reclib-confirm-yes').click();
+  await page.waitForSelector('.spine', { timeout: 20000 });
+  // Deleting now lives on the stage, so the clip is opened first: that is the
+  // path a person actually takes to get rid of one.
+  await page.locator('.take').first().click();
+  await page.waitForSelector('.stage', { timeout: 20000 });
+  await page.locator('.stage-act.is-danger').click();
+  await page.locator('.stage-confirm-yes').click();
   await page.waitForTimeout(2500);
 
   lib = await library(page);

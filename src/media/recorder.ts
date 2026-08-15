@@ -13,6 +13,7 @@
 // nothing.
 
 import { awaitLiveMicTrack } from '../audio/liveMic';
+import { nudgeOutputAudio } from '../audio/outputContext';
 import { openCameraPreview } from './cameraDevice';
 import { RecordingError, describeCameraFailure, describeStorageFailure } from './failure';
 import { measureVideoSize } from './measure';
@@ -281,6 +282,12 @@ export class PracticeRecorder {
         stream.addTrack(track);
         this.hasAudio = true;
       }
+      // Opening a microphone can take the playback route with it, which silences
+      // the click, the coach and the cues all at once because they share one
+      // context. Some browsers do that without ever firing a statechange, so the
+      // side that knows a camera just opened has to say so. Nothing is claimed
+      // here: it only revives asking that something was already doing.
+      nudgeOutputAudio();
     } catch {
       // Deliberate, and the only swallowed failure in this file. The camera is
       // already open and the drill is about to start; refusing to film because

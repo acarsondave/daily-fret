@@ -299,18 +299,18 @@ export function RecordingSetting() {
           {/* --- How often ------------------------------------------------ */}
           <div className="rec-field">
             <span className="rec-field-label">Film a session</span>
-            <div className="rec-quality">
+            <div className="rec-cadence">
               {CADENCE_CHOICES.map((choice) => (
                 <button
                   key={choice.id}
                   type="button"
                   aria-pressed={settings.cadence === choice.id}
-                  className={clsx('rec-quality-option', settings.cadence === choice.id && 'is-on')}
+                  className={clsx('rec-cadence-option', settings.cadence === choice.id && 'is-on')}
                   onClick={() => setCadence(choice.id)}
                 >
-                  <span className="rec-quality-name">{choice.label}</span>
-                  <span className="rec-quality-rate">{choice.cost}</span>
-                  <span className="rec-quality-blurb">{choice.blurb}</span>
+                  <span className="rec-cadence-name">{choice.label}</span>
+                  <span className="rec-cadence-rate">{choice.cost}</span>
+                  <span className="rec-cadence-blurb">{choice.blurb}</span>
                 </button>
               ))}
             </div>
