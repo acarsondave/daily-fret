@@ -491,6 +491,15 @@
   background: var(--success-glow);
   color: var(--success-color);
 }
+/* Held once, and gone cold since. It keeps the tick it earned and loses the
+   fill, so a skill moving backwards is something the eye can see happen rather
+   than a sentence to be read. */
+.journey-skill.is-lapsed .journey-skill-mark {
+  border-color: var(--success-color);
+  border-style: dashed;
+  background: transparent;
+  color: var(--success-color);
+}
 
 .journey-skill-body {
   display: flex;

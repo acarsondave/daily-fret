@@ -67,7 +67,9 @@ export function JourneyPanel() {
   // opposite, so the two cases are separated and the heading follows the list.
   const next = useMemo(() => {
     const all = nextUp(standings, 12);
-    const working = all.filter((s) => s.state === 'working');
+    // Lapsed counts as under way: one run brings it back, so it is the closest
+    // thing on the list to done, not a fresh start.
+    const working = all.filter((s) => s.state === 'working' || s.state === 'lapsed');
     return working.length
       ? { title: 'Closest to done', items: working.slice(0, 3) }
       : { title: 'Where to start', items: all.slice(0, 3) };
@@ -457,7 +459,10 @@ function PracticeRow({ standing }: { standing: SkillStanding }) {
   return (
     <li className={clsx('journey-skill', `is-${state}`)}>
       <span className="journey-skill-mark" aria-hidden="true">
-        {state === 'solid' ? (
+        {/* Lapsed keeps the tick, drawn hollow by the stylesheet. It was earned
+            and the app is not pretending otherwise; what it has lost is being
+            current, and that is what the hollow says. */}
+        {state === 'solid' || state === 'lapsed' ? (
           <CheckIcon size={13} />
         ) : skill.measure.kind === 'timed' ? (
           <HourglassIcon size={13} />

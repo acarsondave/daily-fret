@@ -38,7 +38,8 @@ const check = (l, ok, d) => {
   console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${l}${!ok && d ? ` — ${d}` : ''}`);
 };
 
-const standings = allStandings({});
+const TODAY = '2026-08-16';
+const standings = allStandings({}, TODAY);
 const moduleByNumber = (n) => BEGINNER_MODULE_PATH.find((m) => m.number === n);
 
 console.log('\nThe course the panel draws\n');
@@ -288,40 +289,48 @@ console.log('\nWhat the panel is allowed to say\n');
 
 console.log('\nAgreeing with the Numbers tab\n');
 {
-  // Two vocabularies for "good enough" exist in this app and they mean different
-  // things. readiness.ts owns Held: three runs running at the bar, still fresh.
-  // progression.ts owns `solid`, which is only that a best-ever result cleared
-  // the bar once. One run over the bar therefore reads as Cleared here and as
-  // "1 of 3" on Numbers, and the two must not both be spelled "Solid".
-  const today = '2026-08-10';
-  const oneGoodRun = [{ date: '2026-08-09', value: CHANGES_BAR + 4 }];
-  const stand = readiness(oneGoodRun, CHANGES_BAR, today);
-  check('one run over the bar is not Held on Numbers', stand.state === 'hit', stand.state);
-  check('and Numbers spells that as a count of three', stand.label === '1 of 3', String(stand.label));
+  // The app had two vocabularies for "good enough" and they meant different
+  // things: readiness.ts owned Held, three runs running at the bar and still
+  // fresh, while progression.ts called a skill solid off one best-ever result.
+  // The Journey said "Cleared" to keep out of the way of a word it disagreed
+  // with. Both read the same rule now, so the two panels have to say the same
+  // thing about the same history, and this is where that is checked.
+  const day = (n) => `2026-08-0${n}`;
+  const runs = (values) => Object.fromEntries(values.map((value, i) => [day(i + 1), {
+    date: day(i + 1),
+    routineId: 'r1',
+    completedTaskIds: [],
+    drillResults: { [pairKey('A', 'D')]: value },
+  }]));
+  const today = '2026-08-09';
+  const chordAOn = (values) =>
+    allStandings(runs(values), today).find((s) => s.skill.id === 'chord.A');
 
-  const solid = allStandings({
-    '2026-08-09': {
-      date: '2026-08-09',
-      routineId: 'r1',
-      completedTaskIds: [],
-      drillResults: { [pairKey('A', 'D')]: CHORD_BAR + 8 },
-    },
-  });
-  const chordA = solid.find((s) => s.skill.id === 'chord.A');
-  check('the same single run makes a chord solid in the progression model',
-    chordA.state === 'solid', chordA.state);
-  check('the Journey calls that Cleared, never Held',
-    stateLabel(chordA) === 'Cleared', stateLabel(chordA));
+  const oneRun = [{ date: day(1), value: CHANGES_BAR + 4 }];
+  const numbers = readiness(oneRun, CHANGES_BAR, today);
+  check('one run over the bar is not Held on Numbers', numbers.state === 'hit', numbers.state);
+  check('and Numbers spells that as a count of three', numbers.label === '1 of 3', String(numbers.label));
+  check('the Journey does not call that done either',
+    chordAOn([CHORD_BAR + 8]).state === 'working', chordAOn([CHORD_BAR + 8]).state);
+  check('and it borrows the count rather than inventing a word',
+    stateLabel(chordAOn([CHORD_BAR + 8])) === 'Under way',
+    stateLabel(chordAOn([CHORD_BAR + 8])));
 
-  const RESERVED = ['Held', 'Lapsed'];
-  const words = standings.map(stateLabel).concat(solid.map(stateLabel));
-  check('no Journey chip borrows a word readiness owns',
-    words.every((w) => !RESERVED.includes(w)),
-    [...new Set(words)].join(', '));
-  check('no module row says "solid" either',
-    BEGINNER_MODULE_PATH.every(
-      (m) => !/\bsolid\b/i.test(countLine(m, moduleContent(m, standings))),
-    ));
+  const three = [CHORD_BAR + 8, CHORD_BAR + 2, CHORD_BAR + 5];
+  check('three runs running is Held on Numbers',
+    readiness(three.map((value, i) => ({ date: day(i + 1), value })), CHORD_BAR, today).state === 'held');
+  check('and Held on the Journey, in the same word',
+    stateLabel(chordAOn(three)) === 'Held', stateLabel(chordAOn(three)));
+  check('a module row counts the same thing it says',
+    /\bheld\b/.test(countLine(moduleByNumber(1), moduleContent(moduleByNumber(1), standings))),
+    countLine(moduleByNumber(1), moduleContent(moduleByNumber(1), standings)));
+
+  const cold = allStandings(runs(three), '2026-09-01').find((s) => s.skill.id === 'chord.A');
+  check('and when it goes cold both panels say Lapsed',
+    cold.state === 'lapsed' && stateLabel(cold) === 'Lapsed', `${cold.state} / ${stateLabel(cold)}`);
+  check('no chip anywhere still says "cleared" or "solid"',
+    standings.concat(chordAOn(three), cold).every((s) => !/\b(cleared|solid)\b/i.test(stateLabel(s))),
+    [...new Set(standings.map(stateLabel))].join(', '));
 }
 
 console.log(failures ? `\n${failures} FAILED\n` : '\nALL PASS\n');

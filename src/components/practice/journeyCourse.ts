@@ -180,7 +180,7 @@ export interface ModuleContent {
   taughtOnce: SkillStanding[];
   /** Practice the app can put a number on today. */
   measured: number;
-  /** How many of those are at their bar. */
+  /** How many of those are held: at their bar three runs running, still fresh. */
   atBar: number;
   /** Whether any skill at all maps to this module. */
   mapped: boolean;
