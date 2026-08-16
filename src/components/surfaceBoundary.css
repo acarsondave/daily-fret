@@ -1,0 +1,123 @@
+/* The shape of a missing screen.
+
+   Everything here is doing one job: making it obvious, without a sentence
+   claiming it, that one panel is absent and the app around it is fine. It sits
+   inline in the flow rather than over the top of everything, so it takes exactly
+   the room the panel would have taken and the practice list stays visible beside
+   it. The outline is dashed and unfilled because that is what an absence looks
+   like; it is not a warning, and it is deliberately not red. */
+
+.surface-missing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  /* Enough height to read as the shape of the missing panel rather than as a
+     message strip, and short enough not to invent a scroll on a phone. */
+  min-height: min(18rem, 42vh);
+  padding: var(--space-8) var(--space-5);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  animation: surface-missing-in var(--dur-base, 0.24s) var(--ease-out) both;
+}
+
+@keyframes surface-missing-in {
+  from { opacity: 0; transform: scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+.surface-missing-title {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+  text-wrap: balance;
+}
+
+.surface-missing-body {
+  max-width: 34ch;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
+
+.surface-missing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.surface-missing-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-5);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  transition: color var(--dur-base) ease, background var(--dur-base) ease,
+    border-color var(--dur-base) ease;
+}
+.surface-missing-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+.surface-missing-btn:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.surface-missing-btn.is-primary {
+  border-color: rgba(56, 189, 248, 0.32);
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+}
+.surface-missing-btn.is-primary:hover {
+  background: rgba(56, 189, 248, 0.26);
+  color: var(--accent-primary);
+}
+
+/* A surface that would have covered the screen has no room in the flow to leave
+   empty, so its absence is drawn where it would have opened. The scrim is the
+   same one the tuner gate uses, so a failed drill and a slow tuner read as the
+   same kind of moment rather than as two different products. */
+.surface-missing-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background: rgba(10, 10, 12, 0.86);
+  backdrop-filter: blur(12px);
+}
+
+/* The prefix lives here rather than beside the standard property, because the
+   minifier collapses the pair and keeps only the -webkit- form, which blurs in
+   Safari and nowhere else. Same reason and same shape as tunerGate.css. */
+@supports not (backdrop-filter: blur(1px)) {
+  .surface-missing-scrim { -webkit-backdrop-filter: blur(12px); }
+}
+
+.surface-missing.is-full {
+  width: min(30rem, 100%);
+  min-height: 0;
+  background: var(--surface-color);
+  box-shadow: var(--shadow-panel);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .surface-missing { animation: none; }
+}

@@ -14,6 +14,7 @@ import { StreakGraph } from './components/StreakGraph';
 import { initAuthListener, useAuthStore } from './lib/auth';
 import { armOutputAudioUnlock } from './audio/outputContext';
 import { readDurability, requestDurableStorage } from './lib/durability';
+import { SurfaceBoundary } from './components/SurfaceBoundary';
 import { CloudIcon, DeviceIcon } from './components/icons';
 import { motion } from 'framer-motion';
 import './App.css';
@@ -134,14 +135,17 @@ function App() {
 
         <Footer />
 
-        <Suspense fallback={null}>
-          {isSettingsOpen && (
-            <SettingsModal
-              isOpen={isSettingsOpen}
-              onClose={() => setIsSettingsOpen(false)}
-            />
-          )}
-        </Suspense>
+        {/* The boundary is mounted with the surface and not around it, so closing
+            settings unmounts the boundary and clears its failed state. A
+            boundary that outlives the thing it guards latches on the first
+            failure and shows the panel over a screen nobody opened. */}
+        {isSettingsOpen && (
+          <SurfaceBoundary name="Settings" overlay onDismiss={() => setIsSettingsOpen(false)}>
+            <Suspense fallback={null}>
+              <SettingsModal isOpen onClose={() => setIsSettingsOpen(false)} />
+            </Suspense>
+          </SurfaceBoundary>
+        )}
       </motion.main>
     </>
   );

@@ -6,6 +6,7 @@ import { useStore, useUserData, getTodayString } from '../store';
 import { TaskRow } from './TaskRow';
 import { Modal } from './Modal';
 import { Loader } from './Loader';
+import { SurfaceBoundary } from './SurfaceBoundary';
 import { TaskCreatorModal } from './TaskCreatorModal';
 import { UndoStrip } from './UndoStrip';
 import { PracticeNudge } from './PracticeNudge';
@@ -318,9 +319,11 @@ export function DailyPath() {
   // through to the same blank slate as before, so nobody is trapped in a wizard.
   if (!activeRoutine && !onboardingSkipped) {
     return (
-      <Suspense fallback={<Loader overlay label="Getting set up…" />}>
-        <Onboarding onDone={() => setOnboardingSkipped(true)} />
-      </Suspense>
+      <SurfaceBoundary name="Setup" overlay onDismiss={() => setOnboardingSkipped(true)}>
+        <Suspense fallback={<Loader overlay label="Getting set up…" />}>
+          <Onboarding onDone={() => setOnboardingSkipped(true)} />
+        </Suspense>
+      </SurfaceBoundary>
     );
   }
 
@@ -645,9 +648,11 @@ export function DailyPath() {
         title="Footage"
         position="full"
       >
-        <Suspense fallback={<Loader label="Opening your footage…" />}>
-          <RecordingLibrary />
-        </Suspense>
+        <SurfaceBoundary name="Your footage">
+          <Suspense fallback={<Loader label="Opening your footage…" />}>
+            <RecordingLibrary />
+          </Suspense>
+        </SurfaceBoundary>
       </Modal>
 
       <Modal
@@ -726,11 +731,18 @@ export function DailyPath() {
           id="progress-panel"
           aria-labelledby={`progress-tab-${progressView}`}
         >
-        <Suspense fallback={<p className="progress-empty">Reading your practice…</p>}>
-          {progressView === 'journey' && <JourneyPanel />}
-          {progressView === 'awards' && <AchievementsPanel />}
-          {progressView === 'history' && <HistoryPanel onStartSession={startSession} />}
-        </Suspense>
+        {/* Keyed on the tab, so switching away from a tab that failed to load
+            and back again is a fresh attempt rather than a stuck panel. */}
+        <SurfaceBoundary
+          resetKey={progressView}
+          name={PROGRESS_VIEWS.find((v) => v.id === progressView)?.label ?? 'This tab'}
+        >
+          <Suspense fallback={<p className="progress-empty">Reading your practice…</p>}>
+            {progressView === 'journey' && <JourneyPanel />}
+            {progressView === 'awards' && <AchievementsPanel />}
+            {progressView === 'history' && <HistoryPanel onStartSession={startSession} />}
+          </Suspense>
+        </SurfaceBoundary>
 
         {progressView === 'numbers' && (
         <ProgressPanel
@@ -754,30 +766,50 @@ export function DailyPath() {
         </div>
       </Modal>
 
-      <Suspense fallback={practiceTask ? <Loader overlay label="Tuning up…" /> : null}>
-        <AnimatePresence>
-          {practiceTask && (
-            <PracticeOverlay
-              key={practiceTask.id}
-              task={practiceTask}
-              onClose={() => setPracticeTask(null)}
-            />
-          )}
-        </AnimatePresence>
-      </Suspense>
+      <SurfaceBoundary
+        name={practiceTask?.title ?? 'That drill'}
+        overlay={!!practiceTask}
+        resetKey={practiceTask?.id ?? null}
+        onDismiss={() => setPracticeTask(null)}
+      >
+        <Suspense fallback={practiceTask ? <Loader overlay label="Tuning up…" /> : null}>
+          <AnimatePresence>
+            {practiceTask && (
+              <PracticeOverlay
+                key={practiceTask.id}
+                task={practiceTask}
+                onClose={() => setPracticeTask(null)}
+              />
+            )}
+          </AnimatePresence>
+        </Suspense>
+      </SurfaceBoundary>
 
       <AnimatePresence>
         {isTunerOpen && <TunerLauncher key="tuner" onClose={() => setIsTunerOpen(false)} />}
       </AnimatePresence>
 
-      <Suspense fallback={isTechniqueOpen ? <Loader overlay label="Opening the camera…" /> : null}>
-        <AnimatePresence>
-          {isTechniqueOpen && (
-            <TechniqueCheck key="technique" onClose={() => setIsTechniqueOpen(false)} />
-          )}
-        </AnimatePresence>
-      </Suspense>
+      <SurfaceBoundary
+        name="The technique check"
+        overlay={isTechniqueOpen}
+        resetKey={isTechniqueOpen ? 'open' : null}
+        onDismiss={() => setIsTechniqueOpen(false)}
+      >
+        <Suspense fallback={isTechniqueOpen ? <Loader overlay label="Opening the camera…" /> : null}>
+          <AnimatePresence>
+            {isTechniqueOpen && (
+              <TechniqueCheck key="technique" onClose={() => setIsTechniqueOpen(false)} />
+            )}
+          </AnimatePresence>
+        </Suspense>
+      </SurfaceBoundary>
 
+      <SurfaceBoundary
+        name="The coached session"
+        overlay={isCoachedOpen}
+        resetKey={isCoachedOpen ? 'open' : null}
+        onDismiss={() => setIsCoachedOpen(false)}
+      >
       <Suspense fallback={isCoachedOpen ? <Loader overlay label="Tuning up…" /> : null}>
         <AnimatePresence>
           {isCoachedOpen && activeRoutine && (
@@ -799,6 +831,7 @@ export function DailyPath() {
           )}
         </AnimatePresence>
       </Suspense>
+      </SurfaceBoundary>
     </div>
   );
 }
