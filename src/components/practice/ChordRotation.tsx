@@ -1,7 +1,9 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
-import { ArrowRightIcon, HourglassIcon, MicIcon, PlayIcon, RetryIcon, SweepIcon, TrophyIcon } from '../icons';
+import { ArrowRightIcon, HourglassIcon, MicIcon, PlayIcon, SweepIcon, TrophyIcon } from '../icons';
+import { MicGate, TimerRunEnded, UncountedNotice } from './MicGate';
+import type { TimedOutcome } from '../../store/completion';
 import { rotationRing } from '../../lib/drillKeys';
 import { sweepStep } from '../../lib/sweep';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
@@ -46,6 +48,9 @@ interface Props {
   nextLabel?: string;
   detector?: ChordDetectorApi;
   onSessionStart?: () => void; // the drill is now live (drives the auto metronome)
+  // A run the microphone could not hear, timed instead. Kept separate from
+  // onResult because it carries elapsed time and no measurement.
+  onTimedRun?: (outcome: TimedOutcome) => void;
 }
 
 // Anchor-changes drill: sweep back and forth along a path of chords at your own
@@ -71,6 +76,7 @@ export function ChordRotation({
   nextLabel = 'Up next',
   detector,
   onSessionStart,
+  onTimedRun,
 }: Props) {
   const own = useChordDetector();
   const templates = useLearnedTemplates();
@@ -94,6 +100,9 @@ export function ChordRotation({
   const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter();
   const [result, setResult] = useState<{ value: number; prevBest: number } | null>(null);
   const [advanceLeft, setAdvanceLeft] = useState(AUTO_ADVANCE_SECONDS);
+  // Running blind: the clock runs, the path is on screen, nothing is counted.
+  const [onTimer, setOnTimer] = useState(false);
+  const onTimerRef = useRef(false);
 
   const targetIdxRef = useRef(0);
   // Which way along the path we are travelling. Flips at each end, so the cue
@@ -161,6 +170,12 @@ export function ChordRotation({
 
   const finish = () => {
     clearTimer();
+    if (onTimerRef.current) {
+      sfx.complete();
+      onTimedRun?.({ elapsedSeconds: duration, reachedEnd: true, done: true });
+      setView('results');
+      return;
+    }
     diag.mark(`rotation finish ${ring.join('>')}: counted ${changesRef.current}`);
     if (sharedMic) setHandlers({});
     else void stop();
@@ -174,8 +189,10 @@ export function ChordRotation({
     onResult?.({ ring, changes: value });
   };
 
-  const startSession = async () => {
+  const startSession = async (blind = false) => {
     sfx.go();
+    onTimerRef.current = blind;
+    setOnTimer(blind);
     changesRef.current = 0;
     lastChordRef.current = '';
     lastCountAtRef.current = 0;
@@ -190,15 +207,17 @@ export function ChordRotation({
     onSessionStart?.();
     setView('playing');
 
-    const live = await start(
-      {
-        onChord: (ev) => handleChord(ev.chord),
-        onLevel: (ev) => pushSignal(ev),
-      },
-      { restrictTo: ring, templates, offset: capo },
-    );
-    if (!live) return;
-    diag.mark(`rotation start ${ring.join('>')} (${duration}s)`);
+    if (!blind) {
+      const live = await start(
+        {
+          onChord: (ev) => handleChord(ev.chord),
+          onLevel: (ev) => pushSignal(ev),
+        },
+        { restrictTo: ring, templates, offset: capo },
+      );
+      if (!live) return;
+      diag.mark(`rotation start ${ring.join('>')} (${duration}s)`);
+    }
 
     clearTimer();
     const deadline = Date.now() + duration * 1000;
@@ -252,7 +271,7 @@ export function ChordRotation({
           ))}
         </div>
         <p className="om-caption">One clean change at a time</p>
-        <button className="practice-btn primary" onClick={startSession}>
+        <button className="practice-btn primary" onClick={() => void startSession()}>
           <PlayIcon size={20} /> Start {duration}s
         </button>
       </div>
@@ -260,18 +279,16 @@ export function ChordRotation({
   }
 
   if (view === 'playing') {
-    if (status === 'error') {
+    if (!onTimer && status === 'error') {
       return (
-        <div className="mic-gate">
-          <MicIcon size={40} color="var(--text-secondary)" />
-          <p>{error ?? 'Microphone unavailable.'}</p>
-          <button className="practice-btn primary" onClick={startSession}>
-            <RetryIcon size={18} /> Try again
-          </button>
-        </div>
+        <MicGate
+          error={error}
+          onRetry={() => void startSession()}
+          onTimer={() => void startSession(true)}
+        />
       );
     }
-    if (status !== 'running') {
+    if (!onTimer && status !== 'running') {
       return (
         <div className="mic-gate">
           <MicIcon size={40} color="var(--accent-primary)" />
@@ -286,7 +303,10 @@ export function ChordRotation({
         <div className="rot-ring rot-ring-live">
           {ring.map((c, i) => (
             <Fragment key={`${c}-${i}`}>
-              <span className={i === targetIdx ? 'rot-chord is-live' : 'rot-chord'}>
+              {/* Nothing is lit on a timer: the cue only advances on a heard
+                  chord, and a name left lit for a whole minute would be telling
+                  the player to play one chord and never move on. */}
+              <span className={!onTimer && i === targetIdx ? 'rot-chord is-live' : 'rot-chord'}>
                 <span className="rot-chord-name">{c}</span>
                 <ChordDiagram chord={c} size={76} showFingers={false} className="rot-chord-shape" />
               </span>
@@ -308,15 +328,33 @@ export function ChordRotation({
             </Fragment>
           ))}
         </div>
-        <div ref={countRef} className="om-count">
-          {changes}
-        </div>
-        <div className="om-caption">changes</div>
+        {onTimer ? (
+          <UncountedNotice />
+        ) : (
+          <>
+            <div ref={countRef} className="om-count">
+              {changes}
+            </div>
+            <div className="om-caption">changes</div>
+          </>
+        )}
         <div className="om-timer">
           <HourglassIcon size={26} /> {timeLeft}
         </div>
-        <SignalMeter quality={signal} />
+        {!onTimer && <SignalMeter quality={signal} />}
       </>
+    );
+  }
+
+  if (onTimer) {
+    return (
+      <TimerRunEnded
+        autoAdvance={autoAdvance}
+        advanceLeft={advanceLeft}
+        nextLabel={nextLabel}
+        onNext={onNext}
+        onClose={onClose}
+      />
     );
   }
 

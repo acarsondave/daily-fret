@@ -8,7 +8,7 @@ import { chordKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } fro
 import { keyDrillHistory } from '../../lib/drillStats';
 import { drillSeries, planTempo, fixedTempo, DEFAULT_PRACTICE_BPM, type TempoPlan } from '../../lib/tempo';
 import { timedBlocks } from '../../lib/coached';
-import type { DrillMeasurement } from '../../store/completion';
+import type { DrillMeasurement, TimedOutcome } from '../../store/completion';
 import { useSongs } from '../../hooks/useSongs';
 import { findSong } from '../../lib/songCatalog';
 import type { Task } from '../../types';
@@ -223,6 +223,15 @@ export function PracticeOverlay({ task, onClose }: Props) {
     setDrillLive(false);
   };
 
+  // A drill that ran with no microphone. It produced no number, so nothing goes
+  // to drillResults; it produced a block of practice that ran to the end, which
+  // is exactly what a timed task records, and that is what settles it.
+  const timedRun = (outcome: TimedOutcome) => {
+    recordTime(today, task.id, outcome);
+    setDrillLive(false);
+    settleTask(today, task.id);
+  };
+
   const finishBlock = (outcome: { elapsedSeconds: number; reachedEnd: boolean; done: boolean }) => {
     recordTime(today, task.id, outcome);
     if (blockIdx >= blocks.length - 1) {
@@ -300,6 +309,10 @@ export function PracticeOverlay({ task, onClose }: Props) {
                 measured([{ key: pairKey(f, t), value: cpm }]);
                 setLastPair(f, t);
               }}
+              onTimedRun={(outcome) => {
+                recordTime(today, task.id, outcome);
+                setDrillLive(false);
+              }}
               onNext={() => {
                 if (!isLastPair) {
                   setPairIdx((i) => i + 1);
@@ -338,6 +351,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
               setLastPair(f, t);
               settleTask(today, task.id);
             }}
+            onTimedRun={timedRun}
             onClose={leave}
           />
         )}
@@ -350,6 +364,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
               measured([{ key: sweepKey(turned), value: changes }]);
               settleTask(today, task.id);
             }}
+            onTimedRun={timedRun}
             onClose={leave}
           />
         )}
@@ -367,6 +382,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
               ]);
               settleTask(today, task.id);
             }}
+            onTimedRun={timedRun}
             onClose={leave}
           />
         )}

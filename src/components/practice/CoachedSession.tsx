@@ -490,6 +490,7 @@ export function CoachedSession({ routine, onClose }: Props) {
               lastValueRef.current = cpm;
               void speak('done');
             }}
+            onTimedRun={(outcome) => recordTime(today, seg.taskId, outcome)}
             onNext={() => advance({
               title: `${seg.from} ↔ ${seg.to}`,
               value: lastValueRef.current,
@@ -517,6 +518,7 @@ export function CoachedSession({ routine, onClose }: Props) {
               lastValueRef.current = total;
               void speak('done');
             }}
+            onTimedRun={(outcome) => recordTime(today, seg.taskId, outcome)}
             onNext={() => advance({
               title: seg.title,
               value: lastValueRef.current,
@@ -541,6 +543,7 @@ export function CoachedSession({ routine, onClose }: Props) {
               lastValueRef.current = changes;
               void speak('done');
             }}
+            onTimedRun={(outcome) => recordTime(today, seg.taskId, outcome)}
             onNext={() => advance({
               title: seg.title,
               value: lastValueRef.current,

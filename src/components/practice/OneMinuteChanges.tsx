@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRightIcon, HourglassIcon, MicIcon, PlayIcon, RetryIcon, SwapIcon, TrophyIcon } from '../icons';
+import { ArrowRightIcon, HourglassIcon, MicIcon, PlayIcon, SwapIcon, TrophyIcon } from '../icons';
+import { MicGate, TimerRunEnded, UncountedNotice } from './MicGate';
+import type { TimedOutcome } from '../../store/completion';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { useCapoOffset } from '../../hooks/useCapo';
@@ -32,6 +34,9 @@ interface Props {
   onSessionStart?: (from: string, to: string) => void; // remember the pair
   detector?: ChordDetectorApi; // shared mic (Coached) so it isn't restarted per drill
   chordPool?: string[]; // the chords this task practises switching between
+  // A run the microphone could not hear, timed instead. Kept separate from
+  // onResult because it carries elapsed time and no measurement.
+  onTimedRun?: (outcome: TimedOutcome) => void;
 }
 
 export function OneMinuteChanges({
@@ -46,6 +51,7 @@ export function OneMinuteChanges({
   onSessionStart,
   detector,
   chordPool,
+  onTimedRun,
 }: Props) {
   const own = useChordDetector();
   const templates = useLearnedTemplates();
@@ -98,6 +104,10 @@ export function OneMinuteChanges({
   // Coached mode auto-continues from the results screen after a brief beat, so
   // the session flows hands-free instead of waiting on a "Next" tap.
   const [advanceLeft, setAdvanceLeft] = useState(AUTO_ADVANCE_SECONDS);
+  // Running blind: the clock runs and the cues change, nothing is counted. The
+  // ref is what the audio-free timer callbacks read; the state is what draws.
+  const [onTimer, setOnTimer] = useState(false);
+  const onTimerRef = useRef(false);
 
   const lastChordRef = useRef('');
   const lastCountAtRef = useRef(0);
@@ -148,6 +158,14 @@ export function OneMinuteChanges({
 
   const finish = () => {
     clearTimer();
+    if (onTimerRef.current) {
+      sfx.complete();
+      // The clock reached the end, so the block earns its completion exactly as
+      // any timed task does. It earns no number, because none was taken.
+      onTimedRun?.({ elapsedSeconds: duration, reachedEnd: true, done: true });
+      setView('results');
+      return;
+    }
     diag.mark(`one-minute finish ${from}->${to}: counted ${transitionsRef.current}`);
     // Shared mic stays live for the next segment, but detach our handlers so a
     // ringing chord during the results screen / rest can't drive this drill.
@@ -163,8 +181,10 @@ export function OneMinuteChanges({
     onResult?.(value, from, to);
   };
 
-  const startSession = async () => {
+  const startSession = async (blind = false) => {
     sfx.go();
+    onTimerRef.current = blind;
+    setOnTimer(blind);
     transitionsRef.current = 0;
     lastChordRef.current = '';
     lastCountAtRef.current = 0;
@@ -180,15 +200,17 @@ export function OneMinuteChanges({
     // misdetections and makes counting far more accurate. Wait for the mic to
     // actually be live before starting the clock so the permission prompt
     // doesn't eat into the timer (and we bail cleanly if it's denied).
-    const live = await start(
-      {
-        onChord: (ev) => handleChord(ev.chord),
-        onLevel: (ev) => pushSignal(ev),
-      },
-      { restrictTo: [from, to], templates, offset: capo },
-    );
-    if (!live) return; // denied / failed — the mic gate view takes over
-    diag.mark(`one-minute start ${from}->${to} (${duration}s)`);
+    if (!blind) {
+      const live = await start(
+        {
+          onChord: (ev) => handleChord(ev.chord),
+          onLevel: (ev) => pushSignal(ev),
+        },
+        { restrictTo: [from, to], templates, offset: capo },
+      );
+      if (!live) return; // denied / failed — the mic gate view takes over
+      diag.mark(`one-minute start ${from}->${to} (${duration}s)`);
+    }
 
     clearTimer();
     const deadline = Date.now() + duration * 1000;
@@ -269,7 +291,7 @@ export function OneMinuteChanges({
         </div>
         <button
           className="practice-btn primary"
-          onClick={startSession}
+          onClick={() => void startSession()}
           disabled={from === to}
         >
           <PlayIcon size={20} /> Start {duration}s
@@ -280,18 +302,16 @@ export function OneMinuteChanges({
   }
 
   if (view === 'playing') {
-    if (status === 'error') {
+    if (!onTimer && status === 'error') {
       return (
-        <div className="mic-gate">
-          <MicIcon size={40} color="var(--text-secondary)" />
-          <p>{error ?? 'Microphone unavailable.'}</p>
-          <button className="practice-btn primary" onClick={startSession}>
-            <RetryIcon size={18} /> Try again
-          </button>
-        </div>
+        <MicGate
+          error={error}
+          onRetry={() => void startSession()}
+          onTimer={() => void startSession(true)}
+        />
       );
     }
-    if (status !== 'running') {
+    if (!onTimer && status !== 'running') {
       return (
         <div className="mic-gate">
           <MicIcon size={40} color="var(--accent-primary)" />
@@ -314,15 +334,35 @@ export function OneMinuteChanges({
             <ChordDiagram chord={to} size={92} showFingers={false} className="om-side-shape" />
           </span>
         </div>
-        <div ref={countRef} className="om-count">
-          {transitions}
-        </div>
-        <div className="om-caption">transitions</div>
+        {/* A counter frozen at zero is a measurement claim. On a timer there
+            is no counter, and the screen says why rather than showing one. */}
+        {onTimer ? (
+          <UncountedNotice />
+        ) : (
+          <>
+            <div ref={countRef} className="om-count">
+              {transitions}
+            </div>
+            <div className="om-caption">transitions</div>
+          </>
+        )}
         <div className="om-timer">
           <HourglassIcon size={26} /> {timeLeft}
         </div>
-        <SignalMeter quality={signal} />
+        {!onTimer && <SignalMeter quality={signal} />}
       </>
+    );
+  }
+
+  if (onTimer) {
+    return (
+      <TimerRunEnded
+        autoAdvance={autoAdvance}
+        advanceLeft={advanceLeft}
+        nextLabel={nextLabel}
+        onNext={onNext}
+        onClose={onClose}
+      />
     );
   }
 

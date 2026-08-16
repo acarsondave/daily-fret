@@ -56,6 +56,47 @@
   line-height: 1.5;
 }
 
+/* The failure itself, in the browser's own words. Two classes deep because
+   `.mic-gate p` above is more specific than a single class and was quietly
+   winning the colour. */
+.mic-gate .mic-gate-reason {
+  color: var(--text-primary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-md);
+}
+
+/* What the way out actually costs, said before it is taken. */
+.mic-gate .mic-gate-note {
+  max-width: 40ch;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.mic-gate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+/* Sits where the count would be while a drill runs blind. It replaces the
+   number rather than sitting beside it: a counter frozen at zero is the app
+   reporting a measurement it never took. */
+.drill-uncounted {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
 /* --- Generic practice buttons --------------------------------------------- */
 .practice-btn {
   display: inline-flex;

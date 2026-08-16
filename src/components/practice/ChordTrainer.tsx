@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRightIcon, HourglassIcon, MicIcon, PlayIcon, RetryIcon, TrophyIcon } from '../icons';
+import { ArrowRightIcon, HourglassIcon, MicIcon, PlayIcon, TrophyIcon } from '../icons';
+import { MicGate, TimerRunEnded, UncountedNotice } from './MicGate';
+import type { TimedOutcome } from '../../store/completion';
 import { useDrillLogs } from '../../store';
 import { poolKey, trainerPool } from '../../lib/drillKeys';
 import { keyDrillHistory } from '../../lib/drillStats';
@@ -51,6 +53,9 @@ interface Props {
   nextLabel?: string; // what the auto-advance is moving toward, e.g. "Rest"
   detector?: ChordDetectorApi;
   onSessionStart?: () => void; // the drill is now live (drives the auto metronome)
+  // A run the microphone could not hear, timed instead. Kept separate from
+  // onResult because it carries elapsed time and no measurement.
+  onTimedRun?: (outcome: TimedOutcome) => void;
 }
 
 // Chord Perfect. One chord at a time, held for its own block: place the shape,
@@ -71,6 +76,7 @@ export function ChordTrainer({
   nextLabel = 'Up next',
   detector,
   onSessionStart,
+  onTimedRun,
 }: Props) {
   const own = useChordDetector();
   const templates = useLearnedTemplates();
@@ -121,6 +127,9 @@ export function ChordTrainer({
   const seriesAtStart = useRef<number[]>([]);
   // Coached mode auto-continues from results after a brief beat (no tap needed).
   const [advanceLeft, setAdvanceLeft] = useState(AUTO_ADVANCE_SECONDS);
+  // Running blind: the blocks still run their clocks, nothing is counted.
+  const [onTimer, setOnTimer] = useState(false);
+  const onTimerRef = useRef(false);
 
   const clearTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -161,6 +170,12 @@ export function ChordTrainer({
 
   const finish = () => {
     clearTimer();
+    if (onTimerRef.current) {
+      sfx.complete();
+      onTimedRun?.({ elapsedSeconds: duration, reachedEnd: true, done: true });
+      setView('results');
+      return;
+    }
     const perChordCounts = [...tallyRef.current, repsRef.current];
     const value = perChordCounts.reduce((a, b) => a + b, 0);
     diag.mark(
@@ -209,8 +224,10 @@ export function ChordTrainer({
     diag.mark(`chord-perfect chord: ${target()} (${perChord}s)`);
   };
 
-  const startSession = async () => {
+  const startSession = async (blind = false) => {
     sfx.go();
+    onTimerRef.current = blind;
+    setOnTimer(blind);
     poolRef.current = pool;
     bestAtStart.current = poolBest;
     seriesAtStart.current = poolSeries;
@@ -228,29 +245,31 @@ export function ChordTrainer({
 
     // Wait for the mic before starting the clock so the permission prompt
     // doesn't burn the timer, and bail cleanly if access is denied.
-    const live = await start(
-      {
-        onLevel: (ev) => {
-          pushSignal(ev);
-          onFrame(ev);
-          passive.observe(target(), ev);
+    if (!blind) {
+      const live = await start(
+        {
+          onLevel: (ev) => {
+            pushSignal(ev);
+            onFrame(ev);
+            passive.observe(target(), ev);
+          },
         },
-      },
-      // Restricted to the whole pool, not to the one chord on screen: with a
-      // single candidate every match wins by default and a wrong shape would
-      // score. The neighbours are what make a correct placement mean something.
-      { restrictTo: pool, templates, offset: capo },
-    );
-    if (!live) return;
-    diag.mark(`chord-perfect start [${pool.join(', ')}] ${perChord}s each`);
-    diag.mark(`chord-perfect chord: ${pool[0]} (${perChord}s)`);
+        // Restricted to the whole pool, not to the one chord on screen: with a
+        // single candidate every match wins by default and a wrong shape would
+        // score. The neighbours are what make a correct placement mean something.
+        { restrictTo: pool, templates, offset: capo },
+      );
+      if (!live) return;
+      diag.mark(`chord-perfect start [${pool.join(', ')}] ${perChord}s each`);
+      diag.mark(`chord-perfect chord: ${pool[0]} (${perChord}s)`);
+    }
   };
 
 
   // Each shape's block runs its own clock. Keyed on the slot, so advancing to
   // the next shape restarts it and the last one ends the drill.
   useEffect(() => {
-    if (view !== 'playing' || status !== 'running') return;
+    if (view !== 'playing' || (!onTimer && status !== 'running')) return;
     // timeLeft is seeded by whoever moved us here (startSession / nextChord),
     // so the effect only has to run the clock down.
     const deadline = Date.now() + perChord * 1000;
@@ -265,7 +284,7 @@ export function ChordTrainer({
     timerRef.current = id;
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, slot, status]);
+  }, [view, slot, status, onTimer]);
 
   useEffect(() => {
     // Defer the auto-start a tick (keeps setState out of the effect body and is
@@ -334,7 +353,7 @@ export function ChordTrainer({
         </div>
         <button
           className="practice-btn primary"
-          onClick={startSession}
+          onClick={() => void startSession()}
           disabled={pool.length < 2}
         >
           <PlayIcon size={20} /> Start {pool.length * perChord}s
@@ -345,18 +364,16 @@ export function ChordTrainer({
   }
 
   if (view === 'playing') {
-    if (status === 'error') {
+    if (!onTimer && status === 'error') {
       return (
-        <div className="mic-gate">
-          <MicIcon size={40} color="var(--text-secondary)" />
-          <p>{error ?? 'Microphone unavailable.'}</p>
-          <button className="practice-btn primary" onClick={startSession}>
-            <RetryIcon size={18} /> Try again
-          </button>
-        </div>
+        <MicGate
+          error={error}
+          onRetry={() => void startSession()}
+          onTimer={() => void startSession(true)}
+        />
       );
     }
-    if (status !== 'running') {
+    if (!onTimer && status !== 'running') {
       return (
         <div className="mic-gate">
           <MicIcon size={40} color="var(--accent-primary)" />
@@ -386,19 +403,31 @@ export function ChordTrainer({
               className={i === slot ? 'ct-block is-now' : i < slot ? 'ct-block is-done' : 'ct-block'}
             >
               {c}
-              {i < slot && <b>{tally[i]}</b>}
+              {!onTimer && i < slot && <b>{tally[i]}</b>}
             </span>
           ))}
         </div>
 
         <div className="ct-stats">
-          <span className="ct-score">{reps} placed</span>
+          {!onTimer && <span className="ct-score">{reps} placed</span>}
           <span className="om-timer">
             <HourglassIcon size={22} /> {timeLeft}
           </span>
         </div>
-        <SignalMeter quality={signal} />
+        {onTimer ? <UncountedNotice /> : <SignalMeter quality={signal} />}
       </>
+    );
+  }
+
+  if (onTimer) {
+    return (
+      <TimerRunEnded
+        autoAdvance={autoAdvance}
+        advanceLeft={advanceLeft}
+        nextLabel={nextLabel}
+        onNext={onNext}
+        onClose={onClose}
+      />
     );
   }
 
