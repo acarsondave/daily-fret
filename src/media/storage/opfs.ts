@@ -13,10 +13,23 @@
 // reachable by any other origin or by the user's file manager, which is the
 // other half of why it suits footage of someone's living room.
 
-import type { RecordingSink, RecordingStore } from './backend';
+import type { RecordingSink, RecordingStore, StoredFile } from './backend';
 import { describeStorageFailure, type RecordingError } from '../failure';
+import { markFinished, markWriting } from './inflight';
 
 const DIRECTORY = 'daily-fret-recordings';
+
+/**
+ * How often the bytes written so far are landed into the real file.
+ *
+ * The trade is between how much of an interrupted take is lost and how often
+ * the stream is closed and reopened. Thirty seconds costs two extra closes a
+ * minute against a recorder already handing over a chunk a second, and it bounds
+ * the loss from closing the tab mid-take to the last half minute rather than the
+ * whole take. Chosen over a minute because a technique check only runs for 60 to
+ * 90 seconds, and at a minute an interrupted one would keep nothing.
+ */
+const CHECKPOINT_MS = 30_000;
 
 /**
  * Whether this browser can do the thing we actually need.
@@ -44,23 +57,58 @@ export const opfsStore: RecordingStore = {
   backend: 'opfs',
 
   async open(key: string, onFailure?: (error: RecordingError) => void): Promise<RecordingSink> {
+    let handle: FileSystemFileHandle;
     let stream: FileSystemWritableFileStream;
     try {
       const dir = await directory();
-      const file = await dir.getFileHandle(key, { create: true });
-      stream = await file.createWritable();
+      handle = await dir.getFileHandle(key, { create: true });
+      stream = await handle.createWritable();
     } catch (err) {
       throw describeStorageFailure(err);
     }
+    // From here the file exists on disk with no index row behind it, which is
+    // indistinguishable from an orphan until the recorder commits the row.
+    markWriting(key);
 
     // Writes are serialised through this promise rather than awaited by the
     // caller. MediaRecorder's dataavailable handler is not async-aware: if two
     // chunks arrive while a write is in flight and both call write(), the
     // stream throws "already locked" and the tail of the recording is lost.
     let queue: Promise<void> = Promise.resolve();
-    /** Bytes confirmed onto the disk, which is not the same as bytes offered. */
-    let flushed = 0;
+    /**
+     * Bytes that are in the real file, recoverable even if this page dies now.
+     *
+     * Separate from `pending` because a writable stream is not a pipe to the
+     * file. Chromium writes into a sibling swap file and only moves it into
+     * place at close(), so a twenty-minute recording interrupted by a reload
+     * leaves the real file at exactly zero bytes with every frame in a swap the
+     * browser then discards. This was measured, not assumed: the first version
+     * of the interrupted-clip salvage filed a row claiming 137 KB against a file
+     * of size 0, and the library gained an entry that could not play.
+     */
+    let committed = 0;
+    /** Written to the current stream but not yet closed into the file. */
+    let pending = 0;
+    let lastCheckpoint = Date.now();
     let failure: unknown = null;
+
+    /**
+     * Land what has been written so far and open a fresh stream after it.
+     *
+     * This is the whole mechanism that makes an interrupted recording
+     * survivable. Called from inside the write queue, so it can never race a
+     * chunk. `keepExistingData` plus a seek to the end is what makes the new
+     * stream append rather than truncate; without either, every checkpoint would
+     * throw away the recording so far.
+     */
+    async function checkpoint(): Promise<void> {
+      await stream.close();
+      committed += pending;
+      pending = 0;
+      stream = await handle.createWritable({ keepExistingData: true });
+      await stream.seek(committed);
+      lastCheckpoint = Date.now();
+    }
     // MediaRecorder can deliver one more chunk after it has been told to stop,
     // and a write to a stream that is already closing throws asynchronously
     // where nothing is waiting to catch it. A chunk that arrives after the file
@@ -76,7 +124,11 @@ export const opfsStore: RecordingStore = {
           .then(async () => {
             if (sealed || failure) return;
             await stream.write(chunk);
-            flushed += chunk.size;
+            pending += chunk.size;
+            // Cheap: one close and reopen a minute, against a stream that is
+            // taking a chunk a second anyway. The cost of not doing it is the
+            // whole take.
+            if (Date.now() - lastCheckpoint >= CHECKPOINT_MS) await checkpoint();
           })
           // Caught on this link rather than on the next one's rejection handler.
           // Deferring it left a rejected promise with nothing attached to it for
@@ -92,12 +144,21 @@ export const opfsStore: RecordingStore = {
             onFailure?.(describeStorageFailure(err));
           });
       },
+      // Only the checkpointed bytes, deliberately. This number's one job is to
+      // answer "how much of this clip would survive if the page died right now",
+      // and everything since the last checkpoint would not.
+      bytesFlushed(): number {
+        return committed;
+      },
       async close(): Promise<number> {
-        if (sealed) return flushed;
+        if (sealed) return committed;
         await queue;
         sealed = true;
+        markFinished(key);
         try {
           await stream.close();
+          committed += pending;
+          pending = 0;
         } catch (err) {
           failure ??= err;
         }
@@ -105,17 +166,35 @@ export const opfsStore: RecordingStore = {
         // room part-way leaves a shorter clip, and the footage that did land is
         // footage the player filmed: throwing here would delete it and report
         // "no room" about a recording that already existed.
-        if (failure && flushed === 0) throw describeStorageFailure(failure);
-        return flushed;
+        if (failure && committed === 0) throw describeStorageFailure(failure);
+        return committed;
       },
       async abort(): Promise<void> {
         if (sealed) return;
         sealed = true;
+        markFinished(key);
         await queue.catch(() => {});
         await stream.abort().catch(() => {});
         await opfsStore.remove(key).catch(() => {});
       },
     };
+  },
+
+  async list(): Promise<StoredFile[]> {
+    const files: StoredFile[] = [];
+    try {
+      const dir = await directory();
+      for await (const [key, handle] of dir.entries()) {
+        if (handle.kind !== 'file') continue;
+        // Sizing is a metadata read here, not a load: getFile() hands back a
+        // Blob view of what is already on disk.
+        const file = await handle.getFile();
+        files.push({ key, bytes: file.size, modifiedAt: file.lastModified });
+      }
+    } catch (err) {
+      throw describeStorageFailure(err);
+    }
+    return files;
   },
 
   async read(key: string): Promise<Blob> {

@@ -466,6 +466,55 @@ export class PracticeRecorder {
   }
 
   /**
+   * The clip as it stands right now, as a row that can be filed immediately.
+   *
+   * For the one case nothing can be awaited: the page is closing or reloading
+   * mid-take. `stop()` cannot help there, because closing the sink, measuring
+   * the finished file and filing the row are all asynchronous and the page will
+   * be gone before any of them resolve. What CAN be done synchronously is write
+   * the index row, and the row is the part that matters: the bytes are already
+   * on the disk, and without a row pointing at them they are invisible,
+   * unplayable and impossible to delete.
+   *
+   * That is not a hypothetical. It leaked 469 MB across 14 files on the first
+   * machine anyone checked, which was more than half of everything the app had
+   * ever recorded there.
+   *
+   * The row is honest about being second-best: `endedBy` says interrupted, the
+   * duration is what had elapsed rather than what the container holds, and the
+   * dimensions are the ones the camera negotiated because measuring the file
+   * means reading it back. Null when there is nothing on the disk to point at.
+   */
+  snapshotForInterruption(): Recording | null {
+    if (this.phase !== 'recording') return null;
+    const request = this.request;
+    const bytes = this.sink?.bytesFlushed() ?? 0;
+    if (!request || bytes === 0) return null;
+
+    return {
+      id: newId(),
+      sessionId: request.sessionId,
+      kind: request.kind,
+      date: request.date,
+      taskId: request.taskId,
+      routineId: request.routineId,
+      label: request.label,
+      view: request.view,
+      startedAt: this.startedAt,
+      durationMs: this.startedAt ? Date.now() - this.startedAt : 0,
+      bytes,
+      mimeType: this.mimeType,
+      quality: request.quality,
+      width: this.size.width,
+      height: this.size.height,
+      hasAudio: this.hasAudio,
+      starred: request.starred ?? false,
+      endedBy: 'interrupted',
+      location: { backend: this.backend, key: this.key },
+    };
+  }
+
+  /**
    * The size of the clip that was just written, measured rather than assumed.
    *
    * Falls back to what the track negotiated, which is the only fallback in this

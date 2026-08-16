@@ -13,6 +13,7 @@ import { QuickSetup } from './components/settings/QuickSetup';
 import { StreakGraph } from './components/StreakGraph';
 import { initAuthListener, useAuthStore } from './lib/auth';
 import { armOutputAudioUnlock } from './audio/outputContext';
+import { readDurability, requestDurableStorage } from './lib/durability';
 import { CloudIcon, DeviceIcon } from './components/icons';
 import { motion } from 'framer-motion';
 import './App.css';
@@ -44,6 +45,22 @@ function App() {
     // tap, and browsers only free audio inside a gesture. Claim the first tap of
     // the visit so the click is already warm by the time a drill needs it.
     armOutputAudioUnlock();
+
+    // Ask the browser to keep the practice history and the footage.
+    //
+    // Reading is safe anywhere; asking is not, because Firefox prompts, so the
+    // request rides the first real interaction of the visit. Without it every
+    // byte this app has written is best-effort, which in WebKit means it is
+    // deleted outright after seven days of browser use with no visit here. A
+    // fortnight away from the guitar is an ordinary thing and a terrible reason
+    // to lose months of history.
+    void readDurability();
+    const ask = () => {
+      void requestDurableStorage();
+    };
+    const events = ['pointerdown', 'keydown'] as const;
+    events.forEach((e) => document.addEventListener(e, ask, { once: true, passive: true }));
+    return () => events.forEach((e) => document.removeEventListener(e, ask));
   }, []);
 
   // The splash is dismissed by the first commit, not by a network result. It

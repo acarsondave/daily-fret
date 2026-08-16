@@ -21,7 +21,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { DEFAULT_QUALITY } from './quality';
 import { DEFAULT_KEEP_SESSIONS, clampKeepSessions, planPrune, pruneEvent } from './retention';
-import { deleteEverything, deleteRecording } from './storage';
+import { deleteEverything, deleteOrphans, deleteRecording, findOrphans, type OrphanReport } from './storage';
 import { forgetPoster } from './posterFrames';
 import type { PruneEvent, Recording, RecordingCadence, RecordingQuality, RecordingSettings } from './types';
 
@@ -107,12 +107,42 @@ export const recordingSettings = (): RecordingSettings => useRecordingStore.getS
 export const recordingEnabled = (): boolean => useRecordingStore.getState().settings.enabled;
 
 /**
+ * Files on disk that no clip in the library points at, and what they cost.
+ *
+ * Reads the disk, not the index. Everything it finds is footage that cannot be
+ * watched, cannot be deleted through the library, and counts against the quota
+ * until the browser refuses a recording the player wanted to make.
+ */
+export function surveyOrphans(): Promise<OrphanReport> {
+  return findOrphans(useRecordingStore.getState().recordings.map((r) => r.location));
+}
+
+/**
+ * Delete those files.
+ *
+ * Deliberately only ever run because someone asked for it. The recorder writes
+ * a clip's file long before it writes the clip's row, so a recording in progress
+ * is indistinguishable from an orphan by anything the disk can tell us; the
+ * in-flight registry and the grace period in findOrphans() both guard that, and
+ * requiring a deliberate press is the third guard. Reclaiming footage is not
+ * worth one chance in a thousand of eating the session someone just played.
+ */
+export async function reclaimOrphans(): Promise<{ files: number; bytes: number }> {
+  const report = await surveyOrphans();
+  const removed = await deleteOrphans(report.files);
+  // Report what was actually reclaimed rather than what was found, and count
+  // bytes only for the files a backend could size.
+  return { files: removed, bytes: removed === report.files.length ? report.bytes : 0 };
+}
+
+/**
  * File a finished clip and apply the retention limit.
  *
  * Index first, then disk. If the delete of a pruned file fails the entry is
  * already gone from the library, which is the wrong way round only if you would
- * rather show a row that cannot play than leak a file. The next "delete all"
- * clears the directory recursively and takes any such orphan with it.
+ * rather show a row that cannot play than leak a file. Such a file is no longer
+ * lost forever: surveyOrphans() reads the disk itself and reclaimOrphans() can
+ * come back for it without taking the rest of the library with it.
  */
 export async function fileRecording(recording: Recording): Promise<void> {
   const { recordings, settings } = useRecordingStore.getState();
@@ -135,6 +165,19 @@ export async function fileRecording(recording: Recording): Promise<void> {
 
   await Promise.all(drop.map((r) => deleteRecording(r.location).catch(() => {})));
   await Promise.all(drop.map((r) => forgetPoster(r).catch(() => {})));
+}
+
+/**
+ * File a row and nothing else, synchronously.
+ *
+ * For `pagehide`, where there is no time to await a prune, a delete or a
+ * measurement, and where the alternative is a file on the disk that nothing
+ * points at. zustand's persist middleware writes to localStorage inside the
+ * `setState` call, so by the time this returns the row has survived the page.
+ * Retention catches up on the next clip.
+ */
+export function fileRecordingNow(recording: Recording): void {
+  useRecordingStore.setState((s) => ({ recordings: [recording, ...s.recordings] }));
 }
 
 /** Forget one clip, its file, and the still made from it. */

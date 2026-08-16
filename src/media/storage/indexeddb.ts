@@ -11,8 +11,9 @@
 // per-origin like OPFS, and it does not touch localStorage, where the practice
 // history lives and where a hundred megabytes would take the whole app down.
 
-import type { RecordingSink, RecordingStore } from './backend';
+import type { RecordingSink, RecordingStore, StoredFile } from './backend';
 import { describeStorageFailure, type RecordingError } from '../failure';
+import { markFinished, markWriting } from './inflight';
 
 const DB_NAME = 'daily-fret-recordings';
 const DB_VERSION = 1;
@@ -60,6 +61,10 @@ export const indexedDbStore: RecordingStore = {
     // Same rule as the OPFS sink: a chunk that arrives after the file is
     // finished is dropped rather than reopening a closed record.
     let sealed = false;
+    // Nothing is on disk yet here, since this backend writes once at close().
+    // Claimed anyway so the key is reserved for the whole recording rather than
+    // only for the instant the put lands.
+    markWriting(key);
 
     return {
       write(chunk: Blob): void {
@@ -70,9 +75,16 @@ export const indexedDbStore: RecordingStore = {
         chunks.push(chunk);
         written += chunk.size;
       },
+      // Always zero until close(), and that is the truth rather than a gap:
+      // this backend holds the whole clip in memory and writes it once, so
+      // until the put lands there is nothing on the disk to file a row for.
+      bytesFlushed(): number {
+        return 0;
+      },
       async close(): Promise<number> {
         if (sealed) return written;
         sealed = true;
+        markFinished(key);
         try {
           await run('readwrite', (store) => store.put(new Blob(chunks, { type }), key));
         } catch (err) {
@@ -90,9 +102,22 @@ export const indexedDbStore: RecordingStore = {
       },
       async abort(): Promise<void> {
         sealed = true;
+        markFinished(key);
         chunks.length = 0;
       },
     };
+  },
+
+  async list(): Promise<StoredFile[]> {
+    const keys = await run<IDBValidKey[]>('readonly', (store) => store.getAllKeys());
+    // Sizes and timestamps are deliberately not reported. IndexedDB keeps
+    // neither as metadata, so the only way to produce them is to read every clip
+    // back into memory, which for a library of half-hour sessions is hundreds of
+    // megabytes of heap spent answering a question about disk. A caller that
+    // gets null here should say it does not know rather than guess.
+    return keys
+      .filter((key): key is string => typeof key === 'string')
+      .map((key) => ({ key, bytes: null, modifiedAt: null }));
   },
 
   async read(key: string): Promise<Blob> {

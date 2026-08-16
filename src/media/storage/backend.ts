@@ -19,6 +19,15 @@ export interface RecordingSink {
    */
   write(chunk: Blob): void;
   /**
+   * Bytes confirmed onto the disk so far, readable without awaiting anything.
+   *
+   * Exists for the one moment nothing can be awaited: the page is going away
+   * mid-recording, and the choice is between filing a row for the footage that
+   * already landed and leaving the file on the disk with nothing pointing at it
+   * forever.
+   */
+  bytesFlushed(): number;
+  /**
    * Finish the file and report how many bytes actually reached the disk.
    *
    * Only throws when there is nothing to keep. A write that failed part-way
@@ -30,8 +39,33 @@ export interface RecordingSink {
   abort(): Promise<void>;
 }
 
+/** One file a backend is holding, whether or not the index knows about it. */
+export interface StoredFile {
+  key: string;
+  /**
+   * Bytes on disk, or null when the backend cannot answer without loading the
+   * whole file into memory. IndexedDB is the null case: sizing a clip there
+   * means reading it, and reading every clip to count bytes would cost hundreds
+   * of megabytes of heap to answer a question about disk.
+   */
+  bytes: number | null;
+  /** When the file was last written, or null when the backend does not track it. */
+  modifiedAt: number | null;
+}
+
 export interface RecordingStore {
   readonly backend: StorageBackend;
+  /**
+   * Every file this backend is holding, read from the disk rather than from the
+   * index.
+   *
+   * This is the only way to see a file the index has lost. Without it the index
+   * is the sole authority on what exists, which means any clip whose row failed
+   * to commit is invisible, unplayable, undeletable and permanently counted
+   * against the quota. That is not hypothetical: it had leaked 469 MB across 14
+   * files on the first machine anyone checked.
+   */
+  list(): Promise<StoredFile[]>;
   /**
    * Open a file for writing.
    *

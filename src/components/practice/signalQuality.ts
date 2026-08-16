@@ -1,20 +1,53 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CHROMA_SALIENCE_MIN, MIN_STRUM_RMS, type LevelEvent } from '../../audio/detector';
 import type { TimingLevel } from '../../audio/timing';
 
-export type SignalQuality = 'silent' | 'weak' | 'good' | 'loud';
+export type SignalQuality =
+  | 'silent'
+  | 'weak'
+  /** Plenty of clean signal arriving, and none of it is matching any chord. */
+  | 'unreadable'
+  | 'good'
+  | 'loud';
 
-// Derive a coarse mic-quality bucket from a detector level event. Detection is
-// invisible when it fails, so this turns "nothing's registering" into something
-// the player can act on (move closer, strum harder, switch mics if clipping).
-// "good" is tied to the detector's own matching floor, so the meter agrees with
-// reality instead of nagging "weak" while chords are actually being counted.
-export function classifyLevel(ev: LevelEvent | null): SignalQuality {
+/**
+ * The loudness half of the question, from one frame.
+ *
+ * This is all a single frame can answer. It deliberately does NOT return 'good',
+ * because a frame on its own cannot know whether anything is being recognised,
+ * and that turned out to be the difference between a meter that helps and a
+ * meter that lies. See `useSignalMeter` below.
+ */
+export function classifyLevel(ev: LevelEvent | null): Exclude<SignalQuality, 'unreadable'> {
   if (!ev || ev.chroma === null) return 'silent';
   if (ev.rms > 0.6) return 'loud';
   if (ev.salience < CHROMA_SALIENCE_MIN) return 'weak';
   return 'good';
 }
+
+/**
+ * How long a run of clean, unmatched signal has to last before the meter says so.
+ *
+ * Long on purpose. Changing between two shapes produces plenty of frames that
+ * legitimately match nothing: the old chord dying, fingers in the air, the new
+ * one not yet down. Two and a half seconds of continuous tonal signal with
+ * essentially nothing matching is not a chord change, it is a microphone the
+ * detector cannot read.
+ */
+const UNREADABLE_WINDOW_MS = 2500;
+/** Below this share of matched frames, over a full window, something is wrong. */
+const UNREADABLE_MATCH_SHARE = 0.05;
+/** Frames of real tonal signal needed before the window is allowed an opinion. */
+const UNREADABLE_MIN_FRAMES = 60;
+/**
+ * With no frame for this long the detector has stopped feeding us.
+ *
+ * A mic that is revoked, unplugged, or taken by another app stops delivering
+ * frames rather than delivering quiet ones, so a meter that only updates when a
+ * frame arrives freezes on whatever it last said. Green, forever, over a drill
+ * that is hearing nothing.
+ */
+const STALE_MS = 1200;
 
 /**
  * The same question for the strum-timing path, which has no chroma to ask about.
@@ -76,13 +109,75 @@ function useQualityDwell() {
   return { quality, set, reset };
 }
 
-// Debounced mic-quality state for the chord drills. Feed it level events via
-// `push`; the returned `quality` only changes once a different bucket has
-// persisted past DWELL_MS, so the meter stays calm and readable.
+/**
+ * Mic-quality state for the chord drills.
+ *
+ * This used to classify one frame at a time on tonal salience alone, and its
+ * comment claimed that made it agree with the detector's matching floor. It did
+ * not. Salience is computed before any template is compared, so a guitar
+ * producing a perfectly clean tonal signal that matched no chord at all read
+ * "good". The owner's own diagnostic exports show what that cost: two sessions,
+ * forty-eight minutes of real practice, a quarter of all frames matching nothing
+ * and almost nothing counted, behind a green meter the whole way. A meter that
+ * is wrong in this direction is worse than no meter, because it sends the player
+ * looking for the fault in their hands.
+ *
+ * So the window, not the frame, is the unit. Loudness still comes per frame;
+ * whether anything is being recognised can only be asked over time.
+ */
 export function useSignalMeter() {
   const { quality, set, reset } = useQualityDwell();
-  const push = useCallback((ev: LevelEvent | null) => set(classifyLevel(ev)), [set]);
-  return { quality, push, reset };
+  // A rolling window of recent frames that carried enough tone to be matchable,
+  // and whether each one actually matched.
+  const framesRef = useRef<{ at: number; matched: boolean }[]>([]);
+  const lastPushRef = useRef(0);
+
+  const push = useCallback(
+    (ev: LevelEvent | null) => {
+      const now = Date.now();
+      lastPushRef.current = now;
+      const level = classifyLevel(ev);
+
+      // Only frames the detector had a fair chance at count towards the verdict.
+      // Judging it on quiet or clipped frames would blame the detector for a
+      // microphone problem the meter is already reporting as weak or loud.
+      const frames = framesRef.current;
+      if (level === 'good' && ev) frames.push({ at: now, matched: ev.chord !== null });
+      const cutoff = now - UNREADABLE_WINDOW_MS;
+      while (frames.length && frames[0].at < cutoff) frames.shift();
+
+      if (level !== 'good') {
+        set(level);
+        return;
+      }
+      if (frames.length < UNREADABLE_MIN_FRAMES) {
+        set('good');
+        return;
+      }
+      const matched = frames.reduce((n, f) => n + (f.matched ? 1 : 0), 0);
+      set(matched / frames.length < UNREADABLE_MATCH_SHARE ? 'unreadable' : 'good');
+    },
+    [set],
+  );
+
+  // Frames stopping is itself a reading, and the only one that catches a mic
+  // that died mid-drill.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (!lastPushRef.current || Date.now() - lastPushRef.current < STALE_MS) return;
+      framesRef.current.length = 0;
+      set('silent');
+    }, 500);
+    return () => clearInterval(id);
+  }, [set]);
+
+  const clear = useCallback(() => {
+    framesRef.current.length = 0;
+    lastPushRef.current = 0;
+    reset();
+  }, [reset]);
+
+  return { quality, push, reset: clear };
 }
 
 /** The same meter, fed by the strum-timing analyser. */

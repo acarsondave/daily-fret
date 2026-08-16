@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RecordingError } from './failure';
 import { PracticeRecorder } from './recorder';
-import { fileRecording, useRecordingStore } from './recordingStore';
+import { fileRecording, fileRecordingNow, useRecordingStore } from './recordingStore';
 import { shouldFilmSession } from './cadence';
 import type { RecordingKind, TechniqueView } from './types';
 
@@ -177,6 +177,26 @@ export function useSessionRecording(clip: ActiveClip | null): SessionRecordingSt
       if (!recorder) return;
       queueRef.current = queueRef.current.then(() => recorder.cancel()).catch(() => {});
     };
+  }, []);
+
+  // Closing or reloading the tab mid-take used to lose the clip entirely.
+  //
+  // Not "lose the row": the bytes stayed on the disk, filling the quota, with
+  // nothing in the library pointing at them and no way to play or delete them.
+  // The React cleanups that save a clip never run when the page goes away, so
+  // this is the only chance to write the row, and it has to be taken without
+  // awaiting anything.
+  //
+  // `pagehide` rather than `beforeunload`: it is the one that fires on iOS and
+  // on a tab the browser discards, which are exactly the cases where nothing
+  // else gets a turn.
+  useEffect(() => {
+    const save = () => {
+      const saved = recorderRef.current?.snapshotForInterruption();
+      if (saved) fileRecordingNow(saved);
+    };
+    window.addEventListener('pagehide', save);
+    return () => window.removeEventListener('pagehide', save);
   }, []);
 
   // The clock. Zeroed where the recording starts rather than here, so this

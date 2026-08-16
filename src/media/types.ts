@@ -95,7 +95,10 @@ export type RecordingEnd =
   | 'time-limit' // the per-clip cap was reached
   | 'device-lost' // the camera went away
   | 'hidden' // the tab or the screen went away and the camera stopped with it
-  | 'storage-full'; // the disk filled part-way through
+  | 'storage-full' // the disk filled part-way through
+  | 'interrupted'; // the page was closed or reloaded mid-take and the clip was
+// filed from the bytes that had already reached the disk. Its duration is what
+// had elapsed, and its final chunk may be missing.
 
 export interface Recording {
   id: string;

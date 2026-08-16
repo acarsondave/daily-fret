@@ -7,10 +7,11 @@
 import type { RecordingLocation, StorageBackend } from '../types';
 import type { RecordingStore } from './backend';
 import { RecordingError } from '../failure';
+import { isWriting } from './inflight';
 import { indexedDbAvailable, indexedDbStore } from './indexeddb';
 import { opfsAvailable, opfsStore } from './opfs';
 
-export type { RecordingSink, RecordingStore } from './backend';
+export type { RecordingSink, RecordingStore, StoredFile } from './backend';
 
 /** The backend a new recording should be written to, best first. */
 export function preferredStore(): RecordingStore {
@@ -45,6 +46,92 @@ export async function deleteRecording(location: RecordingLocation): Promise<void
 export async function deleteEverything(): Promise<void> {
   if (opfsAvailable()) await opfsStore.removeAll();
   if (indexedDbAvailable()) await indexedDbStore.removeAll();
+}
+
+/**
+ * A file no clip in the library points at.
+ *
+ * Every one of these is footage nobody can watch and nobody can delete, sitting
+ * against a quota that will eventually refuse a recording the player wanted.
+ */
+export interface OrphanFile {
+  location: RecordingLocation;
+  /** Null when the backend cannot size a file without loading it. */
+  bytes: number | null;
+}
+
+export interface OrphanReport {
+  files: OrphanFile[];
+  /** Bytes we can actually vouch for. */
+  bytes: number;
+  /** How many of those files the backend would not give a size for. */
+  unsized: number;
+}
+
+/**
+ * Grace period before a file with no index row is called an orphan.
+ *
+ * The recorder writes the file first and the index row last, so a clip is a
+ * legitimate orphan for the length of the recording. The in-flight registry
+ * covers that in this tab; this covers the tab that crashed, and the second tab,
+ * where nothing local knows a recording was ever running.
+ */
+const ORPHAN_GRACE_MS = 30 * 60 * 1000;
+
+/**
+ * Files on disk that the given clips do not account for.
+ *
+ * Read from the backends rather than from the index, because a file the index
+ * has lost is exactly what this is looking for and the index by definition
+ * cannot report it.
+ */
+export async function findOrphans(
+  known: Iterable<RecordingLocation>,
+  nowMs: number = Date.now(),
+): Promise<OrphanReport> {
+  const claimed = new Set<string>();
+  for (const location of known) claimed.add(`${location.backend}:${location.key}`);
+
+  const backends: RecordingStore[] = [];
+  if (opfsAvailable()) backends.push(opfsStore);
+  if (indexedDbAvailable()) backends.push(indexedDbStore);
+
+  const files: OrphanFile[] = [];
+  let bytes = 0;
+  let unsized = 0;
+
+  for (const store of backends) {
+    // One unreadable backend must not hide the orphans in the other one.
+    const held = await store.list().catch(() => []);
+    for (const file of held) {
+      if (claimed.has(`${store.backend}:${file.key}`)) continue;
+      if (isWriting(file.key)) continue;
+      // A backend that cannot date its files gets the benefit of the doubt only
+      // from the in-flight check above, which is the honest position: refusing
+      // to reclaim anything there would leak forever instead.
+      if (file.modifiedAt !== null && nowMs - file.modifiedAt < ORPHAN_GRACE_MS) continue;
+      files.push({ location: { backend: store.backend, key: file.key }, bytes: file.bytes });
+      if (file.bytes === null) unsized += 1;
+      else bytes += file.bytes;
+    }
+  }
+
+  return { files, bytes, unsized };
+}
+
+/** Delete the given orphans. Returns how many were actually removed. */
+export async function deleteOrphans(files: readonly OrphanFile[]): Promise<number> {
+  let removed = 0;
+  for (const file of files) {
+    // One failure must not strand the rest: these are being reclaimed precisely
+    // because nothing else will ever come back for them.
+    const ok = await deleteRecording(file.location).then(
+      () => true,
+      () => false,
+    );
+    if (ok) removed += 1;
+  }
+  return removed;
 }
 
 export interface StorageRoom {

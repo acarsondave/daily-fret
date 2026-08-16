@@ -48,3 +48,26 @@
 
 .signal-meter.is-silent { color: var(--danger-color); }
 .signal-meter.is-silent .signal-bar.is-on { background: var(--danger-color); }
+
+/* Arriving but not landing.
+   Full height, because the level really is fine, and hollow, because nothing is
+   getting through. The slow breath is the only animated state in the meter: it
+   is the one reading a player needs to notice mid-drill without looking away
+   from their hands. */
+.signal-meter.is-unreadable { color: var(--warning-color); }
+.signal-meter.is-unreadable .signal-bar.is-on {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--warning-color);
+  animation: signal-unmatched 1.8s ease-in-out infinite;
+}
+.signal-meter.is-unreadable .signal-bar:nth-child(2).is-on { animation-delay: 0.12s; }
+.signal-meter.is-unreadable .signal-bar:nth-child(3).is-on { animation-delay: 0.24s; }
+
+@keyframes signal-unmatched {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signal-meter.is-unreadable .signal-bar.is-on { animation: none; opacity: 0.8; }
+}
