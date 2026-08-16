@@ -101,36 +101,6 @@ function orderedStrings(tuning: Tuning): TuningString[] {
 }
 
 /**
- * Cents to a position along the track, as a fraction of half the track width.
- *
- * Deliberately not linear. The whole job happens in the last few cents, and on a
- * linear scale being 3 cents flat and being perfect are the same pixel, so the
- * display would go still exactly when the user still has work to do. The power
- * curve spends more of the track on the part that matters and compresses the far
- * end, which nobody reads precisely anyway.
- *
- * Because the curve compresses, the axis has to declare itself rather than let
- * the eye assume it is linear: `tuner.css` derives the tolerance band from this
- * function, and the track draws labelled marks at 25 and 50 cents from the same
- * function, so a puck near the end and a number reading 38 cannot disagree.
- */
-const CENTS_CURVE = 0.7;
-/** The full span of the track, either side of true pitch. */
-const TRACK_CENTS = 50;
-/** Fraction of half the track the puck may travel, leaving room for its own width. */
-const PUCK_TRAVEL = 0.46;
-
-function centsToOffset(cents: number): number {
-  const clamped = Math.max(-1, Math.min(1, cents / TRACK_CENTS));
-  return Math.sign(clamped) * Math.pow(Math.abs(clamped), CENTS_CURVE);
-}
-
-/** Percentage position along the track for a cents value. */
-function trackPercent(cents: number): number {
-  return 50 + centsToOffset(cents) * PUCK_TRAVEL * 100;
-}
-
-/**
  * The recovery for a refused microphone is per browser and per platform, and a
  * generic "check your settings" is the kind of help that helps nobody. Sniffing
  * the agent is the wrong tool for behaviour and the right one here: this is a
@@ -401,7 +371,6 @@ export function Tuner({ onClose }: Props) {
     () => new Map(tuning.strings.map((s) => [s.position, s])),
     [tuning],
   );
-  const targetLabel = targetPosition ? byPosition.get(targetPosition)?.label ?? null : null;
   const pinnedLabel = pinnedPosition ? byPosition.get(pinnedPosition)?.label ?? null : null;
 
   return createPortal(
@@ -486,6 +455,11 @@ export function Tuner({ onClose }: Props) {
               <Headstock
                 strings={tuning.strings}
                 activePosition={deaf ? null : activePosition}
+                /* Nothing to be sure about is not the same as being on pitch,
+                   so a reading with a second string ringing under it hands the
+                   dial nothing rather than handing it a zero. */
+                cents={deaf || !match || crowdedAt !== null ? null : cents}
+                far={far}
                 targetPosition={deaf ? null : targetPosition}
                 pinnedPosition={pinnedPosition}
                 settled={settled}
@@ -505,7 +479,6 @@ export function Tuner({ onClose }: Props) {
                 verdict={verdict}
                 far={far}
                 allSettled={allSettled}
-                targetLabel={targetLabel}
                 pinnedLabel={pinnedLabel}
                 showCents={showCents}
                 onWake={wake}
@@ -543,90 +516,65 @@ function Blocked({ kind, message, onRetry }: BlockedProps) {
   );
 }
 
-interface CallInput {
+interface CueInput {
   status: PitchStatus;
   crowdedAt: number | null;
   match: { string: TuningString; cents: number } | null;
   verdict: Verdict | null;
-  far: boolean;
   allSettled: boolean;
-  targetLabel: string | null;
   pinnedLabel: string | null;
 }
 
 /**
- * The one sentence the screen is for.
+ * The words the drawing cannot say, and only those.
  *
- * Everything here is an instruction to a person with both hands on an
- * instrument: which string, which way, roughly how far. Flat and sharp are not
- * used; they are the same jargon as cents in shorter words, and tighten and
- * loosen name the thing the hand is already doing. Nothing in it is a number.
+ * Which string, how far out, which side of true pitch, and arriving are all on
+ * the headstock now: the peg the tuner is waiting for breathes, the peg being
+ * sounded carries an arc as long as the error and on the side of it, and a ring
+ * seating on a post is a string finishing. None of that needs saying twice, so
+ * none of it is said here.
  *
- * There is deliberately no branch that means "wait and hope". A tuner that
- * cannot hear says which of the several reasons it is, because they have
- * different ways out.
+ * What is left is of two kinds. Which way to turn the peg, because that depends
+ * on the machine head and on how the string was wound and the app can see
+ * neither, so it stays a word. And the reasons the tuner is not hearing an
+ * instrument, which are not facts about the instrument and so have nothing to be
+ * drawn on.
  */
-function tuningCall({
+function tuningCue({
   status,
   crowdedAt,
   match,
   verdict,
-  far,
   allSettled,
-  targetLabel,
   pinnedLabel,
-}: CallInput): string {
+}: CueInput): string {
   if (status === 'requesting') return 'Asking for the microphone.';
-  if (status === 'asleep') return 'The browser has paused audio for this page. One tap gets it back.';
-  if (status === 'muted') return 'Another app has taken the microphone. Close it and the tuner picks up again.';
+  if (status === 'asleep') return 'Audio is paused.';
+  if (status === 'muted') return 'Another app has the microphone.';
   if (status === 'idle') return 'The microphone is closed.';
 
   // Two strings sounding together are one signal, and which of them the player
-  // meant is not in it. Saying so is the only honest answer, and the way out is
-  // in the same sentence.
-  if (crowdedAt !== null) {
-    return targetLabel
-      ? `Another string is ringing. Play the ${targetLabel} alone.`
-      : 'Another string is ringing. Play one string alone.';
-  }
+  // meant is not in it. The peg still breathing says which one to play.
+  if (crowdedAt !== null) return 'One string at a time.';
 
   const cents = match?.cents ?? 0;
 
-  // The payoff lands the instant the sixth string settles, not once the note has
-  // died away. It stays a resting point rather than an exit: anything that reads
-  // clearly off from here pulls its tick and takes the guidance back.
-  if (allSettled && (!match || Math.abs(cents) <= NEAR_CENTS)) {
-    return 'All six are in tune. Go and play.';
-  }
+  // All six done, and nothing being worked on. Six seated rings and one pass of
+  // light across the face are the payoff; a sentence under them would be reading
+  // them out.
+  if (allSettled && (!match || Math.abs(cents) <= NEAR_CENTS)) return '';
 
-  // Nothing sounding. This is where the tuner leads: it names the string it is
-  // waiting for rather than waiting silently.
-  if (!match) {
-    if (pinnedLabel) return `Listening for the ${pinnedLabel} only.`;
-    return targetLabel ? `Play the ${targetLabel}.` : 'Play any string.';
-  }
+  // Nothing sounding, or a string arriving. The breathing peg and the closing
+  // ring already are the message.
+  if (!match || verdict === 'tuned') return '';
 
-  const label = match.string.label;
-
-  // More than a semitone out, with a pin holding the tuner on one string: the
-  // distance has stopped meaning anything, so offer the way back instead.
+  // More than a semitone out with a pin holding the tuner on one string: the arc
+  // has stopped meaning a distance, so the way back is offered instead.
   if (pinnedLabel && Math.abs(cents) > CENTS_READABLE_MAX) {
-    return `That does not sound like the ${pinnedLabel}. Tap its peg to hear all six again.`;
+    return `Not the ${pinnedLabel}. Tap its peg to hear all six.`;
   }
 
-  if (far) return cents < 0 ? `Keep tightening the ${label}.` : `Keep loosening the ${label}.`;
-
-  if (verdict === 'tuned') {
-    return targetLabel && targetLabel !== label
-      ? `The ${label} is in tune. Now the ${targetLabel}.`
-      : `The ${label} is in tune.`;
-  }
-
-  if (Math.abs(cents) <= NEAR_CENTS) {
-    return verdict === 'flat' ? 'Almost. A touch tighter.' : 'Almost. A touch looser.';
-  }
-
-  return verdict === 'flat' ? `Tighten the ${label}.` : `Loosen the ${label}.`;
+  return verdict === 'flat' ? 'Tighten' : 'Loosen';
 }
 
 interface ReadoutProps {
@@ -638,7 +586,6 @@ interface ReadoutProps {
   verdict: Verdict | null;
   far: boolean;
   allSettled: boolean;
-  targetLabel: string | null;
   pinnedLabel: string | null;
   showCents: boolean;
   onWake: () => void;
@@ -653,25 +600,12 @@ function Readout({
   verdict,
   far,
   allSettled,
-  targetLabel,
   pinnedLabel,
   showCents,
   onWake,
 }: ReadoutProps) {
   const cents = match?.cents ?? 0;
-  const call = tuningCall({
-    status, crowdedAt, match, verdict, far, allSettled, targetLabel, pinnedLabel,
-  });
-
-  // The bar runs from true pitch out to the reading, so distance is a length
-  // rather than the position of a dot. A length is the thing the eye measures
-  // without being asked, which is what a screen at arm's length has to rely on.
-  const puck = trackPercent(cents);
-  const spanFrom = Math.min(50, puck);
-  const spanTo = Math.max(50, puck);
-  // The puck has run out of track. Say so on the puck rather than letting it sit
-  // at the end pretending to be a reading.
-  const pinnedToEnd = match !== null && Math.abs(cents) > TRACK_CENTS;
+  const cue = tuningCue({ status, crowdedAt, match, verdict, allSettled, pinnedLabel });
 
   // Cents, for the player who asked for them. Past a semitone the distance to
   // the string stops meaning anything, so the note actually sounding carries the
@@ -695,38 +629,12 @@ function Readout({
         allSettled && 'is-done',
       )}
     >
-      {/* The instruction, and the largest thing on the screen. It is what the
-          surface is for; everything else on it supports this sentence. */}
+      {/* One word for most of a tuning, and nothing at all once the instrument
+          is answering for itself. The height is held so the headstock does not
+          shift as the cue comes and goes under a turning peg. */}
       <p className="tuner-call" role="status">
-        {call}
+        {cue}
       </p>
-
-      {/* How far, drawn as a place rather than said as a number, so the bar
-          landing inside the band always agrees with the sentence above it. The
-          ends say what is wrong with the string, which is what makes the
-          sentence's tighten and loosen self-explaining. */}
-      <div className={clsx('tuner-track', !match && 'is-quiet')} aria-hidden="true">
-        <div className="tuner-track-rail">
-          <span className="tuner-track-zone" />
-          {match && (
-            <span
-              className="tuner-track-span"
-              style={{ left: `${spanFrom}%`, width: `${spanTo - spanFrom}%` }}
-            />
-          )}
-          <span className="tuner-track-centre" />
-          {match && (
-            <span
-              className={clsx('tuner-track-puck', pinnedToEnd && 'is-pinned')}
-              style={{ left: `${puck}%` }}
-            />
-          )}
-        </div>
-        <div className="tuner-track-scale">
-          <span>too loose</span>
-          <span>too tight</span>
-        </div>
-      </div>
 
       {showCents && <p className="tuner-cents">{detail}</p>}
 

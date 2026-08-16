@@ -200,6 +200,61 @@
   opacity: 1;
 }
 
+/* --- The dial ------------------------------------------------------------- */
+
+/* How far the string is out, wrapped round the peg it is about. It exists only
+   while a string is actually sounding: an empty dial on a silent instrument is
+   a measurement of nothing. */
+.headstock-dial {
+  opacity: 0;
+  transition: opacity var(--dur-base) ease;
+}
+.headstock-dial.is-live {
+  opacity: 1;
+}
+
+.headstock-dial-ring {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.14);
+  stroke-width: 1;
+}
+
+/* The tolerance, as a place rather than a number. The arc landing inside it is
+   the same event as the tick appearing, because both are drawn from
+   IN_TUNE_CENTS. */
+.headstock-dial-zone {
+  fill: none;
+  stroke: var(--success-color);
+  stroke-width: 4.2;
+  stroke-linecap: round;
+  opacity: 0.4;
+  transition: opacity var(--dur-base) ease;
+}
+
+/* The distance itself. Linear and quick: it tracks a hand turning a peg, so it
+   must not lag behind the string, and it must not overshoot and settle either. */
+.headstock-turn {
+  fill: none;
+  stroke: var(--warning-color);
+  stroke-width: 4.2;
+  stroke-linecap: round;
+  transition: stroke-dasharray 90ms linear, stroke var(--dur-base) ease;
+}
+/* More than a semitone out: the reading is a different note, so the arc stops
+   claiming to be a distance and goes the colour of everything else this screen
+   will not vouch for. */
+.headstock-dial.is-far .headstock-turn {
+  stroke: var(--text-muted);
+}
+/* Inside tolerance, before the hold that seats the tick. The colour arriving
+   first and the ring closing afterwards is the instruction to keep it there. */
+.headstock-dial.is-tuned .headstock-turn {
+  stroke: var(--success-color);
+}
+.headstock-dial.is-tuned .headstock-dial-zone {
+  opacity: 0.7;
+}
+
 .headstock-machine.is-active .headstock-post,
 .headstock-machine.is-active .headstock-post-top {
   stroke: rgba(251, 191, 36, 0.85);
@@ -274,6 +329,11 @@
 @media (prefers-reduced-motion: reduce) {
   .headstock-seal {
     transition-duration: 0ms, var(--dur-fast);
+  }
+  /* The arc still moves, because it is the reading rather than an effect. What
+     goes is the interpolation between one reading and the next. */
+  .headstock-turn {
+    transition: stroke var(--dur-base) ease;
   }
   .headstock.is-done .headstock-sweep {
     animation: none;

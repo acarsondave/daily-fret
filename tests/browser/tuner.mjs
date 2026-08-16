@@ -178,7 +178,7 @@ for (const [name, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
     await page.waitForTimeout(1500);
     const guidance = (await text(page, '.tuner-call')) ?? '';
     check('it does not hang on opening the microphone', !/asking for the microphone/i.test(guidance), guidance);
-    check('it says audio is paused', /paused audio/i.test(guidance), guidance);
+    check('it says audio is paused', /audio is paused/i.test(guidance), guidance);
     check('and offers the one thing that fixes it',
       (await page.locator('.tuner-action', { hasText: 'Let the tuner hear' }).count()) === 1);
     check('the instrument is shown as not hearing',
@@ -291,10 +291,20 @@ const settledCount = (page) => page.locator('.headstock-machine.is-settled').cou
   const { browser, page } = await openWithAudio('silence.wav');
   await page.waitForTimeout(1600);
   check('it points at the thickest string first', (await targetString(page)) === '6');
-  // "low E", not "E": the tuning has two E strings, and naming the wrong one is
-  // the same class of mistake as lighting the wrong peg.
-  check('and names it the way a person would', /Play the low E\./.test(await text(page, '.tuner-call')),
+  // The instruction is the drawing. The peg the tuner is waiting for breathes
+  // on the instrument, which is where the hand already is, and the screen says
+  // nothing at all: a sentence naming the string would only read the peg out.
+  check('the peg it is waiting for is marked on the instrument', await page.evaluate(() => {
+    const aim = document.querySelector('.headstock-machine.is-target .headstock-aim');
+    return aim !== null && parseFloat(getComputedStyle(aim).opacity) > 0.4;
+  }));
+  check('and it leads without a word', (await text(page, '.tuner-call')) === '',
     await text(page, '.tuner-call'));
+  // Nothing is sounding, so there is nothing to draw a distance from. An arc on
+  // a silent instrument would be a measurement the tuner has not made.
+  check('no distance is drawn while nothing is played', await page.evaluate(() =>
+    [...document.querySelectorAll('.headstock-dial')].every(
+      (d) => parseFloat(getComputedStyle(d).opacity) < 0.05)));
   check('no number is on the screen by default',
     !/\d/.test((await page.locator('.tuner-readout').innerText()).replace(/\s/g, '')),
     await page.locator('.tuner-readout').innerText());
@@ -351,7 +361,11 @@ const settledCount = (page) => page.locator('.headstock-machine.is-settled').cou
   await page.waitForFunction(() => document.querySelectorAll('.headstock-machine.is-settled').length === 6,
     null, { timeout: 40000 });
   check('all six go green', (await settledCount(page)) === 6);
-  check('and it says so', /All six/.test(await text(page, '.tuner-call')), await text(page, '.tuner-call'));
+  // Six seated rings and one pass of light across the face. The screen does not
+  // also write it down.
+  check('the finish is on the instrument', (await page.locator('.tuner-overlay.is-done').count()) === 1);
+  check('and nothing is written under it', (await text(page, '.tuner-call')) === '',
+    await text(page, '.tuner-call'));
   await page.waitForFunction(() => document.querySelectorAll('.headstock-machine.is-settled').length === 5,
     null, { timeout: 25000 });
   check('a string going out afterwards is noticed', (await settledCount(page)) === 5);
@@ -367,24 +381,37 @@ const settledCount = (page) => page.locator('.headstock-machine.is-settled').cou
     () => /Tighten|Loosen|in tune/.test(document.querySelector('.tuner-call')?.textContent ?? ''),
     null, { timeout: 20000 });
   const call = await text(page, '.tuner-call');
-  // The A string, 38 cents flat. What a beginner needs from that is a verb and
-  // a string, and neither of them is the word flat.
-  check('it names the action and the string', /^Tighten the A\.$/.test(call), call);
-  check('no jargon in the instruction', !/flat|sharp|cent|hz/i.test(call), call);
+  // The A string, 38 cents flat. Which string and how far are drawn on the peg;
+  // the one word left is the one thing the drawing cannot claim, because which
+  // way a machine head turns depends on hardware the app cannot see.
+  check('one word, and it is the verb', /^Tighten$/.test(call), call);
+  check('no jargon in it', !/flat|sharp|cent|hz/i.test(call), call);
   const readout = await page.locator('.tuner-readout').innerText();
   check('and no number anywhere near it', !/\d/.test(readout.replace(/\s/g, '')), readout);
-  // The axis names what is wrong with the string, which is what makes tighten
-  // and loosen explain themselves the first time they are read.
-  const scale = await text(page, '.tuner-track-scale');
-  check('the track ends say what is wrong', /too loose/i.test(scale) && /too tight/i.test(scale), scale);
-  check('the marker sits on the loose side of true pitch', await page.evaluate(() => {
-    const rail = document.querySelector('.tuner-track-rail');
-    const puck = document.querySelector('.tuner-track-puck');
-    if (!rail || !puck) return false;
-    const r = rail.getBoundingClientRect();
-    const p = puck.getBoundingClientRect();
-    return p.left + p.width / 2 < r.left + r.width / 2;
-  }));
+  // The dial fades in with the first reading, so it is sampled after that has
+  // finished rather than in the middle of it.
+  await page.waitForTimeout(600);
+  // How far, and which side of true pitch, on the peg being sounded: the arc
+  // runs anticlockwise from the top of the post for a string that is flat, and
+  // its length is the error.
+  const arcs = await page.evaluate(() => {
+    const dash = (sel) => {
+      const el = document.querySelector(sel);
+      return el ? parseFloat(el.getAttribute('stroke-dasharray')) : null;
+    };
+    const machine = document.querySelector('.headstock-machine.is-active');
+    return {
+      live: machine ? parseFloat(getComputedStyle(machine.querySelector('.headstock-dial')).opacity) : 0,
+      flat: dash('.headstock-machine.is-active .headstock-turn.is-flat'),
+      sharp: dash('.headstock-machine.is-active .headstock-turn.is-sharp'),
+    };
+  });
+  check('the distance is drawn on the peg being played', arcs.live > 0.9, JSON.stringify(arcs));
+  check('and it is drawn on the loose side, not the tight one',
+    arcs.flat > 0 && arcs.sharp === 0, JSON.stringify(arcs));
+  // 38 cents of the 50 the dial spans, through the same compression curve the
+  // pitch bar used, so the arc is most of the way out without being pinned.
+  check('as far out as the string is', arcs.flat > 55 && arcs.flat < 95, JSON.stringify(arcs));
   await browser.close();
 }
 
@@ -401,7 +428,7 @@ const settledCount = (page) => page.locator('.headstock-machine.is-settled').cou
   // estimator: an exactly-in-tune fixture reads 0.
   const read = Number(value.replace('\u2212', '-').replace(' cents', ''));
   check('and reads what a player would expect', read <= -35 && read >= -41, value);
-  check('the instruction is still the headline', /^Tighten the A\.$/.test(await text(page, '.tuner-call')),
+  check('the cue is still the headline', /^Tighten$/.test(await text(page, '.tuner-call')),
     await text(page, '.tuner-call'));
   check('and the number is smaller than it', await page.evaluate(() => {
     const px = (sel) => parseFloat(getComputedStyle(document.querySelector(sel)).fontSize);
@@ -430,8 +457,13 @@ const settledCount = (page) => page.locator('.headstock-machine.is-settled').cou
   check('the low E peg specifically is not green',
     (await page.locator('.headstock-machine.is-settled').count()) === 0);
   const call = await text(page, '.tuner-call');
-  check('it says what is actually wrong', /another string is ringing/i.test(call), call);
-  check('and names the way out', /play the low E alone/i.test(call), call);
+  check('it says what is actually wrong', /one string at a time/i.test(call), call);
+  // Which string to play alone is the breathing peg's job, not the sentence's.
+  check('and the instrument still names the way out', (await targetString(page)) === '6',
+    await targetString(page));
+  check('no distance is claimed for a crowded reading', await page.evaluate(() =>
+    [...document.querySelectorAll('.headstock-dial')].every(
+      (d) => parseFloat(getComputedStyle(d).opacity) < 0.05)));
   check('nothing claims to be in tune', !/in tune/i.test(await page.locator('.tuner-readout').innerText()));
   await browser.close();
 }

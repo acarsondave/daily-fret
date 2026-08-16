@@ -33,7 +33,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import clsx from 'clsx';
-import type { TuningString } from '../../audio/tuning';
+import { IN_TUNE_CENTS, type TuningString } from '../../audio/tuning';
 import { useUserData } from '../../store';
 import './headstock.css';
 
@@ -121,6 +121,54 @@ const MAX_SWING = 5.2;
 /** The eye reads a slow shimmer as a live string; faster reads as noise. */
 const SWING_HZ = 6;
 
+/* --- The dial around the peg ---------------------------------------------- *
+ *
+ * How far the string is out, drawn where the hand is: an arc wrapped round the
+ * post it is about. It starts at the top of the post, which is true pitch, and
+ * runs clockwise when the string is sharp and anticlockwise when it is flat. It
+ * shortens as the peg turns and disappears when the string arrives.
+ *
+ * The arc is a distance, not a hand instruction. Which way a machine head turns
+ * to tighten depends on the hardware and on how the string was wound, neither of
+ * which the app can see, so the drawing says how far and which side, and the one
+ * word beside it says which way. */
+
+/** The dial's radius, clear of the halo and the aim ring so nothing overlaps,
+    and wide enough to be read at practice distance. */
+const DIAL_R = 30;
+/** The full sweep, either side of true pitch. Kept off the horizontal so the arc
+    never runs behind the machine head's shaft. */
+const MAX_TURN_DEG = 135;
+/** Cents at the end of the sweep. Beyond it the arc is simply full. */
+const DIAL_CENTS = 50;
+/**
+ * Deliberately not linear, for the same reason the pitch bar it replaced was
+ * not: the whole job happens in the last few cents, and a linear dial spends
+ * almost none of itself there. The power curve gives the part being worked on
+ * most of the arc and compresses the far end, which nobody reads precisely.
+ */
+const DIAL_CURVE = 0.7;
+
+/** Fraction of the full sweep a cents error occupies. */
+function turnFraction(cents: number): number {
+  const clamped = Math.min(1, Math.abs(cents) / DIAL_CENTS);
+  return Math.pow(clamped, DIAL_CURVE);
+}
+
+/** A point on the dial. Zero is the top of the post; degrees run clockwise. */
+function dialPoint(cx: number, cy: number, deg: number): [number, number] {
+  const rad = (deg * Math.PI) / 180;
+  return [cx + DIAL_R * Math.sin(rad), cy - DIAL_R * Math.cos(rad)];
+}
+
+function dialArc(cx: number, cy: number, from: number, to: number): string {
+  const [x0, y0] = dialPoint(cx, cy, from);
+  const [x1, y1] = dialPoint(cx, cy, to);
+  const large = Math.abs(to - from) > 180 ? 1 : 0;
+  const sweep = to > from ? 1 : 0;
+  return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${DIAL_R} ${DIAL_R} 0 ${large} ${sweep} ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+}
+
 /** A three-a-side silhouette: a narrow nut end at the top opening into a wide
     crown, with the shallow centre dip every guitar with this layout has. It is
     symmetric about the centre line, which is what lets handedness mirror the
@@ -147,6 +195,14 @@ function stringPath(peg: PegGeometry, swing: number): string {
 interface Props {
   strings: TuningString[];
   activePosition: number | null;
+  /**
+   * How far the sounding string is from where it belongs, signed: negative is
+   * flat. Null whenever there is nothing to be sure about, which is what stops
+   * the dial drawing a distance the tuner has not actually measured.
+   */
+  cents: number | null;
+  /** The reading is closer to some other note, so the distance means nothing. */
+  far: boolean;
   /** The string the tuner is leading to next. Guidance, not a filter. */
   targetPosition: number | null;
   /** The user has aimed the tuner at one string and shut out the rest. */
@@ -163,6 +219,8 @@ interface Props {
 export function Headstock({
   strings,
   activePosition,
+  cents,
+  far,
   targetPosition,
   pinnedPosition,
   settled,
@@ -313,6 +371,11 @@ export function Headstock({
               isSettled={settled.includes(peg.position)}
               isTarget={peg.position === targetPosition && peg.position !== activePosition}
               isPinned={peg.position === pinnedPosition}
+              /* The distance belongs to the peg being sounded, which is not
+                 always the one the tuner is leading to. It is the peg the hand
+                 is on, so it is the peg the arc has to be on. */
+              cents={!deaf && peg.position === activePosition ? cents : null}
+              far={far}
             />
           );
         })}
@@ -327,6 +390,13 @@ export function Headstock({
           const isSettled = settled.includes(peg.position);
           const isPinned = peg.position === pinnedPosition;
           const isTarget = peg.position === targetPosition;
+          // The arc says this to anyone looking at it. It is said in words here
+          // because a label read aloud is the one place the number is the
+          // clearest thing available, and it is this peg's own number.
+          const reading =
+            !deaf && peg.position === activePosition && cents !== null && !far
+              ? `, ${Math.abs(Math.round(cents))} cents ${cents < 0 ? 'flat' : 'sharp'}`
+              : '';
           return (
             <button
               key={peg.position}
@@ -346,10 +416,10 @@ export function Headstock({
               aria-pressed={isPinned}
               aria-label={
                 isPinned
-                  ? `${string.label}, string ${string.position}. Listening to this string only. Activate to listen to all six.`
+                  ? `${string.label}, string ${string.position}${reading}. Listening to this string only. Activate to listen to all six.`
                   : `${string.label}, string ${string.position}${
                       isSettled ? ', in tune' : isTarget ? ', tune this one next' : ''
-                    }. Activate to listen to this string only.`
+                    }${reading}. Activate to listen to this string only.`
               }
               onClick={() => onSelect(peg.position)}
             >
@@ -370,12 +440,22 @@ interface PegProps {
   isSettled: boolean;
   isTarget: boolean;
   isPinned: boolean;
+  /** Signed distance for this peg, or null when it is not the one sounding. */
+  cents: number | null;
+  far: boolean;
 }
 
-function Peg({ peg, isActive, isSettled, isTarget, isPinned }: PegProps) {
+function Peg({ peg, isActive, isSettled, isTarget, isPinned, cents, far }: PegProps) {
   const out = peg.side === 'left' ? -1 : 1;
   const shaftX = peg.edgeX;
   const buttonX = peg.edgeX + out * 24;
+
+  // Both halves of the dial are always in the DOM with a length of zero, so the
+  // arc grows and shrinks under a transition instead of appearing whole.
+  const sweep = cents === null ? 0 : turnFraction(cents) * 100;
+  const sharpLen = cents !== null && cents > 0 ? sweep : 0;
+  const flatLen = cents !== null && cents < 0 ? sweep : 0;
+  const zoneDeg = turnFraction(IN_TUNE_CENTS) * MAX_TURN_DEG;
 
   return (
     <g
@@ -421,6 +501,36 @@ function Peg({ peg, isActive, isSettled, isTarget, isPinned }: PegProps) {
       {/* Where the tuner is pointing next. Drawn outside the seal so a string
           that is both done and next reads as done, which it is. */}
       <circle className="headstock-aim" cx={peg.x} cy={peg.y} r="21" />
+
+      {/* The distance, on top of the hardware rather than under it: at a wide
+          error the arc crosses the machine head's shaft, and an arc interrupted
+          by the metal it is drawn over reads as two arcs. */}
+      <g
+        className={clsx(
+          'headstock-dial',
+          cents !== null && 'is-live',
+          far && 'is-far',
+          cents !== null && !far && Math.abs(cents) <= IN_TUNE_CENTS && 'is-tuned',
+        )}
+      >
+        <circle className="headstock-dial-ring" cx={peg.x} cy={peg.y} r={DIAL_R} />
+        {/* Where the string is trying to get to, drawn as a place on the dial,
+            so arriving is watching the arc fall inside a mark already on the
+            screen rather than waiting to be told. */}
+        <path className="headstock-dial-zone" d={dialArc(peg.x, peg.y, -zoneDeg, zoneDeg)} />
+        <path
+          className="headstock-turn is-flat"
+          d={dialArc(peg.x, peg.y, 0, -MAX_TURN_DEG)}
+          pathLength={100}
+          strokeDasharray={`${flatLen.toFixed(2)} 100`}
+        />
+        <path
+          className="headstock-turn is-sharp"
+          d={dialArc(peg.x, peg.y, 0, MAX_TURN_DEG)}
+          pathLength={100}
+          strokeDasharray={`${sharpLen.toFixed(2)} 100`}
+        />
+      </g>
     </g>
   );
 }
