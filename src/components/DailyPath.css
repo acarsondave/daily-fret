@@ -514,3 +514,58 @@
 @supports not (backdrop-filter: blur(1px)) {
   .routine-dropdown { -webkit-backdrop-filter: blur(20px); }
 }
+
+
+/* --- Waiting on the cloud --------------------------------------------------
+   A picture of the list that is coming, not a sentence about the network. It
+   holds a task row's exact geometry, so nothing jumps when the real rows land.
+   The pulse is the only thing that says "still arriving"; with reduced motion
+   the shapes simply sit there, which says the same thing more quietly. */
+.task-skeleton {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  animation: task-skeleton-pulse 1.6s var(--ease-out) infinite;
+}
+
+.task-skeleton-mark {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+}
+
+.task-skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+  padding-top: 3px;
+}
+
+.task-skeleton-line {
+  height: 9px;
+  width: 62%;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.task-skeleton-line.is-title {
+  height: 12px;
+  width: 42%;
+  background: rgba(255, 255, 255, 0.11);
+}
+
+@keyframes task-skeleton-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.85; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-skeleton { animation: none; opacity: 0.6; }
+}

@@ -3,6 +3,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { useStore, useUserData, getTodayString } from '../store';
+import { useAuthStore } from '../lib/auth';
 import { TaskRow } from './TaskRow';
 import { Modal } from './Modal';
 import { Loader } from './Loader';
@@ -91,6 +92,12 @@ const MAX_TASKS = 100;
 export function DailyPath() {
   const today = getTodayString();
   const userData = useUserData();
+  // Whether the cloud copy of this account is still on its way. A signed-in
+  // player opening the app on a second device has no local routine yet, which
+  // is indistinguishable from being new if nothing asks this question: the
+  // first run wizard used to open over data already in flight and get yanked
+  // away mid-question when the sync landed.
+  const syncing = useAuthStore((s) => s.syncing);
 
   const routines = useMemo(() => userData?.routines || [], [userData]);
   const activeRoutineId = userData?.activeRoutineId;
@@ -314,6 +321,34 @@ export function DailyPath() {
     setLimitNotice(false);
     setInlineDraft({ title: '', description: '', duration: '' });
   };
+
+  // Signed in, nothing local, and the cloud copy still coming. Their routine
+  // very probably exists; it is on the wire. So the list shows its own shape
+  // arriving rather than a wizard asking a returning player who they are.
+  if (!activeRoutine && syncing) {
+    return (
+      <div className="daily-path">
+        <div className="task-container-wrapper">
+          <div className="task-container glass-panel">
+            <p className="sr-only" role="status">
+              Fetching your practice from the cloud.
+            </p>
+            <div className="task-list-scrollable" aria-hidden="true">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="task-skeleton" style={{ animationDelay: `${i * 0.12}s` }}>
+                  <span className="task-skeleton-mark" />
+                  <span className="task-skeleton-lines">
+                    <span className="task-skeleton-line is-title" />
+                    <span className="task-skeleton-line" />
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // First run: no routine and never asked where they are. Dismissing it drops
   // through to the same blank slate as before, so nobody is trapped in a wizard.
