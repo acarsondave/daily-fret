@@ -88,6 +88,21 @@ export const CycleIcon = (p: IconProps) => (
   </IconBase>
 );
 
+// Two heads on one shaft: the anchor drill travels this way and then back the
+// same way, and that is the whole shape of the exercise. Drawn rather than said,
+// so the sweep needs no caption under it.
+//
+// The heads are separate paths so a caller can dim the one it is not currently
+// travelling towards, which turns a static symbol into a live reading of which
+// way the hand is going.
+export const SweepIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <path d="M5.5 12h13" />
+    <path className="sweep-head-back" d="M9 8l-4 4 4 4" />
+    <path className="sweep-head-fwd" d="M15 8l4 4-4 4" />
+  </IconBase>
+);
+
 export const TrashIcon = (p: IconProps) => (
   <IconBase {...p}>
     <path d="M4.8 7h14.4" />

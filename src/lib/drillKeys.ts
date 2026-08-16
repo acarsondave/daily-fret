@@ -14,7 +14,8 @@
 //   pair:A|D        two chords, changed between (src/lib/pairs.ts)
 //   chord:F         one shape, placed from nothing
 //   pool:A|C|D|E|G  one Chord Perfect block, scored across the pool it drilled
-//   ring:A>E>D      one turn of an anchor rotation
+//   ring:A>E>D      one turn of an anchor rotation, looping in one direction
+//   sweep:D>A>E     an anchor rotation swept back and forth along the same path
 //   timing:80       one strum-timing block, at the tempo it was measured at
 //
 // A key with no prefix is a result written before this existed, under a task id.
@@ -28,6 +29,7 @@ import { PAIR_PREFIX, parsePairKey } from './pairs';
 export const CHORD_PREFIX = 'chord:';
 export const POOL_PREFIX = 'pool:';
 export const RING_PREFIX = 'ring:';
+export const SWEEP_PREFIX = 'sweep:';
 export const TIMING_PREFIX = 'timing:';
 
 const POOL_SEP = '|';
@@ -110,6 +112,35 @@ export function parseRingKey(key: string): string[] | null {
   return chords.length ? chords : null;
 }
 
+/**
+ * An anchor rotation swept back and forth: D → A → E → A → D → A → E, and on.
+ *
+ * Its own key rather than a ring's, because it is a different set of moves for
+ * the hand. A loop of D, A, E only ever asks for D→A, A→E and E→D; sweeping the
+ * same three asks for D→A, A→E, E→A and A→D, so both directions of every
+ * neighbouring pair get drilled and the long jump from the end back to the start
+ * never happens at all. Counting the two against one best would report a change
+ * in the exercise as a change in the player.
+ *
+ * A path and its reverse are the same sweep, because sweeping visits both
+ * directions anyway, so the key takes whichever reads smaller.
+ */
+function canonicalSweep(chords: readonly string[]): string[] {
+  const forward = [...chords];
+  const back = [...chords].reverse();
+  return back.join(RING_SEP) < forward.join(RING_SEP) ? back : forward;
+}
+
+export function sweepKey(chords: readonly string[]): string {
+  return `${SWEEP_PREFIX}${canonicalSweep(chords).join(RING_SEP)}`;
+}
+
+export function parseSweepKey(key: string): string[] | null {
+  if (!key.startsWith(SWEEP_PREFIX)) return null;
+  const chords = key.slice(SWEEP_PREFIX.length).split(RING_SEP).filter(Boolean);
+  return chords.length ? chords : null;
+}
+
 /** One strum-timing block, named by the tempo it was held at. */
 export function timingKey(bpm: number): string {
   return `${TIMING_PREFIX}${Math.round(bpm / TEMPO_BUCKET) * TEMPO_BUCKET}`;
@@ -131,7 +162,7 @@ export function rotationRing(chords: readonly string[] | undefined): string[] {
   return chords && chords.length >= 2 ? [...chords] : [...DEFAULT_ROTATION_RING];
 }
 
-export type DrillKeyKind = 'pair' | 'chord' | 'pool' | 'ring' | 'timing' | 'retired';
+export type DrillKeyKind = 'pair' | 'chord' | 'pool' | 'ring' | 'sweep' | 'timing' | 'retired';
 
 export interface DrillKeyDescription {
   kind: DrillKeyKind;
@@ -183,6 +214,12 @@ export function describeDrillKey(key: string): DrillKeyDescription {
   if (ring) {
     return { kind: 'ring', label: ring.join(' → '), unit: DRILL_UNIT['chord-rotation'] };
   }
+  const sweep = parseSweepKey(key);
+  if (sweep) {
+    // Drawn with the arrow pointing both ways, so a sweep never has to be
+    // explained beside a loop; the two labels say which is which on sight.
+    return { kind: 'sweep', label: sweep.join(' ↔ '), unit: DRILL_UNIT['chord-rotation'] };
+  }
   const bpm = parseTimingKey(key);
   if (bpm) {
     return { kind: 'timing', label: `${bpm} BPM`, unit: DRILL_UNIT['strum-timing'] };
@@ -196,6 +233,7 @@ export const isDrillKey = (key: string): boolean =>
   key.startsWith(CHORD_PREFIX) ||
   key.startsWith(POOL_PREFIX) ||
   key.startsWith(RING_PREFIX) ||
+  key.startsWith(SWEEP_PREFIX) ||
   key.startsWith(TIMING_PREFIX);
 
 /**
@@ -213,6 +251,12 @@ export function sessionKeyForTask(task: Task): string | null {
   const drill = task.drill;
   if (!drill?.chords?.length) return null;
   if (drill.kind === 'chord-trainer') return poolKey(drill.chords);
+  // Deliberately the ring key and not the sweep key, even though a rotation run
+  // today writes a sweep key. This function's only caller repairs results that
+  // were filed under a task id before drill keys existed, and every one of those
+  // was played on the old looping rotation. Naming them as sweeps would move
+  // months of one exercise's numbers onto another exercise's chart, which is the
+  // exact failure the key system exists to prevent.
   if (drill.kind === 'chord-rotation') return ringKey(drill.chords);
   return null;
 }

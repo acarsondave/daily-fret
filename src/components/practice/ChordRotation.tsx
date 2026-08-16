@@ -1,7 +1,9 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRightIcon, CycleIcon, HourglassIcon, MicIcon, PlayIcon, RetryIcon, TrophyIcon } from '../icons';
+import clsx from 'clsx';
+import { ArrowRightIcon, HourglassIcon, MicIcon, PlayIcon, RetryIcon, SweepIcon, TrophyIcon } from '../icons';
 import { rotationRing } from '../../lib/drillKeys';
+import { sweepStep } from '../../lib/sweep';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { useCapoOffset } from '../../hooks/useCapo';
@@ -46,10 +48,18 @@ interface Props {
   onSessionStart?: () => void; // the drill is now live (drives the auto metronome)
 }
 
-// Anchor-changes drill: cycle a ring of chords (e.g. D → A → E → D) at your own
+// Anchor-changes drill: sweep back and forth along a path of chords at your own
 // pace, one change counted each time you land the chord being cued. Unlike the
 // two-chord one-minute drill this reinforces the *anchor-finger* moves across a
-// small set of chords in a continuous rotation.
+// small set of chords.
+//
+// Back and forth rather than round in a loop: D → A → E → A → D → A → E, turning
+// at each end instead of jumping from the last chord to the first. A loop only
+// ever drills each transition one way and adds one long jump that no piece of
+// music asks for. Sweeping drills both directions of every neighbouring pair and
+// asks for nothing else, which is what an anchor-finger exercise is for. Its
+// results are keyed separately from the old loop's (`sweep:` rather than
+// `ring:`) so a change in the exercise is never read as a change in the player.
 export function ChordRotation({
   config,
   onResult,
@@ -78,11 +88,17 @@ export function ChordRotation({
   // Which chord in the ring we're cueing the player to land next. The lit name
   // always means "play this now".
   const [targetIdx, setTargetIdx] = useState(0);
+  // Mirrored into state as well as a ref: the ref is what the detector callback
+  // reads between renders, and this is what the cue is drawn from.
+  const [dir, setDir] = useState(1);
   const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter();
   const [result, setResult] = useState<{ value: number; prevBest: number } | null>(null);
   const [advanceLeft, setAdvanceLeft] = useState(AUTO_ADVANCE_SECONDS);
 
   const targetIdxRef = useRef(0);
+  // Which way along the path we are travelling. Flips at each end, so the cue
+  // turns round rather than wrapping to the far side.
+  const dirRef = useRef(1);
   const lastChordRef = useRef('');
   const lastCountAtRef = useRef(0);
   const changesRef = useRef(0);
@@ -116,9 +132,13 @@ export function ChordRotation({
       if (at < 0) return;
       lastChordRef.current = chord;
       lastCountAtRef.current = Date.now();
-      const next = (at + 1) % ring.length;
-      targetIdxRef.current = next;
-      setTargetIdx(next);
+      // Opening on the last chord of the path means the only way on is
+      // backwards, so the first step sets the direction as well as the target.
+      const opened = sweepStep(at, at >= ring.length - 1 ? -1 : 1, ring.length);
+      dirRef.current = opened.dir;
+      targetIdxRef.current = opened.next;
+      setTargetIdx(opened.next);
+      setDir(opened.dir);
       return;
     }
 
@@ -131,10 +151,13 @@ export function ChordRotation({
       lastCountAtRef.current = t;
     }
     lastChordRef.current = chord;
-    const next = (targetIdxRef.current + 1) % ring.length;
-    targetIdxRef.current = next;
-    setTargetIdx(next);
+    const moved = sweepStep(targetIdxRef.current, dirRef.current, ring.length);
+    dirRef.current = moved.dir;
+    targetIdxRef.current = moved.next;
+    setTargetIdx(moved.next);
+    setDir(moved.dir);
   };
+
 
   const finish = () => {
     clearTimer();
@@ -157,8 +180,10 @@ export function ChordRotation({
     lastChordRef.current = '';
     lastCountAtRef.current = 0;
     targetIdxRef.current = 0;
+    dirRef.current = 1;
     setChanges(0);
     setTargetIdx(0);
+    setDir(1);
     setTimeLeft(duration);
     resetSignal();
     prevBestRef.current = personalBest;
@@ -222,11 +247,11 @@ export function ChordRotation({
           {ring.map((c, i) => (
             <span key={`${c}-${i}`} className="rot-chord">
               {c}
-              {i < ring.length - 1 && <ArrowRightIcon size={16} className="rot-sep" />}
+              {i < ring.length - 1 && <SweepIcon size={16} className="rot-sep" />}
             </span>
           ))}
         </div>
-        <p className="om-caption">Rotate through the ring, one clean change at a time</p>
+        <p className="om-caption">One clean change at a time</p>
         <button className="practice-btn primary" onClick={startSession}>
           <PlayIcon size={20} /> Start {duration}s
         </button>
@@ -265,7 +290,21 @@ export function ChordRotation({
                 <span className="rot-chord-name">{c}</span>
                 <ChordDiagram chord={c} size={76} showFingers={false} className="rot-chord-shape" />
               </span>
-              {i < ring.length - 1 && <CycleIcon size={16} className="rot-sep" />}
+              {i < ring.length - 1 && (
+                // Which way the sweep is travelling right now, drawn on the one
+                // separator the hand is crossing. The head it is heading towards
+                // is lit and the other is dimmed, so the turn at each end is
+                // something you watch happen rather than something you are told
+                // about.
+                <SweepIcon
+                  size={16}
+                  className={clsx(
+                    'rot-sep',
+                    (i === targetIdx || i === targetIdx - 1) && 'is-crossing',
+                    dir < 0 && 'is-back',
+                  )}
+                />
+              )}
             </Fragment>
           ))}
         </div>
@@ -312,7 +351,7 @@ export function ChordRotation({
           {ring.map((c, i) => (
             <span key={`${c}-${i}`} className="rot-chord target">
               {c}
-              {i < ring.length - 1 && <ArrowRightIcon size={12} className="rot-sep" />}
+              {i < ring.length - 1 && <SweepIcon size={12} className="rot-sep" />}
             </span>
           ))}
         </div>

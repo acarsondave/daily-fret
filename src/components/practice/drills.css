@@ -187,6 +187,31 @@
   transform: scale(1.1);
 }
 
+/* The sweep, drawn rather than described.
+
+   Both heads are always present, so the shape of the exercise reads before the
+   drill even starts: this path is travelled up and back, not round. During a
+   run the separator the hand is crossing lights up and only the head it is
+   moving towards stays solid, so the turn at each end is something the player
+   watches happen. That is the whole explanation, and it needs no caption. */
+.rot-sep .sweep-head-back,
+.rot-sep .sweep-head-fwd {
+  transition: opacity 0.18s ease;
+}
+.rot-ring-live .rot-sep.is-crossing {
+  color: var(--accent-primary);
+  opacity: 1;
+}
+.rot-ring-live .rot-sep .sweep-head-back { opacity: 0.28; }
+.rot-ring-live .rot-sep .sweep-head-fwd { opacity: 1; }
+.rot-ring-live .rot-sep.is-back .sweep-head-back { opacity: 1; }
+.rot-ring-live .rot-sep.is-back .sweep-head-fwd { opacity: 0.28; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rot-sep .sweep-head-back,
+  .rot-sep .sweep-head-fwd { transition: none; }
+}
+
 /* --- Shared drill furniture ----------------------------------------------- */
 /* Carries chord names too, so it follows the same rule as .om-pair. Sentence
    case also reads faster at the distance this screen is actually read from. */

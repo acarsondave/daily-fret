@@ -11,7 +11,7 @@ import {
   type Trend,
 } from '../../lib/drillStats';
 import { readiness, CHANGES_BAR, ROTATION_BAR, type Readiness } from '../../lib/readiness';
-import { parseRingKey } from '../../lib/drillKeys';
+import { parseRingKey, parseSweepKey } from '../../lib/drillKeys';
 import { restAdvice, computeXp } from '../../lib/xp';
 import { getTodayString, useUserData } from '../../store';
 import { ProgressChart } from './ProgressChart';
@@ -36,7 +36,7 @@ import './progress.css';
  */
 function readinessOf(stat: DrillStat, today: string): Readiness | null {
   if (stat.kind === 'pair') return readiness(stat.series, CHANGES_BAR, today);
-  if (parseRingKey(stat.key)) return readiness(stat.series, ROTATION_BAR, today);
+  if (parseRingKey(stat.key) || parseSweepKey(stat.key)) return readiness(stat.series, ROTATION_BAR, today);
   return null;
 }
 

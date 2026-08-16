@@ -17,7 +17,7 @@
 import type { DailyLog } from '../types';
 import { ALL_SKILLS, getSkill, type Skill } from '../data/skills';
 import { PAIR_PREFIX, parsePairKey } from './pairs';
-import { RING_PREFIX } from './drillKeys';
+import { RING_PREFIX, SWEEP_PREFIX } from './drillKeys';
 import { CHANGES_BAR, CHORD_BAR, ROTATION_BAR } from './readiness';
 
 export type SkillState = 'locked' | 'ready' | 'working' | 'solid';
@@ -183,7 +183,17 @@ function measure(skill: Skill, evidence: Evidence, claimed: boolean): Measuremen
     // so a good block of placements could carry the anchor skill to solid
     // without a rotation ever having been run. Ring keys name the drill, so the
     // question has an exact answer now.
-    const best = maxOfPrefix(evidence.tasks, RING_PREFIX);
+    //
+    // Both prefixes, because the drill changed shape and the practice did not.
+    // Rotations used to loop and now sweep back and forth, which is a different
+    // enough exercise to deserve its own key and its own personal best; but a
+    // player who ran the old loop at the bar really did demonstrate the anchor
+    // move, and taking that away would be the app forgetting something true
+    // because we renamed something.
+    const best = Math.max(
+      maxOfPrefix(evidence.tasks, SWEEP_PREFIX) ?? 0,
+      maxOfPrefix(evidence.tasks, RING_PREFIX) ?? 0,
+    ) || null;
     return {
       best,
       bar: ROTATION_BAR,

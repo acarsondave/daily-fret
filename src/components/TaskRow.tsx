@@ -18,7 +18,7 @@ import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
 import { chordPairs, pairKey } from '../lib/pairs';
-import { poolKey, ringKey, rotationRing, trainerPool } from '../lib/drillKeys';
+import { poolKey, rotationRing, sweepKey, trainerPool } from '../lib/drillKeys';
 import { sanitizeMinutes, formatDuration } from '../lib/coached';
 import { looksLikeTab } from '../lib/tab';
 // One definition of what each drill's number means, shared with Progress.
@@ -145,7 +145,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
   const resultKeys = useMemo(() => {
     if (!drill) return [] as string[];
     if (drill.kind === 'chord-trainer') return [poolKey(trainerPool(drill.chords))];
-    if (drill.kind === 'chord-rotation') return [ringKey(rotationRing(drill.chords))];
+    if (drill.kind === 'chord-rotation') return [sweepKey(rotationRing(drill.chords))];
     if (drill.kind === 'song') return [] as string[];
     const chords = drill.chords?.length
       ? drill.chords

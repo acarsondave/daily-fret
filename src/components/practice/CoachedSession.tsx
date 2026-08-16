@@ -12,7 +12,7 @@ import {
 } from '../icons';
 import { useStore, getTodayString, drillLogsOf, type CoachStepResult } from '../../store';
 import { pairKey } from '../../lib/pairs';
-import { chordKey, poolKey, ringKey, rotationRing, timingKey, trainerPool } from '../../lib/drillKeys';
+import { chordKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } from '../../lib/drillKeys';
 import { buildSegments } from '../../lib/coached';
 import { keyDrillHistory } from '../../lib/drillStats';
 import { drillSeries, planTempo, fixedTempo, DEFAULT_PRACTICE_BPM, type TempoPlan } from '../../lib/tempo';
@@ -129,7 +129,7 @@ export function CoachedSession({ routine, onClose }: Props) {
     const state = useStore.getState();
     const acc = state.accounts[state.currentAccountId];
     if (!acc) return 0;
-    return keyDrillHistory(drillLogsOf(acc), ringKey(ring)).best;
+    return keyDrillHistory(drillLogsOf(acc), sweepKey(ring)).best;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
   // The tempo this segment should run at, read from the player's own results for
@@ -147,7 +147,7 @@ export function CoachedSession({ routine, onClose }: Props) {
       return planTempo(drillSeries(logs, poolKey(trainerPool(seg.chords)), seg.seconds), today);
     }
     if (seg.kind === 'rotation') {
-      return planTempo(drillSeries(logs, ringKey(rotationRing(seg.chords)), seg.seconds), today);
+      return planTempo(drillSeries(logs, sweepKey(rotationRing(seg.chords)), seg.seconds), today);
     }
     if (seg.kind === 'timed') return fixedTempo(seg.bpm);
     // Timing states its tempo rather than deriving one: its result is a
@@ -537,7 +537,7 @@ export function CoachedSession({ routine, onClose }: Props) {
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             detector={detector}
             onResult={({ ring: turned, changes }) => {
-              recordMeasurements(today, seg.taskId, [{ key: ringKey(turned), value: changes }]);
+              recordMeasurements(today, seg.taskId, [{ key: sweepKey(turned), value: changes }]);
               lastValueRef.current = changes;
               void speak('done');
             }}

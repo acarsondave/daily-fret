@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { CloseIcon } from '../icons';
 import { useStore, getTodayString, drillLogsOf } from '../../store';
 import { pairKey } from '../../lib/pairs';
-import { chordKey, poolKey, ringKey, rotationRing, timingKey, trainerPool } from '../../lib/drillKeys';
+import { chordKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } from '../../lib/drillKeys';
 import { keyDrillHistory } from '../../lib/drillStats';
 import { drillSeries, planTempo, fixedTempo, DEFAULT_PRACTICE_BPM, type TempoPlan } from '../../lib/tempo';
 import { timedBlocks } from '../../lib/coached';
@@ -54,7 +54,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
     const state = useStore.getState();
     const acc = state.accounts[state.currentAccountId];
     if (!acc) return 0;
-    return keyDrillHistory(drillLogsOf(acc), ringKey(ring)).best;
+    return keyDrillHistory(drillLogsOf(acc), sweepKey(ring)).best;
   }, [ring]);
 
   // Same snapshot, for the tempo this timing block will run at. Keyed by the
@@ -104,7 +104,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
   // own (a changes task fans out per pair, a song is never measured).
   const drillKey = useMemo(() => {
     if (drill?.kind === 'chord-trainer') return poolKey(trainerPool(drill.chords));
-    if (ring) return ringKey(ring);
+    if (ring) return sweepKey(ring);
     return null;
   }, [drill, ring]);
 
@@ -347,7 +347,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
             personalBest={rotationBest}
             onSessionStart={beginDrill}
             onResult={({ ring: turned, changes }) => {
-              measured([{ key: ringKey(turned), value: changes }]);
+              measured([{ key: sweepKey(turned), value: changes }]);
               settleTask(today, task.id);
             }}
             onClose={leave}
