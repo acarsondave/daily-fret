@@ -15,7 +15,8 @@ import { initAuthListener, useAuthStore } from './lib/auth';
 import { armOutputAudioUnlock } from './audio/outputContext';
 import { readDurability, requestDurableStorage } from './lib/durability';
 import { SurfaceBoundary } from './components/SurfaceBoundary';
-import { CloudIcon, DeviceIcon } from './components/icons';
+import { CloudIcon, DeviceFullIcon, DeviceIcon } from './components/icons';
+import { usePersistence } from './store/persistence';
 import { motion } from 'framer-motion';
 import './App.css';
 
@@ -34,11 +35,27 @@ function App() {
     short: new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
   }));
 
-  const accountLabel = syncing
-    ? 'Settings. Your practice is on this device and the cloud copy is still loading.'
-    : user
-      ? 'Settings. Your practice is synced to the cloud.'
-      : 'Settings. Your practice is saved on this device only.';
+  // This pill is the one place the app states where a result went, so it is the
+  // one place that has to stop saying "saved" the moment a write is refused.
+  // A pill that keeps reading "This device" over a disk that took nothing is
+  // the failure that costs the most trust, not the disk being full.
+  // A signed-in account is not in trouble when the disk refuses a write: the
+  // cloud copy is written on its own path and Firestore queues offline in its
+  // own storage. The local copy being dead is recoverable from it on the next
+  // load, so the pill keeps saying Synced, because it is. Signed out, the same
+  // refusal means the result exists until the tab closes and no longer.
+  const persistence = usePersistence();
+  const refused = persistence.status === 'failed' && !user ? persistence.reason : null;
+
+  const accountLabel = refused
+    ? refused === 'quota'
+      ? 'Settings. This device is out of storage, so results are no longer being saved. Sign in to keep them in the cloud.'
+      : 'Settings. This browser is blocking storage, so results are no longer being saved. Sign in to keep them in the cloud.'
+    : syncing
+      ? 'Settings. Your practice is on this device and the cloud copy is still loading.'
+      : user
+        ? 'Settings. Your practice is synced to the cloud.'
+        : 'Settings. Your practice is saved on this device only.';
 
   useEffect(() => {
     initAuthListener();
@@ -114,18 +131,32 @@ function App() {
           <div className="header-actions">
             <StreakGraph />
             <QuickSetup onOpenSettings={() => setIsSettingsOpen(true)} />
-            <button
-              className={user ? 'account-btn is-synced' : 'account-btn'}
+            {/* The label is a live claim about where the last result went, so
+                it is announced when it changes rather than left to be noticed:
+                hands are on the guitar and this pill is 60px wide. */}
+            <motion.button
+              className={
+                refused ? 'account-btn is-unsaved' : user ? 'account-btn is-synced' : 'account-btn'
+              }
               onClick={() => setIsSettingsOpen(true)}
               aria-label={accountLabel}
+              role="status"
+              animate={refused ? { scale: [1, 1.06, 1] } : { scale: 1 }}
+              transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
             >
-              {user || syncing ? <CloudIcon size={16} /> : <DeviceIcon size={16} />}
+              {refused ? (
+                <DeviceFullIcon size={16} />
+              ) : user || syncing ? (
+                <CloudIcon size={16} />
+              ) : (
+                <DeviceIcon size={16} />
+              )}
               {/* Says where the data actually lives. "Local Mode" named a mode;
                   this names the consequence. While the cloud copy is still
                   coming this says so, because the screen was painted from the
                   local copy and might yet be corrected. */}
-              <span>{syncing ? 'Syncing' : user ? 'Synced' : 'This device'}</span>
-            </button>
+              <span>{refused ? 'Not saved' : syncing ? 'Syncing' : user ? 'Synced' : 'This device'}</span>
+            </motion.button>
           </div>
         </header>
 

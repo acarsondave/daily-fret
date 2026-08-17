@@ -24,6 +24,7 @@
 // The in-memory state stays correct either way, so the session keeps working.
 // What changes is that the app stops promising the session survives a reload.
 
+import { useSyncExternalStore } from 'react';
 import type { StateStorage } from 'zustand/middleware';
 
 export type PersistenceFailure =
@@ -55,6 +56,16 @@ export function onPersistenceChange(fn: (state: PersistenceState) => void): () =
   return () => {
     listeners.delete(fn);
   };
+}
+
+/**
+ * Subscribe a component to whether the last write landed.
+ *
+ * The snapshot object is only replaced when the answer actually changes, so a
+ * session of successful writes never re-renders anything reading this.
+ */
+export function usePersistence(): PersistenceState {
+  return useSyncExternalStore(onPersistenceChange, persistenceState, persistenceState);
 }
 
 function publish(next: PersistenceState): void {

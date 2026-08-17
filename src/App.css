@@ -238,6 +238,25 @@
   color: var(--accent-primary);
 }
 
+/* Red, and amber was tried first. Amber is the warning colour, but the streak
+   pill two positions to the left is --record-color gold, and at arm's length
+   across a propped laptop the two read as one family: the state that says the
+   day is lost sat beside the state that celebrates the day, in the same colour.
+   Red is the only hue on this header that cannot be mistaken for a reward, and
+   the claim it is correcting is not a caution, it is a loss. The wash and the
+   edge carry it from practice distance, where 12px of recoloured text does not. */
+.account-btn.is-unsaved {
+  color: var(--danger-color);
+  background: var(--danger-glow);
+  border-color: rgba(248, 113, 113, 0.34);
+}
+
+.account-btn.is-unsaved:hover {
+  color: var(--danger-color);
+  background: rgba(248, 113, 113, 0.22);
+  border-color: rgba(248, 113, 113, 0.5);
+}
+
 .center-content {
   flex: 1;
   min-height: 0; /* allow children to shrink so the task panel can fit + scroll */
@@ -308,6 +327,24 @@
     justify-content: center;
     min-width: 40px;
     min-height: 40px;
+  }
+
+  /* The one state where the word is not optional. A glyph can stand for "this
+     device" because the panel one tap away says the rest; nothing a glyph can
+     draw says results are no longer being kept. So the word stays and the
+     streak gives up the row for it. A streak is a reward for practice already
+     recorded; this is the news that today's is not being. "Not saved" is
+     narrower than the label it replaces, and the streak is wider than both. */
+  .app-header:has(.account-btn.is-unsaved) .streak-container {
+    display: none;
+  }
+
+  .account-btn.is-unsaved {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .account-btn.is-unsaved span {
+    display: inline;
   }
 }
 
