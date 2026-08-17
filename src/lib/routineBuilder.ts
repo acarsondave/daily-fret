@@ -165,6 +165,56 @@ export function chordsTaughtBy(module: number): string[] {
   return inTeachingOrder(out);
 }
 
+/** Where a learner is standing, worked out from the shapes they can play. */
+export interface DerivedModule {
+  number: number;
+  title: string;
+  /** Curriculum course code the module belongs to, e.g. 'bg1'. */
+  track: string;
+  /** Grade title, for saying which part of the course this is. */
+  gradeTitle: string;
+  firstLessonCode: string | null;
+  /** False when no chord in the set is one the course teaches. */
+  fromChords: boolean;
+}
+
+/**
+ * The module a chord vocabulary puts someone in.
+ *
+ * This is the inverse of `chordsTaughtBy`, and it exists because the app used to
+ * ask. Onboarding put a course picker and a module picker in front of a beginner
+ * to produce a guess it then asked them to confirm, when the answer was already
+ * derivable: a module is the point in the course by which everything they can
+ * play has been taught, so the module that most recently introduced one of their
+ * shapes is where they are standing.
+ *
+ * With no chords at all the answer is the start of the course, which is a fact
+ * about the course rather than a guess about the player, and the routine built
+ * from it says as much in its own description.
+ */
+export function moduleForChords(chords: string[]): DerivedModule | null {
+  const held = new Set(chords);
+  let found: number | null = null;
+  for (const m of BEGINNER_MODULES) {
+    const grade = gradeOfModule(m.number);
+    if (!grade) continue;
+    if (chordsInModule(grade.code, m.number).some((c) => held.has(c))) found = m.number;
+  }
+  const number = found ?? BEGINNER_MODULES[0]?.number;
+  if (number === undefined) return null;
+  const grade = gradeOfModule(number);
+  const named = grade ? findModule(grade.code, number) : null;
+  if (!grade || !named) return null;
+  return {
+    number,
+    title: named.title,
+    track: grade.code,
+    gradeTitle: grade.title,
+    firstLessonCode: named.firstLessonCode,
+    fromChords: found !== null,
+  };
+}
+
 /**
  * The pairs worth drilling: every new chord against the chords already under the
  * hand, plus the new ones against each other.

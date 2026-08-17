@@ -356,7 +356,16 @@ export function DailyPath() {
     return (
       <SurfaceBoundary name="Setup" overlay onDismiss={() => setOnboardingSkipped(true)}>
         <Suspense fallback={<Loader overlay label="Getting set up…" />}>
-          <Onboarding onDone={() => setOnboardingSkipped(true)} />
+          {/* Finishing hands straight to the coached session. The old flow
+              built a routine and then dropped the player on a task list, which
+              made the last act of setting up "here is a list, work out what to
+              press" on the one screen they had earned a run on. */}
+          <Onboarding
+            onDone={(options) => {
+              setOnboardingSkipped(true);
+              if (options?.startCoached) setIsCoachedOpen(true);
+            }}
+          />
         </Suspense>
       </SurfaceBoundary>
     );
