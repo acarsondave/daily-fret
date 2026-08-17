@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { guardedStorage } from './persistence';
 import type { Routine, DailyLog, Task } from '../types';
 import {
   applyMeasurements,
@@ -680,6 +681,11 @@ export const useStore = create<AppState>()(
     },
     {
       name: 'daily-fret-storage',
+      // Every write runs synchronously inside the click that caused it, so an
+      // unguarded one throws out of the handler where nothing catches it. See
+      // ./persistence.ts: a refused write becomes state the header can show
+      // rather than an exception nobody sees.
+      storage: createJSONStorage(() => guardedStorage(() => localStorage)),
       // Snapshot what every task drills the moment the routines come back off
       // disk, before anything the user does can edit that connection away. This
       // is the migration's one write, and it deliberately does not touch
