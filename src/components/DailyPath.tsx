@@ -14,6 +14,7 @@ import { PracticeNudge } from './PracticeNudge';
 import { useUndoStore, type TaskDeletion } from '../store/undo';
 import { RoutineManagerModal } from './RoutineManagerModal';
 import { DayLedger } from './practice/DayLedger';
+import { FilmOffer } from './practice/FilmOffer';
 import { ProgressPanel } from './practice/ProgressPanel';
 import { TunerLauncher } from './practice/TunerLauncher';
 import { preloadTuner } from './practice/tunerChunk';
@@ -741,6 +742,10 @@ export function DailyPath() {
             rows={4}
             maxLength={1000}
           />
+          {/* The camera, asked for on the one day it has earned the question.
+              First run used to ask on day zero, before there was a session to
+              film. There is one now, and it is the sentence above. */}
+          <FilmOffer />
           <button
             className="jotter-done-btn"
             onClick={() => setIsJotterOpen(false)}

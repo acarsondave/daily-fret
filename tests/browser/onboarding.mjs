@@ -431,6 +431,49 @@ async function openApp(state, viewport, extraInit) {
 }
 
 // ---------------------------------------------------------------------------
+// The camera, on the day it is earned. It used to be asked for on day zero,
+// before there was a session to film and before the microphone had proved
+// itself. It is now the second thought on the sheet that opens when a session
+// has just been finished.
+// ---------------------------------------------------------------------------
+{
+  console.log('\nthe camera, after a finished session\n');
+  const today = iso(new Date());
+  const done = {
+    [today]: {
+      date: today,
+      routineId: 'r1',
+      completedTaskIds: ['t1', 't2', 't3'],
+      drillResults: { 'pair:A|D': 33, 'pool:A|D|E': 41 },
+    },
+  };
+  const { ctx, page } = await openApp(withState(done), { width: 390, height: 844 });
+  await page.waitForSelector('.jotter-content', { timeout: 15000 });
+  check('the sheet that opens after a session carries the offer',
+    (await page.locator('.film-offer').count()) === 1);
+  const offer = await page.locator('.film-offer').innerText();
+  check('and it is specific about what it would add, not a list of promises',
+    /cannot see how your hands/i.test(offer), JSON.stringify(offer));
+  check('nothing is turned on by the offer being looked at',
+    await page.evaluate(() => {
+      const raw = localStorage.getItem('daily-fret-recordings');
+      return raw === null || JSON.parse(raw).state?.settings?.enabled !== true;
+    }));
+  check('declining is a control, not a footnote',
+    await page.getByRole('button', { name: /not this/i }).isVisible());
+  await page.screenshot({ path: `${OUT}/film-offer.png` });
+
+  await page.getByRole('button', { name: /not this/i }).click();
+  check('and a no is a complete answer',
+    (await page.locator('.film-offer').count()) === 0);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.jotter-content', { timeout: 15000 });
+  check('which is not asked again tomorrow',
+    (await page.locator('.film-offer').count()) === 0);
+  await ctx.close();
+}
+
+// ---------------------------------------------------------------------------
 // A returning signed-in player on a second device. Nothing local yet, and the
 // cloud copy on its way: the wizard used to open over it and be yanked away
 // mid-question when the sync landed.
