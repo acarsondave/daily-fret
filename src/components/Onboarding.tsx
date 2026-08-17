@@ -364,7 +364,7 @@ function NoteScreen({
             <MicIcon size={18} />
             {status === 'requesting' ? 'Waiting for the browser' : 'Listen'}
           </button>
-          <p className="onboarding-footnote">Your browser will ask first.</p>
+          <p className="onboarding-footnote">Your browser asks first.</p>
         </div>
       )}
 
@@ -402,9 +402,7 @@ function NoteScreen({
       {live && (done || impatient) && (
         <div className="onboarding-actions is-end">
           {done && (
-            <p className="onboarding-lead is-quiet">
-              Everything Daily Fret counts comes from that.
-            </p>
+            <p className="onboarding-lead is-quiet">Everything counted here comes from that.</p>
           )}
           <button
             type="button"

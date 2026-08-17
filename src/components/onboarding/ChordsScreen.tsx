@@ -157,7 +157,11 @@ export function ChordsScreen({ headingRef, micLive, known, onKnownChange, onNext
       {named && (
         <div className="onboarding-derived">
           <p className="onboarding-lead is-quiet" role="status">
-            That puts you around module {named.number}, {named.title}.{' '}
+            {/* The title goes in brackets, as it does everywhere else in the
+                app: course titles carry their own punctuation ("Air Changes,
+                Dynamics & Consolidation!") and one dropped into the middle of
+                a sentence unbracketed reads as a typo. */}
+            Around module {named.number} ({named.title}).{' '}
             <button
               type="button"
               className="onboarding-inline-btn"

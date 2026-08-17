@@ -13,6 +13,7 @@ import { UndoStrip } from './UndoStrip';
 import { PracticeNudge } from './PracticeNudge';
 import { useUndoStore, type TaskDeletion } from '../store/undo';
 import { RoutineManagerModal } from './RoutineManagerModal';
+import { DayLedger } from './practice/DayLedger';
 import { ProgressPanel } from './practice/ProgressPanel';
 import { TunerLauncher } from './practice/TunerLauncher';
 import { preloadTuner } from './practice/tunerChunk';
@@ -101,7 +102,9 @@ export function DailyPath() {
 
   const routines = useMemo(() => userData?.routines || [], [userData]);
   const activeRoutineId = userData?.activeRoutineId;
-  const dailyLogs = userData?.dailyLogs || {};
+  // Memoised because it is now a dependency of a derived value as well as a
+  // lookup: a fresh {} on every render would refold the whole history each paint.
+  const dailyLogs = useMemo(() => userData?.dailyLogs ?? {}, [userData]);
 
   const setActiveRoutine = useStore(state => state.setActiveRoutine);
   const log = dailyLogs[today];
@@ -213,6 +216,17 @@ export function DailyPath() {
     : undefined;
 
   const allCompleted = !isEmpty && tasks.every(t => log?.completedTaskIds?.includes(t.id));
+
+  // Has anything ever been measured. On day zero the ledger below carries the
+  // one thing worth pressing, and a second control in the header doing the same
+  // job would leave a brand new screen with two competing primaries.
+  const everMeasured = useMemo(
+    () =>
+      Object.values(dailyLogs).some((day) =>
+        Object.values(day.drillResults ?? {}).some((v) => typeof v === 'number' && v > 0),
+      ),
+    [dailyLogs],
+  );
 
   // Open the jotter on the rising edge of completion (when no feedback yet),
   // adjusting state during render rather than in an effect. Hold off while a
@@ -459,7 +473,7 @@ export function DailyPath() {
           </AnimatePresence>
         </div>
 
-        {hasCoachable && (
+        {hasCoachable && everMeasured && (
           <button
             className="progress-launch is-primary"
             onClick={() => setIsCoachedOpen(true)}
@@ -529,6 +543,12 @@ export function DailyPath() {
           {/* Above the list, not over it: the thing it is asking you to do is
               right there underneath. */}
           <PracticeNudge onStart={() => setIsCoachedOpen(true)} />
+          {/* What the practice has produced, on the screen it is produced from.
+              Only where there is a routine to produce it: a ledger over an empty
+              list would be measuring a session that cannot be run. */}
+          {!isEmpty && (
+            <DayLedger onStart={hasCoachable ? () => setIsCoachedOpen(true) : null} />
+          )}
           <div
             ref={listRef}
             className={clsx(

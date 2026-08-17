@@ -1,0 +1,115 @@
+/* The day's numbers, above the day's list.
+   A ledger rather than a dashboard: three figures on one line, at the weight of
+   a caption, so it reads as a record the screen keeps rather than as a score it
+   is showing you. */
+
+.ledger {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ledger-figures {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.ledger-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.ledger-value {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-xl);
+  line-height: 1.1;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The place a number will go. Held open at the width of the figure it is
+   waiting for, and drawn as a rule rather than as a character, so it reads as
+   an empty slot and never as a value. */
+.ledger-value.is-blank {
+  color: transparent;
+  border-bottom: 2px solid var(--border-strong);
+  line-height: 1;
+}
+
+.ledger-unit {
+  font-size: var(--text-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ledger-line {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* The one piece of news a returning session carries. It leads, so it is the
+   first thing on the screen, and it is set in body colour rather than the
+   accent: this is a fact, not an alert. */
+.ledger-line.is-delta {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+.ledger-delta-value {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-md);
+  color: var(--success-color);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A session that went backwards is stated in the same voice, in the colour the
+   app uses for a thing worth noticing rather than the one it uses for damage. */
+.ledger-line.is-delta.is-down .ledger-delta-value {
+  color: var(--warning-color);
+}
+
+/* Day zero. The only thing to press on the screen, so it is the only thing here
+   that looks pressable. */
+.ledger-start {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(56, 189, 248, 0.32);
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  transition: background var(--dur-base) ease, border-color var(--dur-base) ease,
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.ledger-start:hover {
+  background: rgba(56, 189, 248, 0.26);
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
+.ledger-start:active {
+  transform: scale(0.97);
+}
+
+@media (max-width: 420px) {
+  .ledger-figures {
+    gap: var(--space-4);
+  }
+}

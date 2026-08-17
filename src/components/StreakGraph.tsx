@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useStreak } from '../hooks/useStreak';
+import { isFirstViewToday } from '../lib/firstView';
 import { getTodayString } from '../store';
 import { FlameIcon } from './icons';
 import clsx from 'clsx';
@@ -7,6 +9,10 @@ import './StreakGraph.css';
 export function StreakGraph() {
   const { currentStreak, graphData } = useStreak();
   const today = getTodayString();
+  // One cell, once a day. Coming back is worth marking and it is not worth a
+  // banner: the mark is the square that already stands for the day, landing.
+  const [firstView] = useState(() => isFirstViewToday(today));
+  const lastFilled = [...graphData].reverse().find((d) => d.intensity > 0)?.date ?? null;
 
   return (
     <div className="streak-container">
@@ -34,7 +40,14 @@ export function StreakGraph() {
             key={day.date}
             className={clsx('streak-day-col', day.date === today && 'is-today')}
           >
-            <div className={`streak-block intensity-${day.intensity}`} aria-hidden="true" />
+            <div
+              className={clsx(
+                'streak-block',
+                `intensity-${day.intensity}`,
+                firstView && day.date === lastFilled && 'is-landing',
+              )}
+              aria-hidden="true"
+            />
             <span className="streak-day-label" aria-hidden="true">
               {day.dayOfWeek}
             </span>
