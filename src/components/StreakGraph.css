@@ -115,3 +115,21 @@
     font-size: 9px;
   }
 }
+
+
+/* The most recent day of practice, landing. Once a day, on one cell, and only
+   on the first look: a square that pulses every time the screen repaints is
+   decoration, and this is a confirmation. */
+.streak-block.is-landing {
+  animation: streak-land 0.62s var(--ease-out) 0.25s both;
+}
+
+@keyframes streak-land {
+  0% { transform: scale(0.6); }
+  55% { transform: scale(1.28); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .streak-block.is-landing { animation: none; }
+}

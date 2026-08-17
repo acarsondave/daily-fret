@@ -23,13 +23,7 @@
   margin: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
-}
-
-.onboarding-top {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-5);
 }
 
 /* Set in the display face at the app's own tracking, so it reads as a mark
@@ -47,25 +41,6 @@
   color: var(--accent-primary);
 }
 
-.onboarding-steps {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.onboarding-dot {
-  width: 24px;
-  height: 3px;
-  border-radius: var(--radius-full);
-  background: var(--border-default);
-  transition: background var(--dur-base) ease;
-}
-.onboarding-dot.is-done {
-  background: var(--border-strong);
-}
-.onboarding-dot.is-on {
-  background: var(--accent-primary);
-}
-
 .onboarding-body {
   display: flex;
   flex-direction: column;
@@ -81,10 +56,10 @@
   color: var(--text-primary);
   text-wrap: balance;
 }
-/* The heading takes focus on every step change so a screen reader and a keyboard
-   both land on the new question. It is a destination rather than a control, and
-   the app's focus ring around a paragraph of display type reads as a button
-   nobody can press, so the ring stays with the things you can actually operate. */
+/* The heading takes focus on every screen change so a screen reader and a
+   keyboard both land on the new screen. It is a destination rather than a
+   control, and the app's focus ring around a line of display type reads as a
+   button nobody can press. */
 .onboarding-title:focus,
 .onboarding-title:focus-visible {
   outline: none;
@@ -98,122 +73,124 @@
   color: var(--text-secondary);
 }
 
-/* The standing disclosure about the course this app is not. Quiet, because it
-   is a fact rather than a warning, but never hidden. */
-.onboarding-note {
-  max-width: 56ch;
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--border-subtle);
-  font-size: var(--text-sm);
-  line-height: 1.5;
+.onboarding-lead.is-quiet {
+  font-size: var(--text-base);
   color: var(--text-muted);
 }
 
-/* --- Course --------------------------------------------------------------- */
+.onboarding-waiting {
+  padding: var(--space-8) 0;
+  color: var(--text-muted);
+  font-size: var(--text-base);
+}
 
-.onboarding-choices {
+/* --- One. The note -------------------------------------------------------- */
+
+/* The headstock and what it heard, as one object, at every width. It shares its
+   left edge with the wordmark, the heading and the control, so the screen reads
+   as one column rather than as a picture with captions arranged around it. */
+.onboarding-stage {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-5);
+  min-height: 0;
+}
+
+/* The drawing centres itself for the tuner, which has nothing beside it. Here
+   it does, so the auto margins go: without this the free space in the row is
+   split around the headstock and the note is pushed to the far edge of the
+   panel, half a screen from the string that produced it. Recession while it
+   cannot hear is already the drawing's own `is-deaf` state and is not repeated
+   here. */
+.onboarding-stage .headstock {
+  width: min(200px, 32vw);
+  margin-inline: 0;
+  flex-shrink: 0;
+}
+
+.onboarding-heard {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--space-4);
+  min-width: 5ch;
 }
 
-.onboarding-choice {
+/* The note, at the size of the thing the whole screen is about. It holds its
+   own box whether or not anything is sounding, so the layout does not jump the
+   first time a string is heard. */
+.onboarding-note {
+  display: block;
+  min-height: 1em;
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: clamp(3.5rem, 16vw, 5.5rem);
+  line-height: 1;
+  letter-spacing: var(--tracking-display);
+  color: var(--accent-primary);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}
+
+.onboarding-note.is-on {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.onboarding-marks {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  align-items: flex-end;
+  gap: 10px;
+  height: 34px;
+}
+
+/* A tally stroke, drawn by hand rather than set in a font: it grows down from
+   nothing the way a pen would, once, when the note that earned it is heard. */
+.onboarding-mark {
+  width: 4px;
+  height: 34px;
+  border-radius: 2px;
+  background: var(--text-primary);
+  transform-origin: top center;
+  animation: onboarding-mark-draw 0.34s var(--ease-out) both;
+}
+
+@keyframes onboarding-mark-draw {
+  from { transform: scaleY(0); opacity: 0.4; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+
+/* The microphone said no. Its own surface, because it is the only moment on
+   this screen with anything at stake. */
+.onboarding-blocked {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
-  min-height: 60px;
-  padding: var(--space-4);
+  padding: var(--space-5);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-color);
-  text-align: left;
-  transition: background var(--dur-base) ease, border-color var(--dur-base) ease;
-}
-.onboarding-choice:hover,
-.onboarding-choice.is-on {
-  background: var(--accent-glow);
-  border-color: rgba(56, 189, 248, 0.4);
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  background: var(--danger-glow);
 }
 
-/* The way out of the course list. Set apart so it does not read as a fourth
-   grade, because "I follow something else" is a different kind of answer. */
-.onboarding-choice.is-other {
-  min-height: 52px;
-  margin-top: var(--space-2);
-  background: transparent;
-  border-style: dashed;
-  border-color: var(--border-default);
-}
-.onboarding-choice.is-other:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: var(--border-strong);
-}
-
-.onboarding-choice-name {
+.onboarding-reason {
   font-family: var(--font-primary);
   font-weight: 600;
   font-size: var(--text-md);
   color: var(--text-primary);
 }
 
-.onboarding-choice-note {
-  flex-shrink: 0;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
+/* --- Two. The chords you have --------------------------------------------- */
 
-/* --- Modules -------------------------------------------------------------- */
-
-.onboarding-modules {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.onboarding-module {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: 52px;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  text-align: left;
-  transition: background var(--dur-base) ease;
-}
-.onboarding-module:hover,
-.onboarding-module.is-on {
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.onboarding-module-number {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.06);
-  font-family: var(--font-mono);
-  font-size: var(--text-micro);
-  color: var(--text-secondary);
-}
-
-.onboarding-module-name {
-  font-family: var(--font-primary);
-  font-weight: 600;
-  font-size: var(--text-base);
-  color: var(--text-primary);
-}
-
-/* --- Chords --------------------------------------------------------------- */
-
-/* A grid rather than a wrap, so nine shapes land in even rows at every width
-   instead of leaving one stranded on a line of its own. */
+/* Three by three, at every width. Nine shapes have exactly one arrangement
+   that does not leave a ragged last row, and an auto-fill grid found five and
+   four on a laptop, which read as a list that had run out rather than as the
+   whole vocabulary the app can hear. */
 .onboarding-chords {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-2);
 }
 
@@ -246,6 +223,33 @@
   stroke: var(--success-color);
 }
 
+/* The dots go down one at a time, in string order, the way a hand builds the
+   shape. It is the difference between a card that switched colour and a card
+   that shows you what you just played. */
+.onboarding-chord.is-on .cd-dot {
+  animation: onboarding-dot-in 0.3s var(--ease-out) both;
+}
+.onboarding-chord.is-on .cd-dot:nth-of-type(2) { animation-delay: 0.07s; }
+.onboarding-chord.is-on .cd-dot:nth-of-type(3) { animation-delay: 0.14s; }
+.onboarding-chord.is-on .cd-dot:nth-of-type(4) { animation-delay: 0.21s; }
+
+@keyframes onboarding-dot-in {
+  from { transform: scale(0.2); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Heard rather than tapped. One ring, once, so the card the microphone lit is
+   distinguishable from the card a finger lit without a word being spent on it. */
+.onboarding-chord.is-heard {
+  animation: onboarding-chord-heard 0.7s var(--ease-out);
+}
+
+@keyframes onboarding-chord-heard {
+  from { box-shadow: 0 0 0 0 var(--success-glow); }
+  60% { box-shadow: 0 0 0 8px rgba(52, 211, 153, 0); }
+  to { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+}
+
 .onboarding-chord-name {
   font-family: var(--font-primary);
   font-weight: 600;
@@ -256,101 +260,74 @@
   color: var(--success-color);
 }
 
-/* Marks the shapes this module is about to teach, so leaving them unticked
-   reads as expected rather than as a gap.
-   Inside the card, not floating above it: overhanging the top edge put the tag
-   in the row above and it read as labelling the wrong chord. */
-.onboarding-chord-tag {
-  padding: 1px var(--space-2);
-  border-radius: var(--radius-full);
-  background: var(--accent-glow);
-  color: var(--accent-primary);
-  font-family: var(--font-secondary);
-  font-size: 0.62rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-/* --- Microphone ----------------------------------------------------------- */
-
-/* The one moment in onboarding with something at stake, so it gets a surface of
-   its own rather than a sentence and a button in the flow. */
-.onboarding-mic {
+.onboarding-derived {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
   gap: var(--space-3);
-  min-height: 132px;
-  justify-content: center;
-  padding: var(--space-5);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-color);
-  transition: border-color var(--dur-base) ease, background var(--dur-base) ease;
-}
-.onboarding-mic.is-live {
-  border-color: rgba(56, 189, 248, 0.4);
-  background: var(--accent-glow);
-}
-.onboarding-mic.is-blocked {
-  border-color: rgba(248, 113, 113, 0.4);
-  background: var(--danger-glow);
 }
 
-.onboarding-mic-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 48px;
-  padding: 0 var(--space-5);
-  border-radius: var(--radius-full);
-  border: 1px solid var(--border-default);
-  background: rgba(255, 255, 255, 0.05);
+/* Correcting the derived module. A control set in the sentence it corrects,
+   because that is what it is about. */
+.onboarding-inline-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--accent-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.onboarding-inline-btn:hover {
   color: var(--text-primary);
-  font-family: var(--font-primary);
-  font-weight: 600;
-  font-size: var(--text-md);
-  transition: background var(--dur-base) ease, border-color var(--dur-base) ease;
-}
-.onboarding-mic-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: var(--border-strong);
-}
-.onboarding-mic-btn:disabled {
-  color: var(--text-muted);
-  cursor: default;
 }
 
-.onboarding-mic-state {
+.onboarding-modules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: var(--space-2);
+}
+
+.onboarding-module {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  font-family: var(--font-primary);
-  font-weight: 600;
-  font-size: var(--text-md);
-  color: var(--text-primary);
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  text-align: left;
+  transition: background var(--dur-base) ease;
 }
-.onboarding-mic-state.is-problem {
-  color: var(--danger-color);
-}
-
-.onboarding-mic-reason {
-  font-size: var(--text-base);
-  line-height: 1.45;
-  color: var(--text-primary);
+.onboarding-module:hover,
+.onboarding-module.is-on {
+  background: rgba(255, 255, 255, 0.06);
 }
 
-.onboarding-mic-help {
-  font-size: var(--text-sm);
-  line-height: 1.5;
+.onboarding-module-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.06);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
   color: var(--text-secondary);
 }
-.onboarding-mic .onboarding-mic-reason + .onboarding-mic-help {
-  margin-top: calc(var(--space-3) * -1 + var(--space-1));
+
+.onboarding-module-name {
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-base);
+  color: var(--text-primary);
 }
 
-/* --- Preview -------------------------------------------------------------- */
+/* --- Three. Tomorrow ------------------------------------------------------ */
 
 .onboarding-preview {
   display: flex;
@@ -382,7 +359,9 @@
 }
 
 /* Whether the microphone counts this task or a clock does. The distinction is
-   the product's central honesty, so it is on every row rather than in a legend. */
+   the product's central honesty, so it is on every row rather than in a legend.
+   The stroke draws itself in once as the row lands, which is the only motion
+   on this screen that is not the list arriving. */
 .onboarding-preview-mark {
   display: inline-flex;
   padding-top: 2px;
@@ -390,6 +369,15 @@
 }
 .onboarding-preview-item.is-counted .onboarding-preview-mark {
   color: var(--accent-primary);
+}
+.onboarding-preview-mark path {
+  stroke-dasharray: 64;
+  animation: onboarding-mark-ink 0.7s var(--ease-out) both;
+}
+
+@keyframes onboarding-mark-ink {
+  from { stroke-dashoffset: 64; }
+  to { stroke-dashoffset: 0; }
 }
 
 .onboarding-preview-text {
@@ -430,40 +418,20 @@
 .onboarding-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-3);
   flex-wrap: wrap;
   padding-top: var(--space-2);
 }
-/* The first step has one action and nothing to go back to. */
 .onboarding-actions.is-start {
-  justify-content: flex-start;
-}
-
-.onboarding-back,
-.onboarding-skip {
-  display: inline-flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: var(--space-2);
-  min-height: 44px;
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-full);
-  color: var(--text-muted);
-  font-family: var(--font-primary);
-  font-weight: 600;
-  font-size: var(--text-sm);
-  transition: color var(--dur-base) ease;
 }
-.onboarding-back:hover,
-.onboarding-skip:hover {
-  color: var(--text-primary);
-}
-
-/* The exit, on every step. Sits under the panel rather than inside the question
-   so it never competes with the answer, and never has to be hunted for. */
-.onboarding-skip {
-  align-self: flex-start;
-  margin-left: calc(var(--space-3) * -1);
+/* One control, and it is the one that moves forward. */
+.onboarding-actions.is-end {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
 }
 
 .onboarding-next {
@@ -515,57 +483,18 @@
   color: var(--text-muted);
 }
 
-/* Declining the camera. A real control rather than a link, and given the same
-   voice as the footnote it sits in: a "no" that looks like an afterthought is
-   a "no" people do not believe they are allowed to give. */
-.onboarding-footnote-btn {
-  align-self: flex-start;
-  padding: var(--space-2) 0;
-  min-height: 44px;
-  border: none;
-  background: transparent;
-  font-family: var(--font-secondary);
-  font-size: var(--text-sm);
-  line-height: 1.5;
-  color: var(--text-secondary);
-  text-align: left;
-  cursor: pointer;
-  transition: color var(--dur-fast) ease;
-}
-
-.onboarding-footnote-btn:hover {
-  color: var(--text-primary);
-  text-decoration: underline;
-}
-
-.onboarding-footnote-btn:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
-/* The camera step reuses the microphone block's shell, because it is the same
-   kind of moment: a permission, asked once, with the result on screen. What it
-   adds is the picture, at the proportion the footage is actually filmed in. */
-.onboarding-camera {
-  align-items: stretch;
-  padding: var(--space-4);
-}
-
-.onboarding-camera-video {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: var(--radius-md);
-  background: #000;
-  object-fit: cover;
-  display: block;
+@media (max-width: 560px) {
+  .onboarding-stage {
+    gap: var(--space-4);
+  }
+  .onboarding-stage .headstock {
+    width: min(136px, 34vw);
+  }
 }
 
 @media (max-width: 400px) {
   .onboarding {
     padding-left: var(--space-4);
     padding-right: var(--space-4);
-  }
-  .onboarding-chords {
-    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
   }
 }

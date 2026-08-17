@@ -213,6 +213,13 @@ interface Props {
   allSettled: boolean;
   levelRef: React.RefObject<number>;
   reducedMotion: boolean;
+  /**
+   * Whether the pegs are controls. The tuner's are: pressing one shuts out the
+   * other five strings. First run's are not, and rendering six buttons offering
+   * to do that on a screen with no tuner behind it would be a promise the
+   * surface cannot keep.
+   */
+  interactive?: boolean;
   onSelect: (position: number) => void;
 }
 
@@ -228,6 +235,7 @@ export function Headstock({
   allSettled,
   levelRef,
   reducedMotion,
+  interactive = true,
   onSelect,
 }: Props) {
   const byPosition = new Map(strings.map((s) => [s.position, s]));
@@ -383,6 +391,7 @@ export function Headstock({
 
       {/* Real buttons, laid over the posts they belong to. The SVG stays
           presentational so focus, labels and hit area come from the platform. */}
+      {interactive && (
       <div className="headstock-pegs">
         {pegs.map((peg) => {
           const string = byPosition.get(peg.position);
@@ -430,6 +439,7 @@ export function Headstock({
           );
         })}
       </div>
+      )}
     </div>
   );
 }
