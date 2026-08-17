@@ -153,3 +153,32 @@ export function buildSegments(routine: Routine | undefined): CoachSegment[] {
 
   return segments;
 }
+
+/**
+ * How long a paused session stays the same sitting.
+ *
+ * Twelve hours, so an evening session interrupted at 21:00 is still waiting the
+ * next morning and a session from last week is not. The calendar day used to
+ * decide this, and it is the wrong instrument: it makes a session paused ten
+ * minutes before midnight stale ten minutes later, which is precisely when a
+ * practice is most likely to be interrupted and least likely to be finished.
+ */
+export const RESUME_WINDOW_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * Whether a saved coached session is still worth offering back.
+ *
+ * Takes `now` rather than reading the clock, so the awkward cases (paused at
+ * 23:50, reopened at 00:10) can be stated in a test instead of waited for.
+ */
+export function isResumable(
+  progress: { date: string; startedAt?: number },
+  now: number,
+  today: string,
+): boolean {
+  // Progress written before sessions carried a start time. The date it holds is
+  // the only thing it can be judged on, so it is judged the way it always was.
+  if (progress.startedAt === undefined) return progress.date === today;
+  const age = now - progress.startedAt;
+  return age >= 0 && age < RESUME_WINDOW_MS;
+}

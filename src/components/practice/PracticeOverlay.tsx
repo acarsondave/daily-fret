@@ -97,7 +97,12 @@ export function PracticeOverlay({ task, onClose }: Props) {
   const runStartedAt = useRef(0);
   const songFinished = useRef(false);
 
-  const today = getTodayString();
+  // The date this run records under, decided when the overlay opens and never
+  // recomputed. Read on every render, a drill started at 23:59 measured against
+  // one date and settled against the next after a re-render, and `settle` on a
+  // day with no measurement returns the log unchanged: the run was never
+  // recorded anywhere. A run belongs to the date it started.
+  const [today] = useState(getTodayString);
   const duration = drill?.durationSec ?? 60;
   // The key this drill's history sits under, which is also what the prescribed
   // tempo has to be read from. Null for anything with no single series of its
