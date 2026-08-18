@@ -3,6 +3,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { useStore, useUserData, getTodayString } from '../store';
+import { useAuthStore } from '../lib/auth';
 import { TaskRow } from './TaskRow';
 import { Modal } from './Modal';
 import { Loader } from './Loader';
@@ -12,6 +13,8 @@ import { UndoStrip } from './UndoStrip';
 import { PracticeNudge } from './PracticeNudge';
 import { useUndoStore, type TaskDeletion } from '../store/undo';
 import { RoutineManagerModal } from './RoutineManagerModal';
+import { DayLedger } from './practice/DayLedger';
+import { FilmOffer } from './practice/FilmOffer';
 import { ProgressPanel } from './practice/ProgressPanel';
 import { TunerLauncher } from './practice/TunerLauncher';
 import { preloadTuner } from './practice/tunerChunk';
@@ -91,10 +94,18 @@ const MAX_TASKS = 100;
 export function DailyPath() {
   const today = getTodayString();
   const userData = useUserData();
+  // Whether the cloud copy of this account is still on its way. A signed-in
+  // player opening the app on a second device has no local routine yet, which
+  // is indistinguishable from being new if nothing asks this question: the
+  // first run wizard used to open over data already in flight and get yanked
+  // away mid-question when the sync landed.
+  const syncing = useAuthStore((s) => s.syncing);
 
   const routines = useMemo(() => userData?.routines || [], [userData]);
   const activeRoutineId = userData?.activeRoutineId;
-  const dailyLogs = userData?.dailyLogs || {};
+  // Memoised because it is now a dependency of a derived value as well as a
+  // lookup: a fresh {} on every render would refold the whole history each paint.
+  const dailyLogs = useMemo(() => userData?.dailyLogs ?? {}, [userData]);
 
   const setActiveRoutine = useStore(state => state.setActiveRoutine);
   const log = dailyLogs[today];
@@ -207,6 +218,17 @@ export function DailyPath() {
 
   const allCompleted = !isEmpty && tasks.every(t => log?.completedTaskIds?.includes(t.id));
 
+  // Has anything ever been measured. On day zero the ledger below carries the
+  // one thing worth pressing, and a second control in the header doing the same
+  // job would leave a brand new screen with two competing primaries.
+  const everMeasured = useMemo(
+    () =>
+      Object.values(dailyLogs).some((day) =>
+        Object.values(day.drillResults ?? {}).some((v) => typeof v === 'number' && v > 0),
+      ),
+    [dailyLogs],
+  );
+
   // Open the jotter on the rising edge of completion (when no feedback yet),
   // adjusting state during render rather than in an effect. Hold off while a
   // guided session or a drill is on screen — completing the last task there
@@ -315,13 +337,50 @@ export function DailyPath() {
     setInlineDraft({ title: '', description: '', duration: '' });
   };
 
+  // Signed in, nothing local, and the cloud copy still coming. Their routine
+  // very probably exists; it is on the wire. So the list shows its own shape
+  // arriving rather than a wizard asking a returning player who they are.
+  if (!activeRoutine && syncing) {
+    return (
+      <div className="daily-path">
+        <div className="task-container-wrapper">
+          <div className="task-container glass-panel">
+            <p className="sr-only" role="status">
+              Fetching your practice from the cloud.
+            </p>
+            <div className="task-list-scrollable" aria-hidden="true">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="task-skeleton" style={{ animationDelay: `${i * 0.12}s` }}>
+                  <span className="task-skeleton-mark" />
+                  <span className="task-skeleton-lines">
+                    <span className="task-skeleton-line is-title" />
+                    <span className="task-skeleton-line" />
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // First run: no routine and never asked where they are. Dismissing it drops
   // through to the same blank slate as before, so nobody is trapped in a wizard.
   if (!activeRoutine && !onboardingSkipped) {
     return (
       <SurfaceBoundary name="Setup" overlay onDismiss={() => setOnboardingSkipped(true)}>
         <Suspense fallback={<Loader overlay label="Getting set up…" />}>
-          <Onboarding onDone={() => setOnboardingSkipped(true)} />
+          {/* Finishing hands straight to the coached session. The old flow
+              built a routine and then dropped the player on a task list, which
+              made the last act of setting up "here is a list, work out what to
+              press" on the one screen they had earned a run on. */}
+          <Onboarding
+            onDone={(options) => {
+              setOnboardingSkipped(true);
+              if (options?.startCoached) setIsCoachedOpen(true);
+            }}
+          />
         </Suspense>
       </SurfaceBoundary>
     );
@@ -415,7 +474,7 @@ export function DailyPath() {
           </AnimatePresence>
         </div>
 
-        {hasCoachable && (
+        {hasCoachable && everMeasured && (
           <button
             className="progress-launch is-primary"
             onClick={() => setIsCoachedOpen(true)}
@@ -485,6 +544,12 @@ export function DailyPath() {
           {/* Above the list, not over it: the thing it is asking you to do is
               right there underneath. */}
           <PracticeNudge onStart={() => setIsCoachedOpen(true)} />
+          {/* What the practice has produced, on the screen it is produced from.
+              Only where there is a routine to produce it: a ledger over an empty
+              list would be measuring a session that cannot be run. */}
+          {!isEmpty && (
+            <DayLedger onStart={hasCoachable ? () => setIsCoachedOpen(true) : null} />
+          )}
           <div
             ref={listRef}
             className={clsx(
@@ -677,6 +742,10 @@ export function DailyPath() {
             rows={4}
             maxLength={1000}
           />
+          {/* The camera, asked for on the one day it has earned the question.
+              First run used to ask on day zero, before there was a session to
+              film. There is one now, and it is the sentence above. */}
+          <FilmOffer />
           <button
             className="jotter-done-btn"
             onClick={() => setIsJotterOpen(false)}

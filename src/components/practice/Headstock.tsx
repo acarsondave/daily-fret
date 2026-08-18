@@ -199,10 +199,15 @@ interface Props {
    * How far the sounding string is from where it belongs, signed: negative is
    * flat. Null whenever there is nothing to be sure about, which is what stops
    * the dial drawing a distance the tuner has not actually measured.
+   *
+   * Optional because the tuner is not the only surface that draws this
+   * instrument. First run uses it to show which string just sounded and is not
+   * measuring distance at all, and defaulting to null is the same statement the
+   * doc above makes: no arc, because nothing was measured.
    */
-  cents: number | null;
+  cents?: number | null;
   /** The reading is closer to some other note, so the distance means nothing. */
-  far: boolean;
+  far?: boolean;
   /** The string the tuner is leading to next. Guidance, not a filter. */
   targetPosition: number | null;
   /** The user has aimed the tuner at one string and shut out the rest. */
@@ -213,14 +218,21 @@ interface Props {
   allSettled: boolean;
   levelRef: React.RefObject<number>;
   reducedMotion: boolean;
+  /**
+   * Whether the pegs are controls. The tuner's are: pressing one shuts out the
+   * other five strings. First run's are not, and rendering six buttons offering
+   * to do that on a screen with no tuner behind it would be a promise the
+   * surface cannot keep.
+   */
+  interactive?: boolean;
   onSelect: (position: number) => void;
 }
 
 export function Headstock({
   strings,
   activePosition,
-  cents,
-  far,
+  cents = null,
+  far = false,
   targetPosition,
   pinnedPosition,
   settled,
@@ -228,6 +240,7 @@ export function Headstock({
   allSettled,
   levelRef,
   reducedMotion,
+  interactive = true,
   onSelect,
 }: Props) {
   const byPosition = new Map(strings.map((s) => [s.position, s]));
@@ -383,6 +396,7 @@ export function Headstock({
 
       {/* Real buttons, laid over the posts they belong to. The SVG stays
           presentational so focus, labels and hit area come from the platform. */}
+      {interactive && (
       <div className="headstock-pegs">
         {pegs.map((peg) => {
           const string = byPosition.get(peg.position);
@@ -430,6 +444,7 @@ export function Headstock({
           );
         })}
       </div>
+      )}
     </div>
   );
 }
