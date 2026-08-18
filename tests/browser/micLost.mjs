@@ -1,0 +1,173 @@
+// A microphone that dies part-way through a drill.
+//
+// The reported defect: only the tuner ever passed `onRouteChange`, so a chord
+// drill was blind to its own input going away, and `watchRoute` listened for
+// mute and unmute but never `ended` — which is the event a revoked permission
+// or an unplugged interface actually fires. The frames stop, no error is
+// raised, the context happily reports itself as running, and the screen goes on
+// saying it is listening over a drill that scores zero.
+//
+// The kill below is the real thing rather than a stub: the track is stopped, so
+// its readyState really is 'ended', and then the event a browser fires on that
+// track is fired on it. Anything less would pass against the broken code, which
+// was perfectly happy as long as nobody told it.
+//
+// Also here: a stored microphone that is busy. It used to hard-fail the drill,
+// because NotReadableError was missing from the branch that falls back to the
+// system default.
+//
+//   PREVIEW_URL=http://localhost:5401/ node tests/browser/micLost.mjs
+
+import { chromium } from 'playwright';
+
+const BASE = process.env.PREVIEW_URL ?? 'http://localhost:5199/';
+const KEY = 'daily-fret-storage';
+
+let failures = 0;
+const check = (label, ok, detail) => {
+  if (!ok) failures += 1;
+  console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${label}${!ok && detail ? ` — ${detail}` : ''}`);
+};
+
+const account = {
+  activeRoutineId: 'r1',
+  routines: [{
+    id: 'r1', name: 'Module 4 Daily', description: '', isDefault: true,
+    tasks: [
+      { id: 't1', title: 'Chord Perfect', duration: '2 mins', drill: { kind: 'chord-trainer', durationSec: 60, chords: ['Am', 'Em'] } },
+    ],
+  }],
+  dailyLogs: {}, strumPatterns: [], songLinks: [], userSongs: [], updatedAt: 1,
+  chordProfiles: [{ id: 'guitar-1', label: 'Steel', version: 1, createdAt: 1, updatedAt: 1, chords: {} }],
+  activeProfileId: 'guitar-1',
+  capoFret: 0,
+};
+
+async function open({ busyDeviceId = null } = {}) {
+  const browser = await chromium.launch({
+    args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+  });
+  const ctx = await browser.newContext({ permissions: ['microphone'], viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push('PAGEERROR ' + String(e).slice(0, 200)));
+
+  // Hold on to every track handed out, so the test can kill the one the drill
+  // is actually listening to. Optionally refuse an exact-device request the way
+  // an input held by another app refuses one.
+  await page.addInitScript((busy) => {
+    window.__micTracks = [];
+    window.__exactRequests = 0;
+    const media = navigator.mediaDevices;
+    const original = media.getUserMedia.bind(media);
+    media.getUserMedia = async (constraints) => {
+      const exact = constraints?.audio?.deviceId?.exact;
+      if (exact) {
+        window.__exactRequests += 1;
+        if (busy && exact === busy) {
+          throw new DOMException('Could not start audio source', 'NotReadableError');
+        }
+      }
+      const stream = await original(constraints);
+      window.__micTracks.push(...stream.getAudioTracks());
+      return stream;
+    };
+    // What a revoked permission or an unplugged interface leaves behind: a
+    // track whose readyState is 'ended', announced by an 'ended' event.
+    window.__killMic = () => {
+      const track = window.__micTracks[window.__micTracks.length - 1];
+      if (!track) return false;
+      track.stop();
+      track.dispatchEvent(new Event('ended'));
+      return true;
+    };
+  }, busyDeviceId);
+
+  await page.addInitScript((args) => {
+    localStorage.setItem(args.key, JSON.stringify({
+      state: { currentAccountId: 'anonymous', accounts: { anonymous: args.account } },
+      version: 0,
+    }));
+    if (args.preferred) localStorage.setItem('daily-fret-mic-device', args.preferred);
+  }, { key: KEY, account, preferred: busyDeviceId });
+
+  await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.waitForSelector('.task-container', { timeout: 30000 });
+  await page.waitForTimeout(600);
+  return { browser, page, errors };
+}
+
+// Returns whether the drill reached the point of listening. A drill that never
+// gets there is a failure to report, not an exception to die on: hard-failing
+// instead of falling back is one of the defects under test.
+const startDrill = async (page) => {
+  await page.locator('.task-row', { hasText: 'Chord Perfect' }).click();
+  await page.waitForSelector('.practice-overlay', { timeout: 20000 });
+  await page.locator('.practice-btn.primary').first().click();
+  try {
+    await page.waitForSelector('.signal-meter', { timeout: 20000 });
+  } catch {
+    return false;
+  }
+  await page.waitForTimeout(1200);
+  return true;
+};
+
+const meterText = (page) => page.locator('.signal-meter .signal-label').first().innerText();
+
+// --- the microphone dies mid-drill -----------------------------------------
+{
+  console.log('\na drill notices its microphone going away\n');
+  const { browser, page, errors } = await open();
+  const listening = await startDrill(page);
+
+  check('the drill opened its microphone', listening === true);
+  check(
+    'the drill is listening to begin with',
+    (await page.locator('.signal-meter.is-lost').count()) === 0,
+    await meterText(page),
+  );
+
+  const killed = await page.evaluate(() => window.__killMic());
+  check('the drill had a live track to lose', killed === true);
+  await page.waitForTimeout(1500);
+
+  check(
+    'the meter stops saying the drill can hear',
+    (await page.locator('.signal-meter.is-lost').count()) === 1,
+    await meterText(page),
+  );
+  check(
+    'and names what happened rather than blaming the playing',
+    /microphone stopped/i.test(await meterText(page)),
+    await meterText(page).catch(() => 'no meter'),
+  );
+  check('nothing threw on the way', errors.length === 0, errors.join(' | '));
+
+  await browser.close();
+}
+
+// --- a stored microphone that is busy --------------------------------------
+{
+  console.log('\na stored microphone held by another app\n');
+  const { browser, page, errors } = await open({ busyDeviceId: 'busy-input' });
+  const listening = await startDrill(page);
+
+  check(
+    'the stored device really was asked for, and refused',
+    (await page.evaluate(() => window.__exactRequests)) > 0,
+  );
+  check(
+    'the drill falls back to the default input and listens',
+    listening === true &&
+      (await page.locator('.signal-meter.is-lost').count()) === 0 &&
+      (await page.locator('.mic-gate').count()) === 0,
+    listening ? await meterText(page).catch(() => '') : 'the drill was left on the mic gate',
+  );
+  check('nothing threw on the way', errors.length === 0, errors.join(' | '));
+
+  await browser.close();
+}
+
+console.log(failures ? `\n${failures} failed\n` : '\nall passed\n');
+process.exit(failures ? 1 : 0);

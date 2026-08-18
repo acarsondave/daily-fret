@@ -13,7 +13,7 @@ import {
 import { useStore, getTodayString, drillLogsOf, type CoachStepResult } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import { chordKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } from '../../lib/drillKeys';
-import { buildSegments } from '../../lib/coached';
+import { buildSegments, isResumable } from '../../lib/coached';
 import { keyDrillHistory } from '../../lib/drillStats';
 import { drillSeries, planTempo, fixedTempo, DEFAULT_PRACTICE_BPM, type TempoPlan } from '../../lib/tempo';
 import { useSongs } from '../../hooks/useSongs';
@@ -75,21 +75,35 @@ export function CoachedSession({ routine, onClose }: Props) {
       ),
     [segments],
   );
-  const today = getTodayString();
-
   // One mic for the whole session — segments share it via the `detector` prop so
   // we don't re-request permission (and re-spin the audio graph) per drill.
   const detector = useChordDetector();
 
-  // Resume support: pick up a saved, unfinished session for this routine/day.
+  // Resume support: pick up a saved, unfinished session for this routine.
   const [resumeData] = useState(() => {
     const s = useStore.getState();
     const cp = s.accounts[s.currentAccountId]?.coachProgress;
-    if (cp && cp.routineId === routine.id && cp.date === today && cp.index > 0 && cp.index < segments.length) {
-      return cp;
-    }
-    return null;
+    if (!cp || cp.routineId !== routine.id) return null;
+    if (!isResumable(cp, Date.now(), getTodayString())) return null;
+    if (cp.index <= 0 || cp.index >= segments.length) return null;
+    return cp;
   });
+
+  // The date this session records under, decided once when it opens and never
+  // recomputed.
+  //
+  // It used to be read on every render, so a session running through midnight
+  // measured a drill against one date and settled it against the next. `settle`
+  // finds nothing to settle on a day with no measurement, returns the log
+  // unchanged, and the day the practice actually happened on ends up with no
+  // record of it at all. The clock is not allowed to move under a session in
+  // progress: a session belongs to the date it started, and a resumed one keeps
+  // the date of the sitting it is continuing.
+  const [today, setToday] = useState(() => resumeData?.date ?? getTodayString());
+  // When this sitting began, which is what decides whether it is still the same
+  // sitting later. A resumed session inherits it rather than restarting it, so
+  // resuming cannot keep a session alive across days one pause at a time.
+  const [startedAt, setStartedAt] = useState(() => resumeData?.startedAt ?? Date.now());
 
   const [index, setIndex] = useState(() => resumeData?.index ?? 0);
   const [results, setResults] = useState<CoachStepResult[]>(() => resumeData?.results ?? []);
@@ -195,7 +209,7 @@ export function CoachedSession({ routine, onClose }: Props) {
 
   const exit = () => {
     if (phase !== 'summary' && index > 0) {
-      saveCoachProgress({ routineId: routine.id, date: today, index, results });
+      saveCoachProgress({ routineId: routine.id, date: today, startedAt, index, results });
     }
     onClose();
   };
@@ -343,7 +357,7 @@ export function CoachedSession({ routine, onClose }: Props) {
     setResults(nextResults);
     const nextIndex = index + 1;
     if (nextIndex < segments.length) {
-      saveCoachProgress({ routineId: routine.id, date: today, index: nextIndex, results: nextResults });
+      saveCoachProgress({ routineId: routine.id, date: today, startedAt, index: nextIndex, results: nextResults });
       setIndex(nextIndex);
       restLeftRef.current = REST_SECONDS;
       setRestLeft(REST_SECONDS);
@@ -363,6 +377,10 @@ export function CoachedSession({ routine, onClose }: Props) {
     setIndex(0);
     setResults([]);
     clearCoachProgress();
+    // Starting over is a new session, so it belongs to now rather than to the
+    // date of the sitting it just discarded.
+    setToday(getTodayString());
+    setStartedAt(Date.now());
     setPhase('intro');
   };
 

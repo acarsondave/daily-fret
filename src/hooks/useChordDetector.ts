@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChordCapture } from '../audio/capture';
+import type { MicRouteState } from '../audio/micStream';
 import type { DetectorHandlers } from '../audio/detector';
 import type { LearnedTemplates } from '../audio/chords';
 import { getPreferredMicId, setPreferredMicId } from '../audio/micDevice';
@@ -17,6 +18,11 @@ export function useChordDetector() {
   const optionsRef = useRef<StartOptions | undefined>(undefined);
   const [status, setStatus] = useState<DetectorStatus>('idle');
   const [error, setError] = useState<string | null>(null);
+  // What the input is actually doing, as opposed to whether opening it worked.
+  // `status` answers the second and cannot answer the first: a capture that
+  // started cleanly and then had its microphone revoked stays 'running'
+  // forever. Null until a capture has been opened.
+  const [route, setRoute] = useState<MicRouteState | null>(null);
 
   const setHandlers = useCallback((handlers: DetectorHandlers) => {
     handlersRef.current = handlers;
@@ -36,6 +42,7 @@ export function useChordDetector() {
     }
     setStatus('requesting');
     setError(null);
+    setRoute(null);
 
     const capture = new ChordCapture();
     captureRef.current = capture;
@@ -48,11 +55,13 @@ export function useChordDetector() {
         onChord: (e) => handlersRef.current.onChord?.(e),
         onOnset: (e) => handlersRef.current.onOnset?.(e),
         onLevel: (e) => handlersRef.current.onLevel?.(e),
+        onRouteChange: setRoute,
       });
       setStatus('running');
       return true;
     } catch (err) {
       captureRef.current = null;
+      setRoute(null);
       setStatus('error');
       setError(
         err instanceof Error ? err.message : 'Microphone access was denied.',
@@ -82,6 +91,7 @@ export function useChordDetector() {
     const capture = captureRef.current;
     captureRef.current = null;
     setStatus('idle');
+    setRoute(null);
     await capture?.stop();
   }, []);
 
@@ -92,7 +102,7 @@ export function useChordDetector() {
     };
   }, []);
 
-  return { status, error, start, stop, setHandlers, setRestrict, switchDevice };
+  return { status, route, error, start, stop, setHandlers, setRestrict, switchDevice };
 }
 
 export type ChordDetectorApi = ReturnType<typeof useChordDetector>;

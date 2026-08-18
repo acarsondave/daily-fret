@@ -83,7 +83,7 @@ export function ChordTrainer({
   const capo = useCapoOffset();
   const passive = usePassiveRefine();
   const sharedMic = !!detector;
-  const { status, error, start, stop, setHandlers } = detector ?? own;
+  const { status, route, error, start, stop, setHandlers } = detector ?? own;
 
   const duration = config?.durationSec ?? 60;
   const [pool, setPool] = useState<string[]>(() => trainerPool(config?.chords));
@@ -106,7 +106,7 @@ export function ChordTrainer({
   const [reps, setReps] = useState(0); // placements for the chord on screen
   const [tally, setTally] = useState<number[]>([]); // finished chords' placements
   const [timeLeft, setTimeLeft] = useState(perChord);
-  const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter();
+  const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter(route);
   const [result, setResult] = useState<{ value: number; prevBest: number; series: number[] } | null>(null);
 
   const poolRef = useRef(pool);
