@@ -1,0 +1,63 @@
+/* The room the drill needs, drawn. See ClickPath.tsx. */
+
+.click-path {
+  display: block;
+  width: min(320px, 100%);
+  height: auto;
+  margin-inline: auto;
+  color: var(--text-secondary);
+}
+
+/* The guitar's own path into the microphone. Always there, and quieter than the
+   click, because it is never the thing that has gone wrong. */
+.click-path-line.is-guitar {
+  opacity: 0.5;
+}
+
+.click-path-line.is-click {
+  color: var(--accent-primary);
+  stroke: currentColor;
+}
+
+/* The click, not arriving. Dashed and stopping in the air: the gap between the
+   end of the line and the microphone is the whole message. */
+.click-path-line.is-cut {
+  color: var(--warning-color);
+  stroke-dasharray: 5 7;
+}
+
+.click-path.is-broken .click-path-speaker,
+.click-path.is-silent .click-path-speaker {
+  color: var(--warning-color);
+  stroke: currentColor;
+}
+
+.click-path.is-reaching .click-path-mic {
+  color: var(--text-primary);
+  stroke: currentColor;
+}
+
+/* Sound moving along the path it took. One short run travelling in, twice, so
+   the picture is of arrival rather than of two lines that meet. */
+.click-path-pulse {
+  stroke: var(--accent-primary);
+  stroke-linecap: round;
+  stroke-dasharray: 14 260;
+  stroke-dashoffset: 274;
+  animation: click-path-travel 2.6s var(--ease-out) infinite;
+}
+.click-path-pulse.is-late {
+  stroke: var(--text-secondary);
+  animation-delay: 0.55s;
+}
+
+@keyframes click-path-travel {
+  0% { stroke-dashoffset: 274; opacity: 0; }
+  12% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .click-path-pulse { animation: none; opacity: 0; }
+}

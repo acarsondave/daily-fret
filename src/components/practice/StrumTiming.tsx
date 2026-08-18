@@ -4,10 +4,8 @@ import {
   ArrowRightIcon,
   HourglassIcon,
   MicIcon,
-  OnBeatIcon,
   PlayIcon,
   RetryIcon,
-  SpeakerIcon,
   TrophyIcon,
 } from '../icons';
 import { useStrumTiming } from '../../hooks/useStrumTiming';
@@ -30,6 +28,7 @@ import { ProgressRing } from './ProgressRing';
 import { ringScale } from '../../lib/ringScale';
 import { SignalMeter } from './SignalMeter';
 import { useTimingSignalMeter } from './signalQuality';
+import { ClickPath } from './ClickPath';
 import { GrooveRail, GrooveTrace } from './GrooveRail';
 import type { DrillConfig } from '../../types';
 import './strumTiming.css';
@@ -288,13 +287,12 @@ export function StrumTiming({
             <span>Best {personalBest}% in time</span>
           </div>
         )}
-        <OnBeatIcon size={52} className="st-crest" />
+        {/* What the drill needs of the room, shown rather than described. The
+            paragraph this replaced said it in twenty-eight words and then said
+            it again in three other states. */}
+        <ClickPath state="reaching" className="st-diagram" />
         <div className="st-brief">
           <p className="st-brief-line">One down strum on every click, at {bpm} BPM.</p>
-          <p className="om-caption">
-            Play through your speakers, not headphones. The drill listens for the click in the room
-            and measures your strums against the one you can actually hear.
-          </p>
         </div>
         <button className="practice-btn primary" onClick={startSession}>
           <PlayIcon size={20} /> Start {duration}s
@@ -329,14 +327,12 @@ export function StrumTiming({
       const silent = !metronome.isAudible;
       return (
         <div className="mic-gate st-deaf">
-          <SpeakerIcon size={40} color="var(--warning-color)" />
+          {/* The same diagram as the setup screen, failing. The speaker carries
+              the app's own muted mark when the click is not playing at all, so
+              the two causes are different pictures and not two paragraphs. */}
+          <ClickPath state={silent ? 'silent' : 'broken'} className="st-diagram" />
           <p className="st-deaf-title">
             {silent ? 'The click is not playing' : 'I cannot hear the click'}
-          </p>
-          <p>
-            {silent
-              ? 'Your browser is holding the sound. Turn the click on and this can start measuring.'
-              : 'This drill times your strums against the click as it arrives in the room, so the click has to come out of your speakers. On headphones there is nothing for the microphone to measure against.'}
           </p>
           <button
             className="practice-btn primary"
@@ -411,10 +407,11 @@ export function StrumTiming({
   // Only the reasons there is no number. How this run compares with the last
   // one is on the ring: the mark is the best score before it, the gold past the
   // mark is what this run added, and the dashed run up to it is what is left.
-  let context: string | null = null;
-  if (result?.heardTheClick === false) context = 'The click never reached the microphone';
-  else if (summary?.selfReferential) context = 'The click was not audible, so nothing was measured';
-  else if (!summary?.enough) context = 'Too few beats to measure';
+  // A run with no click is drawn rather than written: the diagram below shows
+  // it stopping short of the microphone. The only line left is the one case the
+  // picture cannot make, which is a run that was simply too short.
+  const clickMissing = result?.heardTheClick === false || summary?.selfReferential === true;
+  const context = !clickMissing && !summary?.enough ? 'Too few beats to measure' : null;
 
   return (
     <motion.div className="om-results st-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
@@ -447,13 +444,11 @@ export function StrumTiming({
         </>
       )}
 
-      {!summary?.enough && (
+      {clickMissing && <ClickPath state="broken" className="st-diagram" />}
+
+      {!summary?.enough && !clickMissing && (
         <p className="st-call">
-          {result?.heardTheClick === false
-            ? 'This drill measures your strums against the click as the microphone hears it, and no click arrived. Play it through your speakers rather than headphones and run it again.'
-            : summary?.selfReferential
-              ? 'Everything landed too precisely to have come from a pair of hands, which means the microphone was measuring the guitar against itself rather than against the click. Play the click through your speakers and run it again.'
-              : `A measurement needs at least ${MIN_MEASURED_BEATS} beats of playing. Nothing has been saved.`}
+          A measurement needs at least {MIN_MEASURED_BEATS} beats of playing. Nothing has been saved.
         </p>
       )}
 
