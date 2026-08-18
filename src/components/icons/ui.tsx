@@ -182,6 +182,20 @@ export const DeviceIcon = (p: IconProps) => (
   </IconBase>
 );
 
+// "Not saved": the same device, with the write stopped at its wall. Drawn from
+// DeviceIcon's own body so the two read as one state changing rather than two
+// unrelated marks. The right wall is broken exactly where the write arrives,
+// and the bar is what it hit. No slash, no triangle: this says where the result
+// went, which is nowhere.
+export const DeviceFullIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <path d="M14.2 2.8H9.8a2.4 2.4 0 0 0-2.4 2.4v13.6a2.4 2.4 0 0 0 2.4 2.4h4.4a2.4 2.4 0 0 0 2.4-2.4v-4.7" />
+    <path d="M16.6 9.9V5.2a2.4 2.4 0 0 0-2.4-2.4" />
+    <path d="M10.7 5.6h2.6" />
+    <path d="M21.6 12h-3.4" />
+  </IconBase>
+);
+
 export const CloudIcon = (p: IconProps) => (
   <IconBase {...p}>
     <path d="M7.7 18.4a4.1 4.1 0 0 1-.4-8.2 5.5 5.5 0 0 1 10.5 1.2 3.5 3.5 0 0 1-.5 7Z" />

@@ -9,6 +9,9 @@ const COPY: Record<SignalQuality, string> = {
   // are not being recognised. Naming the likely cause matters here because it is
   // the one state where the player's instinct is to blame their own hands.
   unreadable: 'Loud enough, but nothing is matching. Try recalibrating.',
+  // The one state that is not about the playing at all. It says what happened
+  // and what to do, because no amount of strumming is the answer.
+  lost: 'The microphone stopped. Reopen the drill to pick it up again.',
   good: 'Good signal',
   loud: 'Too loud. Back off the mic.',
 };
@@ -20,6 +23,8 @@ const FILLED: Record<SignalQuality, number> = {
   // they are not lying; what is wrong is downstream of them, which is why this
   // state is drawn as full-but-hollow rather than as fewer bars.
   unreadable: 3,
+  // Nothing is arriving, and the bars say exactly that.
+  lost: 0,
   good: 3,
   loud: 2,
 };

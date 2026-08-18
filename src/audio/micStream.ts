@@ -43,6 +43,12 @@ export class MicError extends Error {
  * until a user gesture wakes it. 'muted' is the opposite trade — the route is
  * live but the track is silent, which is what a phone call or another app taking
  * the microphone looks like from in here.
+ *
+ * 'closed' is the one with no way back: the graph is gone, or the track has
+ * ended. A track ends when the permission is revoked mid-session or the input it
+ * was reading is unplugged, and nothing about the context changes when it
+ * happens — it stays 'running' over an input that no longer exists. Waking it
+ * cannot help; the capture has to be opened again.
  */
 export type MicRouteState = 'running' | 'asleep' | 'muted' | 'closed';
 
@@ -112,6 +118,11 @@ export class MicStream {
   private detachRoute: (() => void) | null = null;
   private muteTimer: number | null = null;
   private muted = false;
+  // The track has ended: revoked, unplugged, or claimed by something that does
+  // not give it back. Kept here rather than read from the track on demand
+  // because the track reference is dropped on teardown and the answer has to
+  // survive long enough for a listener to be told.
+  private ended = false;
   private onRouteChange: ((state: MicRouteState) => void) | null = null;
 
   get running(): boolean {
@@ -123,6 +134,10 @@ export class MicStream {
   }
 
   get routeState(): MicRouteState {
+    // Asked before the context, because a context stays 'running' quite happily
+    // over a track that has ended. That is the whole defect this answers: a
+    // drill scoring zero behind a screen that says it is listening.
+    if (this.ended) return 'closed';
     const ctx = this.ctx;
     if (!ctx || ctx.state === 'closed') return 'closed';
     if (ctx.state !== 'running') return 'asleep';
@@ -152,6 +167,7 @@ export class MicStream {
   private async openGraph(handlers: MicStreamHandlers): Promise<void> {
     this.disposed = false;
     this.starting = true;
+    this.ended = false;
     this.onRouteChange = handlers.onRouteChange ?? null;
 
     // A page served over plain http has no navigator.mediaDevices at all, and
@@ -173,10 +189,16 @@ export class MicStream {
     } catch (err) {
       // The preferred device may be gone (unplugged headset); fall back to the
       // system default rather than failing the whole session.
+      // NotReadableError belongs here too: a stored device that is busy is a
+      // stored device that cannot be used right now, and the system default
+      // usually can. Without it, picking a mic once and later leaving another
+      // app holding it hard-failed the drill instead of falling back.
       if (
         handlers.deviceId &&
         err instanceof DOMException &&
-        (err.name === 'OverconstrainedError' || err.name === 'NotFoundError')
+        (err.name === 'OverconstrainedError' ||
+          err.name === 'NotFoundError' ||
+          err.name === 'NotReadableError')
       ) {
         try {
           this.stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints() });
@@ -295,14 +317,28 @@ export class MicStream {
       this.muted = false;
       this.emitRoute();
     };
+    // The event a revoked permission or an unplugged interface actually fires.
+    // Nothing else reports it: the context keeps saying 'running', no error is
+    // raised, and the frames simply stop. Immediate and ungraced, unlike mute:
+    // an ended track never comes back.
+    const onEnded = () => {
+      clearMuteTimer();
+      if (this.ended) return;
+      this.ended = true;
+      this.emitRoute();
+    };
     track?.addEventListener('mute', onMute);
     track?.addEventListener('unmute', onUnmute);
+    track?.addEventListener('ended', onEnded);
     if (track?.muted) onMute();
+    // It can have ended between getUserMedia resolving and this line.
+    if (track?.readyState === 'ended') onEnded();
 
     this.detachRoute = () => {
       ctx.removeEventListener('statechange', onState);
       track?.removeEventListener('mute', onMute);
       track?.removeEventListener('unmute', onUnmute);
+      track?.removeEventListener('ended', onEnded);
       clearMuteTimer();
       this.detachRoute = null;
     };

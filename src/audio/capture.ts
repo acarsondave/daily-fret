@@ -3,7 +3,7 @@
 // which the tuner shares.
 
 import { ChordDetector, DETECTOR_CONSTANTS, type DetectorHandlers } from './detector';
-import { MicStream } from './micStream';
+import { MicStream, type MicRouteState } from './micStream';
 import type { LearnedTemplates } from './chords';
 import { diag } from './diagnostics';
 
@@ -12,6 +12,15 @@ export interface CaptureHandlers extends DetectorHandlers {
   restrictTo?: string[];
   templates?: LearnedTemplates; // per-chord learned overrides from calibration
   deviceId?: string; // specific mic to capture from; omitted = system default
+  /**
+   * Fired whenever the input route changes, and once as soon as the graph is up.
+   *
+   * The tuner has always taken this; the drills never did, which is why a
+   * microphone revoked or unplugged mid-drill went unnoticed. The frames simply
+   * stopped, no error was raised, and the drill went on scoring zero behind a
+   * screen that said it was listening.
+   */
+  onRouteChange?: (state: MicRouteState) => void;
 }
 
 export class ChordCapture {
@@ -38,6 +47,7 @@ export class ChordCapture {
   private async startGraph(handlers: CaptureHandlers): Promise<void> {
     await this.mic.start({
       deviceId: handlers.deviceId,
+      onRouteChange: handlers.onRouteChange,
       onReady: ({ sampleRate }) => {
         // Every capture records a diagnostic session (gate outcomes, onsets,
         // emits) so "detection was off today" is answerable from an export

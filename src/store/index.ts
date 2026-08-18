@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { guardedStorage } from './persistence';
 import type { Routine, DailyLog, Task } from '../types';
 import {
   applyMeasurements,
@@ -55,9 +56,23 @@ export interface CoachStepResult {
 // reload) can be resumed from where it left off.
 export interface CoachProgress {
   routineId: string;
+  /**
+   * The day the session started, and the day everything it records is filed
+   * under. Not "the day it is now": a session begun at 23:50 keeps this date
+   * through the whole of the next hour, because the alternative is a
+   * measurement on one date and a settle on the next, which settles nothing.
+   */
   date: string;
   index: number;
   results: CoachStepResult[];
+  /**
+   * Epoch ms of when the session started, which is what decides whether it is
+   * still the same sitting. The calendar date cannot answer that: it says a
+   * session paused at 23:50 is stale ten minutes later and one paused at 00:10
+   * is fresh all day. Absent on progress saved by an older build, which falls
+   * back to the date it carries.
+   */
+  startedAt?: number;
 }
 
 export interface UserData {
@@ -680,6 +695,11 @@ export const useStore = create<AppState>()(
     },
     {
       name: 'daily-fret-storage',
+      // Every write runs synchronously inside the click that caused it, so an
+      // unguarded one throws out of the handler where nothing catches it. See
+      // ./persistence.ts: a refused write becomes state the header can show
+      // rather than an exception nobody sees.
+      storage: createJSONStorage(() => guardedStorage(() => localStorage)),
       // Snapshot what every task drills the moment the routines come back off
       // disk, before anything the user does can edit that connection away. This
       // is the migration's one write, and it deliberately does not touch

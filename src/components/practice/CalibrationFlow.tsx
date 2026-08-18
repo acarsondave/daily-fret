@@ -66,14 +66,14 @@ interface Props {
  * underneath with a second close button of its own.
  */
 export function CalibrationFlow({ onClose }: Props) {
-  const { status, error, start, stop } = useChordDetector();
+  const { status, route, error, start, stop } = useChordDetector();
   // Named throughout, because a calibration belongs to one instrument and the
   // whole point of the profile list is that you can tell which.
   const account = useUserData();
   const guitar = activeProfileOf(account)?.label;
   const setChordCalibration = useStore((s) => s.setChordCalibration);
   const clearChordCalibration = useStore((s) => s.clearChordCalibration);
-  const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter();
+  const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter(route);
 
   const capo = useCapoOffset();
   const surfaceRef = useRef<HTMLDivElement>(null);
