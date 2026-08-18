@@ -2,32 +2,33 @@ import type { ReactNode } from 'react';
 import './emptyState.css';
 
 interface Props {
-  /* A hand-drawn mark from the app's own icon set, never a stock glyph. */
-  icon: ReactNode;
+  /**
+   * A drawing of this panel with something in it, at the weight of a thing that
+   * has not happened yet. See EmptyPreviews.
+   */
+  preview: ReactNode;
   title: string;
-  /* One sentence. What will be here, and what puts it here. */
-  body: string;
   action?: { label: string; onClick: () => void };
 }
 
 /**
  * The shape every "nothing here yet" moment takes.
  *
- * Each of these used to be a centred grey paragraph and nothing else: no
- * structure, no mark, and no way to act on what it was telling you to do. A
- * screen whose only content is a sentence explaining its own emptiness is the
- * most replaceable thing an app can show, and it is the first thing a new
- * player meets on three of the four Progress tabs.
+ * It used to be a mark in a ring, a title, and a sentence describing the screen
+ * the player would get if they practised: "Every day you practise lands here,
+ * with what you played and how it went." Three panels, three descriptions, all
+ * of them asking someone to picture something the app could simply draw.
  *
- * So: a mark, a short statement of what belongs here, and, where the fix is a
- * single tap away, the tap. The copy still promises nothing the app cannot do.
+ * So it draws it. The panel is outlined the way a missing surface is outlined in
+ * surfaceBoundary.css, unfilled and dashed, with the shape of the filled screen
+ * ghosted inside it. What is left in words is the state itself, which no drawing
+ * can assert, and the one tap that ends it.
  */
-export function EmptyState({ icon, title, body, action }: Props) {
+export function EmptyState({ preview, title, action }: Props) {
   return (
     <div className="empty-state">
-      <span className="empty-state-mark" aria-hidden="true">{icon}</span>
+      <div className="empty-state-preview">{preview}</div>
       <h3 className="empty-state-title">{title}</h3>
-      <p className="empty-state-body">{body}</p>
       {action && (
         <button type="button" className="empty-state-action" onClick={action.onClick}>
           {action.label}
