@@ -2,9 +2,24 @@ import type { DailyLog } from '../types';
 import { MIN_BPM, MAX_BPM } from '../audio/metronome';
 
 // Tempo coaching. Turns a drill's own history into the tempo the click should
-// run at *today*, the way a teacher would: sit just under what you proved you
-// can do, nudge up when you're climbing, and ease off after a bad session or a
-// long gap. Speed is never prescribed above what the player has already shown.
+// run at *today*, the way a teacher would: sit on what you have actually played,
+// nudge up when you're climbing, and ease off after a bad session or a long gap.
+//
+// What the click is allowed to ask for, exactly, because a prescription that
+// cannot be checked against a rule is just a number:
+//
+//   - Every branch but one prescribes at or below the best run in the window it
+//     reads. It never invents a pace out of an ambition.
+//   - The climbing branch is the exception and asks for up to five per cent more
+//     than the run just made, and only after a session that improved on the ones
+//     before it. A teacher nudges; refusing to ever ask for more than has already
+//     been done is a click that can only follow.
+//
+// This file used to claim speed was "never prescribed above what the player has
+// already shown", and it was not true: 28, 29, 30, 31 asks for 32. The claim was
+// wrong rather than the behaviour, so the claim is what changed. What did have to
+// change is easing: see the regress branch below, which used to ask for more than
+// the session it was easing from.
 //
 // The unit that connects a drill to a tempo is the chord change. A one-minute
 // changes drill scoring 30 is one change every two seconds; at four beats per
@@ -40,7 +55,11 @@ const CLICK_MAX = 132;
 const BEAT_OPTIONS = [8, 4, 2];
 
 // How recent history maps onto today's target.
-const PROGRESS_FACTOR = 1.05; // climbing, so ask for a little more
+// Climbing, so ask for a little more. This is the one factor that can put the
+// target above every run in the history, and it is capped at five per cent of a
+// baseline that already sits under the latest run, so what it asks for is always
+// within a few changes of the session just played.
+const PROGRESS_FACTOR = 1.05;
 const STEADY_FACTOR = 1.0;
 const REGRESS_FACTOR = 0.88; // last session dipped, rebuild it clean
 const RUST_FACTOR = 0.85; // long gap, warm back up
@@ -163,6 +182,12 @@ export function planTempo(series: HistoryPoint[], today: string): TempoPlan {
     );
     baseline = LATEST_WEIGHT * latest.value + (1 - LATEST_WEIGHT) * prior;
     if (latest.value < prior * REGRESS_RATIO) {
+      // Ease from the run that dipped, not from a baseline weighted toward the
+      // good sessions before it. Three runs at 100 and one at 30 put that
+      // baseline at 58, so the branch whose whole job is to back off was asking
+      // for 51 from a player who had just managed 30, and went on asking for it
+      // until the window rolled over. Easing has to mean easing.
+      baseline = latest.value;
       factor = REGRESS_FACTOR;
       trend = 'regress';
     } else if (latest.value >= prior * PROGRESS_RATIO) {

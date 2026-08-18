@@ -807,6 +807,96 @@
   color: var(--text-secondary);
 }
 
+/* The budget. Same shape again, and deliberately so: it is the same kind of
+   decision as quality and cadence, three sizes each carrying what it buys. Its
+   own names, so counting one never counts another. */
+.rec-budget {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.rec-budget-option {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease,
+    color var(--dur-fast) ease;
+}
+
+.rec-budget-option:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-primary);
+}
+
+.rec-budget-option.is-on {
+  background: var(--accent-glow);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: var(--accent-primary);
+}
+
+.rec-budget-option:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.rec-budget-size {
+  font-family: var(--font-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: inherit;
+}
+
+/* The figure that makes a size mean something, so it is the one drawn in the
+   mono face the other prices use. */
+.rec-budget-buys {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  color: var(--text-primary);
+}
+
+.rec-budget-blurb {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* A limit that cannot be met, said out loud rather than enforced by deleting
+   something the user asked to keep. */
+.setting-note.is-warning {
+  color: var(--warning-color);
+}
+
+/* Footage on the disk the library cannot see. Shaped like the prune notice
+   because it is the same kind of statement: something happened to your files
+   and here is the app saying so. */
+.rec-orphans {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.rec-orphans-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.rec-orphans .settings-action-btn.is-quiet {
+  align-self: flex-start;
+}
+
 /* Retention. A stepper rather than a slider: the number means whole sessions
    and there are only twenty-eight of them. */
 .rec-stepper {

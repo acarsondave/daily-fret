@@ -3,7 +3,7 @@ import { useDrillLogs, useUserData } from '../store';
 import { useProgression } from './useProgression';
 import { computeXp, levelFor } from '../lib/xp';
 import { evaluateAchievements, type EarnedAchievement } from '../data/achievements';
-import { readEvidence } from '../lib/progression';
+import { lifetimeBests, readEvidence } from '../lib/progression';
 
 export interface Standing {
   xp: ReturnType<typeof computeXp>;
@@ -27,9 +27,11 @@ export function useAchievements(): Standing {
   const standings = useProgression();
   return useMemo(() => {
     const xp = computeXp(dailyLogs);
-    const evidence = readEvidence(drillLogs);
-    const bests = new Map(evidence.pairs);
-    for (const [key, value] of evidence.tasks) bests.set(key, value);
+    // Deliberately the lifetime best, where a standing is deliberately not. An
+    // award marks something that happened, and thirty changes in a minute last
+    // April happened; it is the claim that you can still do it today that has to
+    // be earned three runs running.
+    const bests = lifetimeBests(readEvidence(drillLogs));
     return {
       xp,
       level: levelFor(xp.total),

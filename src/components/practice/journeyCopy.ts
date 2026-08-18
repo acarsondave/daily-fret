@@ -4,14 +4,18 @@
 // and against the rest of the app in tests/journey.test.mjs. Every line here is
 // a claim: a count, a position, or a word for how much the app actually knows.
 //
-// One rule runs the whole file. The app has two vocabularies for "good enough"
-// and they mean different things. lib/readiness.ts owns **Held**: three runs
-// running at the bar, still fresh, which is a standing fact about repeatability
-// and is what the Numbers tab shows. lib/progression.ts owns `solid`, which is
-// only that a best-ever result once cleared the bar. Printing "Solid" here while
-// Numbers printed "1 of 3" for the same pair was the app disagreeing with
-// itself, so this file says **Cleared** and leaves Held to the panel that earned
-// it.
+// One rule runs the whole file, and it used to be a workaround. The app had two
+// vocabularies for "good enough": lib/readiness.ts owned **Held**, three runs
+// running at the bar and still fresh, while lib/progression.ts called a skill
+// solid on one best-ever result. Printing "Solid" here while Numbers printed
+// "1 of 3" for the same pair was the app disagreeing with itself, so this file
+// said "Cleared" and left Held alone.
+//
+// progression.ts reads the same rule now, so there is one meaning and it takes
+// the word with it: **Held** here means exactly what it means on Numbers, and
+// **Lapsed** means the same too. The workaround is gone rather than kept as a
+// second spelling, because two words for one fact is how the app started
+// disagreeing with itself the first time.
 
 import type { SkillStanding } from '../../lib/progression';
 import type { JourneyModule, ModuleContent } from './journeyCourse';
@@ -50,11 +54,12 @@ export function countLine(module: JourneyModule, content: ModuleContent): string
       ? `${lessons} · nothing here the app can score yet`
       : `${lessons} · nothing here to drill`;
   }
-  return `${lessons} · ${content.atBar} of ${content.measured} cleared`;
+  return `${lessons} · ${content.atBar} of ${content.measured} held`;
 }
 
 const STATE_LABEL: Record<SkillStanding['state'], string> = {
-  solid: 'Cleared',
+  solid: 'Held',
+  lapsed: 'Lapsed',
   working: 'Under way',
   ready: 'Ready',
   locked: 'Later',

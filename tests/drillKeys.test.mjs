@@ -240,7 +240,8 @@ console.log('\nThe day the keys changed under someone mid-practice\n');
 
 console.log('\nChord Perfect can no longer carry the anchor skill\n');
 {
-  const anchor = (l) => allStandings(l, []).find((s) => s.skill.id === 'technique.anchor-fingers');
+  const TODAY = '2026-07-05';
+  const anchor = (l) => allStandings(l, TODAY).find((s) => s.skill.id === 'technique.anchor-fingers');
 
   // A big block of placements, and the two chords the skill needs proven so
   // nothing else is holding it back.
@@ -255,9 +256,15 @@ console.log('\nChord Perfect can no longer carry the anchor skill\n');
   check('and the app says so rather than showing a number it did not earn',
     perfect.best === null && perfect.evidence === 'No anchor rotation run yet.', perfect.evidence);
 
-  const turned = anchor(logs(day('2026-07-01', { ...proven, [ringKey(RING)]: ROTATION_BAR })));
-  check('a rotation at the bar is what makes it solid', turned.state === 'solid', turned.evidence);
+  // Three of them, because one run at the bar is a good day and the skill claims
+  // more than that. What this suite is about is which drill counts, not how many.
+  const rings = ['2026-07-01', '2026-07-02', '2026-07-03'].map((date) =>
+    day(date, { ...proven, [ringKey(RING)]: ROTATION_BAR }));
+  const turned = anchor(logs(...rings));
+  check('rotations at the bar are what make it solid', turned.state === 'solid', turned.evidence);
   check('reading the ring it was turned on', turned.best === ROTATION_BAR);
+  check('and one rotation on its own is not enough',
+    anchor(logs(rings[0])).state !== 'solid', anchor(logs(rings[0])).evidence);
 
   // The same defect through the old door: a legacy Chord Perfect number that
   // resolves to a pool must not read as a rotation either.
@@ -270,7 +277,7 @@ console.log('\nChord Perfect can no longer carry the anchor skill\n');
 
 console.log('\nTuning stops claiming to be measured\n');
 {
-  const tuning = allStandings({}, []).find((s) => s.skill.id === 'setup.tuning');
+  const tuning = allStandings({}, '2026-07-05').find((s) => s.skill.id === 'setup.tuning');
   check('the taxonomy no longer says the app grades it',
     tuning.skill.measure.kind === 'measurable', tuning.skill.measure.kind);
   check('so it is not offered a bar it can never reach', tuning.bar === null);

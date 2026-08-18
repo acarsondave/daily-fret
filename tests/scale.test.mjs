@@ -9,7 +9,7 @@
 // person the app should get slow for.
 
 import { computeXp, levelFor, restAdvice } from '../src/lib/xp.ts';
-import { allStandings, nextUp, provenChords, readEvidence } from '../src/lib/progression.ts';
+import { allStandings, nextUp, provenChords, lifetimeBests, readEvidence } from '../src/lib/progression.ts';
 import { buildHistory, weeklyTotals } from '../src/lib/history.ts';
 import { evaluateAchievements } from '../src/data/achievements.ts';
 import { nudgeDecision, DEFAULT_REMINDER } from '../src/lib/reminders.ts';
@@ -23,6 +23,10 @@ const time = (fn) => { const t0 = performance.now(); const out = fn(); return [o
 
 const CHORDS = ['A', 'D', 'E', 'Am', 'Em', 'G', 'C', 'Dm', 'F'];
 const DAYS = 1825; // five years
+// The day after the last one in the history: standings expire, so a date is now
+// part of the question and "five years of practice, read this morning" is the
+// case worth timing.
+const SCALE_TODAY = '2026-01-01';
 
 // A history with the shape a real one has: several pairs a day, a couple of
 // task drills, results that drift upward, and days that were missed.
@@ -95,7 +99,7 @@ console.log('\nCompetence\n');
   check('evidence is gathered under 60ms', evMs < 60, `${evMs.toFixed(1)}ms`);
   check('pairs were found', evidence.pairs.size > 0, String(evidence.pairs.size));
 
-  const [standings, stMs] = time(() => allStandings(logs, []));
+  const [standings, stMs] = time(() => allStandings(logs, SCALE_TODAY));
   check('every skill gets a standing', standings.length === ALL_SKILLS.length, String(standings.length));
   check('standings resolve under 80ms', stMs < 80, `${stMs.toFixed(1)}ms`);
 
@@ -124,9 +128,8 @@ console.log('\nAwards\n');
 {
   const xp = computeXp(logs);
   const evidence = readEvidence(logs);
-  const bests = new Map(evidence.pairs);
-  for (const [k, v] of evidence.tasks) bests.set(k, v);
-  const standings = allStandings(logs, []);
+  const bests = lifetimeBests(evidence);
+  const standings = allStandings(logs, SCALE_TODAY);
 
   const [earned, aMs] = time(() => evaluateAchievements({ xp, bests, standings }));
   check('every award is evaluated', earned.length >= 9, String(earned.length));
@@ -151,9 +154,8 @@ console.log('\nThe whole Progress panel in one go\n');
   const [, total] = time(() => {
     const xp = computeXp(logs);
     const evidence = readEvidence(logs);
-    const bests = new Map(evidence.pairs);
-    for (const [k, v] of evidence.tasks) bests.set(k, v);
-    const standings = allStandings(logs, []);
+    const bests = lifetimeBests(evidence);
+    const standings = allStandings(logs, SCALE_TODAY);
     evaluateAchievements({ xp, bests, standings });
     weeklyTotals(buildHistory(logs, routines));
     return null;

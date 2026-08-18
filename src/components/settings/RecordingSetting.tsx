@@ -4,7 +4,6 @@ import { CameraIcon, KeepIcon, MinusIcon, PlusIcon, StorageIcon, TrashIcon } fro
 import { camerasAreNamed, listCameras, openCameraPreview, type CameraInput } from '../../media/cameraDevice';
 import { RecordingError, recoveryFor } from '../../media/failure';
 import {
-  BYTES_PER_MB,
   QUALITY_PRESETS,
   chooseMimeType,
   formatMegabytes,
@@ -15,17 +14,25 @@ import { nextFilmingDue } from '../../media/cadence';
 import type { RecordingCadence } from '../../media/types';
 
 import {
+  BUDGET_CHOICES,
   MAX_KEEP_SESSIONS,
   MIN_KEEP_SESSIONS,
+  TECHNIQUE_POOL,
+  minutesInBudget,
+  planPrune,
   sessionCount,
   totalBytes,
+  typicalSessionMinutes,
 } from '../../media/retention';
 import {
+  applyRetention,
   forgetAllRecordings,
   forgetRecording,
+  reclaimOrphans,
+  surveyOrphans,
   useRecordingStore,
 } from '../../media/recordingStore';
-import { storageRoom, type StorageRoom } from '../../media/storage';
+import { storageRoom, type OrphanReport, type StorageRoom } from '../../media/storage';
 import type { Recording } from '../../media/types';
 
 /** When the most recent automatic session was filmed, or 0 if none ever was. */
@@ -86,6 +93,7 @@ export function RecordingSetting() {
   const setQuality = useRecordingStore((s) => s.setQuality);
   const setCadence = useRecordingStore((s) => s.setCadence);
   const setKeepSessions = useRecordingStore((s) => s.setKeepSessions);
+  const setKeepBytes = useRecordingStore((s) => s.setKeepBytes);
   const setCameraId = useRecordingStore((s) => s.setCameraId);
   const toggleStar = useRecordingStore((s) => s.toggleStar);
   const acknowledgePrune = useRecordingStore((s) => s.acknowledgePrune);
@@ -95,6 +103,8 @@ export function RecordingSetting() {
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<RecordingError | null>(null);
   const [room, setRoom] = useState<StorageRoom | null>(null);
+  const [orphans, setOrphans] = useState<OrphanReport | null>(null);
+  const [reclaiming, setReclaiming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -113,6 +123,20 @@ export function RecordingSetting() {
     () => recordings.filter((r) => r.kind === 'technique-check'),
     [recordings],
   );
+  // How long this player's own sessions run, so the budgets below can be priced
+  // in sessions rather than only in minutes. Null until something is filmed,
+  // and the copy says minutes only rather than inventing a session length.
+  const sessionMinutes = useMemo(() => typicalSessionMinutes(recordings), [recordings]);
+  // What cannot be pruned even so: starred clips and the newest technique
+  // checks. Stated rather than discovered when the budget refuses to be met.
+  const overBudget = useMemo(
+    () =>
+      planPrune(recordings, {
+        keepSessions: settings.keepSessions,
+        keepBytes: settings.keepBytes,
+      }).overBudget,
+    [recordings, settings.keepSessions, settings.keepBytes],
+  );
 
   const refreshCameras = useCallback(() => {
     void listCameras().then(setCameras);
@@ -127,6 +151,47 @@ export function RecordingSetting() {
   useEffect(() => {
     void storageRoom().then(setRoom);
   }, [recordings]);
+
+  // Files on the disk that no clip points at. Read from the disk rather than the
+  // index, because the index is exactly what has lost them. Surveyed whenever
+  // the library changes, so reclaiming one immediately stops offering it again.
+  useEffect(() => {
+    if (!settings.enabled) return;
+    let live = true;
+    void surveyOrphans().then(
+      (report) => { if (live) setOrphans(report); },
+      // A backend that will not list is not an error worth interrupting anyone
+      // for. It means this pane cannot offer the reclaim, not that anything is
+      // wrong with the recordings it can see.
+      () => { if (live) setOrphans(null); },
+    );
+    return () => { live = false; };
+  }, [recordings, settings.enabled]);
+
+  const reclaim = async () => {
+    setReclaiming(true);
+    try {
+      const freed = await reclaimOrphans();
+      setOrphans(await surveyOrphans());
+      if (freed.files === 0) {
+        setError(new RecordingError('storage', 'Those files could not be deleted.'));
+      }
+    } finally {
+      setReclaiming(false);
+    }
+  };
+
+  // A limit is a promise about the disk, so it takes effect when it is set
+  // rather than whenever the next clip happens to be filed.
+  const chooseBudget = (bytes: number) => {
+    setKeepBytes(bytes);
+    void applyRetention();
+  };
+
+  const chooseSessions = (count: number) => {
+    setKeepSessions(count);
+    void applyRetention();
+  };
 
   const closePreview = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -350,13 +415,50 @@ export function RecordingSetting() {
           </div>
 
           {/* --- How much is kept ----------------------------------------- */}
+          {/* The budget leads, because bytes are what fill a disk. Counting
+              sessions alone let one thirty-minute routine take a single slot
+              worth 340 MB, so eight slots was 2.7 GB before anything could
+              possibly be deleted. Each size is priced in the footage it buys at
+              the quality chosen above, which is the whole point of showing it
+              here: the cost is visible before it is spent, and it moves when the
+              quality does. */}
           <div className="rec-field">
-            <span className="rec-field-label">Keep the last</span>
+            <span className="rec-field-label">Keep at most</span>
+            <div className="rec-budget">
+              {BUDGET_CHOICES.map((bytes) => (
+                <button
+                  key={bytes}
+                  type="button"
+                  aria-pressed={settings.keepBytes === bytes}
+                  className={clsx('rec-budget-option', settings.keepBytes === bytes && 'is-on')}
+                  onClick={() => chooseBudget(bytes)}
+                >
+                  <span className="rec-budget-size">{formatMegabytes(bytes)}</span>
+                  <span className="rec-budget-buys">
+                    {Math.round(minutesInBudget(bytes, settings.quality))} minutes filmed
+                  </span>
+                  {sessionMinutes !== null && (
+                    <span className="rec-budget-blurb">
+                      about{' '}
+                      {Math.max(
+                        1,
+                        Math.round(minutesInBudget(bytes, settings.quality) / sessionMinutes),
+                      )}{' '}
+                      of your sessions
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="rec-field">
+            <span className="rec-field-label">And no more than</span>
             <div className="rec-stepper">
               <button
                 type="button"
                 className="rec-stepper-btn"
-                onClick={() => setKeepSessions(settings.keepSessions - 1)}
+                onClick={() => chooseSessions(settings.keepSessions - 1)}
                 disabled={settings.keepSessions <= MIN_KEEP_SESSIONS}
                 aria-label="Keep one fewer session"
               >
@@ -369,7 +471,7 @@ export function RecordingSetting() {
               <button
                 type="button"
                 className="rec-stepper-btn"
-                onClick={() => setKeepSessions(settings.keepSessions + 1)}
+                onClick={() => chooseSessions(settings.keepSessions + 1)}
                 disabled={settings.keepSessions >= MAX_KEEP_SESSIONS}
                 aria-label="Keep one more session"
               >
@@ -378,14 +480,17 @@ export function RecordingSetting() {
             </div>
           </div>
           <p className="setting-note">
-            Older sessions are deleted to make room. At {mbPerMinute.toFixed(1)} MB a minute, twenty
-            minutes of practice a day works out at roughly{' '}
-            {/* Through the same formatter as every other size on this screen, so
-                a figure past a thousand reads as gigabytes rather than as
-                "1826 MB", which is a number nobody converts in their head. */}
-            {formatMegabytes(mbPerMinute * 20 * settings.keepSessions * BYTES_PER_MB)} in total.
-            Technique checks are never deleted this way, and nor is anything you have kept.
+            Whichever runs out first. At {mbPerMinute.toFixed(1)} MB a minute the oldest sessions go
+            to make room, whole rather than in pieces. Anything you have kept stays for good, and so
+            do your last {TECHNIQUE_POOL} technique checks.
           </p>
+          {overBudget > 0 && (
+            <p className="setting-note is-warning" role="status">
+              Kept clips and technique checks come to {formatMegabytes(overBudget)} more than this
+              budget on their own. Nothing is deleted to close that gap. Unkeep something below, or
+              choose a larger size.
+            </p>
+          )}
 
           {/* --- What it is costing right now ----------------------------- */}
           <div className="rec-usage">
@@ -400,6 +505,37 @@ export function RecordingSetting() {
             </div>
             <RoomBar used={used} room={room} />
           </div>
+
+          {/* Footage the index lost track of: a crashed tab, a delete that
+              failed after its row had gone. It cannot be played, cannot be
+              deleted from the library, and counts against the quota until the
+              browser refuses a recording the player wanted to make. Offered
+              rather than done automatically, because the recorder writes a file
+              before it writes its row and nothing on the disk can tell a
+              recording in progress from an abandoned one. */}
+          {orphans && orphans.files.length > 0 && (
+            <div className="rec-orphans">
+              <p className="rec-orphans-text">
+                {orphans.files.length} file{orphans.files.length === 1 ? '' : 's'} on the disk that
+                the library cannot see, holding{' '}
+                {/* "at least", because a backend that will not size a file
+                    without loading it is not counted in the total. Quoting the
+                    known part as the whole would overstate the reclaim. */}
+                {orphans.unsized > 0 ? 'at least ' : ''}
+                {formatMegabytes(orphans.bytes)}. Nothing you can watch is among them: every clip in
+                the list above stays exactly where it is.
+              </p>
+              <button
+                type="button"
+                className="settings-action-btn is-quiet"
+                onClick={() => void reclaim()}
+                disabled={reclaiming}
+              >
+                <StorageIcon size={18} />
+                <span>{reclaiming ? 'Reclaiming…' : 'Reclaim that space'}</span>
+              </button>
+            </div>
+          )}
 
           {lastPrune && (
             <div className="rec-prune" role="status">
