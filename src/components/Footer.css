@@ -1,11 +1,32 @@
+/* On the same left edge as the date above it and the routine rail beside it.
+   See the container note in App.css: this used to sit at a flat 24px while the
+   column next to it moved between 16 and 32 by breakpoint. */
 .app-footer {
   position: absolute;
   bottom: 0;
   left: 0;
-  padding: var(--space-4) var(--space-6);
+  right: 0;
+  max-width: 1400px;
+  margin-inline: auto;
+  padding: var(--space-4);
   padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
   display: flex;
   z-index: 50;
+  pointer-events: none;
+}
+
+/* The bar is only there to place the mark; it must not swallow clicks meant for
+   the rail it now spans. */
+.app-footer > * {
+  pointer-events: auto;
+}
+
+@media (min-width: 900px) {
+  .app-footer { padding-inline: var(--space-6); }
+}
+
+@media (min-width: 1200px) {
+  .app-footer { padding-inline: var(--space-8); }
 }
 
 .footer-content {

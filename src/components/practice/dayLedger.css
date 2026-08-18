@@ -1,14 +1,16 @@
-/* The day's numbers, above the day's list.
-   A ledger rather than a dashboard: three figures on one line, at the weight of
-   a caption, so it reads as a record the screen keeps rather than as a score it
-   is showing you. */
+/* The day's numbers.
+   A ledger rather than a dashboard: figures at the weight of a caption, so it
+   reads as a record the screen keeps rather than as a score it is showing you.
+
+   It sits in the rail beside the list now rather than in a band across the top
+   of it, so the padding and the rule that used to separate it from the first
+   task belong to whichever shape the rail is in. See .path-rail-record. */
 
 .ledger {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-4) var(--space-4) var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
+  min-width: 0;
 }
 
 .ledger-figures {
@@ -108,8 +110,28 @@
   transform: scale(0.97);
 }
 
-@media (max-width: 420px) {
+
+/* A phone, where this band is competing with the list for the only axis there
+   is. Three figures side by side need 372px of single-line labels and the band
+   is 358px wide at best, so they wrapped onto two rows and took 100px to say
+   what fits in 54. Letting the label use its second line instead of the block's
+   costs nothing: the unit is two words on every one of them anyway. */
+@media (max-width: 899px) {
   .ledger-figures {
+    flex-wrap: nowrap;
+    align-items: flex-start;
     gap: var(--space-4);
+  }
+
+  .ledger-figure {
+    flex: 1 1 0;
+  }
+
+  .ledger-value {
+    font-size: var(--text-lg);
+  }
+
+  .ledger-unit {
+    line-height: 1.25;
   }
 }

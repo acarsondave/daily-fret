@@ -167,17 +167,35 @@
 }
 
 /* --- Header --------------------------------------------------------------- */
+/* One container, three bands.
+   The header, the columns under it and the wordmark in the corner all used to
+   pick their own horizontal inset: 32, then 16/24/32 by breakpoint, then 24.
+   They agreed at exactly one window width and were out by 4 to 20px at every
+   other, which is the sort of thing nobody points at and everybody feels. All
+   three now run the same max-width and the same padding steps, so the date, the
+   routine and the wordmark sit on one line down the left edge of the screen at
+   every size. */
 .app-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-6) var(--space-8);
+  padding: var(--space-6) var(--space-4);
+  max-width: 1400px;
+  margin-inline: auto;
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   z-index: 50;
+}
+
+@media (min-width: 900px) {
+  .app-header { padding-inline: var(--space-6); }
+}
+
+@media (min-width: 1200px) {
+  .app-header { padding-inline: var(--space-8); }
 }
 
 .header-date-short { display: none; }
@@ -238,13 +256,13 @@
   color: var(--accent-primary);
 }
 
-/* Red, and amber was tried first. Amber is the warning colour, but the streak
-   pill two positions to the left is --record-color gold, and at arm's length
-   across a propped laptop the two read as one family: the state that says the
-   day is lost sat beside the state that celebrates the day, in the same colour.
-   Red is the only hue on this header that cannot be mistaken for a reward, and
-   the claim it is correcting is not a caution, it is a loss. The wash and the
-   edge carry it from practice distance, where 12px of recoloured text does not. */
+/* Red, and amber was tried first. Amber is the caution colour and this is not a
+   caution: it is the news that what you are about to play will not be kept. The
+   collision that originally settled this is gone with the streak pill, which
+   used to sit two positions left in --record-color gold and read as the same
+   family at arm's length; the reason that outlived it is the plainer one. The
+   wash and the edge carry it from practice distance, where 12px of recoloured
+   text does not. */
 .account-btn.is-unsaved {
   color: var(--danger-color);
   background: var(--danger-glow);
@@ -257,36 +275,56 @@
   border-color: rgba(248, 113, 113, 0.5);
 }
 
+/* The stage, not the column.
+   This used to cap itself at 800px, which on the laptop this app is actually
+   used on left 283px of dead ground down each side while the one region that
+   carries the day's work got 121px of height for 504px of list: six tasks, one
+   of them visible. Width was the abundant axis and height was the scarce one,
+   and the layout spent the scarce one. The column lives in .daily-path now,
+   which decides for itself how many there are; this only holds the stage open
+   and keeps it clear of the header and the wordmark.
+
+   The top offset tracks the viewport rather than sitting at a flat 120px. On a
+   1366x572 window that fixed number was 21% of the whole screen given to the
+   gap under a header that is 84px tall. */
 .center-content {
   flex: 1;
   min-height: 0; /* allow children to shrink so the task panel can fit + scroll */
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: flex-start;
   flex-direction: column;
-  padding-top: 120px; /* offset for header */
+  padding-top: clamp(92px, 13vh, 120px);
   padding-bottom: calc(80px + env(safe-area-inset-bottom)); /* offset for footer */
   width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
   z-index: 20;
   overflow-y: auto; /* safety: never clip the add-task control on short viewports */
 }
 
+/* Once the rails exist the wordmark is only ever under the left one, so the
+   whole stage no longer has to stand off the bottom of the screen for it. The
+   clearance moves onto the rail that can actually collide with it, and the
+   centre column gets the 56px back. */
+@media (min-width: 900px) {
+  .center-content {
+    padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom));
+  }
+}
+
 /* Header widths, all measured off the rendered row rather than chosen.
-   The row carries four things at once: the date, the streak, Setup and the
-   account state. With the long date and the wide gaps it needs 669px before
-   the account button stops running past the right edge. With the short date
-   and the tight ones it needs 455px. Both of those used to sit behind a single
-   600px breakpoint, so every width from 601 to 668 clipped the account button
-   and wrapped the date onto two lines, and so did every phone. They are two
-   thresholds and they are now written as two. */
+   The row carried four things and now carries three: the date, Setup and the
+   account state. The streak moved to the rail beside the list, where a week of
+   practice has room to be read instead of seven 14px blocks wedged between two
+   pills. Two thresholds, because there are two failures: the long date and the
+   wide gaps overrun first, and then the short date and the tight ones do. They
+   used to sit behind one 600px breakpoint, so every width in between clipped
+   the account button and wrapped the date onto two lines. */
 @media (max-width: 700px) {
   .header-date-long { display: none; }
   .header-date-short { display: inline; }
 
   .app-header {
-    padding: var(--space-4);
+    padding-block: var(--space-4);
     gap: var(--space-3);
   }
   .header-date {
@@ -329,16 +367,6 @@
     min-height: 40px;
   }
 
-  /* The one state where the word is not optional. A glyph can stand for "this
-     device" because the panel one tap away says the rest; nothing a glyph can
-     draw says results are no longer being kept. So the word stays and the
-     streak gives up the row for it. A streak is a reward for practice already
-     recorded; this is the news that today's is not being. "Not saved" is
-     narrower than the label it replaces, and the streak is wider than both. */
-  .app-header:has(.account-btn.is-unsaved) .streak-container {
-    display: none;
-  }
-
   .account-btn.is-unsaved {
     padding: var(--space-2) var(--space-3);
   }
@@ -353,7 +381,7 @@
    wrapping it onto a second line or taking another control off the row. */
 @media (max-width: 380px) {
   .app-header {
-    padding: var(--space-4) var(--space-3);
+    padding-block: var(--space-4);
   }
   .header-date {
     font-size: var(--text-micro);

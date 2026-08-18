@@ -296,9 +296,17 @@ for (const spec of STATES) {
 
     // An action that cannot work must not be offered. With no task there is
     // nothing for a coached run to coach.
+    //
+    // One-directional on purpose. This used to assert the two were equivalent,
+    // which was true when it was written and stopped being true when the rail
+    // started gating Coached on having measured something as well: an account
+    // with tasks and no history at all is offered "Start the session" from the
+    // ledger instead, and the assertion failed on every spec seeded with an
+    // empty dailyLogs. What has to hold is that the button is never offered
+    // over nothing, not that it is always offered over something.
     const hasTasks = (await page.locator('.task-row').count()) > 0;
     const coached = await page.locator('.progress-launch', { hasText: /^Coached$/ }).count();
-    check(`${at}: coached is offered only when there is something to run`, hasTasks === (coached > 0),
+    check(`${at}: coached is never offered over an empty list`, coached === 0 || hasTasks,
       `tasks=${hasTasks} coached=${coached}`);
 
     // --- the four Progress tabs -------------------------------------------
@@ -411,18 +419,23 @@ for (const spec of STATES) {
       await page.waitForSelector('.practice-overlay', { state: 'detached', timeout: 10000 });
       await page.waitForTimeout(300);
 
-      await page.locator('.progress-launch', { hasText: /^Coached$/ }).click();
-      await page.waitForSelector('.practice-overlay', { timeout: 20000 });
-      await page.waitForTimeout(1200);
-      const coachedText = await readable(page, '.practice-overlay');
-      check(`${at}: the coached session opens and says something`,
-        Boolean(coachedText) && coachedText.length > 10);
-      check(`${at}: the coached session holds no empty-set arithmetic`, !NONSENSE.test(coachedText ?? ''),
-        nonsenseIn(coachedText));
-      check(`${at}: the coached session does not scroll sideways`, (await sideways(page)) <= 0);
-      await page.screenshot({ path: `${OUT}/${spec.name}-${tag}-coached.png` });
-      await page.keyboard.press('Escape');
-      await page.waitForSelector('.practice-overlay', { state: 'detached', timeout: 10000 });
+      // Only where the rail actually offers it. Clicking unconditionally hung
+      // the whole run for 30s on every account with no practice history, which
+      // took every check after this one with it.
+      if (coached > 0) {
+        await page.locator('.progress-launch', { hasText: /^Coached$/ }).click();
+        await page.waitForSelector('.practice-overlay', { timeout: 20000 });
+        await page.waitForTimeout(1200);
+        const coachedText = await readable(page, '.practice-overlay');
+        check(`${at}: the coached session opens and says something`,
+          Boolean(coachedText) && coachedText.length > 10);
+        check(`${at}: the coached session holds no empty-set arithmetic`, !NONSENSE.test(coachedText ?? ''),
+          nonsenseIn(coachedText));
+        check(`${at}: the coached session does not scroll sideways`, (await sideways(page)) <= 0);
+        await page.screenshot({ path: `${OUT}/${spec.name}-${tag}-coached.png` });
+        await page.keyboard.press('Escape');
+        await page.waitForSelector('.practice-overlay', { state: 'detached', timeout: 10000 });
+      }
       await page.waitForTimeout(300);
     }
 

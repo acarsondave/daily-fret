@@ -14,6 +14,7 @@ import { PracticeNudge } from './PracticeNudge';
 import { useUndoStore, type TaskDeletion } from '../store/undo';
 import { RoutineManagerModal } from './RoutineManagerModal';
 import { DayLedger } from './practice/DayLedger';
+import { StreakGraph } from './StreakGraph';
 import { FilmOffer } from './practice/FilmOffer';
 import { ProgressPanel } from './practice/ProgressPanel';
 import { TunerLauncher } from './practice/TunerLauncher';
@@ -342,9 +343,9 @@ export function DailyPath() {
   // arriving rather than a wizard asking a returning player who they are.
   if (!activeRoutine && syncing) {
     return (
-      <div className="daily-path">
+      <div className="daily-path is-solo">
         <div className="task-container-wrapper">
-          <div className="task-container glass-panel">
+          <div className="task-container">
             <p className="sr-only" role="status">
               Fetching your practice from the cloud.
             </p>
@@ -388,9 +389,9 @@ export function DailyPath() {
 
   if (!activeRoutine) {
     return (
-      <div className="daily-path">
+      <div className="daily-path is-solo">
         <div className="task-container-wrapper">
-          <div className="task-container glass-panel is-blank">
+          <div className="task-container is-blank">
             <motion.button
               type="button"
               initial={{ opacity: 0 }}
@@ -419,7 +420,7 @@ export function DailyPath() {
 
   return (
     <div className="daily-path">
-      <div className="path-header-center">
+      <nav className="path-rail path-rail-nav" aria-label="Ways into today's practice">
         <div className="routine-selector-container" ref={routineDropdownRef}>
           <button
             ref={routineTriggerRef}
@@ -475,81 +476,115 @@ export function DailyPath() {
         </div>
 
         {hasCoachable && everMeasured && (
-          <button
-            className="progress-launch is-primary"
-            onClick={() => setIsCoachedOpen(true)}
-            title="Run this whole routine, guided"
-          >
-            <SessionIcon size={18} className="progress-launch-icon" />
-            <span>Coached</span>
-          </button>
+          <>
+            <span className="rail-wire" aria-hidden="true" />
+            <button
+              className="progress-launch is-primary"
+              onClick={() => setIsCoachedOpen(true)}
+              title="Run this whole routine, guided"
+            >
+              <SessionIcon size={18} className="progress-launch-icon" />
+              <span>Coached</span>
+            </button>
+          </>
         )}
 
-        <button
-          className="progress-launch"
-          // Fetch on the press, not on the release: it buys the download a head
-          // start and keeps the microphone request inside the user gesture that
-          // asked for it, which is what Safari checks.
-          onPointerDown={preloadTuner}
-          onFocus={preloadTuner}
-          onClick={() => setIsTunerOpen(true)}
-          title="Tune up before you start"
-        >
-          <TuningForkIcon size={18} className="progress-launch-icon" />
-          <span>Tune</span>
-        </button>
+        {/* The marked wire is the group break: above it, the one action that
+            runs the whole day; below it, every way of stepping outside it. */}
+        <span className="rail-wire has-inlay" aria-hidden="true" />
 
-        {recordingOn && (
+        <div className="rail-group">
           <button
             className="progress-launch"
-            onClick={() => setIsTechniqueOpen(true)}
-            title="Film three angles of your hands, seventy-five seconds"
+            // Fetch on the press, not on the release: it buys the download a head
+            // start and keeps the microphone request inside the user gesture that
+            // asked for it, which is what Safari checks.
+            onPointerDown={preloadTuner}
+            onFocus={preloadTuner}
+            onClick={() => setIsTunerOpen(true)}
+            title="Tune up before you start"
           >
-            <FramingIcon size={18} className="progress-launch-icon" />
-            <span>Technique</span>
+            <TuningForkIcon size={18} className="progress-launch-icon" />
+            <span>Tune</span>
           </button>
-        )}
 
-        {/* Only once there is something to watch. A camera that films and then
-            offers nowhere to see the footage is the state this closes, but an
-            empty shelf advertised on the main screen is its own small lie. */}
-        {recordingOn && hasFootage && (
-          <button
-            className="progress-launch"
-            onClick={() => setIsFootageOpen(true)}
-            title="Watch back what you have filmed"
-          >
-            <CameraIcon size={18} className="progress-launch-icon" />
-            <span>Footage</span>
-          </button>
-        )}
+          {recordingOn && (
+            <button
+              className="progress-launch"
+              onClick={() => setIsTechniqueOpen(true)}
+              title="Film three angles of your hands, seventy-five seconds"
+            >
+              <FramingIcon size={18} className="progress-launch-icon" />
+              <span>Technique</span>
+            </button>
+          )}
 
-        {/* Not gated on having drill results any more: the Journey is a map of
+          {/* Only once there is something to watch. A camera that films and then
+              offers nowhere to see the footage is the state this closes, but an
+              empty shelf advertised on the main screen is its own small lie. */}
+          {recordingOn && hasFootage && (
+            <button
+              className="progress-launch"
+              onClick={() => setIsFootageOpen(true)}
+              title="Watch back what you have filmed"
+            >
+              <CameraIcon size={18} className="progress-launch-icon" />
+              <span>Footage</span>
+            </button>
+          )}
+
+        </div>
+
+        {/* Looking back, and the only thing here that is. It settles at the foot
+            of the rail rather than sitting under the tools, which is what makes
+            the rail a composition with a top and a bottom instead of a stack
+            that stops wherever it runs out of items.
+            Not gated on having drill results any more: the Journey is a map of
             the course, and day zero is precisely when someone needs one. */}
-        <button
-          className="progress-launch"
-          onClick={() => {
-            setProgressView('journey');
-            setIsProgressOpen(true);
-          }}
-          title="Where you are, and how you are moving"
-        >
-          <ChartIcon size={18} className="progress-launch-icon" />
-          <span>Progress</span>
-        </button>
-      </div>
+        <div className="rail-group is-tail">
+          <span className="rail-wire" aria-hidden="true" />
+          <button
+            className="progress-launch"
+            onClick={() => {
+              setProgressView('journey');
+              setIsProgressOpen(true);
+            }}
+            title="Where you are, and how you are moving"
+          >
+            <ChartIcon size={18} className="progress-launch-icon" />
+            <span>Progress</span>
+          </button>
+        </div>
+      </nav>
+
+      {/* What the practice has produced, beside the practice rather than on top
+          of it. This used to be a band across the top of the list, which meant
+          the one region that carries the day's work paid for it in height on
+          every screen. Read down: the week, then the news, then the record.
+
+          Ahead of the list in the source, though the grid draws it to the right
+          of one on a wide screen. Below 1200 it is drawn above the list, and a
+          block that reads above the list but tabs after all of its rows is two
+          different orders for the same screen: on day zero that puts the one
+          button worth pressing behind everything it is meant to start. Where
+          both orders cannot be had, the narrow layouts win, because they are
+          the ones where this sits in the reading path rather than off to the
+          side of it. */}
+      <aside className="path-rail path-rail-record" aria-label="What your practice has produced">
+        <StreakGraph />
+        {!isEmpty && (
+          <>
+            <span className="rail-wire" aria-hidden="true" />
+            <DayLedger onStart={hasCoachable ? () => setIsCoachedOpen(true) : null} />
+          </>
+        )}
+      </aside>
 
       <div className="task-container-wrapper">
-        <div className="task-container glass-panel">
+        <div className="task-container">
           {/* Above the list, not over it: the thing it is asking you to do is
               right there underneath. */}
           <PracticeNudge onStart={() => setIsCoachedOpen(true)} />
-          {/* What the practice has produced, on the screen it is produced from.
-              Only where there is a routine to produce it: a ledger over an empty
-              list would be measuring a session that cannot be run. */}
-          {!isEmpty && (
-            <DayLedger onStart={hasCoachable ? () => setIsCoachedOpen(true) : null} />
-          )}
           <div
             ref={listRef}
             className={clsx(

@@ -10,7 +10,6 @@ const SettingsModal = lazy(() =>
 // Not lazy: the capo state is painted in the header on first render, so the
 // chunk would be requested immediately anyway.
 import { QuickSetup } from './components/settings/QuickSetup';
-import { StreakGraph } from './components/StreakGraph';
 import { initAuthListener, useAuthStore } from './lib/auth';
 import { armOutputAudioUnlock } from './audio/outputContext';
 import { readDurability, requestDurableStorage } from './lib/durability';
@@ -129,7 +128,6 @@ function App() {
             <span className="header-date-short">{displayDate.short}</span>
           </h1>
           <div className="header-actions">
-            <StreakGraph />
             <QuickSetup onOpenSettings={() => setIsSettingsOpen(true)} />
             {/* The label is a live claim about where the last result went, so
                 it is announced when it changes rather than left to be noticed:
