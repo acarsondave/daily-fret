@@ -164,7 +164,21 @@ const logs = (page) =>
 
   // Paused ten minutes before midnight, one segment in. The page opens twenty
   // seconds *after* midnight, so the saved progress carries yesterday's date.
-  const { browser, page, errors } = await open(accountWith({}), -20, 10);
+  // A day of real history behind it, because the coached launcher only appears
+  // once the app has measured something, and a player with a half-finished
+  // session has certainly practised before.
+  const { browser, page, errors } = await open(
+    accountWith({
+      dailyLogs: {
+        '2026-08-01': {
+          date: '2026-08-01', routineId: 'r1', completedTaskIds: ['t1'],
+          drillResults: { 'pair:A>D': 34 },
+        },
+      },
+    }),
+    -20,
+    10,
+  );
 
   const savedDate = await page.evaluate((key) =>
     JSON.parse(localStorage.getItem(key)).state.accounts.anonymous.coachProgress.date, KEY);
