@@ -9,7 +9,9 @@ import { sweepStep } from '../../lib/sweep';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { useCapoOffset } from '../../hooks/useCapo';
+import { PersonalBestSparkle } from './PersonalBestSparkle';
 import { ProgressRing } from './ProgressRing';
+import { ringScale } from '../../lib/ringScale';
 import { SignalMeter } from './SignalMeter';
 import { ChordDiagram } from './ChordDiagram';
 import { useSignalMeter } from './signalQuality';
@@ -331,12 +333,19 @@ export function ChordRotation({
         {onTimer ? (
           <UncountedNotice />
         ) : (
-          <>
+          /* The best for this path, on the ring, while the run is still going.
+             Nothing is drawn on a timer: there is no measurement to compare, so
+             there is no mark and no arc to imply one. */
+          <ProgressRing
+            {...ringScale(changes, personalBest)}
+            phase="live"
+            className="om-ring om-ring-live"
+          >
             <div ref={countRef} className="om-count">
               {changes}
             </div>
             <div className="om-caption">changes</div>
-          </>
+          </ProgressRing>
         )}
         <div className="om-timer">
           <HourglassIcon size={26} /> {timeLeft}
@@ -362,27 +371,20 @@ export function ChordRotation({
   const prevBest = result?.prevBest ?? 0;
   const isFirst = prevBest === 0;
   const isNewBest = !isFirst && value > prevBest;
-  const isMatch = !isFirst && value === prevBest;
   const celebrate = isNewBest || (isFirst && value > 0);
-  const progress = isFirst ? (value > 0 ? 1 : 0) : value / prevBest;
-
-  let context: string;
-  if (isFirst) context = value > 0 ? 'First benchmark set' : 'No changes detected';
-  else if (isNewBest) context = `+${value - prevBest} over your best`;
-  else if (isMatch) context = 'Matched your best';
-  else context = `${prevBest - value} to beat your best`;
 
   return (
     <motion.div className="om-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-      <ProgressRing progress={progress} className={celebrate ? 'om-ring is-pr' : 'om-ring'}>
+      {celebrate && <PersonalBestSparkle />}
+
+      <ProgressRing {...ringScale(value, prevBest)} className="om-ring">
         <div className="om-ring-value">{value}</div>
         <div className="om-caption">changes</div>
       </ProgressRing>
 
-      <div className={celebrate ? 'om-context is-pr' : 'om-context'}>
-        {celebrate && <TrophyIcon size={16} />}
-        <span>{context}</span>
-      </div>
+      {/* A run of zero and a microphone that heard nothing look identical on the
+          ring, and only one of them is the player's doing. */}
+      {value === 0 && <p className="om-context">No changes detected</p>}
 
       <div className="om-result-meta">
         <div className="rot-ring">
@@ -394,8 +396,6 @@ export function ChordRotation({
           ))}
         </div>
       </div>
-
-      <div className="om-saved-hint">Saved automatically · see Progress for trends</div>
 
       {autoAdvance ? (
         <div className="coach-advance">

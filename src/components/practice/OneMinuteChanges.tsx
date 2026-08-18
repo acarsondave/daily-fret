@@ -6,7 +6,9 @@ import type { TimedOutcome } from '../../store/completion';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { useCapoOffset } from '../../hooks/useCapo';
+import { PersonalBestSparkle } from './PersonalBestSparkle';
 import { ProgressRing } from './ProgressRing';
+import { ringScale } from '../../lib/ringScale';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
 import { ChordDiagram } from './ChordDiagram';
@@ -339,12 +341,19 @@ export function OneMinuteChanges({
         {onTimer ? (
           <UncountedNotice />
         ) : (
-          <>
+          /* The best for this pair, on the ring, while there is still time to
+             do something about it. The dashed run from the count to the mark is
+             what is left to beat it; past the mark it is gold and growing. */
+          <ProgressRing
+            {...ringScale(transitions, pairBest)}
+            phase="live"
+            className="om-ring om-ring-live"
+          >
             <div ref={countRef} className="om-count">
               {transitions}
             </div>
             <div className="om-caption">transitions</div>
-          </>
+          </ProgressRing>
         )}
         <div className="om-timer">
           <HourglassIcon size={26} /> {timeLeft}
@@ -371,15 +380,7 @@ export function OneMinuteChanges({
 
   const isFirst = prevBest === 0;
   const isNewBest = !isFirst && value > prevBest;
-  const isMatch = !isFirst && value === prevBest;
   const celebrate = isNewBest || (isFirst && value > 0);
-  const progress = isFirst ? (value > 0 ? 1 : 0) : value / prevBest;
-
-  let context: string;
-  if (isFirst) context = value > 0 ? 'First benchmark set' : 'No changes detected';
-  else if (isNewBest) context = `+${value - prevBest} over your best`;
-  else if (isMatch) context = 'Matched your best';
-  else context = `${prevBest - value} to beat your best`;
 
   return (
     <motion.div
@@ -387,37 +388,17 @@ export function OneMinuteChanges({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      {celebrate && (
-        <div className="om-sparkles" aria-hidden="true">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <motion.span
-              key={i}
-              className="om-sparkle"
-              initial={{ opacity: 0, x: 0, y: 0, scale: 0 }}
-              animate={{
-                opacity: [0, 1, 0],
-                x: Math.cos((i / 10) * Math.PI * 2) * 120,
-                y: Math.sin((i / 10) * Math.PI * 2) * 120,
-                scale: [0, 1, 0.6],
-              }}
-              transition={{ duration: 1.1, delay: 0.15 + i * 0.02, ease: 'easeOut' }}
-            />
-          ))}
-        </div>
-      )}
+      {celebrate && <PersonalBestSparkle />}
 
-      <ProgressRing
-        progress={progress}
-        className={celebrate ? 'om-ring is-pr' : 'om-ring'}
-      >
+      <ProgressRing {...ringScale(value, prevBest)} className="om-ring">
         <div className="om-ring-value">{value}</div>
         <div className="om-caption">changes / min</div>
       </ProgressRing>
 
-      <div className={celebrate ? 'om-context is-pr' : 'om-context'}>
-        {celebrate && <TrophyIcon size={16} />}
-        <span>{context}</span>
-      </div>
+      {/* The one thing the ring cannot draw: a run of zero and a microphone that
+          heard nothing look identical on it, and only one of them is the
+          player's doing. */}
+      {value === 0 && <p className="om-context">No changes detected</p>}
 
       <div className="om-result-meta">
         <div className="om-pair">
@@ -426,8 +407,6 @@ export function OneMinuteChanges({
           <span className="target">{to}</span>
         </div>
       </div>
-
-      <div className="om-saved-hint">Saved automatically · see Progress for trends</div>
 
       {autoAdvance ? (
         <div className="coach-advance">

@@ -1,0 +1,54 @@
+/* The marks that turn the ring from a picture of one run into a comparison.
+   All three are drawn in the colour the app already keeps for a record, so the
+   mark on the ring, the best badge on the setup screen and the sparkle at the
+   end of a personal best are recognisably about the same thing. */
+
+/* What is left to beat the best. Dashed because it has not been played yet:
+   the solid arc is what happened, this is what has not. */
+.ring-gap {
+  fill: none;
+  stroke: var(--record-color);
+  stroke-dasharray: 2 9;
+  stroke-linecap: round;
+  /* Quiet on purpose. It is the part of the ring that has not been played yet,
+     so it must read as absent rather than as a second score. */
+  opacity: 0.34;
+}
+
+/* Everything past the best. */
+.ring-over {
+  fill: none;
+  stroke: var(--record-color);
+  stroke-linecap: round;
+}
+
+/* The best itself, sitting across the track like a mark on a rule. */
+.ring-mark {
+  stroke: var(--record-color);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+/* The ring's own box. Sized from a variable rather than from an inline style so
+   a screen that needs a bigger one on a laptop than on a phone can say so in
+   CSS, which is the only place that decision belongs. */
+.progress-ring {
+  position: relative;
+  width: var(--ring-size);
+  height: var(--ring-size);
+  flex-shrink: 0;
+}
+.progress-ring svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.progress-ring-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}

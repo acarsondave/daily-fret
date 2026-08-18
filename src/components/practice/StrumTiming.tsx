@@ -25,7 +25,9 @@ import {
   type BeatGrid,
   type TimingSummary,
 } from '../../lib/strumTiming';
+import { PersonalBestSparkle } from './PersonalBestSparkle';
 import { ProgressRing } from './ProgressRing';
+import { ringScale } from '../../lib/ringScale';
 import { SignalMeter } from './SignalMeter';
 import { useTimingSignalMeter } from './signalQuality';
 import { GrooveRail, GrooveTrace } from './GrooveRail';
@@ -406,29 +408,27 @@ export function StrumTiming({
   const isNewBest = !isFirst && score > prevBest;
   const celebrate = summary?.enough === true && (isNewBest || (isFirst && score > 0));
 
-  let context: string;
+  // Only the reasons there is no number. How this run compares with the last
+  // one is on the ring: the mark is the best score before it, the gold past the
+  // mark is what this run added, and the dashed run up to it is what is left.
+  let context: string | null = null;
   if (result?.heardTheClick === false) context = 'The click never reached the microphone';
   else if (summary?.selfReferential) context = 'The click was not audible, so nothing was measured';
   else if (!summary?.enough) context = 'Too few beats to measure';
-  else if (isFirst) context = 'First benchmark set';
-  else if (isNewBest) context = `+${score - prevBest} over your best`;
-  else if (score === prevBest) context = 'Matched your best';
-  else context = `${prevBest - score} to beat your best`;
 
   return (
     <motion.div className="om-results st-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+      {celebrate && <PersonalBestSparkle />}
+
       <ProgressRing
-        progress={summary?.enough ? score / 100 : 0}
-        className={celebrate ? 'om-ring is-pr' : 'om-ring'}
+        {...ringScale(summary?.enough ? score : 0, prevBest, 100)}
+        className="om-ring"
       >
         <div className="om-ring-value">{summary?.enough ? score : '--'}</div>
         <div className="om-caption">% in time</div>
       </ProgressRing>
 
-      <div className={celebrate ? 'om-context is-pr' : 'om-context'}>
-        {celebrate && <TrophyIcon size={16} />}
-        <span>{context}</span>
-      </div>
+      {context && <p className="om-context">{context}</p>}
 
       {summary?.enough && (
         <>
@@ -456,8 +456,6 @@ export function StrumTiming({
               : `A measurement needs at least ${MIN_MEASURED_BEATS} beats of playing. Nothing has been saved.`}
         </p>
       )}
-
-      {summary?.enough && <div className="om-saved-hint">Saved automatically · see Progress for trends</div>}
 
       {autoAdvance ? (
         <div className="coach-advance">
