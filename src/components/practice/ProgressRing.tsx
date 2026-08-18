@@ -19,7 +19,15 @@ import './progressRing.css';
 
 interface ProgressRingProps {
   progress: number; // 0..1
-  /** Where the best before this run sits, 0..1. Null when there is not one. */
+  /**
+   * Where the best before this run sits, 0..1.
+   *
+   * Three different things, and they are deliberately not two: a number is a
+   * best to aim at, `null` is a run that is scored but has no best yet and so
+   * sets one, and leaving it off entirely is a ring that is not scoring
+   * anything. The countdown on a timed block is the last of those, and it must
+   * never grow a personal best out of a clock running down.
+   */
   benchmark?: number | null;
   /**
    * 'live' tracks a count that is still climbing: it follows immediately and
@@ -38,7 +46,7 @@ interface ProgressRingProps {
 // can switch between accent and a celebratory hue with a single CSS class.
 export function ProgressRing({
   progress,
-  benchmark = null,
+  benchmark,
   phase = 'result',
   size = 220,
   stroke = 10,
@@ -55,13 +63,14 @@ export function ProgressRing({
 
   // The three states the mark can be in, which are the three sentences it
   // replaces: nothing to beat, beaten, and not beaten yet.
-  const marked = benchmark !== null;
+  const scoring = benchmark !== undefined;
+  const marked = typeof benchmark === 'number';
   const beaten = marked && clamped > benchmark;
   const shortfall = marked && clamped < benchmark;
   // A first run has no mark to draw until it has a number, and then the mark it
   // sets is exactly where it landed. That is a benchmark being set, drawn.
   const markAt = benchmark ?? clamped;
-  const markVisible = marked || (!live && clamped > 0);
+  const markVisible = scoring && (marked || (!live && clamped > 0));
 
   /**
    * A real arc rather than a dash offset around a full circle, because the gap
