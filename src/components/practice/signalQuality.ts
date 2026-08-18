@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CHROMA_SALIENCE_MIN, MIN_STRUM_RMS, type LevelEvent } from '../../audio/detector';
+import type { MicRouteState } from '../../audio/micStream';
 import type { TimingLevel } from '../../audio/timing';
 
 export type SignalQuality =
@@ -7,6 +8,17 @@ export type SignalQuality =
   | 'weak'
   /** Plenty of clean signal arriving, and none of it is matching any chord. */
   | 'unreadable'
+  /**
+   * The microphone is gone: revoked, unplugged, or taken by something else.
+   *
+   * Not a measurement, and not something the frames can say. A dead input
+   * stops delivering frames rather than delivering quiet ones, so from in here
+   * it is indistinguishable from a silent room, and telling a player to strum
+   * louder at a microphone that no longer exists is the worst reading the meter
+   * can give. The capture layer knows (src/audio/micStream.ts watches the
+   * track's `ended` event); this is where it says so.
+   */
+  | 'lost'
   | 'good'
   | 'loud';
 
@@ -18,7 +30,7 @@ export type SignalQuality =
  * and that turned out to be the difference between a meter that helps and a
  * meter that lies. See `useSignalMeter` below.
  */
-export function classifyLevel(ev: LevelEvent | null): Exclude<SignalQuality, 'unreadable'> {
+export function classifyLevel(ev: LevelEvent | null): Exclude<SignalQuality, 'unreadable' | 'lost'> {
   if (!ev || ev.chroma === null) return 'silent';
   if (ev.rms > 0.6) return 'loud';
   if (ev.salience < CHROMA_SALIENCE_MIN) return 'weak';
@@ -125,7 +137,7 @@ function useQualityDwell() {
  * So the window, not the frame, is the unit. Loudness still comes per frame;
  * whether anything is being recognised can only be asked over time.
  */
-export function useSignalMeter() {
+export function useSignalMeter(route?: MicRouteState | null) {
   const { quality, set, reset } = useQualityDwell();
   // A rolling window of recent frames that carried enough tone to be matchable,
   // and whether each one actually matched.
@@ -177,7 +189,11 @@ export function useSignalMeter() {
     reset();
   }, [reset]);
 
-  return { quality, push, reset: clear };
+  // A microphone that has gone outranks every reading taken through it. Derived
+  // here rather than pushed in, so no drill can hold a stale verdict from before
+  // the input died, and so the four surfaces that show this meter cannot each
+  // forget it in their own way.
+  return { quality: route === 'closed' ? ('lost' as const) : quality, push, reset: clear };
 }
 
 /** The same meter, fed by the strum-timing analyser. */

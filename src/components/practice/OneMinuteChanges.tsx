@@ -57,7 +57,7 @@ export function OneMinuteChanges({
   const templates = useLearnedTemplates();
   const capo = useCapoOffset();
   const sharedMic = !!detector;
-  const { status, error, start, stop, setHandlers } = detector ?? own;
+  const { status, route, error, start, stop, setHandlers } = detector ?? own;
 
   // Selectable chords for this drill — the task's comfortable set, falling back
   // to the full list. The initial pair prefers the remembered pair when it fits.
@@ -95,7 +95,7 @@ export function OneMinuteChanges({
   // The chord we're cueing the player to switch to next. The lit name always
   // means "play this now", so the brand's light reinforces the shape-to-name link.
   const [nextCue, setNextCue] = useState(initFrom);
-  const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter();
+  const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter(route);
   const [result, setResult] = useState<{
     value: number;
     prevBest: number;

@@ -82,7 +82,7 @@ export function ChordRotation({
   const templates = useLearnedTemplates();
   const capo = useCapoOffset();
   const sharedMic = !!detector;
-  const { status, error, start, stop, setHandlers } = detector ?? own;
+  const { status, route, error, start, stop, setHandlers } = detector ?? own;
 
   // The ordered ring to cycle. Falls back to the classic anchor set.
   const ring = rotationRing(config?.chords);
@@ -97,7 +97,7 @@ export function ChordRotation({
   // Mirrored into state as well as a ref: the ref is what the detector callback
   // reads between renders, and this is what the cue is drawn from.
   const [dir, setDir] = useState(1);
-  const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter();
+  const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter(route);
   const [result, setResult] = useState<{ value: number; prevBest: number } | null>(null);
   const [advanceLeft, setAdvanceLeft] = useState(AUTO_ADVANCE_SECONDS);
   // Running blind: the clock runs, the path is on screen, nothing is counted.
