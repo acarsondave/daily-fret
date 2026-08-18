@@ -10,19 +10,30 @@
   padding: var(--space-8) var(--space-5) var(--space-6);
 }
 
-/* The mark sits inside a ring rather than floating, so an empty panel still
-   has a centre of gravity instead of reading as a page that failed to load. */
-.empty-state-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  margin-bottom: var(--space-1);
-  border-radius: var(--radius-full);
-  color: var(--accent-primary);
-  background: var(--accent-glow);
-  border: 1px solid rgba(56, 189, 248, 0.28);
+/* The panel with something in it, drawn at the weight of a thing that has not
+   happened yet. The frame is the vocabulary surfaceBoundary.css already uses
+   for a screen that is not there: unfilled, dashed, and deliberately not a
+   warning. The drawing inside sits low enough to read as a placeholder and
+   never as a record. */
+.empty-state-preview {
+  width: min(320px, 100%);
+  padding: var(--space-5) var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  animation: empty-preview-in var(--dur-slow) var(--ease-out) both;
+}
+
+.empty-preview-art {
+  display: block;
+  width: 100%;
+  height: auto;
+  opacity: 0.18;
+}
+
+@keyframes empty-preview-in {
+  from { opacity: 0; transform: scale(0.985); }
+  to   { opacity: 1; transform: none; }
 }
 
 .empty-state-title {
@@ -31,13 +42,6 @@
   font-weight: 600;
   letter-spacing: var(--tracking-tight);
   color: var(--text-primary);
-}
-
-.empty-state-body {
-  max-width: 34ch;
-  font-size: var(--text-base);
-  line-height: 1.6;
-  color: var(--text-secondary);
 }
 
 .empty-state-action {
@@ -65,4 +69,8 @@
   .empty-state-action {
     min-height: 44px;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .empty-state-preview { animation: none; }
 }

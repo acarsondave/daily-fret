@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CheckIcon, FlameIcon, MinusIcon, PlayIcon, TargetIcon, TrendDownIcon, TrendUpIcon, TrophyIcon } from '../icons';
+import { CheckIcon, FlameIcon, MinusIcon, PlayIcon, TrendDownIcon, TrendUpIcon, TrophyIcon } from '../icons';
 import clsx from 'clsx';
 import { useDrillStats } from '../../hooks/useDrillStats';
 import {
@@ -16,6 +16,7 @@ import { restAdvice, computeXp } from '../../lib/xp';
 import { getTodayString, useUserData } from '../../store';
 import { ProgressChart } from './ProgressChart';
 import { EmptyState } from './EmptyState';
+import { ProgressPreview } from './EmptyPreviews';
 import './progress.css';
 
 /**
@@ -154,9 +155,8 @@ export function ProgressPanel({ onPracticePair, onStartSession }: Props) {
   if (!any) {
     return (
       <EmptyState
-        icon={<TargetIcon size={26} />}
+        preview={<ProgressPreview />}
         title="No measurements yet"
-        body="Run a drill that listens and its history starts building here. Each drill keeps its own benchmark."
         action={onStartSession && { label: 'Start today’s session', onClick: onStartSession }}
       />
     );

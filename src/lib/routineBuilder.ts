@@ -31,6 +31,17 @@ import { chordPairs } from './pairs';
 const CHORD_PERFECT_SECONDS = 90;
 const CHANGES_SECONDS = 60;
 const ROTATION_SECONDS = 60;
+/**
+ * Three minutes, not the drill's own minute.
+ *
+ * The measurement only needs a minute, but the practice does not stop being
+ * worth doing at the end of it, and the block this replaced was a four minute
+ * timer. Cutting a beginner's daily rhythm work to sixty seconds because that
+ * is how long the analysis takes would be the measurement deciding the
+ * practice, which is backwards. The score is a rate, so a longer run still
+ * compares with a shorter one.
+ */
+const RHYTHM_SECONDS = 180;
 /** Pairs in one changes task. More than this and the task becomes a shift. */
 const MAX_PAIRS = 3;
 /** Shapes in one Chord Perfect block when there is no new one to target. */
@@ -413,15 +424,25 @@ function buildPlayingTasks(basis: RoutineBasis, module: number | null): Task[] {
     );
   }
 
-  // Rhythm is on a timer until the app can hear timing. Saying that in the
-  // description is better than a task that looks measured and is not.
+  // Rhythm. The skill itself says whether there is a drill that measures it, so
+  // the routine reads that rather than assuming there is not: this branch used
+  // to put every rhythm skill on a clock and tell a first-time player "the app
+  // cannot hear timing yet", which stopped being true when strum timing was
+  // built and graded. The timer is still the honest answer for the rhythm
+  // skills that have no measure, and it says which of the two it is.
   const rhythm = skills.filter(isPracticeSkill).find((s) => s.family === 'rhythm');
   if (rhythm) {
+    const measuredBy = rhythm.measure.kind === 'measured' ? rhythm.measure.drill : null;
     tasks.push(
-      task(rhythm.title, {
-        description: `${rhythm.summary} On a timer for now: the app cannot hear timing yet.`,
-        duration: '4',
-      }),
+      measuredBy && measuredBy !== 'tuner'
+        ? task(rhythm.title, {
+            description: rhythm.summary,
+            drill: { kind: measuredBy, durationSec: RHYTHM_SECONDS },
+          })
+        : task(rhythm.title, {
+            description: `${rhythm.summary} On a timer: nothing in the signal measures this one yet.`,
+            duration: '4',
+          }),
     );
   }
 

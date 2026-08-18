@@ -18,7 +18,7 @@ import { hasChordShape } from '../src/data/chordShapes.ts';
 let failures = 0;
 const check = (l, ok, d) => { if (!ok) failures++; console.log(`  ${ok?'ok  ':'FAIL'}  ${l}${d?' — '+d:''}`); };
 
-const DRILL_KINDS = new Set(['one-minute-changes', 'chord-trainer', 'song', 'chord-rotation']);
+const DRILL_KINDS = new Set(['one-minute-changes', 'chord-trainer', 'song', 'chord-rotation', 'strum-timing']);
 
 // Every number onboarding prints has to be a number the data still agrees with.
 // The screen used to hardcode which courses existed and count their modules by
@@ -133,8 +133,14 @@ console.log('\nA routine for the module the owner is on\n');
   const mins = routineMinutes(r);
   console.log(`    about ${mins} minutes`);
   check('it is a session someone would sit down for', mins >= 10 && mins <= 30, `${mins} min`);
-  check('the timed rhythm task admits it is timed',
-    r.tasks.some(t => /cannot hear timing/.test(t.description ?? '')));
+  // The rhythm block used to be a clock with "the app cannot hear timing yet"
+  // written under it, which stopped being true when strum timing was built and
+  // graded. A skill that names a drill gets that drill.
+  check('the rhythm task is the drill that measures it',
+    r.tasks.some(t => t.drill?.kind === 'strum-timing'),
+    JSON.stringify(r.tasks.filter(t => /strum|rhythm|beat/i.test(t.title)).map(t => t.title)));
+  check('and nothing claims the app is deaf to timing',
+    !r.tasks.some(t => /cannot hear timing/.test(t.description ?? '')));
   check('it says what it was built from, in words',
     /Dm/.test(r.description) && /Grade 1/.test(r.description), r.description);
   check('and never prints an internal track code', !/BG1|bg1/.test(r.description), r.description);
@@ -273,6 +279,9 @@ console.log('\nEvery routine the flow can produce is runnable\n');
       if (!t.drill && !t.duration) bad.push(`${label}: "${t.title}" is neither timed nor a drill`);
       if (!t.drill) continue;
       if (!DRILL_KINDS.has(t.drill.kind)) bad.push(`${label}: unknown drill ${t.drill.kind}`);
+      // Strum timing is one down strum on every click, so it is the one drill
+      // with nothing to name: the click is the exercise.
+      if (t.drill.kind === 'strum-timing') continue;
       const chords = [
         ...(t.drill.chords ?? []),
         ...(t.drill.pairs ?? []).flatMap((p) => [p.from, p.to]),

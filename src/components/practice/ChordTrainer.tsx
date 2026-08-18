@@ -10,7 +10,9 @@ import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDet
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { useCapoOffset } from '../../hooks/useCapo';
 import { usePassiveRefine } from '../../hooks/usePassiveRefine';
+import { PersonalBestSparkle } from './PersonalBestSparkle';
 import { ProgressRing } from './ProgressRing';
+import { ringScale } from '../../lib/ringScale';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
 import { ChordDiagram } from './ChordDiagram';
@@ -409,7 +411,21 @@ export function ChordTrainer({
         </div>
 
         <div className="ct-stats">
-          {!onTimer && <span className="ct-score">{reps} placed</span>}
+          {/* Small, because the shape above it is the drill and this is the
+              score. The mark is still the best for this set of shapes, so the
+              gap to it is readable without leaving the exercise. */}
+          {!onTimer && (
+            <ProgressRing
+              {...ringScale(reps, poolBest)}
+              phase="live"
+              size={104}
+              stroke={7}
+              className="om-ring ct-ring-live"
+            >
+              <span className="ct-score">{reps}</span>
+              <span className="om-caption">placed</span>
+            </ProgressRing>
+          )}
           <span className="om-timer">
             <HourglassIcon size={22} /> {timeLeft}
           </span>
@@ -441,13 +457,6 @@ export function ChordTrainer({
   const isFirst = prevBest === 0;
   const isNewBest = !isFirst && value > prevBest;
   const celebrate = isNewBest || (isFirst && value > 0);
-  const progress = isFirst ? (value > 0 ? 1 : 0) : value / Math.max(prevBest, 1);
-
-  let context: string;
-  if (isFirst) context = value > 0 ? 'First benchmark set' : 'No shapes detected';
-  else if (isNewBest) context = `+${value - prevBest} over your best`;
-  else if (value === prevBest) context = 'Matched your best';
-  else context = `${prevBest - value} to beat your best`;
 
   return (
     <motion.div
@@ -455,15 +464,15 @@ export function ChordTrainer({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      <ProgressRing progress={progress} className={celebrate ? 'om-ring is-pr' : 'om-ring'}>
+      {celebrate && <PersonalBestSparkle />}
+
+      <ProgressRing {...ringScale(value, prevBest)} className="om-ring">
         <div className="om-ring-value">{value}</div>
         <div className="om-caption">shapes placed</div>
       </ProgressRing>
 
-      <div className={celebrate ? 'om-context is-pr' : 'om-context'}>
-        {celebrate && <TrophyIcon size={16} />}
-        <span>{context}</span>
-      </div>
+      {/* Nothing placed and nothing heard look the same on the ring. */}
+      {value === 0 && <p className="om-context">No shapes detected</p>}
 
       {/* Per shape, because the total hides the one that needs the work. */}
       <div className="ct-breakdown">
@@ -477,8 +486,6 @@ export function ChordTrainer({
       {resultSeries.length >= 2 && (
         <Sparkline values={resultSeries} className="om-result-spark" width={120} />
       )}
-
-      <div className="om-saved-hint">Saved automatically</div>
 
       {autoAdvance ? (
         <div className="coach-advance">
