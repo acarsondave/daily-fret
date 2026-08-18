@@ -15,7 +15,7 @@ import {
   STATED_DAY_CAP, UNHEARD_SHARE, MAX_STREAK_BONUS, DAY_FULL_UP_TO,
 } from '../src/lib/xp.ts';
 import { evaluateAchievements, ACHIEVEMENTS, OPEN_CHORD_COUNT } from '../src/data/achievements.ts';
-import { allStandings, readEvidence } from '../src/lib/progression.ts';
+import { allStandings, lifetimeBests, readEvidence } from '../src/lib/progression.ts';
 import { pairKey } from '../src/lib/pairs.ts';
 
 let failures = 0;
@@ -435,14 +435,20 @@ console.log('\nThe benchmark: real practice against the ladder\n');
     share(dFive.xp, 'bests') < 0.1, `${(share(dFive.xp,'bests')*100).toFixed(0)}%`);
 }
 
+const AWARD_TODAY = '2026-07-15';
+
 console.log('\nAwards\n');
 {
+  // Awards read the lifetime best on purpose, where a standing reads the last
+  // three runs on purpose. An award marks something that happened; a standing
+  // claims something about today.
   const build = (l, claimed = []) => {
     const xp = computeXp(l);
-    const ev = readEvidence(l);
-    const bests = new Map(ev.pairs);
-    for (const [k,v] of ev.tasks) bests.set(k, v);
-    return { xp, bests, standings: allStandings(l, claimed) };
+    return {
+      xp,
+      bests: lifetimeBests(readEvidence(l)),
+      standings: allStandings(l, AWARD_TODAY, claimed),
+    };
   };
   const award = (list, id) => {
     const found = list.find(a => a.id === id);
@@ -504,13 +510,11 @@ console.log('\nAwards\n');
 
 console.log('\nTwenty days inside a month, and coming back after one off\n');
 {
-  const build = (l) => {
-    const xp = computeXp(l);
-    const ev = readEvidence(l);
-    const bests = new Map(ev.pairs);
-    for (const [k,v] of ev.tasks) bests.set(k, v);
-    return { xp, bests, standings: allStandings(l, []) };
-  };
+  const build = (l) => ({
+    xp: computeXp(l),
+    bests: lifetimeBests(readEvidence(l)),
+    standings: allStandings(l, AWARD_TODAY, []),
+  });
   const award = (l, id) => evaluateAchievements(build(l)).find(a => a.id === id);
   // Days chosen by index from a fixed start, so a window can be built exactly.
   const on = (...offsets) => logs(...offsets.map((o) => day(iso(o), { [pairKey('A','D')]: 20 })));

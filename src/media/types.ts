@@ -157,7 +157,12 @@ export interface RecordingSettings {
   enabled: boolean;
   cadence: RecordingCadence;
   quality: RecordingQuality;
-  /** How many practice sessions of footage to keep before the oldest goes. */
+  /**
+   * The budget, in bytes. The bound that actually matters, because a session is
+   * not a size: see ../media/retention.ts.
+   */
+  keepBytes: number;
+  /** How many practice sessions of footage to keep. The second bound. */
   keepSessions: number;
   /** Preferred camera, or null for whatever the system hands over. */
   cameraId: string | null;

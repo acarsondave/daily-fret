@@ -100,6 +100,29 @@ function spell(n: number): string {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
+/**
+ * Whether the bar was ever cleared {@link HELD_RUNS} runs running, at any point
+ * in the history.
+ *
+ * Distinct from `readiness().state === 'held'`, which asks about *now*. This one
+ * asks whether the player has ever shown they can do it reliably, and the answer
+ * cannot become false again. Nothing that reports competence should read it:
+ * that has to be current, or the app is claiming something about today on the
+ * strength of March. It exists for the one job where stickiness is right, which
+ * is deciding what the course is allowed to offer next. A bad run does not
+ * un-teach a chord, and a lock that flickers back on after one off day would
+ * hide the very skill the player is in the middle of rebuilding.
+ */
+export function everHeld(runs: readonly DrillRun[], bar: number): boolean {
+  let consecutive = 0;
+  for (const run of runs) {
+    if (!Number.isFinite(run.value) || run.value <= 0) continue;
+    consecutive = run.value >= bar ? consecutive + 1 : 0;
+    if (consecutive >= HELD_RUNS) return true;
+  }
+  return false;
+}
+
 function daysBetween(from: string, to: string): number {
   const a = Date.parse(`${from}T00:00:00Z`);
   const b = Date.parse(`${to}T00:00:00Z`);

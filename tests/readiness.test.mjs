@@ -8,6 +8,7 @@
 
 import {
   readiness,
+  everHeld,
   HELD_RUNS,
   STALE_DAYS,
   CHANGES_BAR,
@@ -207,6 +208,34 @@ console.log('\nWritten like a person wrote it\n');
   check('every sentence opens in upper case or on a number', badly.length === 0, badly.join(' | '));
   check('and every one of them ends in a full stop',
     every.every((r) => r.evidence.endsWith('.')), every.map((r) => r.evidence).join(' | '));
+}
+
+// everHeld is the one sticky reading in the model, and stickiness is exactly the
+// property that made the old progression model dishonest. It exists for locks
+// only, so what it must get right is the difference between "has done it" and
+// "can do it now", in both directions.
+console.log('\nWhether it was ever held, which is a different question\n');
+{
+  const of = (...values) => everHeld(runs(...values), CHANGES_BAR);
+  check('one good run was never held', !of(40));
+  check('nor two', !of(40, 33));
+  check('three running was', of(31, 33, 30));
+  check('and stays true however badly it goes afterwards', of(31, 33, 30, 4, 2, 1));
+  check('three clearing runs split by a dip were not', !of(31, 33, 4, 30, 32),
+    'the dip means no three in a row');
+  check('a streak anywhere in the history counts, not just at the end',
+    of(4, 31, 33, 30, 4));
+  check('the bar is respected exactly',
+    of(CHANGES_BAR, CHANGES_BAR, CHANGES_BAR) && !of(CHANGES_BAR - 1, CHANGES_BAR, CHANGES_BAR),
+    'at the bar counts, under it does not');
+  check('a run the mic never heard is skipped rather than counted as a failure',
+    of(31, 33, 0, 30), 'a zero is silence, not a bad run');
+  check('nothing recorded was never held', !everHeld([], CHANGES_BAR));
+  // The two readings have to disagree, or the sticky one has no reason to exist.
+  const cold = runs(31, 33, 30);
+  check('a lapsed drill is not held now but was held once',
+    readiness(cold, CHANGES_BAR, dayBefore(TODAY, -(STALE_DAYS + 1))).state === 'lapsed' &&
+      everHeld(cold, CHANGES_BAR));
 }
 
 console.log(failures===0?'\nALL PASS\n':`\n${failures} FAILURE(S)\n`);

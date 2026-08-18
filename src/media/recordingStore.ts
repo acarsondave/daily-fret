@@ -20,7 +20,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { DEFAULT_QUALITY } from './quality';
-import { DEFAULT_KEEP_SESSIONS, clampKeepSessions, planPrune, pruneEvent } from './retention';
+import {
+  DEFAULT_KEEP_BYTES,
+  DEFAULT_KEEP_SESSIONS,
+  clampKeepBytes,
+  clampKeepSessions,
+  planPrune,
+  pruneEvent,
+} from './retention';
 import { deleteEverything, deleteOrphans, deleteRecording, findOrphans, type OrphanReport } from './storage';
 import { forgetPoster } from './posterFrames';
 import type { PruneEvent, Recording, RecordingCadence, RecordingQuality, RecordingSettings } from './types';
@@ -36,6 +43,7 @@ interface RecordingState {
   setCadence: (cadence: RecordingCadence) => void;
   setQuality: (quality: RecordingQuality) => void;
   setKeepSessions: (keep: number) => void;
+  setKeepBytes: (bytes: number) => void;
   setCameraId: (deviceId: string | null) => void;
   toggleStar: (id: string) => void;
   acknowledgePrune: () => void;
@@ -46,6 +54,7 @@ const DEFAULT_SETTINGS: RecordingSettings = {
   cadence: 'weekly',
   quality: DEFAULT_QUALITY,
   keepSessions: DEFAULT_KEEP_SESSIONS,
+  keepBytes: DEFAULT_KEEP_BYTES,
   cameraId: null,
 };
 
@@ -63,6 +72,8 @@ export const useRecordingStore = create<RecordingState>()(
       setQuality: (quality) => set((s) => ({ settings: { ...s.settings, quality } })),
       setKeepSessions: (keep) =>
         set((s) => ({ settings: { ...s.settings, keepSessions: clampKeepSessions(keep) } })),
+      setKeepBytes: (bytes) =>
+        set((s) => ({ settings: { ...s.settings, keepBytes: clampKeepBytes(bytes) } })),
       setCameraId: (cameraId) => set((s) => ({ settings: { ...s.settings, cameraId } })),
 
       toggleStar: (id) =>
@@ -94,6 +105,10 @@ export const useRecordingStore = create<RecordingState>()(
               : 'weekly',
             quality: settings?.quality ?? DEFAULT_QUALITY,
             keepSessions: clampKeepSessions(settings?.keepSessions ?? DEFAULT_KEEP_SESSIONS),
+            // An account written before the budget existed has no keepBytes at
+            // all, and the clamp turns that into the default rather than into a
+            // zero-byte limit that would delete the library on the next clip.
+            keepBytes: clampKeepBytes(settings?.keepBytes ?? DEFAULT_KEEP_BYTES),
             cameraId: settings?.cameraId ?? null,
           },
         };
@@ -145,9 +160,28 @@ export async function reclaimOrphans(): Promise<{ files: number; bytes: number }
  * come back for it without taking the rest of the library with it.
  */
 export async function fileRecording(recording: Recording): Promise<void> {
-  const { recordings, settings } = useRecordingStore.getState();
-  const all = [recording, ...recordings];
-  const { keep, drop } = planPrune(all, settings.keepSessions);
+  const { recordings } = useRecordingStore.getState();
+  await prune([recording, ...recordings]);
+}
+
+/**
+ * Apply the limits to what is already on disk.
+ *
+ * For the moment a limit is lowered. Retention used to run only when a clip was
+ * filed, so choosing a smaller budget did nothing at all until the next
+ * recording; the pane said one thing and the disk went on saying another until
+ * the player happened to film something.
+ */
+export async function applyRetention(): Promise<void> {
+  await prune(useRecordingStore.getState().recordings);
+}
+
+async function prune(all: readonly Recording[]): Promise<void> {
+  const { settings } = useRecordingStore.getState();
+  const { keep, drop } = planPrune(all, {
+    keepSessions: settings.keepSessions,
+    keepBytes: settings.keepBytes,
+  });
 
   const event = pruneEvent(drop, Date.now());
   useRecordingStore.setState((s) => ({
