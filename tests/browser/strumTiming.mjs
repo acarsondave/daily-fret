@@ -236,7 +236,17 @@ console.log('\nOn headphones it refuses rather than inventing a beat\n');
   await page.waitForSelector('.st-deaf', { timeout: 30000 });
   const body = await page.locator('.st-deaf').innerText();
   check('it says it cannot hear the click', /cannot hear the click/i.test(body), body.slice(0, 80));
-  check('and says what to do about it', /speakers/i.test(body));
+  // What to do about it is the picture: the click leaving the speaker and
+  // stopping in the air, with the guitar's own path still arriving. The four
+  // paragraphs that used to say this in words are gone.
+  check('and draws the click failing to arrive',
+    (await page.locator('.st-deaf .click-path.is-broken').count()) === 1);
+  check('the drawn click visibly stops short of the microphone', await page.evaluate(() => {
+    const click = document.querySelector('.click-path.is-broken .click-path-line.is-click');
+    const mic = document.querySelector('.click-path.is-broken .click-path-mic');
+    if (!click || !mic) return false;
+    return click.getBoundingClientRect().right < mic.getBoundingClientRect().left - 8;
+  }));
   check('no groove band was ever drawn', (await page.locator('.groove-band').count()) === 0);
   check('and no number is on screen', (await page.locator('.st-figure-value').count()) === 0);
   await page.screenshot({ path: `${OUT}/timing-deaf-1280.png` });
@@ -244,8 +254,9 @@ console.log('\nOn headphones it refuses rather than inventing a beat\n');
   await page.waitForSelector('.om-ring-value', { timeout: 30000 });
   check('the result refuses to score it',
     (await page.locator('.om-ring-value').innerText()).trim() === '--');
-  check('and says why', /never reached the microphone/i.test(await page.locator('.om-context').innerText()),
-    await page.locator('.om-context').innerText());
+  check('and the results card draws why rather than explaining it',
+    (await page.locator('.om-results .click-path.is-broken').count()) === 1);
+  check('with no paragraph under it', (await page.locator('.om-results .st-call').count()) === 0);
   const stored = await page.evaluate(() => {
     const acc = JSON.parse(localStorage.getItem('daily-fret-storage')).state.accounts.anonymous;
     const key = Object.keys(acc.dailyLogs).sort().pop();
@@ -345,8 +356,8 @@ for (const [name, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
     const sideways = await page.evaluate(() =>
       document.documentElement.scrollWidth - document.documentElement.clientWidth);
     check(`${name} ${label}: the setup screen fits`, sideways <= 0, `${sideways}px over`);
-    check(`${name} ${label}: it states the headphones limit up front`,
-      /speakers, not headphones/i.test(await page.locator('.st-setup').innerText()));
+    check(`${name} ${label}: it shows what the drill needs of the room`,
+      (await page.locator('.st-setup .click-path.is-reaching').count()) === 1);
 
     if (name === 'chromium' && label === '390x844') {
       await page.screenshot({ path: `${OUT}/timing-setup-390.png`, fullPage: true });

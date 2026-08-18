@@ -4,6 +4,7 @@ import { CaretDownIcon, TrophyIcon } from '../icons';
 import { getTodayString, useDrillLogs, useUserData } from '../../store';
 import { buildHistory, weeklyTotals, type HistoryDay } from '../../lib/history';
 import { EmptyState } from './EmptyState';
+import { HistoryPreview } from './EmptyPreviews';
 import './history.css';
 
 const PAGE = 14;
@@ -57,9 +58,8 @@ export function HistoryPanel({ onStartSession }: Props) {
   if (!days.length) {
     return (
       <EmptyState
-        icon={<TrophyIcon size={26} />}
+        preview={<HistoryPreview />}
         title="Nothing logged yet"
-        body="Every day you practise lands here, with what you played and how it went."
         action={onStartSession && { label: 'Start today\u2019s session', onClick: onStartSession }}
       />
     );

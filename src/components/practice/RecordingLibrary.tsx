@@ -19,12 +19,13 @@ finish review, the verdict, and DESIGN.md.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CameraIcon, FramingIcon, KeepIcon } from '../icons';
+import { FramingIcon, KeepIcon } from '../icons';
 import { useRecordingStore, forgetRecording } from '../../media/recordingStore';
 import { formatMegabytes } from '../../media/quality';
 import { buildSpine, formatDuration, sameViewBefore, viewName } from '../../media/library';
 import type { LibrarySession, SpineMonth } from '../../media/library';
 import { EmptyState } from './EmptyState';
+import { FilmPreview } from './EmptyPreviews';
 import { PosterTile } from './PosterTile';
 import { FootageStage } from './FootageStage';
 import './recordingLibrary.css';
@@ -96,11 +97,7 @@ export function RecordingLibrary() {
 
   if (recordings.length === 0) {
     return (
-      <EmptyState
-        icon={<CameraIcon size={26} />}
-        title="Nothing filmed yet"
-        body="Once a week, a practice session is filmed and lands here beside the day you played it."
-      />
+      <EmptyState preview={<FilmPreview />} title="Nothing filmed yet" />
     );
   }
 

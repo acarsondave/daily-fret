@@ -327,8 +327,12 @@
   gap: var(--space-6);
 }
 
-.st-crest {
-  color: var(--accent-primary);
+/* The diagram carries the setup screen, the state where the click cannot be
+   found, and the results card that has nothing to show. It is the same picture
+   in all three, at the same size, so the failure is recognisably the working
+   arrangement not happening. */
+.st-diagram {
+  max-width: min(340px, 100%);
 }
 
 .st-brief {
