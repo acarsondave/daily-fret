@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TimingCapture } from '../audio/timingCapture';
+import type { MicRouteState } from '../audio/micStream';
 import type { TimingHandlers } from '../audio/timing';
 import { getPreferredMicId } from '../audio/micDevice';
 
@@ -14,6 +15,11 @@ export function useStrumTiming() {
   const handlersRef = useRef<TimingHandlers>({});
   const [status, setStatus] = useState<TimingStatus>('idle');
   const [error, setError] = useState<string | null>(null);
+  // What the input is actually doing, as opposed to whether opening it worked.
+  // The chord path has carried this since a revoked microphone was found to go
+  // unnoticed mid-drill; this one did not, so a timing run whose input died
+  // stayed 'running' over an analyser that had stopped receiving anything.
+  const [route, setRoute] = useState<MicRouteState | null>(null);
 
   const setHandlers = useCallback((handlers: TimingHandlers) => {
     handlersRef.current = handlers;
@@ -28,6 +34,7 @@ export function useStrumTiming() {
     }
     setStatus('requesting');
     setError(null);
+    setRoute(null);
 
     const capture = new TimingCapture();
     captureRef.current = capture;
@@ -38,11 +45,13 @@ export function useStrumTiming() {
         onStrum: (onset) => handlersRef.current.onStrum?.(onset),
         onClick: (onset) => handlersRef.current.onClick?.(onset),
         onLevel: (level) => handlersRef.current.onLevel?.(level),
+        onRouteChange: setRoute,
       });
       setStatus('running');
       return true;
     } catch (err) {
       captureRef.current = null;
+      setRoute(null);
       setStatus('error');
       setError(err instanceof Error ? err.message : 'Microphone access was denied.');
       return false;
@@ -53,6 +62,7 @@ export function useStrumTiming() {
     const capture = captureRef.current;
     captureRef.current = null;
     setStatus('idle');
+    setRoute(null);
     await capture?.stop();
   }, []);
 
@@ -63,5 +73,5 @@ export function useStrumTiming() {
     };
   }, []);
 
-  return { status, error, start, stop, setHandlers };
+  return { status, route, error, start, stop, setHandlers };
 }

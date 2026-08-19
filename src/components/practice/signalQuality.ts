@@ -196,9 +196,40 @@ export function useSignalMeter(route?: MicRouteState | null) {
   return { quality: route === 'closed' ? ('lost' as const) : quality, push, reset: clear };
 }
 
-/** The same meter, fed by the strum-timing analyser. */
-export function useTimingSignalMeter() {
+/**
+ * The same meter, fed by the strum-timing analyser.
+ *
+ * Carries the two readings that are not about the signal at all, because a
+ * meter without them is the defect `useSignalMeter` above was rebuilt to fix and
+ * this one kept: frames stopping, and the route saying the input is gone. Strum
+ * timing opens its own capture rather than the shared one, so it went on drawing
+ * whatever it last saw over a microphone that had been revoked, through the one
+ * drill in the app that grades rhythm.
+ */
+export function useTimingSignalMeter(route?: MicRouteState | null) {
   const { quality, set, reset } = useQualityDwell();
-  const push = useCallback((level: TimingLevel | null) => set(classifyTimingLevel(level)), [set]);
-  return { quality, push, reset };
+  const lastPushRef = useRef(0);
+
+  const push = useCallback(
+    (level: TimingLevel | null) => {
+      lastPushRef.current = Date.now();
+      set(classifyTimingLevel(level));
+    },
+    [set],
+  );
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (!lastPushRef.current || Date.now() - lastPushRef.current < STALE_MS) return;
+      set('silent');
+    }, 500);
+    return () => clearInterval(id);
+  }, [set]);
+
+  const clear = useCallback(() => {
+    lastPushRef.current = 0;
+    reset();
+  }, [reset]);
+
+  return { quality: route === 'closed' ? ('lost' as const) : quality, push, reset: clear };
 }

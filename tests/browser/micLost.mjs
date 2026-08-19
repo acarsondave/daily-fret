@@ -35,6 +35,7 @@ const account = {
     id: 'r1', name: 'Module 4 Daily', description: '', isDefault: true,
     tasks: [
       { id: 't1', title: 'Chord Perfect', duration: '2 mins', drill: { kind: 'chord-trainer', durationSec: 60, chords: ['Am', 'Em'] } },
+      { id: 't2', title: 'Strum timing', duration: '1 min', drill: { kind: 'strum-timing', durationSec: 120, bpm: 80 } },
     ],
   }],
   dailyLogs: {}, strumPatterns: [], songLinks: [], userSongs: [], updatedAt: 1,
@@ -100,8 +101,8 @@ async function open({ busyDeviceId = null } = {}) {
 // Returns whether the drill reached the point of listening. A drill that never
 // gets there is a failure to report, not an exception to die on: hard-failing
 // instead of falling back is one of the defects under test.
-const startDrill = async (page) => {
-  await page.locator('.task-row', { hasText: 'Chord Perfect' }).click();
+const startDrill = async (page, title = 'Chord Perfect') => {
+  await page.locator('.task-row', { hasText: title }).click();
   await page.waitForSelector('.practice-overlay', { timeout: 20000 });
   await page.locator('.practice-btn.primary').first().click();
   try {
@@ -163,6 +164,45 @@ const meterText = (page) => page.locator('.signal-meter .signal-label').first().
       (await page.locator('.signal-meter.is-lost').count()) === 0 &&
       (await page.locator('.mic-gate').count()) === 0,
     listening ? await meterText(page).catch(() => '') : 'the drill was left on the mic gate',
+  );
+  check('nothing threw on the way', errors.length === 0, errors.join(' | '));
+
+  await browser.close();
+}
+
+// --- the same, for the drill with its own capture --------------------------
+//
+// Strum timing does not share the chord drills' microphone: it needs a band
+// split and millisecond attack times, so it opens its own. Its capture never
+// passed the route through, so this drill kept the exact defect the chord path
+// had fixed. The frames stop, the meter freezes on its last reading, and the one
+// drill in the app that grades rhythm goes on drawing a live signal over a
+// microphone that has been revoked.
+{
+  console.log('\nthe strum-timing drill notices it too\n');
+  const { browser, page, errors } = await open();
+  const listening = await startDrill(page, 'Strum timing');
+
+  check('the drill opened its own microphone', listening === true);
+  check(
+    'the drill is listening to begin with',
+    (await page.locator('.signal-meter.is-lost').count()) === 0,
+    await meterText(page).catch(() => 'no meter'),
+  );
+
+  const killed = await page.evaluate(() => window.__killMic());
+  check('the drill had a live track to lose', killed === true);
+  await page.waitForTimeout(1800);
+
+  check(
+    'the meter stops saying the drill can hear',
+    (await page.locator('.signal-meter.is-lost').count()) === 1,
+    await meterText(page).catch(() => 'no meter'),
+  );
+  check(
+    'and names what happened rather than blaming the playing',
+    /microphone stopped/i.test(await meterText(page).catch(() => '')),
+    await meterText(page).catch(() => 'no meter'),
   );
   check('nothing threw on the way', errors.length === 0, errors.join(' | '));
 
