@@ -210,12 +210,25 @@ console.log('\nScale\n');
   check('and states the capo that makes it match the record', lucky?.capo === 2, String(lucky?.capo));
   check('its chords are all ones a Module 5 player has',
     lucky?.chords.every((c) => ['Am', 'C', 'Em', 'D'].includes(c)), lucky?.chords.join(', '));
-  check('it changes chord every half bar', lucky?.beatsPerBar === 2, String(lucky?.beatsPerBar));
-  check('so no charted step is longer than the loop moves',
-    lucky?.sections.every((sec) => sec.steps.length % 4 === 0),
-    lucky?.sections.map((sec) => `${sec.label}:${sec.steps.length}`).join(' '));
-  check('the loop really is Am C Em D throughout',
-    lucky?.sections.every((sec) => sec.steps.every((st, i) => st.chord === ['Am', 'C', 'Em', 'D'][i % 4])));
+  // One chord per bar, following the sheet the owner reads rather than the
+  // lesson's prose, which says half a bar. Asserted so the two cannot drift
+  // apart silently later.
+  check('it holds one chord per bar', lucky?.beatsPerBar === undefined, String(lucky?.beatsPerBar));
+  // The loop never changes, but a section may enter it part-way: the verses come
+  // in on a D, ahead of the loop's own Am. So the test is that every step follows
+  // its predecessor in the cycle, not that step zero is Am.
+  const LOOP = ['Am', 'C', 'Em', 'D'];
+  const followsLoop = (sec) => sec.steps.every((st, i) => {
+    if (i === 0) return LOOP.includes(st.chord);
+    const prev = LOOP.indexOf(sec.steps[i - 1].chord);
+    return st.chord === LOOP[(prev + 1) % LOOP.length];
+  });
+  check('the loop never breaks inside a section',
+    lucky?.sections.every(followsLoop),
+    lucky?.sections.filter((sec) => !followsLoop(sec)).map((sec) => sec.label).join(', ') || 'all clean');
+  check('and no section is empty', lucky?.sections.every((sec) => sec.steps.length > 0));
+  check('every sung line sits on a chord',
+    lucky?.sections.every((sec) => sec.steps.every((st) => !st.lyric || st.chord)));
   check('it ships untimed rather than with guessed anchors',
     lucky?.sections.every((sec) => sec.atSeconds === undefined));
 
