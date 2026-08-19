@@ -15,7 +15,8 @@
     "test": "node tests/run.mjs",
     "test:browser": "node tests/browser/smoke.mjs",
     "test:awards": "node tests/browser/awards.mjs",
-    "test:chords": "node tests/browser/chordPerfect.mjs"
+    "test:chords": "node tests/browser/chordPerfect.mjs",
+    "test:patterns": "node tests/browser/strumPatterns.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
