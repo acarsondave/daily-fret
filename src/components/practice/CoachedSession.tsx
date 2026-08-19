@@ -85,7 +85,14 @@ interface Props {
   onClose: () => void;
 }
 
-function mins(seconds: number): string {
+// A block's length, in the unit that can express it. Rounding to minutes said
+// "0 mins" of every block shorter than half a minute, which is a warm-up the
+// screen was claiming lasts no time at all.
+function blockLength(seconds: number): string {
+  if (seconds < 60) {
+    const s = Math.round(seconds);
+    return `${s} sec${s === 1 ? '' : 's'}`;
+  }
   const m = Math.round(seconds / 60);
   return `${m} min${m === 1 ? '' : 's'}`;
 }
@@ -689,7 +696,7 @@ export function CoachedSession({ routine, onClose }: Props) {
               ? 'One down strum on every click'
               : seg.kind === 'patterns'
                 ? 'Patterns dealt against a click that never stops'
-                : mins(seg.seconds);
+                : blockLength(seg.seconds);
 
   return createPortal(
     <motion.div
