@@ -26,12 +26,13 @@
 import type { DailyLog } from '../types';
 import { ALL_SKILLS, getSkill, type Skill } from '../data/skills';
 import { PAIR_PREFIX, parsePairKey } from './pairs';
-import { RING_PREFIX, SWEEP_PREFIX, ratePerMinute } from './drillKeys';
+import { FIND_PREFIX, RING_PREFIX, SWEEP_PREFIX, ratePerMinute } from './drillKeys';
 import { baseKey } from './drillWindow';
 import {
   CHANGES_BAR,
   CHORD_BAR,
   HELD_RUNS,
+  FIND_BAR,
   ROTATION_BAR,
   everHeld,
   readiness,
@@ -98,7 +99,7 @@ export interface SkillStanding {
 // means anything. Re-exported here because this module has been their public
 // door since they existed, and a bar is meaningless without the standings that
 // read it.
-export { CHANGES_BAR, CHORD_BAR, ROTATION_BAR };
+export { CHANGES_BAR, CHORD_BAR, FIND_BAR, ROTATION_BAR };
 
 export interface Evidence {
   /**
@@ -435,6 +436,22 @@ function measure(skill: Skill, evidence: Evidence, claimed: boolean, today: stri
       ROTATION_BAR,
       'changes',
       `Anchor rotation: ${reading.standing.evidence}`,
+      reading.proven,
+    );
+  }
+
+  if (skill.id === 'theory.note-names') {
+    // Only the note finder speaks for this. Without the branch the fall-through
+    // below would report the note names from a chord-change rate, which is a
+    // number about a different hand doing a different thing.
+    const finds = runsUnderPrefixes(evidence.tasks, [FIND_PREFIX]);
+    const reading = read(finds, FIND_BAR, today);
+    if (!reading) return noRuns(FIND_BAR, 'finds/min', 'No note find run yet.');
+    return fromReading(
+      reading,
+      FIND_BAR,
+      'finds/min',
+      `Note finder: ${reading.standing.evidence}`,
       reading.proven,
     );
   }

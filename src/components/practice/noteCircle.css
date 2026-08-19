@@ -87,6 +87,40 @@
   fill: rgb(236 222 205 / 0.5);
 }
 
+/* Months of practice, on its own radius inside the walk. Warm rather than
+   accented: the accent on this surface means the interval being made right now,
+   and this changes about once a session. Nothing is drawn where nothing has been
+   asked, so an undrilled neck leaves the band empty and the figure is exactly
+   what it was before there was anything true to put here. */
+.nc-wear {
+  fill: none;
+  stroke: var(--fret-found);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.nc-wear.is-quick {
+  stroke: var(--fret-quick);
+}
+
+/* The same record on the board, where a fret is a place the hand goes rather
+   than a note. */
+.nc-neck-wear {
+  fill: var(--fret-found);
+}
+
+.nc-neck-wear.is-quick {
+  fill: var(--fret-quick);
+}
+
+/* The demonstrated tap. The one mark on this surface that is not a fact about
+   music, and it is gone the moment the player taps anything themselves. */
+.nc-demo {
+  fill: none;
+  stroke: var(--accent-primary);
+  stroke-width: 1.8;
+}
+
 /* Smaller and quieter, which is the whole difference between a letter and the
    note wedged between two letters. Where two naturals sit side by side with no
    small dot between them, that gap is B to C, and it is the reason the

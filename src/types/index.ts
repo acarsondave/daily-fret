@@ -4,7 +4,8 @@ export type DrillKind =
   | 'song'
   | 'chord-rotation'
   | 'strum-timing'
-  | 'strum-pattern';
+  | 'strum-pattern'
+  | 'note-finder';
 
 export interface DrillConfig {
   kind: DrillKind;
@@ -35,6 +36,12 @@ export interface DrillConfig {
   // dealt. Absent takes MIN_PATTERN_BARS, which is the shortest run the
   // matcher will form an opinion about (src/lib/strumPattern.ts).
   bars?: number;
+  // note-finder: the rung of the ladder to run, as a rung id from
+  // src/lib/noteFinder.ts. Absent is the normal case and the better one: the
+  // drill reads its own history and runs the lowest rung not yet cleared, which
+  // is the same rule the click applies to tempo. Stated only when a routine
+  // deliberately pins a rung.
+  rungId?: string;
 }
 
 // One labeled block inside a configurable timed task. Lets a single task (e.g.
@@ -112,6 +119,17 @@ export interface DrillRun {
    * Absent on every run that is not a dealt pattern.
    */
   settledBar?: number | null;
+  /**
+   * Median milliseconds a find took on this run, or null when it found nothing.
+   *
+   * Only the note finder writes it, and it is here rather than folded into
+   * `value` for the same reason `settledBar` is: `value` says how many notes
+   * were found and this says how long each one took to arrive, which is the
+   * figure that actually moves over months. `rungStanding` needs both.
+   *
+   * Absent on every run that is not a note find.
+   */
+  findMs?: number | null;
   // Epoch ms. Absent on runs reconstructed from a day that predates this, where
   // the only honest statement is that the day held at least one run at that
   // value, not when.

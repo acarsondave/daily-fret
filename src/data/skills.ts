@@ -453,10 +453,23 @@ const SKILLS: Skill[] = [
   {
     id: 'theory.note-names',
     title: 'Note names',
-    summary: 'Name the open strings and the notes in the first few frets.',
+    summary: 'Put a finger on a named note, fast, anywhere on the neck.',
     family: 'theory',
     requires: [],
-    measure: { kind: 'known', why: 'Knowledge. A naming quiz would work; listening would not.' },
+    // This used to read "Knowledge. A naming quiz would work; listening would
+    // not", and the second half was wrong. Reciting the twelve names is not the
+    // skill that barre roots, CAGED and every scale shape actually draw on;
+    // finding a named note on the neck quickly is, and that is a playing action
+    // with a pitch on the end of it. So it is measured.
+    //
+    // The metric says precisely what was and was not settled. A pitch does not
+    // carry the string it came off, so the app confirms the note and its octave
+    // and never the finger. See src/lib/noteFinder.ts.
+    measure: {
+      kind: 'measured',
+      drill: 'note-finder',
+      metric: 'Notes found a minute. The prompt names a position and the pitch that position makes is heard back; which string it came off is not something a microphone can settle.',
+    },
     lessons: ['b1-504', 'b1-605'],
   },
   {

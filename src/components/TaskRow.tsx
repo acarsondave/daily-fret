@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { useUndoStore } from '../store/undo';
-import { useStore, getTodayString, drillLogsOf } from '../store';
+import { useStore, getTodayString, drillLogsOf, useDrillLogs } from '../store';
 import { runsFor } from '../store/completion';
 import {
   CheckIcon,
@@ -18,7 +18,9 @@ import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
 import { chordPairs, pairKey } from '../lib/pairs';
-import { poolKey, rotationRing, sweepKey, trainerPool } from '../lib/drillKeys';
+import { findKey, poolKey, rotationRing, sweepKey, trainerPool } from '../lib/drillKeys';
+import { finderHistory } from '../lib/finderHistory';
+import { currentRung } from '../lib/noteFinder';
 import { sanitizeMinutes, formatDuration } from '../lib/coached';
 import { looksLikeTab } from '../lib/tab';
 // One definition of what each drill's number means, shared with Progress.
@@ -142,10 +144,19 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
   // survives a rename or a rebuild (see lib/drillKeys.ts). Chord Perfect reports
   // its block score against the pool it drills; the per-shape counts have their
   // own keys and belong on Progress, not on a row summarising one task.
+  // Read whole rather than per day: the rung a note finder task will run at is a
+  // question about the last few runs at every rung, not about today.
+  const allLogs = useDrillLogs();
   const resultKeys = useMemo(() => {
     if (!drill) return [] as string[];
     if (drill.kind === 'chord-trainer') return [poolKey(trainerPool(drill.chords))];
     if (drill.kind === 'chord-rotation') return [sweepKey(rotationRing(drill.chords))];
+    if (drill.kind === 'note-finder') {
+      // Whatever rung the task pins, or the one its own history puts it on.
+      // Read here rather than guessed, so the row's best is the best at the
+      // level it will actually run, not the best at some other level.
+      return [findKey(drill.rungId ?? currentRung(finderHistory(allLogs)).id)];
+    }
     if (drill.kind === 'song') return [] as string[];
     const chords = drill.chords?.length
       ? drill.chords
@@ -153,7 +164,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
         ? [drill.chordFrom, drill.chordTo]
         : [];
     return chordPairs(chords).map((p) => pairKey(p.from, p.to));
-  }, [drill]);
+  }, [drill, allLogs]);
 
   const bestResult = useStore((s) => {
     if (resultKeys.length === 0) return null;
@@ -324,6 +335,8 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
         chords: editTrainerChords.length >= 2 ? editTrainerChords : ['A', 'D', 'E', 'G', 'C'],
         durationSec: drill?.durationSec ?? 60,
       };
+    } else if (editDrillKind === 'note-finder') {
+      nextDrill = { kind: 'note-finder', durationSec: drill?.durationSec ?? 60, rungId: drill?.rungId };
     } else if (editDrillKind === 'song') {
       nextDrill = { kind: 'song', songId: editSongId };
     }
@@ -425,6 +438,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
                 ['one-minute-changes', 'Changes'],
                 ['chord-rotation', 'Anchor'],
                 ['chord-trainer', 'Perfect'],
+                ['note-finder', 'Notes'],
                 ['song', 'Song'],
               ] as const).map(([value, label]) => (
                 <button
@@ -497,6 +511,11 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
                   ))}
                 </div>
               </>
+            )}
+            {editDrillKind === 'note-finder' && (
+              <span className="drill-hint">
+                Named notes, found on the neck and played. It picks its own level.
+              </span>
             )}
             {editDrillKind === 'song' && (
               <>

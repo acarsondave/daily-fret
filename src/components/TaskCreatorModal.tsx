@@ -89,6 +89,11 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
       // No deck stated: the drill deals the opening rungs of the ladder, which
       // is what a player the app has never seen should be given.
       drill = { kind: 'strum-pattern', durationSec: 90, bpm: timingBpm };
+    } else if (drillKind === 'note-finder') {
+      // No rung stated: the drill reads its own history and runs the lowest one
+      // not yet cleared, which is what a player the app has never seen should be
+      // given and what a player five grades in should be given too.
+      drill = { kind: 'note-finder', durationSec: 60 };
     } else if (drillKind === 'song') {
       drill = { kind: 'song', songId };
     }
@@ -177,6 +182,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
                 ['chord-trainer', 'Trainer'],
                 ['strum-timing', 'Timing'],
                 ['strum-pattern', 'Patterns'],
+                ['note-finder', 'Notes'],
                 ['song', 'Song'],
               ] as const).map(([value, label]) => (
                 <button
@@ -266,6 +272,12 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
                   ))}
                 </div>
               </>
+            )}
+            {drillKind === 'note-finder' && (
+              <span className="drill-hint">
+                The app names a note and a string, you play it, the pitch is
+                heard back. It picks its own level from your last runs.
+              </span>
             )}
             {drillKind === 'song' && (
               <>

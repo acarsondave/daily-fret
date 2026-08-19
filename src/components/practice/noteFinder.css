@@ -1,0 +1,220 @@
+/* The note finder.
+
+   One letter and one neck, on the same two-column stage every measured drill
+   uses: what to play on the left, what is being counted on the right. The pen is
+   the app's own, and the one thing this surface adds to it is the wear on the
+   board, which belongs to lib/noteFinder.ts and is defined once in index.css so
+   the drill and the note circle can never disagree about what a worn fret looks
+   like.
+
+   The accent means the same thing here it means everywhere: the one live thing.
+   A found note lands in it. A note the app had to give away does not, because a
+   hint and an answer must not read the same. */
+
+.nf-setup {
+  gap: var(--space-6);
+}
+
+.nf-setup-map {
+  width: 100%;
+}
+
+/* --- The ladder ---------------------------------------------------------- */
+
+/* Eight rungs, drawn as rungs. The cleared ones filled, the one being run lit,
+   the ones above it still dark: where the player is, how much is above them, and
+   the fact that a rung can go dark again, without a sentence. */
+.nf-ladder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.nf-rungs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.nf-rung {
+  display: block;
+  width: 46px;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: rgb(236 222 205 / 0.12);
+}
+
+.nf-rung.is-learning {
+  background: rgb(236 222 205 / 0.34);
+}
+
+.nf-rung.is-clear {
+  background: var(--text-secondary);
+}
+
+/* The one being run. Wider as well as accented, because a ladder read from
+   across a desk needs the current step to be findable by shape. */
+.nf-rung.is-here {
+  width: 78px;
+  height: 4px;
+  background: var(--accent-primary);
+}
+
+.nf-rung-name {
+  font-family: var(--font-primary);
+  font-size: var(--text-md);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-tight);
+  text-align: center;
+}
+
+/* --- The question -------------------------------------------------------- */
+
+.nf-cue {
+  width: 100%;
+  max-width: 620px;
+  gap: var(--space-4);
+}
+
+.nf-letter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  line-height: 1;
+}
+
+.nf-letter-name {
+  font-family: var(--font-primary);
+  font-size: clamp(4.4rem, 17vw, 7rem);
+  font-weight: 600;
+  line-height: 0.94;
+  letter-spacing: var(--tracking-display);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  transition: color var(--dur-base) var(--ease-out);
+}
+
+/* Both names on the five notes that have two, the same permanent fact the note
+   circle draws. */
+.nf-letter-alt {
+  font-family: var(--font-primary);
+  font-size: var(--text-md);
+  color: var(--text-muted);
+}
+
+/* Found. The letter takes the accent at the same moment the fret does, which is
+   the only thing on this surface that says the two are one answer. */
+.nf-letter.is-confirmed .nf-letter-name {
+  color: var(--accent-primary);
+}
+
+/* Given away. Deliberately not the accent: a hint and an answer must not read
+   the same, and the difference has to survive being seen from across a room. */
+.nf-letter.is-revealed .nf-letter-name {
+  color: var(--text-secondary);
+}
+
+/* What arrived instead, as the note it was. The letter carries which kind of
+   wrong this is: the same letter is the right note in the wrong octave, a
+   different letter is somewhere else entirely. */
+.nf-miss {
+  margin: 0;
+  font-family: var(--font-primary);
+  font-size: var(--text-xl);
+  font-weight: 500;
+  letter-spacing: var(--tracking-tight);
+  font-variant-numeric: tabular-nums;
+}
+
+.nf-miss.is-near {
+  color: var(--warning-color);
+}
+
+.nf-miss.is-other {
+  color: var(--danger-color);
+}
+
+.nf-neck {
+  position: relative;
+  width: 100%;
+}
+
+/* One column per fret, edge to edge, so the whole ruler is live and there is no
+   dead strip between two targets to press by mistake. Only the tapped channel
+   ever draws these: a note that is played needs no target. */
+.nf-fret-hits {
+  position: absolute;
+  inset: 0;
+}
+
+.nf-fret-hit {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+}
+
+.nf-fret-hit::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  top: 14%;
+  height: 58%;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  transition: background var(--dur-base) ease;
+}
+
+.nf-fret-hit:hover::before {
+  background: rgb(255 255 255 / 0.07);
+}
+
+.nf-fret-hit:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* --- The card ------------------------------------------------------------ */
+
+.nf-results {
+  width: min(560px, 94vw);
+}
+
+.nf-results-map {
+  width: 100%;
+}
+
+/* The one sentence on this surface, and it earns its place: it is the drill
+   saying what it did and did not settle. Set in the reading face at body size
+   rather than shrunk into a footnote, because a limit that has to be squinted at
+   is a limit being hidden. */
+.nf-limit {
+  margin: 0;
+  max-width: 46ch;
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-secondary);
+  text-align: center;
+  text-wrap: balance;
+}
+
+@media (min-width: 860px) and (max-height: 780px) {
+  /* On the short laptop window the two halves sit side by side, and the letter
+     is what is read from across the desk. The neck under it keeps its size: a
+     fretboard is legible long before it is big. */
+  .nf-cue .nf-letter-name {
+    font-size: clamp(3.6rem, 7vw, 6rem);
+  }
+  .nf-cue {
+    max-width: 560px;
+  }
+}

@@ -22,6 +22,14 @@ export type CoachSegment =
       /** Bars each dealt pattern is played for. */
       bars?: number;
     }
+  | {
+      kind: 'finder';
+      taskId: string;
+      title: string;
+      seconds: number;
+      /** A rung pinned by the routine. Absent lets the drill read its own history. */
+      rungId?: string;
+    }
   | { kind: 'timed'; taskId: string; title: string; description?: string; seconds: number; pattern?: string; bpm?: number };
 
 // Parse a free-form duration label ("5 mins", "2-3 mins", "90s") into seconds.
@@ -158,6 +166,18 @@ export function buildSegments(routine: Routine | undefined): CoachSegment[] {
         patterns: task.drill?.patterns,
         bars: task.drill?.bars,
       });
+    } else if (kind === 'note-finder') {
+      // Its own segment for the reason timing and patterns are: the timer branch
+      // below would announce it, count it in and then measure nothing, which is
+      // the "the app says it heard something it did not" failure the product
+      // exists to avoid.
+      segments.push({
+        kind: 'finder',
+        taskId: task.id,
+        title: task.title,
+        seconds: drillSeconds,
+        rungId: task.drill?.rungId,
+      });
     } else if (kind === 'song' && task.drill?.songId) {
       // Play-along: no fixed length, it ends when the record does.
       segments.push({
@@ -238,6 +258,8 @@ export function isResumable(
  *                           past a hundred seconds.
  *   timing, patterns    20  One strum per click at a fixed tempo. That costs
  *                           concentration rather than the hands.
+ *   finder              20  One note at a time with a think in between. The
+ *                           hands barely move; what tires is the recall.
  *   song                15  Played to the record, at the record's own pace.
  *   timed                8  A stretch or a block of muted strumming. Long enough
  *                           to reach the neck again and no longer.
@@ -248,6 +270,7 @@ const REST_AFTER: Record<CoachSegment['kind'], number> = {
   trainer: 45,
   timing: 20,
   patterns: 20,
+  finder: 20,
   song: 15,
   timed: 8,
 };

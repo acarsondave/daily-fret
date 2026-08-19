@@ -1,0 +1,105 @@
+/* The whole neck, drawn as wood that wears.
+
+   Same pen as the note circle's string: bone hairlines for the structure,
+   warmer dark for the board because a board is wood. The one thing added is the
+   wear, in the lamp's warm light rather than in the accent, because the accent
+   on every drill surface means "this is happening now" and wear is a record of
+   months. */
+
+.neck-map {
+  width: 100%;
+  min-width: 0;
+}
+
+.neck-map > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.nm-board {
+  fill: var(--fret-wood);
+}
+
+.nm-wire {
+  stroke: rgb(236 222 205 / 0.13);
+  stroke-width: 1;
+}
+
+.nm-nut {
+  stroke: rgb(236 222 205 / 0.46);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.nm-inlay {
+  fill: rgb(236 222 205 / 0.15);
+}
+
+.nm-string {
+  stroke: rgb(236 222 205 / 0.26);
+}
+
+/* The string a prompt is asking about. Brighter, not thicker: thickness already
+   means gauge on this figure and cannot be borrowed to mean anything else. */
+.nm-string.is-lit {
+  stroke: var(--text-primary);
+}
+
+.nm-open.is-lit {
+  fill: var(--text-primary);
+  font-weight: 600;
+}
+
+.nm-wear {
+  fill: var(--fret-found);
+}
+
+.nm-wear.is-quick {
+  fill: var(--fret-quick);
+}
+
+/* A call-out, not a fact about the neck: it says "this one, now", so it is the
+   accent and it is an outline, leaving the wear underneath still readable. */
+.nm-mark rect {
+  fill: none;
+  stroke: var(--accent-primary);
+  stroke-width: 1.6;
+}
+
+.nm-mark-name {
+  font-family: var(--font-primary);
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--accent-primary);
+}
+
+.nm-number {
+  font-family: var(--font-primary);
+  font-size: 12px;
+  fill: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.nm-open {
+  font-family: var(--font-primary);
+  font-size: 12px;
+  font-weight: 500;
+  fill: var(--text-secondary);
+}
+
+/* One string at a time is a question being read from across the room, so its
+   lettering is set larger in the drawing's own units to land at the same read
+   size the six-string record does at a third of the row height. */
+.neck-map.is-single .nm-number,
+.neck-map.is-single .nm-open {
+  font-size: 17px;
+}
+
+.neck-map.is-single .nm-mark-name {
+  font-size: 22px;
+}
+
+.neck-map.is-single .nm-mark rect {
+  stroke-width: 2.2;
+}
