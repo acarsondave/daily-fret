@@ -263,11 +263,20 @@ export function NoteCircle() {
   const reduceMotion = useReducedMotion();
   const noteMap = useNoteMap();
   const [stringPosition, setStringPosition] = useState(6);
-  // A to C. Three semitones, and the arc runs straight through the one place
-  // the alphabet has no room for a sharp, so the first thing the surface shows
-  // is the fact that costs beginners the most.
-  const [from, setFrom] = useState<PitchClass>(9);
-  const [to, setTo] = useState<PitchClass>(0);
+  // One piece of state, not two. The pair is a single fact — this surface is
+  // never in a condition with no interval in it — and holding it as one is also
+  // what lets `pick` be written as a function of the interval it is replacing
+  // rather than of whatever the last render closed over. The demonstration below
+  // is mounted once and would otherwise have carried a stale near end into its
+  // second tap.
+  //
+  // A to C. Three semitones, and the arc runs straight through the one place the
+  // alphabet has no room for a sharp, so the first thing the surface shows is
+  // the fact that costs beginners the most.
+  const [{ from, to }, setInterval] = useState<{ from: PitchClass; to: PitchClass }>({
+    from: 9,
+    to: 0,
+  });
 
   const noteRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const fretRefs = useRef<Record<number, HTMLButtonElement | null>>({});
@@ -287,10 +296,9 @@ export function NoteCircle() {
 
   // The tap sets where you are going and the note you were on becomes where you
   // came from. One gesture, no modes, and never a state with no interval in it.
-  const pick = (next: PitchClass) => {
-    setFrom(to);
-    setTo(next);
-  };
+  const pick = useCallback((next: PitchClass) => {
+    setInterval((current) => ({ from: current.to, to: next }));
+  }, []);
 
   // The one gesture on this surface nothing advertises, shown once by doing it.
   //

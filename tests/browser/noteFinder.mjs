@@ -438,6 +438,18 @@ const WORN = {
   );
   check('and the walk really moves, so what is shown is the mechanic itself',
     (await page.locator('.nc-count-value').innerText()) !== before);
+
+  // The mechanic itself, checked rather than assumed: the second demonstrated
+  // tap has to hand the near end the note the far end was on. A demonstration
+  // that showed the gesture with a stale near end would be teaching the wrong
+  // move, and it would look exactly like this one.
+  await page.waitForTimeout(4500);
+  const ends = await page.evaluate(() => ({
+    near: document.querySelector('.nc-note.is-from .nc-note-name')?.textContent ?? null,
+    far: document.querySelector('.nc-note.is-to .nc-note-name')?.textContent ?? null,
+  }));
+  check('the second tap takes its near end from where the first one left off',
+    ends.near === 'E' && ends.far === 'G', JSON.stringify(ends));
   check('there is no explanatory copy on the surface',
     (await page.locator('.note-circle p:not(.sr-only)').count()) === 0);
 
