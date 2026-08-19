@@ -15,6 +15,7 @@ import {
   RUST_DAYS,
 } from '../src/lib/tempo.ts';
 import { MIN_BPM, MAX_BPM } from '../src/audio/metronome.ts';
+import { trainerBlockSeconds } from '../src/lib/drills.ts';
 
 let failures = 0;
 const check = (l, ok, d) => { if (!ok) failures++; console.log(`  ${ok?'ok  ':'FAIL'}  ${l}${d?' — '+d:''}`); };
@@ -214,6 +215,47 @@ console.log('\nReading a drill\'s history out of the logs\n');
     drillSeries(logs, 'pair:C|G', 60).length === 0);
   check('and an empty history is a plan the coach can still make',
     planTempo(drillSeries(logs, 'pair:C|G', 60), TODAY).bpm === DEFAULT_PRACTICE_BPM);
+}
+
+console.log('\nChord Perfect, read against the block it actually ran\n');
+{
+  // The score is every placement in the block, and drillSeries turns it into a
+  // rate by dividing by the length it was played over. Chord Perfect's length is
+  // not the length the task asked for: every shape gets a floor of its own, so a
+  // 90-second task over five shapes runs 100 seconds. Handed 90, the coach read
+  // the player eleven per cent fast and the click then asked for a pace they had
+  // never reached, which is the one thing the prescription may not do.
+  const POOL = 5;
+  const CONFIGURED = 90;
+  const real = trainerBlockSeconds(CONFIGURED, POOL);
+  check('five shapes at the twenty-second floor is a hundred seconds, not ninety',
+    real === 100, String(real));
+  check('and the floor only binds when the share is under it',
+    trainerBlockSeconds(200, POOL) === 200, String(trainerBlockSeconds(200, POOL)));
+  check('a two-shape minute is still a minute', trainerBlockSeconds(60, 2) === 60,
+    String(trainerBlockSeconds(60, 2)));
+
+  const logs = {};
+  [70, 72, 74].forEach((value, i) => {
+    const date = iso(i - 3);
+    logs[date] = { date, routineId: 'r', drillResults: { 'pool:A|C|D|E|G': value } };
+  });
+  const asPlayed = planTempo(drillSeries(logs, 'pool:A|C|D|E|G', real), TODAY);
+  const asConfigured = planTempo(drillSeries(logs, 'pool:A|C|D|E|G', CONFIGURED), TODAY);
+  check('reading it against the configured length overstates the pace',
+    asConfigured.targetChangesPerMin > asPlayed.targetChangesPerMin,
+    `${asConfigured.targetChangesPerMin} vs ${asPlayed.targetChangesPerMin}`);
+  // 74 placements over the 100 seconds they were played in is 44.4 a minute, and
+  // the climbing branch is allowed five per cent over a baseline that already
+  // sits under the latest run. Anything past the latest run itself is the coach
+  // asking for a pace nobody has recorded.
+  const latestPerMinute = (74 * 60) / real;
+  check('the pace asked for stays within reach of the run just played',
+    asPlayed.targetChangesPerMin <= Math.ceil(latestPerMinute * 1.05),
+    `${asPlayed.targetChangesPerMin} against ${latestPerMinute.toFixed(1)}/min just played`);
+  check('and the click matches the pace it names',
+    Math.abs(asPlayed.bpm / asPlayed.beatsPerChange - asPlayed.targetChangesPerMin) <= 1,
+    `${asPlayed.bpm} BPM every ${asPlayed.beatsPerChange} beats vs ${asPlayed.targetChangesPerMin}/min`);
 }
 
 console.log(failures===0?'\nALL PASS\n':`\n${failures} FAILURE(S)\n`);

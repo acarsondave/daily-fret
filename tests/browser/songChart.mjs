@@ -316,6 +316,57 @@ const sideways = (page) =>
   await ctx.close();
 }
 
+// --- what the day records about a play-along -------------------------------
+//
+// The play-along has no clock and no microphone, so the only fact the app owns
+// is how it ended. It used to file both endings identically, with reachedEnd
+// true: tapping Done ten seconds in put "the clock ran out" on the day, which
+// the task row then reads as a completed timed block and the points model reads
+// as time witnessed rather than the player's word.
+const readRecord = (page, taskId) =>
+  page.evaluate((id) => {
+    const raw = localStorage.getItem('daily-fret-storage');
+    if (!raw) return null;
+    const acc = JSON.parse(raw).state.accounts.anonymous;
+    const day = Object.values(acc.dailyLogs ?? {})[0];
+    return day?.taskRecords?.[id] ?? null;
+  }, taskId);
+
+{
+  console.log('\nEnding the record, and ending it early\n');
+  {
+    const { ctx, page } = await open({ width: 1280, height: 900 });
+    await startSong(page, 'Play along');
+    await page.waitForSelector('[data-fake-player]');
+    // The recording runs out on its own.
+    await page.evaluate(() => window.__player.listeners.onStateChange({ data: 0, target: null }));
+    await page.waitForSelector('.coach-intro-title, .om-results', { timeout: 10000 });
+    await page.locator('.practice-close').last().click();
+    await page.waitForTimeout(400);
+    const record = await readRecord(page, 't1');
+    check('a record that ran out is filed as a clock that reached its end',
+      record?.ranToEnd === true, JSON.stringify(record));
+    await ctx.close();
+  }
+  {
+    const { ctx, page } = await open({ width: 1280, height: 900 });
+    await startSong(page, 'Play along');
+    await page.waitForSelector('[data-fake-player]');
+    await page.waitForTimeout(600);
+    // The player decides they are finished instead.
+    await page.locator('.song-real-foot .practice-btn.primary').click();
+    await page.waitForTimeout(400);
+    await page.locator('.practice-close').last().click();
+    await page.waitForTimeout(400);
+    const record = await readRecord(page, 't1');
+    check('tapping Done is the player\'s word, not a clock that ran out',
+      record?.ranToEnd !== true, JSON.stringify(record));
+    check('and it still counts the play-along as done',
+      record?.stated === true, JSON.stringify(record));
+    await ctx.close();
+  }
+}
+
 // --- phones ----------------------------------------------------------------
 {
   console.log('\nOn the phone it is actually used on\n');

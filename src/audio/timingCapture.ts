@@ -9,7 +9,7 @@
 // together would mean every chord drill paying for filters it has no use for,
 // and this drill carrying a chord matcher it never asks a question of.
 
-import { MicStream } from './micStream';
+import { MicStream, type MicRouteState } from './micStream';
 import { TimingAnalyser, TIMING_CONSTANTS, type TimingHandlers } from './timing';
 import { diag } from './diagnostics';
 
@@ -18,6 +18,16 @@ export interface TimingCaptureHandlers extends TimingHandlers {
   deviceId?: string;
   /** What the drill is doing, for the diagnostic session's label. */
   label?: string;
+  /**
+   * Fired whenever the input route changes, and once as soon as the graph is up.
+   *
+   * ChordCapture has taken this since a microphone revoked mid-drill was found
+   * to go unnoticed; this path did not, so the one drill that grades rhythm was
+   * still the old failure exactly: the frames stop, no error is raised, the
+   * level meter freezes on whatever it last said, and the run goes on against a
+   * beat grid nothing is refreshing.
+   */
+  onRouteChange?: (state: MicRouteState) => void;
 }
 
 export class TimingCapture {
@@ -44,6 +54,7 @@ export class TimingCapture {
   private async startGraph(handlers: TimingCaptureHandlers): Promise<void> {
     await this.mic.start({
       deviceId: handlers.deviceId,
+      onRouteChange: handlers.onRouteChange,
       onReady: ({ sampleRate }) => {
         diag.start({
           label: handlers.label ?? 'timing session',

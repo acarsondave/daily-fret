@@ -6,6 +6,7 @@ import { useStore, getTodayString, drillLogsOf } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import { chordKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } from '../../lib/drillKeys';
 import { keyDrillHistory } from '../../lib/drillStats';
+import { trainerBlockSeconds } from '../../lib/drills';
 import { drillSeries, planTempo, fixedTempo, DEFAULT_PRACTICE_BPM, type TempoPlan } from '../../lib/tempo';
 import { timedBlocks } from '../../lib/coached';
 import type { DrillMeasurement, TimedOutcome } from '../../store/completion';
@@ -95,7 +96,10 @@ export function PracticeOverlay({ task, onClose }: Props) {
 
   // When the run on screen began, so leaving half-way can say how long it ran.
   const runStartedAt = useRef(0);
-  const songFinished = useRef(false);
+  // How the play-along ended, or null while it is still running. The record
+  // running out and the player tapping Done both finish it, and only the first
+  // is a clock the app watched reach its end.
+  const songOutcome = useRef<'ended' | 'stopped' | null>(null);
 
   // The date this run records under, decided when the overlay opens and never
   // recomputed. Read on every render, a drill started at 23:59 measured against
@@ -112,6 +116,15 @@ export function PracticeOverlay({ task, onClose }: Props) {
     if (ring) return sweepKey(ring);
     return null;
   }, [drill, ring]);
+  // How long the drill on screen really runs for, which is what turns a stored
+  // score into a per-minute rate. Chord Perfect is the one that differs from its
+  // configured length: every shape gets a floor of its own, so a 90-second task
+  // over five shapes runs 100 seconds, and reading its score against 90 had the
+  // click asking for a pace eleven per cent above anything the player had done.
+  const measuredSeconds = useMemo(() => {
+    if (drill?.kind !== 'chord-trainer') return duration;
+    return trainerBlockSeconds(duration, trainerPool(drill.chords).length);
+  }, [drill, duration]);
 
   const tempoKey = !drill
     ? `block-${blockIdx}`
@@ -149,7 +162,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
       return planTempo(drillSeries(logs, pairKey(pair.from, pair.to), duration), today);
     }
     if (drillKey) {
-      return planTempo(drillSeries(logs, drillKey, duration), today);
+      return planTempo(drillSeries(logs, drillKey, measuredSeconds), today);
     }
     const song = findSong(songs, drill.songId);
     return fixedTempo(
@@ -167,8 +180,8 @@ export function PracticeOverlay({ task, onClose }: Props) {
     if (drill?.kind === 'song') {
       recordTime(today, task.id, {
         elapsedSeconds: ranFor,
-        reachedEnd: songFinished.current,
-        done: songFinished.current,
+        reachedEnd: songOutcome.current === 'ended',
+        done: songOutcome.current !== null,
       });
       settleTask(today, task.id);
     } else if (drillLive) {
@@ -410,8 +423,8 @@ export function PracticeOverlay({ task, onClose }: Props) {
         {drill?.kind === 'song' && drill.songId && (
           <SongPlayer
             songId={drill.songId}
-            onFinish={() => {
-              songFinished.current = true;
+            onFinish={(reachedEnd) => {
+              songOutcome.current = reachedEnd ? 'ended' : 'stopped';
             }}
             onClose={leave}
           />

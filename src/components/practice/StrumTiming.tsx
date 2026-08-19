@@ -95,7 +95,7 @@ export function StrumTiming({
   nextLabel = 'Up next',
   onSessionStart,
 }: Props) {
-  const { status, error, start, stop } = useStrumTiming();
+  const { status, route, error, start, stop } = useStrumTiming();
   const duration = config?.durationSec ?? 60;
 
   const [view, setView] = useState<View>(autoStart ? 'playing' : 'setup');
@@ -115,7 +115,7 @@ export function StrumTiming({
     heardTheClick: boolean;
   } | null>(null);
   const [advanceLeft, setAdvanceLeft] = useState(AUTO_ADVANCE_SECONDS);
-  const { quality: signal, push: pushSignal, reset: resetSignal } = useTimingSignalMeter();
+  const { quality: signal, push: pushSignal, reset: resetSignal } = useTimingSignalMeter(route);
 
   // Everything the analyser reports lands in refs. Strums and clicks arrive a
   // few times a second and the grid is refitted on each one; keeping the raw
