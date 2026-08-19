@@ -299,59 +299,65 @@ export function ChordRotation({
       );
     }
     return (
-      <>
-        {/* The ring with the chord to play *next* lit, so a lit name always reads
-            as "play this now" through the whole rotation. */}
-        <div className="rot-ring rot-ring-live">
-          {ring.map((c, i) => (
-            <Fragment key={`${c}-${i}`}>
-              {/* Nothing is lit on a timer: the cue only advances on a heard
-                  chord, and a name left lit for a whole minute would be telling
-                  the player to play one chord and never move on. */}
-              <span className={!onTimer && i === targetIdx ? 'rot-chord is-live' : 'rot-chord'}>
-                <span className="rot-chord-name">{c}</span>
-                <ChordDiagram chord={c} size={76} showFingers={false} className="rot-chord-shape" />
-              </span>
-              {i < ring.length - 1 && (
-                // Which way the sweep is travelling right now, drawn on the one
-                // separator the hand is crossing. The head it is heading towards
-                // is lit and the other is dimmed, so the turn at each end is
-                // something you watch happen rather than something you are told
-                // about.
-                <SweepIcon
-                  size={16}
-                  className={clsx(
-                    'rot-sep',
-                    (i === targetIdx || i === targetIdx - 1) && 'is-crossing',
-                    dir < 0 && 'is-back',
-                  )}
-                />
-              )}
-            </Fragment>
-          ))}
+      /* Cue and readout as two halves. On a propped laptop they sit side by
+         side; stacked, the clock and the meter fell below a 572-pixel fold. */
+      <div className="drill-stage">
+        <div className="drill-cue">
+          {/* The ring with the chord to play *next* lit, so a lit name always reads
+              as "play this now" through the whole rotation. */}
+          <div className="rot-ring rot-ring-live">
+            {ring.map((c, i) => (
+              <Fragment key={`${c}-${i}`}>
+                {/* Nothing is lit on a timer: the cue only advances on a heard
+                    chord, and a name left lit for a whole minute would be telling
+                    the player to play one chord and never move on. */}
+                <span className={!onTimer && i === targetIdx ? 'rot-chord is-live' : 'rot-chord'}>
+                  <span className="rot-chord-name">{c}</span>
+                  <ChordDiagram chord={c} size={76} showFingers={false} className="rot-chord-shape" />
+                </span>
+                {i < ring.length - 1 && (
+                  // Which way the sweep is travelling right now, drawn on the one
+                  // separator the hand is crossing. The head it is heading towards
+                  // is lit and the other is dimmed, so the turn at each end is
+                  // something you watch happen rather than something you are told
+                  // about.
+                  <SweepIcon
+                    size={16}
+                    className={clsx(
+                      'rot-sep',
+                      (i === targetIdx || i === targetIdx - 1) && 'is-crossing',
+                      dir < 0 && 'is-back',
+                    )}
+                  />
+                )}
+              </Fragment>
+            ))}
+          </div>
         </div>
-        {onTimer ? (
-          <UncountedNotice />
-        ) : (
-          /* The best for this path, on the ring, while the run is still going.
-             Nothing is drawn on a timer: there is no measurement to compare, so
-             there is no mark and no arc to imply one. */
-          <ProgressRing
-            {...ringScale(changes, personalBest)}
-            phase="live"
-            className="om-ring om-ring-live"
-          >
-            <div ref={countRef} className="om-count">
-              {changes}
-            </div>
-            <div className="om-caption">changes</div>
-          </ProgressRing>
-        )}
-        <div className="om-timer">
-          <HourglassIcon size={26} /> {timeLeft}
+        <div className="drill-read">
+          {onTimer ? (
+            <UncountedNotice />
+          ) : (
+            /* The best for this path, on the ring, while the run is still going.
+               Nothing is drawn on a timer: there is no measurement to compare, so
+               there is no mark and no arc to imply one. */
+            <ProgressRing
+              {...ringScale(changes, personalBest)}
+              phase="live"
+              className="om-ring om-ring-live"
+            >
+              <div ref={countRef} className="om-count">
+                {changes}
+              </div>
+              <div className="om-caption">changes</div>
+            </ProgressRing>
+          )}
+          <div className="om-timer">
+            <HourglassIcon size={26} /> {timeLeft}
+          </div>
+          {!onTimer && <SignalMeter quality={signal} />}
         </div>
-        {!onTimer && <SignalMeter quality={signal} />}
-      </>
+      </div>
     );
   }
 

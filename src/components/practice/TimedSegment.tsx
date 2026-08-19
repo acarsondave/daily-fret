@@ -137,25 +137,28 @@ export function TimedSegment({ title, description, seconds, pattern, onDone, onL
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="coach-intro-title">{title}</div>
-        {ended.reachedEnd ? (
-          <div className="om-caption">Block complete · {fmt(ended.elapsed)}</div>
-        ) : (
-          <>
-            <div className="om-caption">
-              {fmt(ended.elapsed)} of {fmt(seconds)}
+        {/* The same ring the block ran on, holding where the clock stopped. A
+            full ring is what "complete" looks like, and a ring stopped a third
+            of the way round is the whole of "1:40 of 5:00" without the sentence:
+            the block was witnessed for exactly this much of itself. */}
+        <ProgressRing
+          progress={seconds > 0 ? ended.elapsed / seconds : 1}
+          className={ended.reachedEnd ? 'om-ring is-full' : 'om-ring'}
+        >
+          <div className="om-ring-value">{fmt(ended.elapsed)}</div>
+          <div className="om-caption">{ended.reachedEnd ? 'played' : `of ${fmt(seconds)}`}</div>
+        </ProgressRing>
+        <div className="coach-intro-title is-next">{title}</div>
+        {!ended.reachedEnd &&
+          (counted ? (
+            <div className="timed-counted">
+              <CheckIcon size={16} strokeWidth={2.6} /> Counted as done
             </div>
-            {counted ? (
-              <div className="timed-counted">
-                <CheckIcon size={16} strokeWidth={2.6} /> Counted as done
-              </div>
-            ) : (
-              <button className="practice-btn ghost timed-count-btn" onClick={countItAnyway}>
-                Count it as done
-              </button>
-            )}
-          </>
-        )}
+          ) : (
+            <button className="practice-btn ghost timed-count-btn" onClick={countItAnyway}>
+              Count it as done
+            </button>
+          ))}
         <div className="coach-advance">
           <span className="coach-advance-label">{nextLabel} in</span>
           <span className="coach-advance-count">{advanceLeft}</span>
@@ -165,31 +168,40 @@ export function TimedSegment({ title, description, seconds, pattern, onDone, onL
   }
 
   return (
-    <>
-      <div className="practice-mode is-chord">{title}</div>
-      {pattern && <StrumRow strum={pattern} size={18} />}
-      {/* A riff's note is a tab staff and gets rendered as one. The old test was
-          `description.includes('|')`, which also fired on any prose containing a
-          pipe; looksLikeTab needs two actual staff lines. */}
-      {description &&
-        (looksLikeTab(description) ? (
-          <TabStaff source={description} />
-        ) : (
-          <p className="timed-desc">{description}</p>
-        ))}
-      <ProgressRing progress={progress} className="om-ring">
-        <div className="om-ring-value">{fmt(left)}</div>
-        <div className="om-caption">remaining</div>
-      </ProgressRing>
-      <div className="om-actions">
-        <button className="practice-btn ghost" onClick={togglePause}>
-          {paused ? <PlayIcon size={18} /> : <PauseIcon size={18} />}
-          {paused ? 'Resume' : 'Pause'}
-        </button>
-        <button className="practice-btn primary" onClick={skip}>
-          <SkipIcon size={18} /> Skip
-        </button>
+    <div className="drill-stage is-timed">
+      <div className="drill-cue">
+        <div className="practice-mode is-chord">{title}</div>
+        {pattern && <StrumRow strum={pattern} size={18} />}
+        {/* A riff's note is a tab staff and gets rendered as one. The old test was
+            `description.includes('|')`, which also fired on any prose containing a
+            pipe; looksLikeTab needs two actual staff lines. */}
+        {description &&
+          (looksLikeTab(description) ? (
+            <TabStaff source={description} />
+          ) : (
+            <p className="timed-desc">{description}</p>
+          ))}
       </div>
-    </>
+      <div className="drill-read">
+        <ProgressRing progress={progress} className="om-ring">
+          <div className="om-ring-value">{fmt(left)}</div>
+          <div className="om-caption">remaining</div>
+        </ProgressRing>
+        {/* Neither of these is the expected action, and neither gets the accent.
+            Skip used to: a glowing cyan pill that ran half the width of a laptop
+            and was the loudest thing on a screen whose whole job is the clock
+            behind it. The block is what the player is meant to be doing, so the
+            two ways out of it sit at the weight of ways out. */}
+        <div className="om-actions is-quiet">
+          <button className="practice-btn ghost" onClick={togglePause}>
+            {paused ? <PlayIcon size={18} /> : <PauseIcon size={18} />}
+            {paused ? 'Resume' : 'Pause'}
+          </button>
+          <button className="practice-btn ghost" onClick={skip}>
+            <SkipIcon size={18} /> Skip
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

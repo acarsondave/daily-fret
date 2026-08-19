@@ -4,11 +4,24 @@
    otherwise carry it. */
 
 .st-stage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   gap: var(--space-6);
-  width: 100%;
+}
+
+/* The rail is a measurement across a width, so on a short landscape frame it
+   takes the column that can actually give it one and the figures stack beside
+   it. Everywhere else it stays over them, which is where a scale belongs. */
+@media (min-width: 860px) and (max-height: 780px) {
+  .st-stage .drill-cue {
+    flex: 1 1 520px;
+    min-width: 320px;
+  }
+  .st-stage .drill-read {
+    flex: 0 1 380px;
+    min-width: 280px;
+  }
+  .st-stage .st-figures {
+    gap: var(--space-5);
+  }
 }
 
 /* --- The rail ------------------------------------------------------------- */
@@ -238,13 +251,30 @@
 }
 
 .groove-scale {
-  display: flex;
-  justify-content: space-between;
+  /* Three columns with equal outer thirds, so the middle label sits on the
+     rail's centre line rather than wherever `space-between` leaves it: the two
+     end labels are different lengths, and with `space-between` the window's own
+     figure landed sixty pixels to the right of the window. */
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: baseline;
   font-family: var(--font-secondary);
   font-size: var(--text-micro);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+/* The width of the window, written on the window. It is the one number the
+   footnote under the results card was really carrying, and it belongs here,
+   under the band it measures, where it is read once and understood for good.
+   Not uppercased, because it is a value with a unit and not a label. */
+.groove-scale-window {
+  text-align: center;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
 /* --- The readout ---------------------------------------------------------- */
@@ -311,14 +341,6 @@
   color: var(--text-secondary);
   text-align: center;
   white-space: nowrap;
-}
-
-.st-footnote {
-  font-family: var(--font-secondary);
-  font-size: var(--text-sm);
-  line-height: 1.5;
-  color: var(--text-muted);
-  max-width: min(460px, 100%);
 }
 
 /* --- Setup and the states it can open into -------------------------------- */

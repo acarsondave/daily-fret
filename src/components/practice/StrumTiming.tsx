@@ -13,7 +13,6 @@ import { metronome } from '../../audio/metronome';
 import { diag, DIAG_CODE } from '../../audio/diagnostics';
 import { sfx } from '../../audio/sfx';
 import {
-  IN_TIME_MS,
   MIN_MEASURED_BEATS,
   TIMING_RESOLUTION_MS,
   describeTiming,
@@ -357,15 +356,18 @@ export function StrumTiming({
       summary.spreadMs <= TIMING_RESOLUTION_MS;
 
     return (
-      <div className="st-stage">
-        <GrooveRail
-          marks={marks}
-          centreMs={measuring ? summary.medianMs : null}
-          spreadMs={summary?.spreadMs ?? 0}
-          locked={locked}
-          clickPulse={clickPulse}
-        />
+      <div className="st-stage drill-stage">
+        <div className="drill-cue">
+          <GrooveRail
+            marks={marks}
+            centreMs={measuring ? summary.medianMs : null}
+            spreadMs={summary?.spreadMs ?? 0}
+            locked={locked}
+            clickPulse={clickPulse}
+          />
+        </div>
 
+        <div className="drill-read">
         <p className={locked ? 'st-call is-locked' : 'st-call'} aria-live="polite">
           {liveCall(clicksHeard, marks.length, summary)}
         </p>
@@ -391,6 +393,7 @@ export function StrumTiming({
           <HourglassIcon size={26} /> {timeLeft}
         </div>
         <SignalMeter quality={signal} />
+        </div>
       </div>
     );
   }
@@ -436,11 +439,6 @@ export function StrumTiming({
             <Figure value={`±${Math.round(summary.spreadMs)}`} unit="ms" label="spread" />
             <Figure value={`${summary.beatsInTime}/${summary.expectedBeats}`} label="in time" />
           </div>
-          <p className="st-footnote">
-            In time means within {IN_TIME_MS} ms of the click, at {result?.bpm} BPM. A strum is timed
-            when its sound arrives, a few milliseconds after the pick, so leans under{' '}
-            {TIMING_RESOLUTION_MS} ms are shown but never named.
-          </p>
         </>
       )}
 

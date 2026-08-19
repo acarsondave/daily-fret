@@ -322,44 +322,52 @@ export function OneMinuteChanges({
       );
     }
     return (
-      <>
-        {/* Big, bold chord names with the one to play *next* lit up, so a lit
-            name always reads as "play this now" (drives the change + retention). */}
-        <div className="om-pair om-pair-live">
-          <span className={nextCue === from ? 'om-side is-live' : 'om-side'}>
-            <span className="om-side-name">{from}</span>
-            <ChordDiagram chord={from} size={92} showFingers={false} className="om-side-shape" />
-          </span>
-          <SwapIcon size={22} className="om-pair-arrow" />
-          <span className={nextCue === to ? 'om-side is-live' : 'om-side'}>
-            <span className="om-side-name">{to}</span>
-            <ChordDiagram chord={to} size={92} showFingers={false} className="om-side-shape" />
-          </span>
+      /* Two halves, because a drill screen has two jobs: what to play, and what
+         it is measuring. Stacked on a phone and side by side on a propped
+         laptop, where the old single column ran the clock and the microphone
+         meter clean off the bottom of a 572-pixel window. */
+      <div className="drill-stage">
+        <div className="drill-cue">
+          {/* Big, bold chord names with the one to play *next* lit up, so a lit
+              name always reads as "play this now" (drives the change + retention). */}
+          <div className="om-pair om-pair-live">
+            <span className={nextCue === from ? 'om-side is-live' : 'om-side'}>
+              <span className="om-side-name">{from}</span>
+              <ChordDiagram chord={from} size={92} showFingers={false} className="om-side-shape" />
+            </span>
+            <SwapIcon size={22} className="om-pair-arrow" />
+            <span className={nextCue === to ? 'om-side is-live' : 'om-side'}>
+              <span className="om-side-name">{to}</span>
+              <ChordDiagram chord={to} size={92} showFingers={false} className="om-side-shape" />
+            </span>
+          </div>
         </div>
-        {/* A counter frozen at zero is a measurement claim. On a timer there
-            is no counter, and the screen says why rather than showing one. */}
-        {onTimer ? (
-          <UncountedNotice />
-        ) : (
-          /* The best for this pair, on the ring, while there is still time to
-             do something about it. The dashed run from the count to the mark is
-             what is left to beat it; past the mark it is gold and growing. */
-          <ProgressRing
-            {...ringScale(transitions, pairBest)}
-            phase="live"
-            className="om-ring om-ring-live"
-          >
-            <div ref={countRef} className="om-count">
-              {transitions}
-            </div>
-            <div className="om-caption">transitions</div>
-          </ProgressRing>
-        )}
-        <div className="om-timer">
-          <HourglassIcon size={26} /> {timeLeft}
+        <div className="drill-read">
+          {/* A counter frozen at zero is a measurement claim. On a timer there
+              is no counter, and the screen says why rather than showing one. */}
+          {onTimer ? (
+            <UncountedNotice />
+          ) : (
+            /* The best for this pair, on the ring, while there is still time to
+               do something about it. The dashed run from the count to the mark is
+               what is left to beat it; past the mark it is gold and growing. */
+            <ProgressRing
+              {...ringScale(transitions, pairBest)}
+              phase="live"
+              className="om-ring om-ring-live"
+            >
+              <div ref={countRef} className="om-count">
+                {transitions}
+              </div>
+              <div className="om-caption">transitions</div>
+            </ProgressRing>
+          )}
+          <div className="om-timer">
+            <HourglassIcon size={26} /> {timeLeft}
+          </div>
+          {!onTimer && <SignalMeter quality={signal} />}
         </div>
-        {!onTimer && <SignalMeter quality={signal} />}
-      </>
+      </div>
     );
   }
 

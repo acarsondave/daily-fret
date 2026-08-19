@@ -1,6 +1,90 @@
 /* The three listening drills and the result card they share.
    One-minute changes, anchor rotation, Chord Perfect. */
 
+/* --- The stage: what to play, and what is being measured ------------------ */
+
+/* Every drill screen is two halves. The cue is the thing to look at while
+   playing: the chord names and their shapes, the ring of the sweep, the timing
+   rail. The readout is what the app is witnessing: the count on its target ring,
+   the clock, the microphone meter.
+
+   They were one column at every size, which is a phone layout, and the app is
+   propped on a desk as often as it is held. On a 1366x572 window — the window
+   this is actually used in — that column ran the clock and the meter clean off
+   the bottom of the frame while sixty per cent of the width sat empty: a player
+   mid-drill could not see how much time was left or whether they were being
+   heard at all. Measured on the built app, not reasoned about.
+
+   So the split is by height, not by width. A tall window keeps the stack, which
+   is the right shape for a phone and for a laptop with room to spare. A window
+   too short to stack turns the same two halves side by side, and nothing moves
+   below the fold. */
+.drill-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  width: 100%;
+}
+
+.drill-cue,
+.drill-read {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+@media (min-width: 860px) and (max-height: 780px) {
+  .drill-stage {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(var(--space-8), 6vw, var(--space-16));
+    max-width: 1180px;
+  }
+  /* The cue takes the room it can use and the readout takes what it needs, so
+     a five-chord sweep gets width without pushing the ring off the edge. */
+  .drill-cue {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .drill-read {
+    flex: 0 0 auto;
+  }
+  /* The stack gaps inside each half close up: the frame is short, and the two
+     halves have already bought back everything the height was short of. */
+  .drill-cue,
+  .drill-read {
+    gap: var(--space-4);
+  }
+  /* The cue is what is read from across a desk, and the column it now has is
+     wider than the one it was clamped for. The names take the room; the shapes
+     stay where they are, because a fretboard is legible long before it is big
+     and a bigger one only pushes the two halves apart. */
+  .drill-cue .om-pair-live {
+    font-size: clamp(3rem, 5.4vw, 5rem);
+  }
+  .drill-cue .rot-ring-live {
+    font-size: clamp(2.4rem, 4.2vw, 4rem);
+  }
+  .drill-cue .ct-stage .practice-hero {
+    font-size: clamp(5rem, 9vw, 9rem);
+  }
+}
+
+/* A timed block has no cue worth a column of its own on a short screen: a title
+   and a strum pattern beside a clock reads as two unrelated things. It keeps the
+   stack and only gives back its own vertical air. */
+@media (min-width: 860px) and (max-height: 780px) {
+  .drill-stage.is-timed {
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+}
+
 /* --- Setup --------------------------------------------------------------- */
 .om-setup {
   display: flex;
@@ -141,6 +225,17 @@
   font-size: var(--text-sm);
 }
 
+/* Said once, on the first block a player ever runs on these shapes, and then
+   never again. It arrives rather than being there, so it reads as a thing the
+   coach said and not as a permanent label on the drill. */
+.ct-motion-hint {
+  animation: ct-hint-in var(--dur-slow) var(--ease-out) both;
+}
+@keyframes ct-hint-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
 /* Chord Perfect keeps its shape diagram as the biggest thing on the screen,
    which is what the drill is about, so its ring is a small one beside the
    clock rather than the stage itself. */
@@ -263,13 +358,23 @@
   gap: var(--space-5);
   width: min(420px, 92vw);
 }
+/* Two actions, at the width two actions need. `width: 100%` inside a results
+   card is right; inside a drill stage on a laptop it stretched a pair of pills
+   to thirteen hundred pixels. */
 .om-actions {
   display: flex;
   gap: var(--space-4);
   width: 100%;
+  max-width: 420px;
 }
 .om-actions .practice-btn {
   flex: 1;
+}
+
+/* Ways out of a block that is still running. Neither is the expected action, so
+   neither takes the accent and neither takes the full measure. */
+.om-actions.is-quiet {
+  max-width: 340px;
 }
 
 /* --- Chord Perfect -------------------------------------------------------- */
@@ -424,6 +529,11 @@
 
 .om-ring {
   color: var(--accent-primary);
+}
+/* A clock that reached zero. Green rather than accent, because this is the same
+   statement the rest of the app makes with green: that counted. */
+.om-ring.is-full {
+  color: var(--success-color);
 }
 .om-ring-value {
   font-family: var(--font-primary);
