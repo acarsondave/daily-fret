@@ -105,7 +105,20 @@ console.log('\nRunning it on the timer\n');
 
     // Let the 5 second block finish.
     await page.waitForTimeout(5000);
-    check('the run ends on its own', (await page.getByText(/time is up/i).count()) > 0);
+    // Asserted on the ending, not on the sentence. This used to match the words
+    // "time is up", which the drill stopped saying when its copy was shortened,
+    // and a test that fails because a screen got better is a test measuring the
+    // wrong thing. What has to hold is that the block finished by itself and
+    // that the screen still says both halves: the time counts, the number does
+    // not exist.
+    const ended = page.locator('.mic-gate-reason');
+    check('the run ends on its own', (await ended.count()) > 0,
+      await page.locator('.practice-overlay').innerText().catch(() => ''));
+    const said = (await ended.innerText().catch(() => '')).toLowerCase();
+    check('and the ending says the time was played', /play|time/.test(said), said);
+    check('and that nothing was counted from it', /nothing|not counted|uncounted/.test(said), said);
+    check('no results ring is drawn over a run with no result',
+      (await page.locator('.practice-overlay .om-ring, .practice-overlay .result-ring').count()) === 0);
   }
 }
 

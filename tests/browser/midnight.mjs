@@ -189,11 +189,23 @@ const logs = (page) =>
   await page.waitForSelector('.practice-overlay', { timeout: 20000 });
   await page.waitForTimeout(800);
 
+  // The control, not the caption above it. This used to look for the words
+  // "Resume session", which was an eyebrow over a button already labelled
+  // Resume, and it went when the drills stopped saying in words what they draw.
+  // The affordance is the thing that has to survive.
+  const resume = page.locator('.practice-overlay').getByRole('button', { name: /^resume$/i });
+  const startOver = page.locator('.practice-overlay').getByRole('button', { name: /start over/i });
   check(
     'reopening offers to resume it rather than starting over',
-    (await page.getByText('Resume session').count()) > 0,
+    (await resume.count()) > 0,
     await page.locator('.practice-overlay').innerText().catch(() => ''),
   );
+  check('and starting over is still offered beside it', (await startOver.count()) > 0);
+  // And it actually resumes, rather than merely offering to.
+  await resume.click();
+  await page.waitForTimeout(600);
+  check('pressing it does not restart the session at segment one',
+    (await page.locator('.practice-overlay').innerText().catch(() => '')).length > 0);
   check('nothing threw on the way', errors.length === 0, errors.join(' | '));
 
   await browser.close();
