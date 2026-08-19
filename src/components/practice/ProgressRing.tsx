@@ -39,6 +39,13 @@ interface ProgressRingProps {
   size?: number;
   stroke?: number;
   className?: string;
+  /**
+   * Merged into the ring's own box, after `--ring-intrinsic` and never over it.
+   * It exists for the custom properties a caller's stylesheet reads: the rest
+   * screen hands down the length of the break so the CSS can size the ring from
+   * it.
+   */
+  style?: CSSProperties;
   children?: ReactNode;
 }
 
@@ -51,6 +58,7 @@ export function ProgressRing({
   size = 220,
   stroke = 10,
   className,
+  style,
   children,
 }: ProgressRingProps) {
   const reducedMotion = useReducedMotion();
@@ -96,7 +104,7 @@ export function ProgressRing({
     // shrinks a ring on a short frame had never once applied.
     <div
       className={clsx('progress-ring', className)}
-      style={{ '--ring-intrinsic': `${size}px` } as CSSProperties}
+      style={{ ...style, '--ring-intrinsic': `${size}px` } as CSSProperties}
     >
       <svg viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
         <circle

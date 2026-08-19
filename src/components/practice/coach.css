@@ -22,15 +22,25 @@
   text-wrap: balance;
 }
 /* The rest, on a ring. What is left of the break is a length, so the player can
-   take it in without reading a number they then have to divide by thirty. */
+   take it in without reading a number they then have to divide by thirty.
+
+   The ring's diameter is the other length: how long this break is at all. Rests
+   run from eight seconds after a stretch to a full minute after a counted
+   minute, and normalised onto one fixed circle those two look identical with one
+   arc simply moving faster. Sized from `--rest-seconds` the minute is drawn at
+   168px and the eight seconds at 96, so the difference is visible before the
+   number is read. */
 .coach-rest-ring {
+  --ring-size: clamp(96px, calc(84px + var(--rest-seconds, 30) * 1.4px), 168px);
   color: var(--accent-primary);
   margin-block: var(--space-2);
 }
 .coach-rest-count {
   font-family: var(--font-primary);
   font-weight: 700;
-  font-size: 3.2rem;
+  /* Tied to the ring rather than fixed, so the count fills a short break's
+     smaller circle the same way it fills a long one's. */
+  font-size: calc(var(--ring-size) * 0.3);
   line-height: 1;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
@@ -133,11 +143,9 @@
     gap: var(--space-2);
   }
   .coach-rest-ring {
-    --ring-size: 132px;
+    /* The same reading of the break, on a frame with less height to give it. */
+    --ring-size: clamp(88px, calc(72px + var(--rest-seconds, 30) * 1.1px), 132px);
     margin-block: 0;
-  }
-  .coach-rest-count {
-    font-size: 2.4rem;
   }
   .coach-cue.is-quiet .chord-diagram {
     --cd-size: 60px;
@@ -147,9 +155,9 @@
   }
 }
 
-/* A rest is automatic, but 30 seconds between every segment is minutes of a
-   long routine spent waiting, so there is a way past it on the days you are
-   already warm. Quiet by design: it must not read as the expected action. */
+/* A rest is automatic, and the longest of them is the full minute a counted
+   minute earns, so there is a way past it on the days it is not needed. Quiet by
+   design: it must not read as the expected action. */
 .coach-skip-rest {
   margin-top: var(--space-2);
   padding: var(--space-2) var(--space-5);
@@ -161,6 +169,44 @@
 .coach-skip-rest:hover {
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.06);
+}
+
+/* The whole hand-off: the two ways to steer, and the countdown between them.
+   Skip sits on the right because that is the direction the session is already
+   moving, and Again on the left because it goes back. Neither takes the accent:
+   the accent is this app's live-state voice and the countdown is the live thing
+   here. Ways out sit at the weight of ways out. */
+.coach-handoff {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+}
+.coach-handoff-act {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 68px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  line-height: 1;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) ease,
+    border-color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+}
+.coach-handoff-act:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: rgba(255, 255, 255, 0.06);
+}
+.coach-handoff-act:active {
+  transform: scale(0.96);
 }
 
 /* Hands-free auto-advance countdown shown on coached results / finished blocks */

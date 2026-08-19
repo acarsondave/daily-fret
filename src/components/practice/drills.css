@@ -536,6 +536,30 @@
 .om-ring.is-full {
   color: var(--success-color);
 }
+
+/* A run the app is not willing to file: the count fell far below what this drill
+   is recently worth, and the microphone was unreadable for a meaningful part of
+   it.
+
+   Off the accent entirely. The accent is this app's live-state voice and a
+   number it will not keep is the opposite of that, so the arc drops to the
+   colour of everything else on screen that is context rather than result. The
+   number itself stays, at full size and exactly as counted: the app heard what
+   it heard, and hiding the figure would be its own kind of dishonesty. What has
+   changed is the claim being made about it, and the caption under it makes that
+   claim in the same two words the session summary uses. */
+.om-ring.is-unfiled {
+  color: var(--text-muted);
+}
+.om-ring.is-unfiled .om-ring-value {
+  color: var(--text-secondary);
+}
+.om-ring.is-unfiled .om-caption {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
 .om-ring-value {
   font-family: var(--font-primary);
   font-weight: 700;
