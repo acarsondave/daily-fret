@@ -16,9 +16,10 @@ import { ProgressRing } from './ProgressRing';
 import { ringScale } from '../../lib/ringScale';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
-import { CoachAdvance } from './CoachAdvance';
+import { CoachAdvance, WITHHELD_ADVANCE_SECONDS } from './CoachAdvance';
 import { ChordDiagram } from './ChordDiagram';
 import { useMicLoss, useSignalMeter } from './signalQuality';
+import { useUnheardShare } from './runSignal';
 import { sfx } from '../../audio/sfx';
 import { diag } from '../../audio/diagnostics';
 import { PlacementCounter } from '../../audio/placement';
@@ -42,6 +43,12 @@ type View = 'setup' | 'playing' | 'results';
 export interface ChordTrainerResult {
   perChord: Array<{ chord: string; placements: number }>;
   total: number;
+  /**
+   * How much of the block the microphone read weak, unreadable or lost, 0..1.
+   * The caller needs it to tell a bad block apart from one it could not hear;
+   * see lib/unheardRun.ts.
+   */
+  unheardShare: number;
 }
 
 interface Props {
@@ -57,6 +64,13 @@ interface Props {
   // where the results screen already has its own two buttons.
   onAgain?: () => void;
   onSkip?: () => void;
+  /**
+   * This block was not written to the day's record, because the score fell far
+   * below what these shapes are recently worth and the microphone was unreadable
+   * for a meaningful part of it. The caller decides that; the drill only has to
+   * stop drawing the number as if it were a result.
+   */
+  withheld?: boolean;
   detector?: ChordDetectorApi;
   onSessionStart?: () => void; // the drill is now live (drives the auto metronome)
   // A run the microphone could not hear, timed instead. Kept separate from
@@ -82,6 +96,7 @@ export function ChordTrainer({
   nextLabel = 'Up next',
   onAgain,
   onSkip,
+  withheld = false,
   detector,
   onSessionStart,
   onTimedRun,
@@ -118,6 +133,8 @@ export function ChordTrainer({
   const [tally, setTally] = useState<number[]>([]); // finished chords' placements
   const [timeLeft, setTimeLeft] = useState(perChord);
   const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter(route);
+  // Remembers what the meter above only draws, for as long as this block lasts.
+  const unheard = useUnheardShare(signal, view === 'playing');
   const [result, setResult] = useState<{ value: number; prevBest: number; series: number[] } | null>(null);
 
   const poolRef = useRef(pool);
@@ -137,7 +154,11 @@ export function ChordTrainer({
   const bestAtStart = useRef(0);
   const seriesAtStart = useRef<number[]>([]);
   // Coached mode auto-continues from results after a brief beat (no tap needed).
-  const [advanceLeft, setAdvanceLeft] = useState(AUTO_ADVANCE_SECONDS);
+  // Null until the hand-off's first tick, so the very first frame shows the full
+  // length without an effect having to write it. The length is not known at
+  // mount: a run that turns out to be unfilable holds the screen for longer, and
+  // that verdict only arrives with the results.
+  const [advanceTick, setAdvanceTick] = useState<number | null>(null);
   // Running blind: the blocks still run their clocks, nothing is counted.
   const [onTimer, setOnTimer] = useState(false);
   const onTimerRef = useRef(false);
@@ -232,6 +253,9 @@ export function ChordTrainer({
         chord,
         placements: perChordCounts[i] ?? 0,
       })),
+      // Read before the view changes, so the span the meter was holding when the
+      // last block ran out is part of the answer.
+      unheardShare: unheard.share(),
     });
   };
 
@@ -273,6 +297,7 @@ export function ChordTrainer({
     counterRef.current.begin(pool[0]);
     setTimeLeft(perChord);
     resetSignal();
+    unheard.reset();
     onSessionStart?.();
     setView('playing');
 
@@ -332,13 +357,16 @@ export function ChordTrainer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Hands-free advance once results land in coached mode.
+  // Hands-free advance once results land in coached mode. A block that was not
+  // filed holds longer, because Again is the point of that screen.
+  const advanceSeconds = withheld ? WITHHELD_ADVANCE_SECONDS : AUTO_ADVANCE_SECONDS;
+  const advanceLeft = advanceTick ?? advanceSeconds;
   useEffect(() => {
     if (view !== 'results' || !autoAdvance || !onNext) return;
-    const deadline = Date.now() + AUTO_ADVANCE_SECONDS * 1000;
+    const deadline = Date.now() + advanceSeconds * 1000;
     const id = setInterval(() => {
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-      setAdvanceLeft(remaining);
+      setAdvanceTick(remaining);
       if (remaining <= 0) {
         clearInterval(id);
         onNext();
@@ -346,7 +374,7 @@ export function ChordTrainer({
     }, 200);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, autoAdvance]);
+  }, [view, autoAdvance, advanceSeconds]);
 
   const toggleChord = (c: string) => {
     setPool((prev) =>
@@ -512,7 +540,11 @@ export function ChordTrainer({
 
   const isFirst = prevBest === 0;
   const isNewBest = !isFirst && value > prevBest;
-  const celebrate = isNewBest || (isFirst && value > 0);
+  // Nothing is celebrated on a block that is not going into the record. A best
+  // that is not being kept is not a best.
+  const celebrate = !withheld && (isNewBest || (isFirst && value > 0));
+  // Which way the microphone failed, for the meter to say in its own words.
+  const failure = withheld ? unheard.verdict() : null;
 
   return (
     <motion.div
@@ -522,13 +554,22 @@ export function ChordTrainer({
     >
       {celebrate && <PersonalBestSparkle />}
 
-      <ProgressRing {...ringScale(value, prevBest)} className="om-ring">
+      {/* A number that is not being kept is drawn as one: off the accent, with
+          the claim under it changed. See .om-ring.is-unfiled. */}
+      <ProgressRing
+        {...ringScale(value, prevBest)}
+        className={withheld ? 'om-ring is-unfiled' : 'om-ring'}
+      >
         <div className="om-ring-value">{value}</div>
-        <div className="om-caption">shapes placed</div>
+        <div className="om-caption">{withheld ? 'not counted' : 'shapes placed'}</div>
       </ProgressRing>
 
+      {/* Why, in the meter's own vocabulary: the reading this block was taken
+          through, and the whole reason the number above is not being kept. */}
+      {failure && <SignalMeter quality={failure} />}
+
       {/* Nothing placed and nothing heard look the same on the ring. */}
-      {value === 0 && <p className="om-context">No shapes detected</p>}
+      {!withheld && value === 0 && <p className="om-context">No shapes detected</p>}
 
       {/* Per shape, because the total hides the one that needs the work. */}
       <div className="ct-breakdown">

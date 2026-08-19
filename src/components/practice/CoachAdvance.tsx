@@ -14,6 +14,16 @@ import { RetryIcon, SkipIcon } from '../icons';
  * session moving on by itself is still what normally happens. Again and Skip sit
  * either side of it at the weight of ways out, which is what they are.
  */
+/**
+ * How long the hand-off holds when the run was not filed.
+ *
+ * Longer than the ordinary five seconds, because there is a decision to make
+ * here and five seconds at practice distance, with both hands on the guitar, is
+ * not an offer. It still expires: a session that stops to ask a question is a
+ * session that the next interruption ends.
+ */
+export const WITHHELD_ADVANCE_SECONDS = 12;
+
 interface Props {
   /** What the session is moving toward, e.g. "Rest" or "Finishing". */
   nextLabel: string;

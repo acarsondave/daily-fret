@@ -17,6 +17,8 @@ import { buildSegments, isResumable, restIsSpoken, restSecondsAfter } from '../.
 import { keyDrillHistory } from '../../lib/drillStats';
 import { DRILL_UNIT, trainerBlockSeconds } from '../../lib/drills';
 import { drillSeries, planTempo, fixedTempo, DEFAULT_PRACTICE_BPM, type TempoPlan } from '../../lib/tempo';
+import { isRunUnheard, recentBaseline } from '../../lib/unheardRun';
+import { perMinute } from '../../lib/drillWindow';
 import { useSongs } from '../../hooks/useSongs';
 import { findSong } from '../../lib/songCatalog';
 import { sfx } from '../../audio/sfx';
@@ -158,6 +160,11 @@ export function CoachedSession({ routine, onClose }: Props) {
   // Which attempt at the current segment is on screen. Again bumps it, which
   // remounts the drill and gives the retake its own recording clip.
   const [take, setTake] = useState(0);
+  // The take on screen produced a number the app is not willing to file: far
+  // below what this drill is recently worth, through a microphone that was
+  // unreadable for a meaningful part of it. Reset with the take, because it is a
+  // statement about one attempt.
+  const [withheld, setWithheld] = useState(false);
   // What the segment on screen has produced so far, held rather than written.
   // See `propose` below for why the write waits.
   const pendingRef = useRef<PendingRun | null>(null);
@@ -267,6 +274,60 @@ export function CoachedSession({ routine, onClose }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
 
+  /**
+   * What this drill has recently been worth, and the window today's run is
+   * counted over.
+   *
+   * Snapshotted with the segment, for the same reason the tempo above is: a run
+   * must be judged against the history it started with, not against a history it
+   * has itself just moved. Only the three drills that produce a count have one;
+   * strum timing and patterns report a percentage, which says nothing about
+   * whether the microphone was working.
+   */
+  const priorRuns = useMemo<{ rates: number[]; windowSec: number } | null>(() => {
+    if (!seg) return null;
+    const state = useStore.getState();
+    const acc = state.accounts[state.currentAccountId];
+    const logs = acc ? drillLogsOf(acc) : {};
+    if (seg.kind === 'changes') {
+      return {
+        rates: drillSeries(logs, pairKey(seg.from, seg.to), seg.seconds).map((p) => p.value),
+        windowSec: seg.seconds,
+      };
+    }
+    if (seg.kind === 'trainer') {
+      const pool = trainerPool(seg.chords);
+      const windowSec = trainerBlockSeconds(seg.seconds, pool.length);
+      return {
+        rates: drillSeries(logs, poolKey(pool), windowSec).map((p) => p.value),
+        windowSec,
+      };
+    }
+    if (seg.kind === 'rotation') {
+      return {
+        rates: drillSeries(logs, sweepKey(rotationRing(seg.chords)), seg.seconds).map((p) => p.value),
+        windowSec: seg.seconds,
+      };
+    }
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
+
+  /**
+   * Whether the run that just ended measured the player or the microphone.
+   *
+   * Both halves have to hold: see lib/unheardRun.ts for why, and for what this
+   * deliberately still lets through.
+   */
+  const isUnheardRun = (count: number, unheardShare: number): boolean => {
+    if (!priorRuns) return false;
+    return isRunUnheard({
+      rate: perMinute(count, priorRuns.windowSec),
+      baseline: recentBaseline(priorRuns.rates),
+      unheardShare,
+    });
+  };
+
   // The camera follows the segments rather than the session.
   //
   // One clip per drill, filed under the task it belongs to, which is what makes
@@ -323,6 +384,21 @@ export function CoachedSession({ routine, onClose }: Props) {
    */
   const timedProposal = (taskId: string, title: string, outcome: TimedOutcome): PendingRun => ({
     commit: () => recordTime(today, taskId, outcome),
+    row: { title, value: null, unit: '', done: false },
+    value: null,
+  });
+
+  /**
+   * A run the microphone could not hear. Nothing is written for it at all.
+   *
+   * It still holds the segment's place, so ignoring the offer to run it again
+   * leaves the summary saying the drill produced nothing rather than dropping it
+   * out of the session. Nothing reaches the day's record either way: that is the
+   * whole point, because what did reach it was resetting readiness streaks and
+   * pulling the next tempo prescription down.
+   */
+  const unheardProposal = (title: string): PendingRun => ({
+    commit: RECORD_NOTHING,
     row: { title, value: null, unit: '', done: false },
     value: null,
   });
@@ -504,6 +580,8 @@ export function CoachedSession({ routine, onClose }: Props) {
     // nothing at all showed the previous drill's number with a tick beside it.
     const recorded = commitPending();
     songReachedEndRef.current = false;
+    // The verdict belonged to the attempt that has just ended.
+    setWithheld(false);
     // Settle the underlying task only when this was its last segment, so a
     // multi-pair changes task is judged once, on everything it produced, rather
     // than on whichever pair happened to come last. Settling does not assume a
@@ -553,6 +631,7 @@ export function CoachedSession({ routine, onClose }: Props) {
     departedRef.current = true;
     stopVoice();
     diag.mark(`coached segment ${index + 1}/${segments.length}: ${seg.title}, running again`);
+    setWithheld(false);
     setTake((t) => t + 1);
   };
 
@@ -586,6 +665,7 @@ export function CoachedSession({ routine, onClose }: Props) {
   const startOver = () => {
     setIndex(0);
     setTake(0);
+    setWithheld(false);
     setResults([]);
     pendingRef.current = null;
     clearCoachProgress();
@@ -732,17 +812,27 @@ export function CoachedSession({ routine, onClose }: Props) {
             autoAdvance
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             detector={detector}
-            onResult={(cpm, f, t) => {
+            onResult={(cpm, f, t, unheardShare) => {
               // Proposes what was heard; it does not complete anything. The task
               // is settled once, after its last pair (see advance).
               setLastPair(f, t);
-              propose({
-                commit: () => recordMeasurements(today, seg.taskId, [{ key: pairKey(f, t), value: cpm }]),
-                row: { title: `${seg.from} ↔ ${seg.to}`, value: cpm, unit: 'cpm', done: cpm > 0 },
-                value: cpm,
-              });
+              if (isUnheardRun(cpm, unheardShare)) {
+                diag.mark(
+                  `one-minute ${f}->${t}: ${cpm} through a microphone unreadable for ` +
+                    `${Math.round(unheardShare * 100)}% of the run, not filed`,
+                );
+                setWithheld(true);
+                propose(unheardProposal(`${seg.from} ↔ ${seg.to}`));
+              } else {
+                propose({
+                  commit: () => recordMeasurements(today, seg.taskId, [{ key: pairKey(f, t), value: cpm }]),
+                  row: { title: `${seg.from} ↔ ${seg.to}`, value: cpm, unit: 'cpm', done: cpm > 0 },
+                  value: cpm,
+                });
+              }
               void speak('done');
             }}
+            withheld={withheld}
             onTimedRun={(outcome) => propose(timedProposal(seg.taskId, `${seg.from} ↔ ${seg.to}`, outcome))}
             onNext={advance}
             onAgain={runAgain}
@@ -759,24 +849,34 @@ export function CoachedSession({ routine, onClose }: Props) {
             autoAdvance
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             detector={detector}
-            onResult={({ perChord, total }) => {
+            onResult={({ perChord, total, unheardShare }) => {
               // The block's score and each shape's own count, from one run.
-              propose({
-                commit: () =>
-                  recordMeasurements(today, seg.taskId, [
-                    { key: poolKey(perChord.map((p) => p.chord)), value: total },
-                    ...perChord.map((p) => ({ key: chordKey(p.chord), value: p.placements })),
-                  ]),
-                row: {
-                  title: seg.title,
+              if (isUnheardRun(total, unheardShare)) {
+                diag.mark(
+                  `chord perfect ${seg.title}: ${total} through a microphone unreadable for ` +
+                    `${Math.round(unheardShare * 100)}% of the block, not filed`,
+                );
+                setWithheld(true);
+                propose(unheardProposal(seg.title));
+              } else {
+                propose({
+                  commit: () =>
+                    recordMeasurements(today, seg.taskId, [
+                      { key: poolKey(perChord.map((p) => p.chord)), value: total },
+                      ...perChord.map((p) => ({ key: chordKey(p.chord), value: p.placements })),
+                    ]),
+                  row: {
+                    title: seg.title,
+                    value: total,
+                    unit: DRILL_UNIT['chord-trainer'],
+                    done: total > 0,
+                  },
                   value: total,
-                  unit: DRILL_UNIT['chord-trainer'],
-                  done: total > 0,
-                },
-                value: total,
-              });
+                });
+              }
               void speak('done');
             }}
+            withheld={withheld}
             onTimedRun={(outcome) => propose(timedProposal(seg.taskId, seg.title, outcome))}
             onNext={advance}
             onAgain={runAgain}
@@ -794,14 +894,24 @@ export function CoachedSession({ routine, onClose }: Props) {
             autoAdvance
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             detector={detector}
-            onResult={({ ring: turned, changes }) => {
-              propose({
-                commit: () => recordMeasurements(today, seg.taskId, [{ key: sweepKey(turned), value: changes }]),
-                row: { title: seg.title, value: changes, unit: 'changes', done: changes > 0 },
-                value: changes,
-              });
+            onResult={({ ring: turned, changes, unheardShare }) => {
+              if (isUnheardRun(changes, unheardShare)) {
+                diag.mark(
+                  `rotation ${turned.join('-')}: ${changes} through a microphone unreadable for ` +
+                    `${Math.round(unheardShare * 100)}% of the run, not filed`,
+                );
+                setWithheld(true);
+                propose(unheardProposal(seg.title));
+              } else {
+                propose({
+                  commit: () => recordMeasurements(today, seg.taskId, [{ key: sweepKey(turned), value: changes }]),
+                  row: { title: seg.title, value: changes, unit: 'changes', done: changes > 0 },
+                  value: changes,
+                });
+              }
               void speak('done');
             }}
+            withheld={withheld}
             onTimedRun={(outcome) => propose(timedProposal(seg.taskId, seg.title, outcome))}
             onNext={advance}
             onAgain={runAgain}

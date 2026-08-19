@@ -11,9 +11,10 @@ import { ProgressRing } from './ProgressRing';
 import { ringScale } from '../../lib/ringScale';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
-import { CoachAdvance } from './CoachAdvance';
+import { CoachAdvance, WITHHELD_ADVANCE_SECONDS } from './CoachAdvance';
 import { ChordDiagram } from './ChordDiagram';
 import { useMicLoss, useSignalMeter } from './signalQuality';
+import { useUnheardShare } from './runSignal';
 import { useDrillLogs } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import { sfx } from '../../audio/sfx';
@@ -27,7 +28,12 @@ type View = 'setup' | 'playing' | 'results';
 
 interface Props {
   config?: DrillConfig;
-  onResult?: (cpm: number, from: string, to: string) => void;
+  /**
+   * `unheardShare` is how much of the run the microphone read weak, unreadable
+   * or lost, 0..1. The caller needs it to tell a bad run apart from a run it
+   * could not hear; see lib/unheardRun.ts.
+   */
+  onResult?: (cpm: number, from: string, to: string, unheardShare: number) => void;
   onClose?: () => void;
   autoStart?: boolean; // skip the setup screen and begin immediately (coached)
   onNext?: () => void; // when set, the results "Next" advances a sequence
@@ -38,6 +44,13 @@ interface Props {
   // where the results screen already has its own two buttons.
   onAgain?: () => void;
   onSkip?: () => void;
+  /**
+   * This run was not written to the day's record, because the count fell far
+   * below what this pair is recently worth and the microphone was unreadable for
+   * a meaningful part of it. The caller decides that; the drill only has to stop
+   * drawing the number as if it were a result.
+   */
+  withheld?: boolean;
   defaultPair?: { from: string; to: string }; // reopen on the last pair played
   onSessionStart?: (from: string, to: string) => void; // remember the pair
   detector?: ChordDetectorApi; // shared mic (Coached) so it isn't restarted per drill
@@ -57,6 +70,7 @@ export function OneMinuteChanges({
   nextLabel = 'Up next',
   onAgain,
   onSkip,
+  withheld = false,
   defaultPair,
   onSessionStart,
   detector,
@@ -106,6 +120,8 @@ export function OneMinuteChanges({
   // means "play this now", so the brand's light reinforces the shape-to-name link.
   const [nextCue, setNextCue] = useState(initFrom);
   const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter(route);
+  // Remembers what the meter above only draws, for as long as this run lasts.
+  const unheard = useUnheardShare(signal, view === 'playing');
   const [result, setResult] = useState<{
     value: number;
     prevBest: number;
@@ -113,7 +129,11 @@ export function OneMinuteChanges({
   } | null>(null);
   // Coached mode auto-continues from the results screen after a brief beat, so
   // the session flows hands-free instead of waiting on a "Next" tap.
-  const [advanceLeft, setAdvanceLeft] = useState(AUTO_ADVANCE_SECONDS);
+  // Null until the hand-off's first tick, so the very first frame shows the full
+  // length without an effect having to write it. The length is not known at
+  // mount: a run that turns out to be unfilable holds the screen for longer, and
+  // that verdict only arrives with the results.
+  const [advanceTick, setAdvanceTick] = useState<number | null>(null);
   // Running blind: the clock runs and the cues change, nothing is counted. The
   // ref is what the audio-free timer callbacks read; the state is what draws.
   const [onTimer, setOnTimer] = useState(false);
@@ -211,7 +231,9 @@ export function OneMinuteChanges({
     else sfx.complete();
     setResult({ value, prevBest: prev, series: [] });
     setView('results');
-    onResult?.(value, from, to);
+    // Read before the view changes, so the span the meter was holding when the
+    // clock ran out is part of the answer.
+    onResult?.(value, from, to, unheard.share());
   };
 
   const startSession = async (blind = false) => {
@@ -225,6 +247,7 @@ export function OneMinuteChanges({
     setTimeLeft(duration);
     setNextCue(from);
     resetSignal();
+    unheard.reset();
     prevBestRef.current = pairBest;
     onSessionStart?.(from, to);
     setView('playing');
@@ -267,13 +290,16 @@ export function OneMinuteChanges({
   }, []);
 
   // Hands-free advance: once results land in coached mode, count down and move
-  // on automatically (the top-bar X is still there to bail).
+  // on automatically (the top-bar X is still there to bail). A run that was not
+  // filed holds longer, because Again is the point of that screen.
+  const advanceSeconds = withheld ? WITHHELD_ADVANCE_SECONDS : AUTO_ADVANCE_SECONDS;
+  const advanceLeft = advanceTick ?? advanceSeconds;
   useEffect(() => {
     if (view !== 'results' || !autoAdvance || !onNext) return;
-    const deadline = Date.now() + AUTO_ADVANCE_SECONDS * 1000;
+    const deadline = Date.now() + advanceSeconds * 1000;
     const id = setInterval(() => {
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-      setAdvanceLeft(remaining);
+      setAdvanceTick(remaining);
       if (remaining <= 0) {
         clearInterval(id);
         onNext();
@@ -281,7 +307,7 @@ export function OneMinuteChanges({
     }, 200);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, autoAdvance]);
+  }, [view, autoAdvance, advanceSeconds]);
 
   if (view === 'setup') {
     return (
@@ -421,7 +447,11 @@ export function OneMinuteChanges({
 
   const isFirst = prevBest === 0;
   const isNewBest = !isFirst && value > prevBest;
-  const celebrate = isNewBest || (isFirst && value > 0);
+  // Nothing is celebrated on a run that is not going into the record. A best
+  // that is not being kept is not a best.
+  const celebrate = !withheld && (isNewBest || (isFirst && value > 0));
+  // Which way the microphone failed, for the meter to say in its own words.
+  const failure = withheld ? unheard.verdict() : null;
 
   return (
     <motion.div
@@ -431,15 +461,27 @@ export function OneMinuteChanges({
     >
       {celebrate && <PersonalBestSparkle />}
 
-      <ProgressRing {...ringScale(value, prevBest)} className="om-ring">
+      {/* A number that is not being kept is drawn as one: the arc goes dashed
+          and off the accent, the way the ring already draws the part of a run
+          that has not been played. What is under the fingers is the same count;
+          what has changed is that the app is not willing to call it a result. */}
+      <ProgressRing
+        {...ringScale(value, prevBest)}
+        className={withheld ? 'om-ring is-unfiled' : 'om-ring'}
+      >
         <div className="om-ring-value">{value}</div>
-        <div className="om-caption">changes / min</div>
+        <div className="om-caption">{withheld ? 'not counted' : 'changes / min'}</div>
       </ProgressRing>
+
+      {/* Why, in the meter's own vocabulary. A weak signal and a signal nothing
+          matches ask opposite things of the player, and this is the reading the
+          run was actually taken through. */}
+      {failure && <SignalMeter quality={failure} />}
 
       {/* The one thing the ring cannot draw: a run of zero and a microphone that
           heard nothing look identical on it, and only one of them is the
           player's doing. */}
-      {value === 0 && <p className="om-context">No changes detected</p>}
+      {!withheld && value === 0 && <p className="om-context">No changes detected</p>}
 
       <div className="om-result-meta">
         <div className="om-pair">

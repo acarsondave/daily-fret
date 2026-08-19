@@ -13,9 +13,10 @@ import { PersonalBestSparkle } from './PersonalBestSparkle';
 import { ProgressRing } from './ProgressRing';
 import { ringScale } from '../../lib/ringScale';
 import { SignalMeter } from './SignalMeter';
-import { CoachAdvance } from './CoachAdvance';
+import { CoachAdvance, WITHHELD_ADVANCE_SECONDS } from './CoachAdvance';
 import { ChordDiagram } from './ChordDiagram';
 import { useMicLoss, useSignalMeter } from './signalQuality';
+import { useUnheardShare } from './runSignal';
 import { sfx } from '../../audio/sfx';
 import { diag } from '../../audio/diagnostics';
 import type { DrillConfig } from '../../types';
@@ -38,6 +39,12 @@ type View = 'setup' | 'playing' | 'results';
 export interface ChordRotationResult {
   ring: string[];
   changes: number;
+  /**
+   * How much of the run the microphone read weak, unreadable or lost, 0..1. The
+   * caller needs it to tell a bad run apart from one it could not hear; see
+   * lib/unheardRun.ts.
+   */
+  unheardShare: number;
 }
 
 interface Props {
@@ -54,6 +61,13 @@ interface Props {
   // where the results screen already has its own two buttons.
   onAgain?: () => void;
   onSkip?: () => void;
+  /**
+   * This run was not written to the day's record, because the count fell far
+   * below what this ring is recently worth and the microphone was unreadable for
+   * a meaningful part of it. The caller decides that; the drill only has to stop
+   * drawing the number as if it were a result.
+   */
+  withheld?: boolean;
   detector?: ChordDetectorApi;
   onSessionStart?: () => void; // the drill is now live (drives the auto metronome)
   // A run the microphone could not hear, timed instead. Kept separate from
@@ -84,6 +98,7 @@ export function ChordRotation({
   nextLabel = 'Up next',
   onAgain,
   onSkip,
+  withheld = false,
   detector,
   onSessionStart,
   onTimedRun,
@@ -108,8 +123,14 @@ export function ChordRotation({
   // reads between renders, and this is what the cue is drawn from.
   const [dir, setDir] = useState(1);
   const { quality: signal, push: pushSignal, reset: resetSignal } = useSignalMeter(route);
+  // Remembers what the meter above only draws, for as long as this run lasts.
+  const unheard = useUnheardShare(signal, view === 'playing');
   const [result, setResult] = useState<{ value: number; prevBest: number } | null>(null);
-  const [advanceLeft, setAdvanceLeft] = useState(AUTO_ADVANCE_SECONDS);
+  // Null until the hand-off's first tick, so the very first frame shows the full
+  // length without an effect having to write it. The length is not known at
+  // mount: a run that turns out to be unfilable holds the screen for longer, and
+  // that verdict only arrives with the results.
+  const [advanceTick, setAdvanceTick] = useState<number | null>(null);
   // Running blind: the clock runs, the path is on screen, nothing is counted.
   const [onTimer, setOnTimer] = useState(false);
   const onTimerRef = useRef(false);
@@ -211,7 +232,9 @@ export function ChordRotation({
     else sfx.complete();
     setResult({ value, prevBest: prev });
     setView('results');
-    onResult?.({ ring, changes: value });
+    // Read before the view changes, so the span the meter was holding when the
+    // clock ran out is part of the answer.
+    onResult?.({ ring, changes: value, unheardShare: unheard.share() });
   };
 
   const startSession = async (blind = false) => {
@@ -228,6 +251,7 @@ export function ChordRotation({
     setDir(1);
     setTimeLeft(duration);
     resetSignal();
+    unheard.reset();
     prevBestRef.current = personalBest;
     onSessionStart?.();
     setView('playing');
@@ -263,12 +287,16 @@ export function ChordRotation({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // A run that was not filed holds longer, because Again is the point of that
+  // screen.
+  const advanceSeconds = withheld ? WITHHELD_ADVANCE_SECONDS : AUTO_ADVANCE_SECONDS;
+  const advanceLeft = advanceTick ?? advanceSeconds;
   useEffect(() => {
     if (view !== 'results' || !autoAdvance || !onNext) return;
-    const deadline = Date.now() + AUTO_ADVANCE_SECONDS * 1000;
+    const deadline = Date.now() + advanceSeconds * 1000;
     const id = setInterval(() => {
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-      setAdvanceLeft(remaining);
+      setAdvanceTick(remaining);
       if (remaining <= 0) {
         clearInterval(id);
         onNext();
@@ -276,7 +304,7 @@ export function ChordRotation({
     }, 200);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, autoAdvance]);
+  }, [view, autoAdvance, advanceSeconds]);
 
   if (view === 'setup') {
     return (
@@ -401,20 +429,33 @@ export function ChordRotation({
   const prevBest = result?.prevBest ?? 0;
   const isFirst = prevBest === 0;
   const isNewBest = !isFirst && value > prevBest;
-  const celebrate = isNewBest || (isFirst && value > 0);
+  // Nothing is celebrated on a run that is not going into the record. A best
+  // that is not being kept is not a best.
+  const celebrate = !withheld && (isNewBest || (isFirst && value > 0));
+  // Which way the microphone failed, for the meter to say in its own words.
+  const failure = withheld ? unheard.verdict() : null;
 
   return (
     <motion.div className="om-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
       {celebrate && <PersonalBestSparkle />}
 
-      <ProgressRing {...ringScale(value, prevBest)} className="om-ring">
+      {/* A number that is not being kept is drawn as one: off the accent, with
+          the claim under it changed. See .om-ring.is-unfiled. */}
+      <ProgressRing
+        {...ringScale(value, prevBest)}
+        className={withheld ? 'om-ring is-unfiled' : 'om-ring'}
+      >
         <div className="om-ring-value">{value}</div>
-        <div className="om-caption">changes</div>
+        <div className="om-caption">{withheld ? 'not counted' : 'changes'}</div>
       </ProgressRing>
+
+      {/* Why, in the meter's own vocabulary: the reading this run was taken
+          through, and the whole reason the number above is not being kept. */}
+      {failure && <SignalMeter quality={failure} />}
 
       {/* A run of zero and a microphone that heard nothing look identical on the
           ring, and only one of them is the player's doing. */}
-      {value === 0 && <p className="om-context">No changes detected</p>}
+      {!withheld && value === 0 && <p className="om-context">No changes detected</p>}
 
       <div className="om-result-meta">
         <div className="rot-ring">
