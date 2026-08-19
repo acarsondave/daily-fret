@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRightIcon, CheckCircleIcon, MusicNoteIcon, PlayIcon } from '../icons';
+import { ArrowRightIcon, CapoIcon, CheckCircleIcon, MusicNoteIcon, PlayIcon } from '../icons';
 import { YoutubeLogo } from '@phosphor-icons/react';
 import { useStore } from '../../store';
 import { YouTubePlayer, type PlaybackPhase } from './YouTubePlayer';
@@ -11,6 +11,7 @@ import { StrumRow } from './StrumRow';
 import { sfx } from '../../audio/sfx';
 import { useSong } from '../../hooks/useSongs';
 import { usePlayerClock } from '../../hooks/usePlayerClock';
+import { useCapoOffset } from '../../hooks/useCapo';
 import { buildTimeline, loopTarget, sectionIndexAt, type SongTimeline } from '../../lib/songTiming';
 import { seekPlayerTo, setPlayerRate, type YTPlayer } from '../../lib/youtube';
 
@@ -74,6 +75,8 @@ export function SongPlayer({
   onFinish,
 }: Props) {
   const song = useSong(songId);
+  // Where the clamp actually is, as against where this chart wants it.
+  const accountCapo = useCapoOffset();
 
   const storedLink = useStore((st) => (song ? st.accounts[st.currentAccountId]?.songLinks?.[song.id] : undefined));
   const setSongLink = useStore((st) => st.setSongLink);
@@ -183,14 +186,31 @@ export function SongPlayer({
             chords were three initials, and this screen is the last look at them
             before a record starts and does not wait. */}
         <StrumRow strum={song.strum} size={24} />
+        {/* The capo is drawn on every shape rather than written once beside
+            them, because it is a fact about how each of these is fretted. Get
+            Lucky is charted in A minor against a record in B minor: without the
+            capo the shapes are a whole tone under the recording and clash on
+            every chord, and nothing on this screen said so. */}
         <div className="song-shape-row">
           {song.chords.map((c) => (
             <span key={c} className="song-shape">
-              <ChordDiagram chord={c} size={78} showFingers={false} />
+              <ChordDiagram chord={c} size={78} showFingers={false} capo={song.capo ?? 0} />
               <span className="song-shape-name">{c}</span>
             </span>
           ))}
         </div>
+        {/* The one case a picture cannot carry: the drills before this one were
+            listening through a capo setting that is not the one this chart wants,
+            and only the player can move the actual clamp. Shown only when the two
+            disagree, so it is news rather than a label. */}
+        {song.capo !== undefined && song.capo !== accountCapo && (
+          <p className="song-capo-note" role="status">
+            <CapoIcon size={15} />
+            {accountCapo === 0
+              ? `Put a capo on ${song.capo} to play with the record.`
+              : `Your capo is set to ${accountCapo}. This one wants ${song.capo}.`}
+          </p>
+        )}
         <button className="practice-btn primary" onClick={() => { sfx.go(); setPhase('play'); }}>
           <PlayIcon size={20} /> Start play-along
         </button>

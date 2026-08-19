@@ -32,6 +32,16 @@ interface Props {
    * only where a diagram must be drawn in a fixed orientation regardless.
    */
   flipped?: boolean;
+  /**
+   * Fret a capo sits on for this shape, when the chart is written against one.
+   *
+   * Drawn rather than written, and drawn where it actually is: a capo becomes
+   * the nut for everything above it, so the shape is unchanged and the bar takes
+   * the nut's place with the fret named beside it. The alternative was the words
+   * "Capo 2" beside a diagram that showed an open nut, which is a diagram
+   * contradicting its own caption.
+   */
+  capo?: number;
   className?: string;
 }
 
@@ -42,7 +52,7 @@ interface Props {
  * so the same source can later drive a fretboard view, a capo offset, or a
  * left-handed mirror without anything being redrawn by hand.
  */
-export function ChordDiagram({ chord, size = 132, showFingers = true, flipped, className }: Props) {
+export function ChordDiagram({ chord, size = 132, showFingers = true, flipped, capo = 0, className }: Props) {
   const shape = useMemo(() => getChordShape(chord), [chord]);
   // Handedness is a fact about the instrument in the room, like the capo, so the
   // diagram reads it rather than making six call sites remember to pass it.
@@ -56,7 +66,9 @@ export function ChordDiagram({ chord, size = 132, showFingers = true, flipped, c
   // Centre of the fret's cell, which is where a finger actually sits.
   const y = (fret: number) => BOX_TOP + (fret - start + 0.5) * FRET_GAP;
 
-  const label = describeShape(shape, start);
+  const label = capo > 0
+    ? `${describeShape(shape, start)} Capo on fret ${capo}.`
+    : describeShape(shape, start);
 
   return (
     // The `size` prop is the box's intrinsic width, and it travels as its own
@@ -89,7 +101,24 @@ export function ChordDiagram({ chord, size = 132, showFingers = true, flipped, c
           ) : null,
         )}
 
-        {showNut ? (
+        {showNut && capo > 0 ? (
+          <>
+            {/* Overhanging both outer strings, because a capo does: a bar drawn
+                exactly string to string reads as a thick nut rather than as a
+                thing clamped over the neck. */}
+            <rect
+              className="cd-capo"
+              x={BOX_LEFT - 5}
+              y={BOX_TOP - 3.5}
+              width={BOX_RIGHT - BOX_LEFT + 10}
+              height={7}
+              rx={3.5}
+            />
+            <text className="cd-fret-number" x={BOX_LEFT - 9} y={BOX_TOP + FRET_GAP * 0.5} textAnchor="end">
+              {capo}
+            </text>
+          </>
+        ) : showNut ? (
           <line className="cd-nut" x1={BOX_LEFT} y1={BOX_TOP} x2={BOX_RIGHT} y2={BOX_TOP} />
         ) : (
           <text className="cd-fret-number" x={BOX_LEFT - 4} y={BOX_TOP + FRET_GAP * 0.5} textAnchor="end">

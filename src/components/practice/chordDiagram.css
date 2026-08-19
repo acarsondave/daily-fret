@@ -99,3 +99,12 @@
 .chord-diagram.is-live .cd-barre {
   stroke: var(--success-color);
 }
+
+/* A capo, where the nut would be.
+   Heavier than the nut it stands in for and in the bone the rest of the
+   instrument surfaces use, never the accent: a capo is a fact about the neck,
+   not a live state. The fret number sits outside the box on the same baseline a
+   shape played up the neck uses, so the two read as the same kind of fact. */
+.cd-capo {
+  fill: rgb(236 222 205 / 0.82);
+}

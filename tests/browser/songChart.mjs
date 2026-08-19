@@ -58,6 +58,8 @@ const account = () => ({
     tasks: [
       { id: 't1', title: 'Play along', drill: { kind: 'song', songId: 'u_timed', durationSec: 240 } },
       { id: 't2', title: 'Untimed song', drill: { kind: 'song', songId: 'u_untimed', durationSec: 240 } },
+      // A built-in charted against a capo, for the key check at the foot of this file.
+      { id: 't3', title: 'Song: Get Lucky', drill: { kind: 'song', songId: 'get-lucky', playOnly: true } },
     ],
   }],
   dailyLogs: {},
@@ -392,6 +394,46 @@ const readRecord = (page, taskId) =>
       `${video.height.toFixed(0)}px tall`);
     check(`${width}: no console errors`, errors.length === 0, errors.join(' | '));
     await page.screenshot({ path: `${OUT}/song-chart-${width}.png` });
+    await ctx.close();
+  }
+}
+
+// --- the key a chart is written in -----------------------------------------
+//
+// Get Lucky is charted in A minor against a record in B minor. Without a capo on
+// the second fret the shapes are a whole tone under the recording and clash on
+// every chord, and for a while nothing on the screen said so: the Song type
+// carried a `capo` and no surface read it. The capo is drawn on each shape now,
+// because it is a fact about how that shape is fretted, and the one thing a
+// picture cannot carry, that the clamp on the actual neck is somewhere else, is
+// a line that only appears when the two disagree.
+{
+  console.log('\nThe key a chart is written in\n');
+  for (const [fret, expectNote] of [[0, true], [2, false]]) {
+    const ctx = await browser.newContext({ viewport: { width: 1366, height: 572 } });
+    const page = await ctx.newPage();
+    await page.addInitScript(fakePlayer);
+    await page.addInitScript(
+      (s) => localStorage.setItem('daily-fret-storage', JSON.stringify({ state: s, version: 0 })),
+      { ...seed, accounts: Object.fromEntries(Object.entries(seed.accounts).map(
+        ([id, a]) => [id, { ...a, capoFret: fret }])) },
+    );
+    await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('.task-container');
+    const go = page.getByRole('button', { name: /Start .*Get Lucky/i }).first();
+    if (!(await go.count())) {
+      check('Get Lucky is in the routine under test', false, 'no task found');
+      await ctx.close();
+      continue;
+    }
+    await go.click();
+    await page.waitForSelector('.practice-overlay', { timeout: 20000 });
+    await page.waitForTimeout(1200);
+    check(`capo ${fret}: the capo is drawn on every shape`,
+      (await page.locator('.practice-overlay .cd-capo').count()) === 4,
+      `${await page.locator('.practice-overlay .cd-capo').count()} drawn`);
+    check(`capo ${fret}: the line appears only when the clamp disagrees`,
+      (await page.locator('.song-capo-note').count() > 0) === expectNote);
     await ctx.close();
   }
 }
