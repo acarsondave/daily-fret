@@ -486,3 +486,19 @@
     --groove-height: 96px;
   }
 }
+
+/* The same correspondence, standing in for the run's opening line.
+   Quieter and smaller than on the setup screen, where it is the subject: here it
+   is holding the place a reading is about to take, and it goes the moment the
+   first strum lands. */
+.st-figure-beat.is-live {
+  opacity: 0.62;
+  transform: scale(0.86);
+  transform-origin: center top;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .st-figure-beat.is-live {
+    transition: opacity var(--dur-slow) ease;
+  }
+}

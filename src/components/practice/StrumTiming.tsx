@@ -375,9 +375,13 @@ export function StrumTiming({
         </div>
 
         <div className="drill-read">
-        <p className={locked ? 'st-call is-locked' : 'st-call'} aria-live="polite">
-          {liveCall(clicksHeard, marks.length, summary)}
-        </p>
+        {liveCall(clicksHeard, marks.length, summary) === null ? (
+          <BeatAndStrum className="is-live" />
+        ) : (
+          <p className={locked ? 'st-call is-locked' : 'st-call'} aria-live="polite">
+            {liveCall(clicksHeard, marks.length, summary)}
+          </p>
+        )}
 
         <div className="st-figures">
           <Figure
@@ -493,9 +497,13 @@ export function StrumTiming({
  * picture: the clicks in the app's own beat-strip cells, the strums in the same
  * arrows every strum pattern in the app is drawn with, one under one.
  */
-function BeatAndStrum() {
+function BeatAndStrum({ className }: { className?: string } = {}) {
   return (
-    <div className="st-figure-beat" role="img" aria-label="One down strum on every click.">
+    <div
+      className={className ? `st-figure-beat ${className}` : 'st-figure-beat'}
+      role="img"
+      aria-label="One down strum on every click."
+    >
       <div className="st-figure-clicks">
         {[0, 1, 2, 3].map((i) => (
           <span key={i} className={i === 0 ? 'st-figure-click is-downbeat' : 'st-figure-click'} />
@@ -518,9 +526,17 @@ function BeatAndStrum() {
  * into negative numbers the moment a run is rejected for any reason other than
  * being short.
  */
-function liveCall(clicksHeard: number, markCount: number, summary: TimingSummary | null): string {
+function liveCall(clicksHeard: number, markCount: number, summary: TimingSummary | null): string | null {
   if (clicksHeard === 0) return 'Listening for the click…';
-  if (markCount === 0) return 'Strum down on every click.';
+  // Null, not a sentence. Every other branch here is a reading that changes as
+  // the run goes: what is heard, what is not reaching the microphone, how far
+  // off the beat, how much longer. This one was an instruction, and it sat at
+  // the top of the read column at display weight for as long as the player had
+  // not yet strummed, which on a first run is the whole of the count-in and
+  // however long it takes to pick the guitar up. The caller draws the same
+  // correspondence the setup screen draws instead, and the first strum replaces
+  // it with the reading for good.
+  if (markCount === 0) return null;
   if (summary?.selfReferential) return 'The click is not reaching the microphone.';
   if (summary?.enough) return describeTiming(summary);
   const left = Math.max(1, MIN_MEASURED_BEATS - (summary?.expectedBeats ?? 0));
