@@ -198,5 +198,33 @@ console.log('\nScale\n');
   check('problems still clear', draftProblems(big).length === 0);
 }
 
+// --- the key a chart is written in -----------------------------------------
+//
+// A beginner chart is often in an easier key than the record. That was recorded
+// in code comments, which the person holding the guitar cannot read, and playing
+// Get Lucky's A minor shapes against a B minor record clashes on every chord.
+{
+  console.log('\nThe key a chart is written in\n');
+  const lucky = SONGS.find((x) => x.id === 'get-lucky');
+  check('Get Lucky is in the catalogue', Boolean(lucky));
+  check('and states the capo that makes it match the record', lucky?.capo === 2, String(lucky?.capo));
+  check('its chords are all ones a Module 5 player has',
+    lucky?.chords.every((c) => ['Am', 'C', 'Em', 'D'].includes(c)), lucky?.chords.join(', '));
+  check('it changes chord every half bar', lucky?.beatsPerBar === 2, String(lucky?.beatsPerBar));
+  check('so no charted step is longer than the loop moves',
+    lucky?.sections.every((sec) => sec.steps.length % 4 === 0),
+    lucky?.sections.map((sec) => `${sec.label}:${sec.steps.length}`).join(' '));
+  check('the loop really is Am C Em D throughout',
+    lucky?.sections.every((sec) => sec.steps.every((st, i) => st.chord === ['Am', 'C', 'Em', 'D'][i % 4])));
+  check('it ships untimed rather than with guessed anchors',
+    lucky?.sections.every((sec) => sec.atSeconds === undefined));
+
+  const sing = SONGS.find((x) => x.id === 'sing-ed-sheeran');
+  check('Sing states its capo too, which was only ever in a comment', sing?.capo === 4, String(sing?.capo));
+
+  const noCapo = SONGS.filter((x) => x.capo === undefined);
+  check('and a song without one is in the record\'s own key', noCapo.length > 0);
+}
+
 console.log(failures ? `\n${failures} FAILED\n` : '\nALL PASS\n');
 process.exit(failures ? 1 : 0);

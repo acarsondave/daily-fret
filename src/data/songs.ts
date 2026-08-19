@@ -69,6 +69,15 @@ export interface Song {
   // no following anchor to interpolate towards, so it is given one explicitly
   // rather than guessed at from the nominal tempo.
   endSeconds?: number;
+  // Fret the capo has to be on for these shapes to match the linked recording.
+  //
+  // A beginner chart is often written in an easier key than the record: Sing is
+  // played open in Em and Am against a record in G sharp minor, and Get Lucky is
+  // played in A minor against a record in B minor. Both were true before this
+  // field existed and both were recorded only in a code comment, which is a note
+  // to whoever reads the file and not to the person holding the guitar. Absent
+  // means the chart is in the record's own key.
+  capo?: number;
 }
 
 const s = (chord: string, lyric?: string, strum?: string): SongStepDef => ({
@@ -264,6 +273,7 @@ const singEdSheeran: Song = {
   artist: 'Ed Sheeran',
   level: 'Easy',
   strum: 'DDUUDU',
+  capo: 4,
   chords: ['Em', 'Am'],
   youtubeId: 'tlYcUqEPN58',
   sections: [
@@ -442,6 +452,87 @@ const fiveOhFive: Song = {
   ],
 };
 
+
+// --- Get Lucky (Daft Punk) ---
+//
+// JustinGuitar's Module 5 song list: "This one has Am, C, Em, and D... Each chord
+// gets half a bar in 4/4... It'll be great to work on jumping from the C chord to
+// the minor chord." Four chords, all of them Module 5 or earlier, on one loop that
+// never changes, which is exactly what a first C-chord song should be.
+//
+// TWO THINGS THAT ARE NOT OBVIOUS AND WOULD OTHERWISE BITE.
+//
+// The key. The record is in B minor: Bm D F sharp m E. Am C Em D is the beginner
+// transposition, a whole tone down, and played against the original recording it
+// clashes with every chord. `capo: 2` is not a nicety here, it is the difference
+// between playing along and playing over. On the second fret these shapes sound
+// the record's own chords.
+//
+// The bar. Every other chart in this file puts one chord in one bar. This one
+// changes chord every half bar, so `beatsPerBar: 2` makes a charted step two
+// beats long and the changes land at the rate the record actually moves at.
+// Writing it as one chord per bar would have halved the harmonic rhythm and put
+// the chart a bar out within four lines.
+//
+// No `atSeconds`. Anchors are tapped in through the song editor's timing mode
+// against a specific recording, and there is no recording linked yet. An untimed
+// chart is a working play-along; a guessed anchor puts the chart on the wrong
+// chord, which is worse than no chart at all.
+const gl = (lyric?: string): SongStepDef[] => [
+  s('Am', lyric), s('C'), s('Em'), s('D'),
+];
+const glLoop = (times: number): SongStepDef[] => {
+  const out: SongStepDef[] = [];
+  for (let i = 0; i < times; i += 1) out.push(...gl());
+  return out;
+};
+
+const getLucky: Song = {
+  id: 'get-lucky',
+  title: 'Get Lucky',
+  artist: 'Daft Punk',
+  level: 'Beginner',
+  // Two beats, so four eighth-note slots: down on the beat, up on the second
+  // "and". Enough groove to be the song and few enough strums to leave attention
+  // for the chord change, which is the thing being practised.
+  strum: 'D-DU',
+  beatsPerBar: 2,
+  capo: 2,
+  bpm: 116,
+  chords: ['Am', 'C', 'Em', 'D'],
+  sections: [
+    { label: 'Intro', steps: glLoop(2) },
+    {
+      label: 'Verse 1',
+      steps: [
+        ...gl('Like the legend of the phoenix'),
+        ...gl('all ends with beginnings'),
+        ...gl('What keeps the planet spinning'),
+        ...gl('the force from the beginning'),
+      ],
+    },
+    {
+      label: 'Pre-chorus',
+      steps: [...gl('We\'ve come too far'), ...gl('to give up who we are')],
+    },
+    {
+      label: 'Chorus',
+      steps: [
+        ...gl('We\'re up all night till the sun'),
+        ...gl('We\'re up all night to get some'),
+        ...gl('We\'re up all night for good fun'),
+        ...gl('We\'re up all night to get lucky'),
+      ],
+    },
+    { label: 'Verse 2', steps: [...gl('The present has no ribbon'), ...glLoop(3)] },
+    {
+      label: 'Chorus',
+      steps: [...gl('We\'re up all night to get lucky'), ...glLoop(3)],
+    },
+    { label: 'Outro', steps: glLoop(4) },
+  ],
+};
+
 export const SONGS: Song[] = [
   wildThing,
   threeLittleBirds,
@@ -450,6 +541,7 @@ export const SONGS: Song[] = [
   iBelongToYou,
   singEdSheeran,
   fiveOhFive,
+  getLucky,
 ];
 
 export function getSong(id: string | undefined): Song | undefined {
