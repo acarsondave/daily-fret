@@ -18,6 +18,8 @@
 // a day off is invisible here. Only a run that came in under the bar resets
 // anything.
 
+import { PATTERN_CLEAN_SCORE } from './strumPattern';
+
 /**
  * One completed run of a drill, in that drill's own unit.
  *
@@ -86,6 +88,18 @@ export const CHORD_BAR = 20;
 
 /** Anchor rotation is a harder motion than a single pair, so the bar is lower. */
 export const ROTATION_BAR = 25;
+
+/**
+ * A rhythm block held.
+ *
+ * Both rhythm drills store a percentage rather than a count: strum timing the
+ * share of beats struck inside the 50 ms window, pattern work the share of the
+ * pattern's slots that sounded where they should. This is
+ * {@link PATTERN_CLEAN_SCORE}, the level a pattern run has to reach before it
+ * counts towards anything at all, taken from there rather than copied so the
+ * two can never drift into meaning different things about the same signal.
+ */
+export const RHYTHM_BAR = PATTERN_CLEAN_SCORE;
 
 const SPELLED = ['no', 'one', 'two', 'three'] as const;
 

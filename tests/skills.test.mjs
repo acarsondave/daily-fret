@@ -39,7 +39,7 @@ for (const s of ALL_SKILLS) {
   if (!ok) check(`${s.id} measure is complete`, false, JSON.stringify(m));
 }
 check('every measure carries its required fields', true);
-const DRILLS = ['one-minute-changes','chord-trainer','song','chord-rotation','strum-timing','tuner'];
+const DRILLS = ['one-minute-changes','chord-trainer','song','chord-rotation','strum-timing','strum-pattern','tuner'];
 const badDrill = ALL_SKILLS.filter(s => s.measure.kind==='measured' && !DRILLS.includes(s.measure.drill));
 check('every measured skill names a drill kind that exists', badDrill.length===0,
   badDrill.map(s=>`${s.id}:${s.measure.drill}`).join(' '));
