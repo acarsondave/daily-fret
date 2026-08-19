@@ -112,11 +112,17 @@
   transform: translate(-50%, -50%);
 }
 
-/* A slot the arm passes through with the pick lifted. Outline, and quieter than
-   the slots that sound, because it is an instruction to keep moving rather than
-   an instruction to play. */
+/* A slot the arm passes through with the pick lifted. Quieter than the slots
+   that sound, and broken rather than solid: a weight difference alone is not
+   enough on a deck card, where a pattern nobody has played yet draws its sounded
+   slots as outlines too and the two were reading as the same mark. A dashed pick
+   is a pick that is not touching anything. */
 .pb-pick-mark.is-ghost {
   color: var(--pb-bone-quiet);
+}
+
+.pb-pick-mark.is-ghost .pb-pick path {
+  stroke-dasharray: 2.6 2.9;
 }
 
 /* Expected, and nothing arrived. Dimmed rather than reddened: the lesson calls

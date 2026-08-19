@@ -206,16 +206,21 @@
   .sp-bars {
     gap: var(--space-3);
   }
-  /* The card coming up gives back most of the width on a phone: it is a
-     glance, and the bar being played is the thing both hands are following. */
+  /* On a phone the card coming up takes a fixed strip rather than a share of
+     the row. Eight slots need about ninety pixels before the picks start
+     sitting on each other, and a percentage of a 390px frame does not give
+     them that; below it the preview stops being readable at all, which is
+     worse than it being small. */
   .sp-next {
-    flex-basis: 27%;
-    min-width: 78px;
+    flex: 0 0 118px;
+    min-width: 108px;
+    max-width: 140px;
     padding-left: var(--space-3);
   }
   .sp-next .pattern-bar {
-    --pb-pick: 13px;
-    --pb-lane: 62px;
+    --pb-pick: 11px;
+    --pb-lane: 56px;
+    --pb-stem: 7px;
   }
   .sp-card {
     gap: var(--space-3);
