@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
@@ -13,7 +13,7 @@ import { useStore, getTodayString, drillLogsOf, type CoachStepResult } from '../
 import { pairKey } from '../../lib/pairs';
 import { chordKey, patternKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } from '../../lib/drillKeys';
 import { deckOf, patternRuns } from '../../lib/patternDeck';
-import { buildSegments, isResumable } from '../../lib/coached';
+import { buildSegments, isResumable, restIsSpoken, restSecondsAfter } from '../../lib/coached';
 import { keyDrillHistory } from '../../lib/drillStats';
 import { DRILL_UNIT, trainerBlockSeconds } from '../../lib/drills';
 import { drillSeries, planTempo, fixedTempo, DEFAULT_PRACTICE_BPM, type TempoPlan } from '../../lib/tempo';
@@ -46,7 +46,6 @@ type Phase = 'resume' | 'intro' | 'rest' | 'segment' | 'summary';
 // Visual count-in length used only as a *silent fallback* — when the coach voice
 // is on, the spoken count-in drives the timing instead (see the intro effect).
 const COUNT_IN_SECONDS = 3;
-const REST_SECONDS = 30;
 
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -120,9 +119,13 @@ export function CoachedSession({ routine, onClose }: Props) {
   const [phase, setPhase] = useState<Phase>(() => (resumeData ? 'resume' : 'intro'));
   // 0 → the coach is announcing ("Get ready…"); >0 → silent visual count-in.
   const [countdown, setCountdown] = useState(0);
-  const [restLeft, setRestLeft] = useState(REST_SECONDS);
+  // The break now running: how long it was prescribed for, and what is left of
+  // it. The whole length is state rather than a constant because it is decided
+  // by the segment that just ended, and the ring has to draw a share of it.
+  const [restTotal, setRestTotal] = useState(0);
+  const [restLeft, setRestLeft] = useState(0);
   const [voiceOn, setVoiceOn] = useState(isCoachVoiceEnabled());
-  const restLeftRef = useRef(REST_SECONDS);
+  const restLeftRef = useRef(0);
   const lastValueRef = useRef<number | null>(null);
   // Wall clock for the segment currently on screen. Only the song play-along
   // reads it: it is the one segment with no clock of its own, and time spent
@@ -355,19 +358,22 @@ export function CoachedSession({ routine, onClose }: Props) {
 
   // Rest timer between segments (gym-style). It counts itself down and rolls
   // into the next drill, so a hands-free session needs nothing tapped. Skipping
-  // is there for the days you are already warm: 30 seconds between every segment
-  // is several minutes of a long routine spent watching a number.
+  // is there for the days the break is not needed: the longest of them is a full
+  // minute, because the drill it follows earns one.
   const skipRest = () => {
     stopVoice();
-    restLeftRef.current = REST_SECONDS;
-    setRestLeft(REST_SECONDS);
+    restLeftRef.current = 0;
+    setRestLeft(0);
     setPhase('intro');
   };
 
   useEffect(() => {
     if (phase !== 'rest') return;
-    // A second, encouraging line partway through the rest (stretch reminders etc.).
-    const tip = setTimeout(() => void speak('rest-tip', false), 6000);
+    // A second, encouraging line partway through the rest (stretch reminders
+    // etc.), on the breaks long enough to hold it.
+    const tip = restIsSpoken(restTotal)
+      ? setTimeout(() => void speak('rest-tip', false), 6000)
+      : null;
     const deadline = Date.now() + restLeftRef.current * 1000;
     const id = setInterval(() => {
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
@@ -380,9 +386,9 @@ export function CoachedSession({ routine, onClose }: Props) {
     }, 250);
     return () => {
       clearInterval(id);
-      clearTimeout(tip);
+      if (tip !== null) clearTimeout(tip);
     };
-  }, [phase]);
+  }, [phase, restTotal]);
 
   if (!seg) {
     return createPortal(
@@ -426,11 +432,19 @@ export function CoachedSession({ routine, onClose }: Props) {
     if (nextIndex < segments.length) {
       saveCoachProgress({ routineId: routine.id, date: today, startedAt, index: nextIndex, results: nextResults });
       setIndex(nextIndex);
-      restLeftRef.current = REST_SECONDS;
-      setRestLeft(REST_SECONDS);
-      setPhase('rest');
-      sfx.rest();
-      void speak('rest-start');
+      // How long the break is depends on the work that just finished, and it can
+      // be nothing at all: two timed blocks of one task run straight on.
+      const rest = restSecondsAfter(seg, segments[nextIndex]);
+      restLeftRef.current = rest;
+      setRestTotal(rest);
+      setRestLeft(rest);
+      if (rest === 0) {
+        setPhase('intro');
+      } else {
+        setPhase('rest');
+        sfx.rest();
+        void speak('rest-start');
+      }
     } else {
       clearCoachProgress();
       void detector.stop();
@@ -553,14 +567,16 @@ export function CoachedSession({ routine, onClose }: Props) {
 
         {phase === 'rest' && (
           <motion.div key={`rest-${index}`} className="coach-intro" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-            {/* The rest, as the length it is. A bare number counting down says
-                nothing about how much of the break is left, and this is the one
-                screen in the session with no other thing to look at. */}
+            {/* The rest, as the length it is, twice over. The arc is how much of
+                this break is left, and the ring's own diameter is how long the
+                break is: the minute owed after a counted minute is drawn nearly
+                twice the width of the eight seconds owed after a stretch, so two
+                different rests never look like the same rest counting faster. */}
             <ProgressRing
-              progress={1 - restLeft / REST_SECONDS}
-              size={168}
+              progress={restTotal > 0 ? 1 - restLeft / restTotal : 1}
               stroke={8}
               className="coach-rest-ring"
+              style={{ '--rest-seconds': restTotal } as CSSProperties}
             >
               <div className="coach-rest-count">{restLeft}</div>
             </ProgressRing>

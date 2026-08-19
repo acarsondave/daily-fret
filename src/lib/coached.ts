@@ -215,3 +215,59 @@ export function isResumable(
   const age = now - progress.startedAt;
   return age >= 0 && age < RESUME_WINDOW_MS;
 }
+
+/**
+ * How long the break after a segment lasts, decided by the segment it follows.
+ *
+ * It used to be thirty seconds after everything. Measured across thirty-one real
+ * sessions, the gap from one drill's finish mark to the next drill's start mark
+ * ran 42 to 48 seconds whatever had just happened, which on a nine-task routine
+ * is over six minutes of a twenty-minute prescription spent watching a number
+ * count down.
+ *
+ * Cutting it everywhere would have been the wrong repair. A rest is part of the
+ * exercise after a counted minute at full effort and dead time after a stretch,
+ * so the length is a property of the work that just ended:
+ *
+ *   changes, rotation   60  A counted minute at full effort. The course's own
+ *                           instruction between one-minute-changes attempts is a
+ *                           full minute off, and the anchor rotation is the same
+ *                           minute over a ring instead of a pair.
+ *   trainer             45  Full effort too, but every rep of Chord Perfect
+ *                           contains its own lift-off, and the block already runs
+ *                           past a hundred seconds.
+ *   timing, patterns    20  One strum per click at a fixed tempo. That costs
+ *                           concentration rather than the hands.
+ *   song                15  Played to the record, at the record's own pace.
+ *   timed                8  A stretch or a block of muted strumming. Long enough
+ *                           to reach the neck again and no longer.
+ */
+const REST_AFTER: Record<CoachSegment['kind'], number> = {
+  changes: 60,
+  rotation: 60,
+  trainer: 45,
+  timing: 20,
+  patterns: 20,
+  song: 15,
+  timed: 8,
+};
+
+export function restSecondsAfter(ended: CoachSegment, next: CoachSegment | undefined): number {
+  // Nothing follows the last segment, so there is nothing to rest before.
+  if (!next) return 0;
+  // Two timed blocks of one task are one exercise with a label change halfway
+  // through. A full announced rest between "Pattern 1" and "Pattern 2" of the
+  // same strumming task interrupts the thing it is meant to sit between.
+  if (ended.kind === 'timed' && next.kind === 'timed' && ended.taskId === next.taskId) return 0;
+  return REST_AFTER[ended.kind];
+}
+
+/**
+ * Whether a rest is long enough for the coach's second line to land inside it.
+ *
+ * That line arrives six seconds in, which on an eight-second break is the coach
+ * still talking as the next drill is being announced.
+ */
+export function restIsSpoken(seconds: number): boolean {
+  return seconds >= 30;
+}
