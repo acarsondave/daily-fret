@@ -15,6 +15,7 @@ import { pairKey } from '../../lib/pairs';
 import { chordKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } from '../../lib/drillKeys';
 import { buildSegments, isResumable } from '../../lib/coached';
 import { keyDrillHistory } from '../../lib/drillStats';
+import { DRILL_UNIT, trainerBlockSeconds } from '../../lib/drills';
 import { drillSeries, planTempo, fixedTempo, DEFAULT_PRACTICE_BPM, type TempoPlan } from '../../lib/tempo';
 import { useSongs } from '../../hooks/useSongs';
 import { findSong } from '../../lib/songCatalog';
@@ -118,6 +119,10 @@ export function CoachedSession({ routine, onClose }: Props) {
   // reads it: it is the one segment with no clock of its own, and time spent
   // with the record playing is the only thing the app can honestly witness there.
   const segmentStartRef = useRef(0);
+  // Whether the record itself ran out, as opposed to the player tapping Done.
+  // Both end the play-along; only one of them is a clock the app watched reach
+  // its end, and the day's record draws that distinction on the task row.
+  const songReachedEndRef = useRef(false);
 
   const seg = segments[index];
   const isLastSegment = index >= segments.length - 1;
@@ -158,7 +163,16 @@ export function CoachedSession({ routine, onClose }: Props) {
       return planTempo(drillSeries(logs, pairKey(seg.from, seg.to), seg.seconds), today);
     }
     if (seg.kind === 'trainer') {
-      return planTempo(drillSeries(logs, poolKey(trainerPool(seg.chords)), seg.seconds), today);
+      const pool = trainerPool(seg.chords);
+      // The block's real length, not the length the task asked for: Chord
+      // Perfect gives every shape a floor of its own, so a 90-second task over
+      // five shapes runs 100 seconds. Reading the score against 90 made the
+      // player look eleven per cent faster than they were, and the click asked
+      // for a pace they had never reached.
+      return planTempo(
+        drillSeries(logs, poolKey(pool), trainerBlockSeconds(seg.seconds, pool.length)),
+        today,
+      );
     }
     if (seg.kind === 'rotation') {
       return planTempo(drillSeries(logs, sweepKey(rotationRing(seg.chords)), seg.seconds), today);
@@ -346,6 +360,18 @@ export function CoachedSession({ routine, onClose }: Props) {
   }
 
   const advance = (result?: CoachStepResult) => {
+    // The segment on screen is over, so its number is over with it.
+    //
+    // This ref used to survive into the next segment, and every measured drill
+    // reads it to build its own summary row. A drill that produced no number at
+    // all still calls advance: a run on the timer after the microphone was
+    // refused mid-session ends on `TimerRunEnded`, which advances without ever
+    // calling onResult. The next row then carried the previous drill's figure
+    // and a tick beside it, so the summary reported a measurement of a pair the
+    // app had not heard a single note of. Callers read this before advance runs,
+    // so clearing it here is the moment nothing is left to read.
+    lastValueRef.current = null;
+    songReachedEndRef.current = false;
     // Settle the underlying task only when this was its last segment, so a
     // multi-pair changes task is judged once, on everything it produced, rather
     // than on whichever pair happened to come last. Settling does not assume a
@@ -376,6 +402,7 @@ export function CoachedSession({ routine, onClose }: Props) {
   const startOver = () => {
     setIndex(0);
     setResults([]);
+    lastValueRef.current = null;
     clearCoachProgress();
     // Starting over is a new session, so it belongs to now rather than to the
     // date of the sitting it just discarded.
@@ -540,7 +567,7 @@ export function CoachedSession({ routine, onClose }: Props) {
             onNext={() => advance({
               title: seg.title,
               value: lastValueRef.current,
-              unit: 'nailed',
+              unit: DRILL_UNIT['chord-trainer'],
               done: (lastValueRef.current ?? 0) > 0,
             })}
             onClose={exit}
@@ -603,13 +630,22 @@ export function CoachedSession({ routine, onClose }: Props) {
             autoStart
             autoAdvance
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
-            onFinish={() => void speak('done')}
+            onFinish={(reachedEnd) => {
+              songReachedEndRef.current = reachedEnd;
+              void speak('done');
+            }}
             onNext={() => {
-              // The play-along has no clock of its own and no microphone. What
-              // the app can witness is that the record ran to its end with the
-              // player on screen, so that is what goes on the record.
+              // The play-along has no clock of its own and no microphone, so the
+              // time it was on screen is all the app can witness. Whether it ran
+              // to the end is a separate claim, and it used to be made
+              // unconditionally: tapping Done ten seconds in filed the segment as
+              // a clock that had run out, which the task row then printed as one.
               const elapsed = (Date.now() - segmentStartRef.current) / 1000;
-              recordTime(today, seg.taskId, { elapsedSeconds: elapsed, reachedEnd: true, done: true });
+              recordTime(today, seg.taskId, {
+                elapsedSeconds: elapsed,
+                reachedEnd: songReachedEndRef.current,
+                done: true,
+              });
               advance({ title: seg.title, value: null, unit: '', done: true });
             }}
             onClose={exit}

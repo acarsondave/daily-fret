@@ -23,7 +23,13 @@ interface Props {
   onNext?: () => void;
   autoAdvance?: boolean;
   nextLabel?: string;
-  onFinish?: () => void;
+  /**
+   * The play-along is over. `reachedEnd` is true only when the recording itself
+   * ran out: the Done button is the player's word that they are finished, and
+   * filing the two identically had the day's record claim a clock had run to its
+   * end when someone had tapped Done ten seconds in.
+   */
+  onFinish?: (reachedEnd: boolean) => void;
 }
 
 // Pull a YouTube video id out of any common link shape (or a bare id).
@@ -129,9 +135,9 @@ export function SongPlayer({
     if (target) seekPlayerTo(target, loopTarget(line, loop));
   }, []);
 
-  const finish = () => {
+  const finish = (reachedEnd: boolean) => {
     sfx.sessionComplete();
-    onFinish?.();
+    onFinish?.(reachedEnd);
     setPhase('results');
   };
 
@@ -213,7 +219,7 @@ export function SongPlayer({
         {theater ? (
           <YouTubePlayer
             videoId={videoId}
-            onEnded={finish}
+            onEnded={() => finish(true)}
             // A stored link is the user's own pick and may not share the
             // catalogue recording's intro, so only skip ahead on ours.
             startSeconds={storedLink ? undefined : song.startSeconds}
@@ -295,7 +301,7 @@ export function SongPlayer({
             </button>
           )}
           <span className="song-honest is-inline">Not graded, just play.</span>
-          <button className="practice-btn primary" onClick={finish}>
+          <button className="practice-btn primary" onClick={() => finish(false)}>
             Done <ArrowRightIcon size={18} />
           </button>
         </div>

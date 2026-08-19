@@ -5,6 +5,7 @@ import { MicGate, TimerRunEnded, UncountedNotice } from './MicGate';
 import type { TimedOutcome } from '../../store/completion';
 import { useDrillLogs } from '../../store';
 import { poolKey, trainerPool } from '../../lib/drillKeys';
+import { trainerChordSeconds } from '../../lib/drills';
 import { keyDrillHistory } from '../../lib/drillStats';
 import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDetector';
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
@@ -25,9 +26,6 @@ import type { DrillConfig } from '../../types';
 
 const ALL_CHORDS = ['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F'];
 const AUTO_ADVANCE_SECONDS = 5;
-// Shortest sensible block. Below this a chord gets a couple of placements and
-// nothing sticks, which is the whole point of the drill.
-const MIN_CHORD_SECONDS = 20;
 
 type View = 'setup' | 'playing' | 'results';
 
@@ -89,7 +87,10 @@ export function ChordTrainer({
 
   const duration = config?.durationSec ?? 60;
   const [pool, setPool] = useState<string[]>(() => trainerPool(config?.chords));
-  const perChord = Math.max(MIN_CHORD_SECONDS, Math.round(duration / Math.max(1, pool.length)));
+  // Shared with lib/tempo.ts's callers, which need the block's real length to
+  // turn a score into a rate. Two copies of this arithmetic is how the click
+  // came to prescribe from a block eleven per cent shorter than the one played.
+  const perChord = trainerChordSeconds(duration, pool.length);
 
   // The block's own history, per pool, straight from the store. The pool is
   // editable on the setup screen and it is part of the key, so a best carried in
