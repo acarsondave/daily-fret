@@ -61,6 +61,14 @@ export function pushOverlay(): OverlayClaim {
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+// The `tabIndex >= 0` filter below is not tidying. The selector above admits
+// every enabled button, including one a roving-tabindex group has taken out of
+// the tab order, so a group of that kind ending a dialog made `last` an element
+// Tab can never reach and the wrap therefore never fired. Measured on the note
+// circle, whose three radio groups are the last thing in the panel: Tab walked
+// off the dialog onto the practice screen behind it. Any panel ending in tabs or
+// a radio group had the same hole waiting.
+
 /**
  * Keep Tab inside `panel`, wrapping at both ends.
  *
@@ -71,7 +79,7 @@ const FOCUSABLE =
  */
 export function containFocus(panel: HTMLElement, event: KeyboardEvent): void {
   const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-    (el) => el.offsetParent !== null || el === document.activeElement,
+    (el) => (el.offsetParent !== null || el === document.activeElement) && el.tabIndex >= 0,
   );
   if (items.length === 0) {
     event.preventDefault();

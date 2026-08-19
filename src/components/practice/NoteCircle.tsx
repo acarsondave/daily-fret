@@ -62,12 +62,12 @@ import './noteCircle.css';
 // figure this regular. Only the CSS ever picks a size.
 const RING_VIEW = 300;
 const RING_MID = RING_VIEW / 2;
-const RING_R = 100;
+const RING_R = 96;
 /** Where the tap targets are centred: over the dot and its name, not just the dot. */
-const RING_HIT_R = 112;
+const RING_HIT_R = 124;
 const DEGREES_PER_STEP = 360 / SEMITONES_IN_OCTAVE;
 /** Half the gap between two arc segments, in degrees. What makes them countable. */
-const SEGMENT_GAP = 3.4;
+const SEGMENT_GAP = 5;
 
 const NECK_VIEW_W = 534;
 const NECK_VIEW_H = 132;
@@ -231,7 +231,7 @@ export function NoteCircle() {
           {/* The anchor is an open ring and the target is filled, the same two
               marks the string uses, so a glance at either figure finds the same
               two ends. */}
-          <circle className="nc-anchor" cx={polar(fromSlot, RING_R).x} cy={polar(fromSlot, RING_R).y} r={10} />
+          <circle className="nc-anchor" cx={polar(fromSlot, RING_R).x} cy={polar(fromSlot, RING_R).y} r={9} />
           <motion.circle
             className="nc-target"
             cx={target.x}
@@ -322,7 +322,7 @@ export function NoteCircle() {
               {/* Gauge, not a number: the sixth string is the fat one, and that
                   is how a player picks it out without reading anything. */}
               <svg viewBox="0 0 34 8" aria-hidden="true" focusable="false">
-                <line x1="1" y1="4" x2="33" y2="4" strokeWidth={0.7 + (s.position - 1) * 0.34} />
+                <line x1="1" y1="4" x2="33" y2="4" strokeWidth={0.7 + (s.position - 1) * 0.7} />
               </svg>
               <span aria-hidden="true">{s.name}</span>
             </button>

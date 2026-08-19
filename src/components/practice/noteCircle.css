@@ -51,15 +51,15 @@
 
 @media (min-width: 900px) {
   .nc-ring-wrap {
-    --nc-ring: 300px;
+    --nc-ring: 340px;
   }
 }
 
 /* Short laptop windows are the height that runs out first, and this is the one
    dimension the figures can give back without losing a step. */
-@media (min-width: 900px) and (max-height: 620px) {
+@media (min-width: 900px) and (max-height: 560px) {
   .nc-ring-wrap {
-    --nc-ring: 268px;
+    --nc-ring: 288px;
   }
 }
 
@@ -209,7 +209,7 @@
    the only thing on this surface that says so. */
 .nc-pips {
   display: flex;
-  gap: 8px;
+  gap: 13px;
   margin-top: var(--space-1);
   min-height: 6px;
 }
@@ -221,8 +221,8 @@
 
 .nc-pip {
   display: block;
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: var(--radius-full);
   background: var(--accent-primary);
 }
@@ -277,7 +277,7 @@
 /* Gauge, drawn at the real order. Which string this is has a thickness before
    it has a name, which is how it is picked out on the instrument. */
 .nc-string svg {
-  width: 26px;
+  width: 30px;
   height: 8px;
   stroke: currentColor;
   stroke-linecap: round;
@@ -362,7 +362,7 @@
 
 .nc-fret-number {
   font-family: var(--font-primary);
-  font-size: 14px;
+  font-size: 15px;
   fill: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -385,11 +385,25 @@
   border-radius: var(--radius-sm);
   background: transparent;
   cursor: pointer;
+}
+
+/* The target is the full height of the figure so nothing between two frets is
+   dead, but what lights up is only the neck and the letter under it. A column
+   of light running the whole height would be taller than the thing it names. */
+.nc-fret-hit::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 16.7%;
+  height: 65%;
+  border-radius: var(--radius-sm);
+  background: transparent;
   transition: background var(--dur-base) ease;
 }
 
-.nc-fret-hit:hover {
-  background: rgb(255 255 255 / 0.05);
+.nc-fret-hit:hover::before {
+  background: rgb(255 255 255 / 0.06);
 }
 
 .nc-fret-hit:focus-visible {
@@ -404,5 +418,39 @@
 
   .nc-count-value {
     font-size: 2.9rem;
+  }
+
+  /* The neck is a third of the width it has on a laptop, so its lettering is
+     set larger in the drawing's own units to land at the same read size. */
+  .nc-fret-name {
+    font-size: 19px;
+  }
+
+  .nc-fret-name.is-sharp {
+    font-size: 15.5px;
+  }
+
+  .nc-fret-number {
+    font-size: 16.5px;
+  }
+}
+
+/* Given the height, the figures stack: the loop above, the same loop laid out
+   flat underneath it, read down. Beside each other is what a short laptop
+   window can hold, and 572px of screen is the height the owner actually works
+   on, so that is the arrangement the breakpoints default to rather than the
+   one they fall back to. */
+@media (min-width: 900px) and (min-height: 760px) {
+  .nc-stage {
+    flex-direction: column;
+    gap: var(--space-6);
+  }
+
+  .nc-neck-wrap {
+    align-items: center;
+  }
+
+  .nc-ring-wrap {
+    --nc-ring: 380px;
   }
 }
