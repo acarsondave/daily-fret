@@ -233,3 +233,46 @@ export function useTimingSignalMeter(route?: MicRouteState | null) {
 
   return { quality: route === 'closed' ? ('lost' as const) : quality, push, reset: clear };
 }
+
+/**
+ * Run `onLost` once, the moment the microphone goes away mid-drill.
+ *
+ * Every listening drill needs the same reaction and none of them had it: the
+ * meter learned to say `lost` and the clock carried on regardless, so a run
+ * would sit there counting down over an input that no longer existed and then
+ * file whatever partial count it had reached as a genuine result. That number
+ * measures the microphone, not the player, and it was going into the history
+ * where it reset a three-run readiness streak and dragged the next tempo
+ * prescription down with it.
+ *
+ * The decision this implements: the run ends and is filed as time played with no
+ * number, which is exactly what the microphone-denied path already does. The
+ * count is dropped rather than kept for the seconds it covered, because a track
+ * that has ended cannot tell us when it stopped being trustworthy: a mic dying
+ * at fifty-five seconds and a mic degrading for thirty look the same from here.
+ *
+ * Once, and only while the drill is actually running. A drill that has already
+ * ended must not be ended again, and the meter reads `lost` for as long as the
+ * route stays closed.
+ */
+export function useMicLoss(quality: SignalQuality, active: boolean, onLost: () => void): void {
+  const firedRef = useRef(false);
+  const handlerRef = useRef(onLost);
+
+  // Written in an effect, not in render. A drill passes a fresh closure every
+  // render and the effect below must call the newest one, but assigning a ref
+  // during render is a render side effect and the compiler rejects it.
+  useEffect(() => {
+    handlerRef.current = onLost;
+  }, [onLost]);
+
+  useEffect(() => {
+    if (!active) {
+      firedRef.current = false;
+      return;
+    }
+    if (quality !== 'lost' || firedRef.current) return;
+    firedRef.current = true;
+    handlerRef.current();
+  }, [quality, active]);
+}

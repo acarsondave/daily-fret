@@ -12,7 +12,7 @@ import { ringScale } from '../../lib/ringScale';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
 import { ChordDiagram } from './ChordDiagram';
-import { useSignalMeter } from './signalQuality';
+import { useMicLoss, useSignalMeter } from './signalQuality';
 import { useDrillLogs } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import { sfx } from '../../audio/sfx';
@@ -157,6 +157,29 @@ export function OneMinuteChanges({
     // Now that this chord is under the fingers, cue the other one as next to play.
     setNextCue(chord === from ? to : from);
   };
+
+  /**
+   * The microphone went away while the run was going.
+   *
+   * Ends it where it stands and files the seconds actually played, with no
+   * number. The count is dropped: see useMicLoss for why a partial one cannot be
+   * trusted. `reachedEnd` is false because the block did not reach its end, and
+   * saying otherwise would put a full block in the day's record on the strength
+   * of a run that stopped early.
+   */
+  const endOnMicLoss = () => {
+    clearTimer();
+    if (sharedMic) setHandlers({});
+    else void stop();
+    const played = Math.max(0, duration - timeLeft);
+    diag.mark(`one-minute ${from}->${to}: microphone lost after ${played}s, filed as time played`);
+    onTimerRef.current = true;
+    setOnTimer(true);
+    onTimedRun?.({ elapsedSeconds: played, reachedEnd: false, done: true });
+    setView('results');
+  };
+
+  useMicLoss(signal, view === 'playing' && !onTimer, endOnMicLoss);
 
   const finish = () => {
     clearTimer();

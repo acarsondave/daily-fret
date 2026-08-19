@@ -14,7 +14,7 @@ import { ProgressRing } from './ProgressRing';
 import { ringScale } from '../../lib/ringScale';
 import { SignalMeter } from './SignalMeter';
 import { ChordDiagram } from './ChordDiagram';
-import { useSignalMeter } from './signalQuality';
+import { useMicLoss, useSignalMeter } from './signalQuality';
 import { sfx } from '../../audio/sfx';
 import { diag } from '../../audio/diagnostics';
 import type { DrillConfig } from '../../types';
@@ -169,6 +169,21 @@ export function ChordRotation({
     setDir(moved.dir);
   };
 
+
+  /** See useMicLoss. The run stops where it is and keeps only the seconds. */
+  const endOnMicLoss = () => {
+    clearTimer();
+    if (sharedMic) setHandlers({});
+    else void stop();
+    const played = Math.max(0, duration - timeLeft);
+    diag.mark(`rotation: microphone lost after ${played}s, filed as time played`);
+    onTimerRef.current = true;
+    setOnTimer(true);
+    onTimedRun?.({ elapsedSeconds: played, reachedEnd: false, done: true });
+    setView('results');
+  };
+
+  useMicLoss(signal, view === 'playing' && !onTimer, endOnMicLoss);
 
   const finish = () => {
     clearTimer();

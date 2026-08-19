@@ -17,7 +17,7 @@ import { ringScale } from '../../lib/ringScale';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
 import { ChordDiagram } from './ChordDiagram';
-import { useSignalMeter } from './signalQuality';
+import { useMicLoss, useSignalMeter } from './signalQuality';
 import { sfx } from '../../audio/sfx';
 import { diag } from '../../audio/diagnostics';
 import { PlacementCounter } from '../../audio/placement';
@@ -133,6 +133,8 @@ export function ChordTrainer({
   // Running blind: the blocks still run their clocks, nothing is counted.
   const [onTimer, setOnTimer] = useState(false);
   const onTimerRef = useRef(false);
+  /** Wall clock at the block's start, so a run cut short can say how long it ran. */
+  const startedAtRef = useRef(0);
 
   const clearTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -170,6 +172,25 @@ export function ChordTrainer({
     sfx.tick();
     diag.mark(`chord-perfect placed ${target()} (${repsRef.current})`);
   };
+
+  /**
+   * See useMicLoss. Unlike the other drills this one's clock is per shape, so
+   * the seconds played are counted from the block's own start rather than from
+   * what is left of the current chord's turn.
+   */
+  const endOnMicLoss = () => {
+    clearTimer();
+    if (sharedMic) setHandlers({});
+    else void stop();
+    const played = Math.max(0, Math.round((Date.now() - startedAtRef.current) / 1000));
+    diag.mark(`chord perfect: microphone lost after ${played}s, filed as time played`);
+    onTimerRef.current = true;
+    setOnTimer(true);
+    onTimedRun?.({ elapsedSeconds: played, reachedEnd: false, done: true });
+    setView('results');
+  };
+
+  useMicLoss(signal, view === 'playing' && !onTimer, endOnMicLoss);
 
   const finish = () => {
     clearTimer();
@@ -229,6 +250,7 @@ export function ChordTrainer({
 
   const startSession = async (blind = false) => {
     sfx.go();
+    startedAtRef.current = Date.now();
     onTimerRef.current = blind;
     setOnTimer(blind);
     poolRef.current = pool;
