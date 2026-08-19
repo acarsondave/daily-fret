@@ -5,7 +5,14 @@
 // It also rounded a small decline to "0%" and drew it as a flat line. Both are
 // the app flattering the player, which is the one thing it must never do.
 
-import { pickFocus, recentTrend, recommendNext, trendLabel } from '../src/lib/drillStats.ts';
+import {
+  collectDrillStats,
+  keyDrillHistory,
+  pickFocus,
+  recentTrend,
+  recommendNext,
+  trendLabel,
+} from '../src/lib/drillStats.ts';
 
 let failures = 0;
 const check = (l, ok, d) => { if (!ok) failures++; console.log(`  ${ok?'ok  ':'FAIL'}  ${l}${d?': '+d:''}`); };
@@ -106,6 +113,48 @@ console.log('\nWhat to practise next\n');
   const untouched = recommendNext([pair('slow', [20, 20], 20), pair('rested', [90, 90])]);
   check('a pair left alone today is preferred over one already drilled',
     untouched.stat.key === 'rested');
+}
+
+console.log('\nOne pool, two block lengths\n');
+{
+  // The defect: Chord Perfect scores every placement in the block, so a ninety
+  // second block and a sixty second block over the same five shapes are not the
+  // same number. They landed in one series under one poolKey and the personal
+  // best took whichever block was longest. The pool stays in the key, because
+  // which shapes were drilled changes the exercise; the length does not, so it
+  // divides out and the two are read as one comparable rate.
+  const POOL = 'pool:A|C|D|E|G';
+  const day = (date, results) => [date, { date, routineId: 'r1', completedTaskIds: [], drillResults: results }];
+  const logs = Object.fromEntries([
+    day('2026-07-01', { [`${POOL}@60`]: 30 }),
+    day('2026-07-02', { [`${POOL}@90`]: 45 }),
+    day('2026-07-03', { [`${POOL}@90`]: 42 }),
+  ]);
+
+  const { tasks } = collectDrillStats(logs, '2026-07-03');
+  const pool = tasks.filter((t) => t.key.startsWith('pool:'));
+  check('the two lengths are one drill, not two', pool.length === 1,
+    tasks.map((t) => t.key).join(' | '));
+  check('and it is still named by the shapes it drilled', pool[0]?.label === 'A C D E G',
+    pool[0]?.label);
+  check('forty-five placements in ninety seconds does not out-rank thirty in sixty',
+    pool[0]?.best === 30, String(pool[0]?.best));
+  check('the shorter block that actually dipped reads as a dip',
+    pool[0]?.series.map((p) => p.value).join() === '30,30,28',
+    pool[0]?.series.map((p) => p.value).join());
+  check('and today is the run that happened today', pool[0]?.today === 28,
+    String(pool[0]?.today));
+
+  const history = keyDrillHistory(logs, POOL);
+  check('the drill\'s own history reads every length of its block',
+    history.series.join() === '30,30,28', history.series.join());
+  check('with a best that is not the longest block', history.best === 30,
+    String(history.best));
+
+  // Nothing already on disk carries a window, and nothing about it may move.
+  const legacy = Object.fromEntries([day('2026-07-01', { [POOL]: 45 })]);
+  check('a stored score with no window is left exactly as it was recorded',
+    keyDrillHistory(legacy, POOL).best === 45, String(keyDrillHistory(legacy, POOL).best));
 }
 
 console.log('\nNo em dashes in anything the panel says\n');

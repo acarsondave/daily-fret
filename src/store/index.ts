@@ -75,6 +75,35 @@ export interface CoachProgress {
   startedAt?: number;
 }
 
+/**
+ * Which of two saved sessions is the one still being played, local or cloud.
+ *
+ * The merge used to take the cloud's answer outright: `data.coachProgress ??
+ * null`. Every other field in the snapshot falls back to the local copy, and
+ * this one alone threw it away, so a session paused mid-routine on this device
+ * was deleted by the next write from any other device — which carries no
+ * session of its own precisely because the session is here. Nothing else holds
+ * the segment index or the results so far, so there is no recovering it.
+ *
+ * A session is replaced only by a session, and the later one wins: `startedAt`
+ * when both builds wrote one, the date they are filed under otherwise. What
+ * this deliberately does not do is treat the absence of a remote session as a
+ * finish. A session completed on the laptop therefore lingers on the phone
+ * until it is finished or abandoned there, which costs one dismissal; the
+ * alternative cost a live session.
+ */
+function laterSession(
+  local: CoachProgress | null | undefined,
+  remote: CoachProgress | null | undefined,
+): CoachProgress | null {
+  if (!remote) return local ?? null;
+  if (!local) return remote;
+  if (local.startedAt !== undefined && remote.startedAt !== undefined) {
+    return remote.startedAt > local.startedAt ? remote : local;
+  }
+  return remote.date > local.date ? remote : local;
+}
+
 export interface UserData {
   routines: Routine[];
   dailyLogs: Record<string, DailyLog>;
@@ -302,7 +331,7 @@ export const useStore = create<AppState>()(
               local?.activeRoutineId ??
               defaultUserData.activeRoutineId,
             lastPair: data.lastPair ?? local?.lastPair,
-            coachProgress: data.coachProgress ?? null,
+            coachProgress: laterSession(local?.coachProgress, data.coachProgress),
             strumPatterns: data.strumPatterns ?? local?.strumPatterns ?? [],
             songLinks: data.songLinks ?? local?.songLinks ?? {},
             userSongs: data.userSongs ?? local?.userSongs ?? [],

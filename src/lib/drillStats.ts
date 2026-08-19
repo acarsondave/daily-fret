@@ -3,7 +3,8 @@
 // against a real exported history without booting the app.
 import { parsePairKey } from './pairs';
 import { DRILL_UNIT } from './drills';
-import { describeDrillKey } from './drillKeys';
+import { describeDrillKey, ratePerMinute } from './drillKeys';
+import { baseKey } from './drillWindow';
 import type { DailyLog } from '../types';
 
 export interface DrillHistory {
@@ -11,17 +12,44 @@ export interface DrillHistory {
   series: number[]; // chronological, one point per day
 }
 
-// One drill key's history, oldest first. The key names what was played (a pair,
-// a shape, a Chord Perfect pool, an anchor ring); see lib/drillKeys.ts.
+/**
+ * One drill's history, oldest first, in the unit the drill is compared in.
+ *
+ * The key names what was played (a pair, a shape, a Chord Perfect pool, an
+ * anchor ring); see lib/drillKeys.ts. A run that recorded the window it was
+ * counted over is filed under a key carrying that window, and it belongs to this
+ * history: a ninety-second Chord Perfect block and a sixty-second one over the
+ * same shapes are the same drill, so they are read as one series of rates rather
+ * than as two series, or as one series whose best is simply whichever block ran
+ * longest. That last one is what this used to do.
+ */
 export function keyDrillHistory(
   dailyLogs: Record<string, DailyLog>,
   key: string,
 ): DrillHistory {
   const points = Object.values(dailyLogs ?? {})
-    .filter((l) => typeof l.drillResults?.[key] === 'number')
     .sort((a, b) => a.date.localeCompare(b.date))
-    .map((l) => l.drillResults![key]);
+    .flatMap((l) => ratesFor(l, key));
   return { best: points.reduce((m, v) => Math.max(m, v), 0), series: points };
+}
+
+/**
+ * Every rate a day holds for one drill, however many windows it was played at.
+ *
+ * A day can hold more than one when the same drill was run at two lengths, which
+ * is two keys and therefore two of that day's bests. Both are kept: they are two
+ * runs, and dropping either would be the app deciding which of the player's
+ * sessions counted.
+ */
+function ratesFor(log: DailyLog, key: string): number[] {
+  const results = log.drillResults;
+  if (!results) return [];
+  const out: number[] = [];
+  for (const [stored, value] of Object.entries(results)) {
+    if (typeof value !== 'number' || baseKey(stored) !== key) continue;
+    out.push(ratePerMinute(stored, value));
+  }
+  return out;
 }
 
 export interface SeriesPoint {
@@ -56,6 +84,10 @@ function sortByDate(a: SeriesPoint, b: SeriesPoint) {
 }
 
 // Chord-change history by *pair* (e.g. A↔D) across every routine and day.
+//
+// Grouped by the drill rather than by the stored key, and held as rates rather
+// than as raw counts, so a pair drilled for thirty seconds one day and sixty the
+// next is one history of one thing. See lib/drillWindow.ts.
 export function pairStats(dailyLogs: Record<string, DailyLog>, today: string): PairStat[] {
   const byPair = new Map<string, PairStat>();
 
@@ -65,10 +97,11 @@ export function pairStats(dailyLogs: Record<string, DailyLog>, today: string): P
     for (const [key, value] of Object.entries(results)) {
       const pair = parsePairKey(key);
       if (!pair || typeof value !== 'number') continue;
-      let stat = byPair.get(key);
+      const drill = baseKey(key);
+      let stat = byPair.get(drill);
       if (!stat) {
         stat = {
-          key,
+          key: drill,
           kind: 'pair',
           label: `${pair.from} ↔ ${pair.to}`,
           unit: DRILL_UNIT['one-minute-changes'],
@@ -78,11 +111,12 @@ export function pairStats(dailyLogs: Record<string, DailyLog>, today: string): P
           today: null,
           series: [],
         };
-        byPair.set(key, stat);
+        byPair.set(drill, stat);
       }
-      stat.series.push({ date: log.date, value });
-      stat.best = Math.max(stat.best, value);
-      if (log.date === today) stat.today = value;
+      const rate = ratePerMinute(key, value);
+      stat.series.push({ date: log.date, value: rate });
+      stat.best = Math.max(stat.best, rate);
+      if (log.date === today) stat.today = rate;
     }
   }
 
@@ -110,11 +144,12 @@ export function taskStats(dailyLogs: Record<string, DailyLog>, today: string): D
     if (!results) continue;
     for (const [key, value] of Object.entries(results)) {
       if (typeof value !== 'number' || parsePairKey(key)) continue;
-      let stat = byKey.get(key);
+      const drill = baseKey(key);
+      let stat = byKey.get(drill);
       if (!stat) {
-        const described = describeDrillKey(key);
+        const described = describeDrillKey(drill);
         stat = {
-          key,
+          key: drill,
           kind: 'task',
           label: described.label,
           unit: described.unit,
@@ -122,11 +157,12 @@ export function taskStats(dailyLogs: Record<string, DailyLog>, today: string): D
           today: null,
           series: [],
         };
-        byKey.set(key, stat);
+        byKey.set(drill, stat);
       }
-      stat.series.push({ date: log.date, value });
-      stat.best = Math.max(stat.best, value);
-      if (log.date === today) stat.today = value;
+      const rate = ratePerMinute(key, value);
+      stat.series.push({ date: log.date, value: rate });
+      stat.best = Math.max(stat.best, rate);
+      if (log.date === today) stat.today = rate;
     }
   }
 

@@ -1,5 +1,6 @@
 import type { DailyLog } from '../types';
 import { MIN_BPM, MAX_BPM } from '../audio/metronome';
+import { baseKey, keyWindow, perMinute } from './drillWindow';
 
 // Tempo coaching. Turns a drill's own history into the tempo the click should
 // run at *today*, the way a teacher would: sit on what you have actually played,
@@ -10,6 +11,10 @@ import { MIN_BPM, MAX_BPM } from '../audio/metronome';
 //
 //   - Every branch but one prescribes at or below the best run in the window it
 //     reads. It never invents a pace out of an ambition.
+//   - Below 2.5 changes a minute the metronome itself cannot go slow enough, so
+//     the click runs faster than the target and the reason says so in as many
+//     words. That is the whole of the exception: it used to bite at five a
+//     minute, silently, with the sentence still printing the target.
 //   - The climbing branch is the exception and asks for up to five per cent more
 //     than the run just made, and only after a session that improved on the ones
 //     before it. A teacher nudges; refusing to ever ask for more than has already
@@ -33,7 +38,9 @@ export interface TempoPlan {
   // accent always lands exactly where the player is meant to change.
   beatsPerChange: number;
   // The pace this tempo is asking for, or null for a plain timed block where
-  // there is no change rate to hit.
+  // there is no change rate to hit. Always `bpm / beatsPerChange`, so the number
+  // shown and the number clicked cannot drift apart; fractional only at the
+  // bottom of the band, where the click cannot express a whole slower one.
   targetChangesPerMin: number | null;
   trend: TempoTrend;
   // One short line explaining the number, shown under the BPM. A prescribed
@@ -52,7 +59,17 @@ const CLICK_MIN = 60;
 const CLICK_MAX = 132;
 // Longest hold first: given a choice, more beats per change means more time to
 // place the shape cleanly, which is what a beginner actually needs.
-const BEAT_OPTIONS = [8, 4, 2];
+//
+// Sixteen is the exception and sits last, so it is only ever taken when nothing
+// shorter reaches the band at all. It exists because the band and the click's
+// own floor between them used to make five changes a minute the slowest thing
+// the app could say: forty BPM held for eight beats. Every target under five was
+// then prescribed as five, which a first run of three or four changes on a hard
+// shape reaches immediately, and which is the one thing this file promises never
+// to do. Last rather than first because at an equal fit a four-bar hold buys the
+// player no more time to place the shape — the seconds per change are the same
+// either way — and costs twice the ticking.
+const BEAT_OPTIONS = [8, 4, 2, 16];
 
 // How recent history maps onto today's target.
 // Climbing, so ask for a little more. This is the one factor that can put the
@@ -103,11 +120,24 @@ function daysBetween(from: string, to: string): number {
   return Math.round((b - a) / 86_400_000);
 }
 
+interface Click {
+  bpm: number;
+  beatsPerChange: number;
+  /**
+   * The rate this click actually works out to, which is not always the rate it
+   * was handed. Below about two and a half changes a minute even a four-bar hold
+   * needs a click under the metronome's floor, and the clamp then delivers
+   * something faster than was asked for. Carrying it out of here is what lets
+   * the plan report the pace the player will hear rather than the one it wanted.
+   */
+  changesPerMin: number;
+}
+
 // Pick the hold length that puts the click inside the useful band. A slow
 // player holds a chord for two bars at a walking click rather than following an
 // unusably slow one; a fast player changes every two beats rather than chasing
 // a 240 BPM click.
-function fitClick(changesPerMin: number): { bpm: number; beatsPerChange: number } {
+function fitClick(changesPerMin: number): Click {
   let bestBpm = changesPerMin * 4;
   let bestBeats = 4;
   let bestDistance = Infinity;
@@ -120,13 +150,21 @@ function fitClick(changesPerMin: number): { bpm: number; beatsPerChange: number 
       bestBeats = beats;
     }
   }
-  return { bpm: quantize(clampBpm(bestBpm)), beatsPerChange: bestBeats };
+  const bpm = quantize(clampBpm(bestBpm));
+  return { bpm, beatsPerChange: bestBeats, changesPerMin: bpm / bestBeats };
 }
 
 function holdLabel(beatsPerChange: number): string {
+  if (beatsPerChange >= 16) return 'one chord every four bars';
   if (beatsPerChange >= 8) return 'one chord every two bars';
   if (beatsPerChange <= 2) return 'change every two beats';
   return 'one chord per bar';
+}
+
+// A pace as a player would say it. Whole numbers stay whole; the floor is 2.5
+// and printing it as 3 would be the readout disagreeing with the click.
+function paceLabel(changesPerMin: number): string {
+  return Number.isInteger(changesPerMin) ? String(changesPerMin) : changesPerMin.toFixed(1);
 }
 
 export interface HistoryPoint {
@@ -134,19 +172,37 @@ export interface HistoryPoint {
   value: number;
 }
 
-// A drill's results in date order. `durationSec` normalises a raw count into a
-// per-minute rate; results are not stored with the duration they were set at,
-// so the drill's current length is the best available assumption.
+/**
+ * A drill's results in date order, as per-minute rates.
+ *
+ * `durationSec` is an assumption, not an instruction: it applies only to runs
+ * whose key does not say what window they were counted over, which is every run
+ * recorded before lib/drillWindow.ts existed. A run that does say is read by its
+ * own window, because the drill's current length is not evidence about a session
+ * played at a different one.
+ *
+ * Runs recorded at several lengths are one history, under the key that names the
+ * drill. Two of them can share a date, which is a day the drill was genuinely
+ * played twice at two lengths.
+ */
 export function drillSeries(
   dailyLogs: Record<string, DailyLog>,
   key: string,
   durationSec: number,
 ): HistoryPoint[] {
-  const scale = durationSec > 0 ? 60 / durationSec : 1;
-  return Object.values(dailyLogs ?? {})
-    .filter((log) => typeof log.drillResults?.[key] === 'number' && log.drillResults[key] > 0)
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map((log) => ({ date: log.date, value: log.drillResults![key] * scale }));
+  if (!Number.isFinite(durationSec) || durationSec <= 0) {
+    throw new Error(`A drill cannot have been measured over ${durationSec} seconds.`);
+  }
+  const points: HistoryPoint[] = [];
+  for (const log of Object.values(dailyLogs ?? {})) {
+    for (const [stored, value] of Object.entries(log.drillResults ?? {})) {
+      if (typeof value !== 'number' || value <= 0) continue;
+      if (baseKey(stored) !== key) continue;
+      const window = keyWindow(stored) ?? durationSec;
+      points.push({ date: log.date, value: perMinute(value, window) });
+    }
+  }
+  return points.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 // The whole coach, in one pure function: recent results in, today's tempo out.
@@ -200,21 +256,35 @@ export function planTempo(series: HistoryPoint[], today: string): TempoPlan {
   }
 
   const target = Math.max(1, Math.round(baseline * factor));
-  const { bpm, beatsPerChange } = fitClick(target);
+  const { bpm, beatsPerChange, changesPerMin } = fitClick(target);
   const hold = holdLabel(beatsPerChange);
+  // What the click will keep, not what the branch above wanted, because the
+  // click is the instruction. They differ only at the very bottom, where the
+  // metronome's own floor cannot go slow enough.
+  const pace = paceLabel(changesPerMin);
+  const floored = changesPerMin > target;
 
   const reason =
     trend === 'rust'
-      ? `${gap} days since your last go. Starting easy at ${target}/min, ${hold}.`
+      ? `${gap} days since your last go. Starting easy at ${pace}/min, ${hold}.`
       : trend === 'first'
-        ? `Just under your first run, ${target}/min, ${hold}. Clean before fast.`
+        ? `Just under your first run, ${pace}/min, ${hold}. Clean before fast.`
         : trend === 'regress'
-          ? `Last session dipped. Easing to ${target}/min, ${hold}, to rebuild it clean.`
+          ? `Last session dipped. Easing to ${pace}/min, ${hold}, to rebuild it clean.`
           : trend === 'progress'
-            ? `You're climbing. This asks for ${target}/min, ${hold}.`
-            : `Holding your recent pace, ${target}/min, ${hold}.`;
+            ? `You're climbing. This asks for ${pace}/min, ${hold}.`
+            : `Holding your recent pace, ${pace}/min, ${hold}.`;
 
-  return { bpm, beatsPerChange, targetChangesPerMin: target, trend, reason };
+  return {
+    bpm,
+    beatsPerChange,
+    targetChangesPerMin: changesPerMin,
+    trend,
+    // Said out loud rather than hidden, because this is the one case where the
+    // click asks for more than the player has shown and the rule that forbids
+    // that cannot be satisfied: the metronome will not run slower.
+    reason: floored ? `${reason} The click will not go slower than ${pace}/min.` : reason,
+  };
 }
 
 // A plain timed block: no change rate to derive from, so either the tempo the

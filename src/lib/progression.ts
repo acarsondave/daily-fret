@@ -26,7 +26,8 @@
 import type { DailyLog } from '../types';
 import { ALL_SKILLS, getSkill, type Skill } from '../data/skills';
 import { PAIR_PREFIX, parsePairKey } from './pairs';
-import { RING_PREFIX, SWEEP_PREFIX } from './drillKeys';
+import { RING_PREFIX, SWEEP_PREFIX, ratePerMinute } from './drillKeys';
+import { baseKey } from './drillWindow';
 import {
   CHANGES_BAR,
   CHORD_BAR,
@@ -100,7 +101,14 @@ export interface SkillStanding {
 export { CHANGES_BAR, CHORD_BAR, ROTATION_BAR };
 
 export interface Evidence {
-  /** Every run recorded under each pair key, oldest first. */
+  /**
+   * Every run recorded under each pair key, oldest first, as a per-minute rate.
+   *
+   * Rates rather than the counts they are stored as, because the bars they are
+   * measured against are per minute and a block is not always a minute long. See
+   * lib/drillWindow.ts. Runs measured over different windows sit in one series
+   * under the key that names the drill, not one series per length.
+   */
   pairs: Map<string, DrillRun[]>;
   /**
    * The same, under every other drill key: a shape, a Chord Perfect pool, an
@@ -136,9 +144,16 @@ export function readEvidence(dailyLogs: Record<string, DailyLog>): Evidence {
       // made, and counting either as one would let a blocked mic break a streak.
       if (!Number.isFinite(value) || value <= 0) continue;
       const target = key.startsWith(PAIR_PREFIX) ? pairs : tasks;
-      const runs = target.get(key);
-      if (runs) runs.push({ date: log.date, value });
-      else target.set(key, [{ date: log.date, value }]);
+      // Bars are per minute, so the runs handed to them are rates, not raw
+      // counts. And the window a run was measured over is a property of that
+      // run, not of the drill, so every window of one drill folds back onto the
+      // key that names the drill: the three-run rule is about the last three
+      // times this was played, whatever length each of them ran for.
+      const drill = baseKey(key);
+      const rate = ratePerMinute(key, value);
+      const runs = target.get(drill);
+      if (runs) runs.push({ date: log.date, value: rate });
+      else target.set(drill, [{ date: log.date, value: rate }]);
     }
   }
   return { pairs, tasks, days };
