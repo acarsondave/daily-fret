@@ -1,0 +1,95 @@
+/* The session, as a neck.
+
+   Bone rather than accent for the material, because the wire and its inlays are
+   the instrument the session is laid out on and not a state; only the segment
+   actually under way spends the accent, which is the app's live-state voice.
+   The wire carries the same left-to-right falloff as the raked strings behind
+   the whole app, so the rail is lit by the same lamp as everything else. */
+
+.segment-rail {
+  position: relative;
+  flex: 0 1 auto;
+  width: clamp(96px, 26vw, 240px);
+  height: 12px;
+  margin-inline: var(--space-2);
+}
+
+.segment-rail-wire,
+.segment-rail-run {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  margin-top: -0.5px;
+  border-radius: 1px;
+}
+
+.segment-rail-wire {
+  /* The same falloff as the raked strings, but never all the way to nothing:
+     this wire is short and its first inlay sits on the left end, so a stop at
+     zero alpha left the first drill of a session floating off the rail. */
+  background: linear-gradient(
+    90deg,
+    rgb(236 222 205 / 0.08) 0%,
+    rgb(236 222 205 / 0.13) 40%,
+    rgb(236 222 205 / 0.2) 100%
+  );
+}
+
+/* How far the session has run, as a length. Scaled from the left rather than
+   animated on `width`, so the one thing that moves on this surface is a
+   composited transform and never a layout. */
+.segment-rail-run {
+  background: linear-gradient(
+    90deg,
+    rgb(56 189 248 / 0.32) 0%,
+    rgb(56 189 248 / 0.7) 100%
+  );
+  transform-origin: left center;
+  transition: transform var(--dur-slow) var(--ease-out);
+}
+
+.segment-rail-inlay {
+  position: absolute;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: var(--radius-full);
+  background: rgb(236 222 205 / 0.14);
+  transition: background var(--dur-base) ease, box-shadow var(--dur-base) ease,
+    transform var(--dur-base) var(--ease-out);
+}
+
+/* Behind the player. Bone, solid: a fret already passed. */
+.segment-rail-inlay.is-played {
+  background: rgb(236 222 205 / 0.4);
+}
+
+/* The one under way. The only accent on the rail, and the only thing on it that
+   is bigger than a hairline, so a glance finds the place without reading. */
+.segment-rail-inlay.is-now {
+  background: var(--accent-primary);
+  transform: scale(2);
+  box-shadow: 0 0 0 3px rgb(56 189 248 / 0.14);
+}
+
+.segment-rail.is-complete .segment-rail-inlay {
+  background: rgb(236 222 205 / 0.4);
+}
+
+/* On the summary the rail is the record of the session rather than a position
+   in it, so it stands on its own line at the size a picture gets. */
+.segment-rail.is-summary {
+  flex: 0 0 auto;
+  width: min(280px, 70vw);
+  margin-inline: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segment-rail-run,
+  .segment-rail-inlay {
+    transition: none;
+  }
+}

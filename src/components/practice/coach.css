@@ -1,5 +1,6 @@
 /* Coached session: the announce / count-in / rest / summary furniture that sits
    between drills, plus the plain timed block. */
+@import './segmentRail.css';
 
 .coach-intro {
   display: flex;
@@ -12,13 +13,6 @@
 .coach-intro .om-actions {
   margin-top: var(--space-2);
 }
-.coach-up-next {
-  font-family: var(--font-secondary);
-  font-size: var(--text-micro);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--accent-primary);
-}
 .coach-intro-title {
   font-family: var(--font-primary);
   font-weight: 700;
@@ -27,25 +21,107 @@
   color: var(--text-primary);
   text-wrap: balance;
 }
-.coach-countdown {
-  margin-top: var(--space-4);
+/* The rest, on a ring. What is left of the break is a length, so the player can
+   take it in without reading a number they then have to divide by thirty. */
+.coach-rest-ring {
+  color: var(--accent-primary);
+  margin-block: var(--space-2);
+}
+.coach-rest-count {
   font-family: var(--font-primary);
   font-weight: 700;
-  font-size: clamp(4rem, 16vw, 7rem);
+  font-size: 3.2rem;
   line-height: 1;
-  color: var(--accent-primary);
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
-/* Shown while the coach is announcing the drill (in place of a number). */
-.coach-countdown-ready {
-  margin-top: var(--space-4);
+/* The drill about to run, on the rest screen, where the title is a label for
+   the shapes under it rather than the thing being announced. */
+.coach-intro-title.is-next {
+  font-size: clamp(1.3rem, 4vw, 1.75rem);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* --- What is coming, drawn ------------------------------------------------ */
+
+.coach-cue {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-block: var(--space-2);
+}
+.coach-cue-shape {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.coach-cue-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+.coach-cue-name {
   font-family: var(--font-primary);
   font-weight: 700;
-  font-size: clamp(1.6rem, 6vw, 2.4rem);
-  line-height: 1.1;
-  color: var(--accent-primary);
-  opacity: 0.85;
+  font-size: var(--text-md);
+  line-height: 1;
+  color: var(--text-primary);
+}
+.coach-cue-sep {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+/* On the rest and resume screens the shapes are a look-ahead rather than the
+   subject, so they sit back a step without being dimmed out of legibility. */
+.coach-cue.is-quiet .coach-cue-name {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+.coach-cue.is-quiet .cd-dot { fill: var(--text-secondary); }
+.coach-cue.is-quiet .cd-barre { stroke: var(--text-secondary); }
+
+/* --- The moment before it starts ------------------------------------------ */
+
+/* Three beats, because a count-in is three beats. While the coach is still
+   talking a light travels across them, which says "about to start" without
+   claiming a length nobody knows yet; when the silent fallback counts, the same
+   three beats fill one at a time and the travel stops. */
+.count-in {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  height: 22px;
+  margin-top: var(--space-5);
+}
+.count-in-beat {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+  background: rgb(56 189 248 / 0.16);
+  animation: count-in-travel 1.35s ease-in-out infinite;
+  animation-delay: calc(var(--beat) * 0.18s);
+}
+.count-in.is-counting .count-in-beat {
+  animation: none;
+  background: rgb(56 189 248 / 0.16);
+}
+.count-in.is-counting .count-in-beat.is-lit {
+  background: var(--accent-primary);
+  transform: scale(1.3);
+  box-shadow: 0 0 0 5px rgb(56 189 248 / 0.12);
+}
+.count-in-beat {
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) ease;
+}
+@keyframes count-in-travel {
+  0%, 62%, 100% { background: rgb(56 189 248 / 0.16); transform: scale(1); }
+  22% { background: var(--accent-primary); transform: scale(1.25); }
 }
 
 /* A rest is automatic, but 30 seconds between every segment is minutes of a
@@ -137,20 +213,12 @@
   gap: var(--space-2);
   flex: 0 0 auto;
 }
-.coach-summary-trophy {
-  color: var(--warning-color);
-}
 .coach-summary-title {
   font-family: var(--font-primary);
   font-weight: 700;
   font-size: var(--text-xl);
   color: var(--text-primary);
   line-height: 1.1;
-}
-.coach-summary-sub {
-  font-family: var(--font-secondary);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
 }
 .coach-summary-list {
   display: flex;
