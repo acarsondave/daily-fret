@@ -314,6 +314,51 @@ let foundPositions = [];
   await browser.close();
 }
 
+// --- The coached run ------------------------------------------------------
+//
+// The path that matters most, because it is the one the owner will actually
+// take: the drill has to be announced, counted in, run and recorded without a
+// decision being made about it.
+
+{
+  console.log('\ncoached mode runs it without being asked\n');
+  const seed = account({
+    // The header's Coached control only appears once something has ever been
+    // measured, so the seed carries one old result.
+    dailyLogs: {
+      '2026-08-01': {
+        date: '2026-08-01', routineId: 'r1', completedTaskIds: [],
+        drillResults: { 'pair:A|D': 24 },
+      },
+    },
+  });
+  seed.routines[0].tasks[0].drill = { kind: 'note-finder', durationSec: 16 };
+  const { browser, page, errors } = await open({ wav: 'every-answer.wav', seed, openDrill: false });
+  await page.getByRole('button', { name: /coached/i }).first().click();
+  await page.waitForSelector('.practice-overlay', { timeout: 20000 });
+
+  // Announced, counted in, then the drill itself. No Start button anywhere:
+  // that is the whole point of the coached path.
+  await page.waitForSelector('.nf-stage', { timeout: 40000 });
+  check('the drill runs itself', (await page.locator('.nf-letter-name').count()) === 1);
+  check('and no click was started under a question',
+    (await page.locator('.metronome-chip.is-on, .metronome-chip.is-playing').count()) === 0);
+
+  await page.waitForSelector('.nf-results, .mic-gate', { timeout: 40000 });
+  check('it ends on a card of its own', (await page.locator('.nf-results').count()) === 1);
+  check('which hands on without a tap', (await page.locator('.coach-advance').count()) === 1);
+
+  await page.waitForTimeout(7000);
+  const acc = await storedAccount(page);
+  const today = Object.keys(acc.dailyLogs).sort().pop();
+  const keys = Object.keys(acc.dailyLogs[today].drillResults ?? {});
+  check('and the day holds what it found', keys.some((k) => k.startsWith('find:')), keys.join(' '));
+  check('the neck filled in from the coached run too',
+    Object.keys(acc.noteMap ?? {}).length >= 1, JSON.stringify(acc.noteMap));
+  check('no console errors', errors.length === 0, errors.join(' | '));
+  await browser.close();
+}
+
 // --- The record on the note circle ----------------------------------------
 
 const WORN = {
