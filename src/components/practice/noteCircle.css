@@ -92,15 +92,27 @@
    and this changes about once a session. Nothing is drawn where nothing has been
    asked, so an undrilled neck leaves the band empty and the figure is exactly
    what it was before there was anything true to put here. */
+/* Stronger than the same fact drawn on the board, and deliberately so. The wear
+   tokens are mixed for wood, which is already a lighter ground than the room; at
+   the board's own alpha these ticks sat on the dialog's dark and could not be
+   told from the unlit ones beside them. Same meaning, same read, different
+   ground. */
 .nc-wear {
   fill: none;
-  stroke: var(--fret-found);
+  stroke: rgb(255 214 170 / 0.32);
   stroke-width: 4;
   stroke-linecap: round;
 }
 
+/* A place that note lives that has never been asked about. Drawn, once anything
+   has been, because "four of six" needs the other two to be a reading at all;
+   quiet enough that it is a rail and not a claim. */
+.nc-wear.is-unasked {
+  stroke: rgb(236 222 205 / 0.09);
+}
+
 .nc-wear.is-quick {
-  stroke: var(--fret-quick);
+  stroke: rgb(255 214 170 / 0.72);
 }
 
 /* The same record on the board, where a fret is a place the hand goes rather

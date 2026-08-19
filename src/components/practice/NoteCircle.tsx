@@ -27,10 +27,14 @@
 // note finder measures it now, by calling a note and hearing it played
 // (src/lib/noteFinder.ts), so there is something true to draw.
 //
-// What is drawn is wear, not a verdict. The frets this string has been asked
-// about and answered at are lit on the board, and the inner band on the ring is
-// the same fact folded by note: one tick per place that note lives on the neck,
-// each tick standing for itself. There is still no score, no percentage and no
+// What is drawn is wear, not a verdict. The inner band on the ring is the whole
+// neck folded by note: one tick per place that note lives below the twelfth
+// fret, each tick standing for itself, so a glance says how much of C is
+// actually under the hand rather than giving C a mark out of ten. The board
+// carries the same fact where a fret is a place rather than a note, for the
+// twelve-fret window it happens to be showing — this string is an interval
+// ruler and not a map, and the ruler is honest about what it has room for. The
+// map of the whole instrument belongs to the drill that filled it in. There is still no score, no percentage and no
 // grade, and a position nothing has ever been asked about is drawn as nothing at
 // all, because an unasked fret is not a failure. On a neck nobody has drilled
 // this whole layer is invisible and the surface is exactly what it was: a thing
@@ -390,21 +394,22 @@ export function NoteCircle() {
             <circle className="nc-ring-track" cx={RING_MID} cy={RING_MID} r={RING_R} />
 
             {/* Months of practice, folded by note: one tick per place that note
-                lives on the neck. Nothing is drawn where nothing has been asked,
-                so a neck nobody has drilled leaves this band empty and the
+                lives on the neck. The whole band appears together or not at all,
+                because a lit tick means nothing without the unlit ones beside it
+                — four of six is the reading, and four floating specks is not. So
+                until something has been measured there is nothing here, and the
                 figure is exactly what it was before there was anything true to
-                put here. */}
-            {record.map((ticks, slot) =>
-              ticks.map((standing, i) =>
-                standing === 'unasked' ? null : (
+                put on it. */}
+            {anythingRecorded &&
+              record.map((ticks, slot) =>
+                ticks.map((standing, i) => (
                   <path
                     key={`wear-${slot}-${i}`}
                     className={clsx('nc-wear', `is-${standing}`)}
                     d={wearPath(slot, i, ticks.length)}
                   />
-                ),
-              ),
-            )}
+                )),
+              )}
 
             {Array.from({ length: steps }, (_, i) => (
               <motion.path

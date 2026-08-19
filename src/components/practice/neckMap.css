@@ -103,3 +103,26 @@
 .neck-map.is-single .nm-mark rect {
   stroke-width: 2.2;
 }
+
+/* A phone gives this figure a third of the width a laptop does, so its lettering
+   is set larger in the drawing's own units to land at the same read size. The
+   same trick the note circle's string uses, and for the same reason. */
+@media (max-width: 899px) {
+  .nm-number,
+  .nm-open {
+    font-size: 15px;
+  }
+
+  .nm-mark-name {
+    font-size: 13px;
+  }
+
+  .neck-map.is-single .nm-number,
+  .neck-map.is-single .nm-open {
+    font-size: 21px;
+  }
+
+  .neck-map.is-single .nm-mark-name {
+    font-size: 26px;
+  }
+}

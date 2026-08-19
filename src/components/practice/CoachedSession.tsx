@@ -762,7 +762,7 @@ export function CoachedSession({ routine, onClose }: Props) {
             // Only while the drill is actually running: a click under the coach's
             // announcement or through a rest is noise, and over a recording it
             // fights the track.
-            autoPlay={phase === 'segment' && seg.kind !== 'song'}
+            autoPlay={phase === 'segment' && seg.kind !== 'song' && seg.kind !== 'finder'}
           />
           {/* The muted state changes the mark, not just its opacity: a dimmed
               icon is indistinguishable from a disabled one at practice distance. */}

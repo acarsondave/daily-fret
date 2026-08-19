@@ -626,14 +626,21 @@ function askedInWords(prompt: FinderPrompt, ask: Ask): string {
 }
 
 /**
- * The ladder, drawn as rungs.
+ * The ladder, drawn as a ladder.
  *
- * Eight strokes stacked, the cleared ones filled, the one being run lit, the
- * ones above still dark. It says three things without a sentence: where the
- * player is, that there is a great deal above them, and that a rung can go dark
- * again — which is the whole of what makes a standing a standing rather than a
- * score. Three clean runs clear a rung and one poor run takes it back.
+ * Rails and rungs, because eight stacked strokes on their own read as a
+ * paragraph of lines and the one thing this has to say at a glance is that it is
+ * climbed. Cleared rungs are solid, the one being run is lit and reaches past
+ * both rails, the ones above are still dark. Which says three things without a
+ * sentence: where the player is, that there is a great deal above them, and that
+ * a rung can go dark again — the whole of what makes a standing a standing
+ * rather than a score. Three clean runs clear a rung; one poor run takes it back.
  */
+const LADDER_W = 74;
+const LADDER_RAIL = 15;
+const LADDER_STEP = 13;
+const LADDER_TOP = 7;
+
 function RungLadder({
   history,
   current,
@@ -646,20 +653,45 @@ function RungLadder({
     standing: rungStanding(history[rung.id] ?? [], rung),
   }));
   const at = rungNumber(current.id);
+  const height = LADDER_TOP * 2 + (RUNGS.length - 1) * LADDER_STEP;
 
   return (
     <div className="nf-ladder">
-      <p className="sr-only">
-        {`Rung ${at} of ${RUNGS.length}: ${current.label}.`}
-      </p>
-      <span className="nf-rungs" aria-hidden="true">
-        {[...rows].reverse().map(({ rung, standing }) => (
-          <span
-            key={rung.id}
-            className={clsx('nf-rung', `is-${standing}`, rung.id === current.id && 'is-here')}
-          />
-        ))}
-      </span>
+      <p className="sr-only">{`Rung ${at} of ${RUNGS.length}: ${current.label}.`}</p>
+      <svg
+        className="nf-rungs"
+        viewBox={`0 0 ${LADDER_W} ${height}`}
+        width={LADDER_W}
+        height={height}
+        aria-hidden="true"
+        focusable="false"
+      >
+        <line className="nf-rail" x1={LADDER_RAIL} y1={2} x2={LADDER_RAIL} y2={height - 2} />
+        <line
+          className="nf-rail"
+          x1={LADDER_W - LADDER_RAIL}
+          y1={2}
+          x2={LADDER_W - LADDER_RAIL}
+          y2={height - 2}
+        />
+        {/* Drawn top down and read bottom up: the first rung of the ladder is
+            the lowest one on it. */}
+        {[...rows].reverse().map(({ rung, standing }, i) => {
+          const here = rung.id === current.id;
+          const y = LADDER_TOP + i * LADDER_STEP;
+          const inset = here ? LADDER_RAIL - 7 : LADDER_RAIL;
+          return (
+            <line
+              key={rung.id}
+              className={clsx('nf-rung', `is-${standing}`, here && 'is-here')}
+              x1={inset}
+              y1={y}
+              x2={LADDER_W - inset}
+              y2={y}
+            />
+          );
+        })}
+      </svg>
       <span className="nf-rung-name" aria-hidden="true">{current.label}</span>
     </div>
   );

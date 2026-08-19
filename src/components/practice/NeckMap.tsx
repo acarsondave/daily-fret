@@ -36,7 +36,16 @@ import {
 } from '../../lib/noteFinder';
 import { inlayAt, noteAtFret, sharpName } from '../../lib/noteCircle';
 import { DEFAULT_TUNING_ID, getTuning } from '../../audio/tuning';
-import { CELL, NECK_VIEW_W, NUT_X, OPEN_X, fretCentre, fretLeft, fretWidth } from './neckGeometry';
+import {
+  CELL,
+  LABEL_X,
+  NECK_VIEW_W,
+  NUT_X,
+  STRING_X,
+  fretCentre,
+  fretLeft,
+  fretWidth,
+} from './neckGeometry';
 import './neckMap.css';
 
 // The engraving is fixed and written out rather than derived from a scale
@@ -101,13 +110,13 @@ export function NeckMap({
   // row is a question being asked from across the room, and they cannot be the
   // same size without one of them failing at its job.
   const single = strings.length === 1;
-  const row = single ? 46 : 18;
-  const rowTop = single ? 30 : 24;
+  const row = single ? 58 : 18;
+  const rowTop = single ? 36 : 24;
   const boardTop = rowTop - row / 2;
   const boardBottom = rowTop + (strings.length - 1) * row + row / 2;
   const numberY = boardBottom + (single ? 22 : 17);
   const viewH = numberY + (single ? 8 : 6);
-  const markH = single ? 30 : 13;
+  const markH = single ? 34 : 13;
   const markInset = single ? 4 : 3.5;
   const rowY = (stringPosition: number) => rowTop + strings.indexOf(stringPosition) * row;
 
@@ -126,7 +135,7 @@ export function NeckMap({
 
   const counts = useMemo(() => tally(map, strings), [map, strings]);
   const seconds = Math.round(QUICK_MS / 1000);
-  const inlayGap = single ? 11 : 15;
+  const inlayGap = single ? 14 : 15;
 
   return (
     <div className={clsx('neck-map', single && 'is-single', className)}>
@@ -181,7 +190,7 @@ export function NeckMap({
           <line
             key={`s${stringPosition}`}
             className={clsx('nm-string', stringPosition === litString && 'is-lit')}
-            x1={2}
+            x1={STRING_X}
             y1={rowY(stringPosition)}
             x2={NECK_VIEW_W - 3}
             y2={rowY(stringPosition)}
@@ -237,7 +246,7 @@ export function NeckMap({
           <text
             key={`l${stringPosition}`}
             className={clsx('nm-open', stringPosition === litString && 'is-lit')}
-            x={OPEN_X}
+            x={LABEL_X}
             y={rowY(stringPosition) + (single ? 6 : 4)}
             textAnchor="middle"
           >

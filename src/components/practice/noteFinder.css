@@ -21,9 +21,9 @@
 
 /* --- The ladder ---------------------------------------------------------- */
 
-/* Eight rungs, drawn as rungs. The cleared ones filled, the one being run lit,
-   the ones above it still dark: where the player is, how much is above them, and
-   the fact that a rung can go dark again, without a sentence. */
+/* Rails and rungs. The cleared ones solid, the one being run lit and reaching
+   past both rails, the ones above still dark: where the player is, how much is
+   above them, and the fact that a rung can go dark again, without a sentence. */
 .nf-ladder {
   display: flex;
   flex-direction: column;
@@ -32,34 +32,37 @@
 }
 
 .nf-rungs {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
+  display: block;
+  width: 92px;
+  height: auto;
+}
+
+.nf-rail {
+  stroke: rgb(236 222 205 / 0.16);
+  stroke-width: 1.75;
+  stroke-linecap: round;
 }
 
 .nf-rung {
-  display: block;
-  width: 46px;
-  height: 3px;
-  border-radius: var(--radius-full);
-  background: rgb(236 222 205 / 0.12);
+  stroke: rgb(236 222 205 / 0.14);
+  stroke-width: 3;
+  stroke-linecap: round;
 }
 
 .nf-rung.is-learning {
-  background: rgb(236 222 205 / 0.34);
+  stroke: rgb(236 222 205 / 0.38);
 }
 
 .nf-rung.is-clear {
-  background: var(--text-secondary);
+  stroke: var(--text-secondary);
 }
 
-/* The one being run. Wider as well as accented, because a ladder read from
-   across a desk needs the current step to be findable by shape. */
+/* The one being run. It reaches past both rails as well as taking the accent,
+   because a ladder read from across a desk needs its current step findable by
+   shape before it is findable by colour. */
 .nf-rung.is-here {
-  width: 78px;
-  height: 4px;
-  background: var(--accent-primary);
+  stroke: var(--accent-primary);
+  stroke-width: 4;
 }
 
 .nf-rung-name {
@@ -161,6 +164,9 @@
   cursor: pointer;
 }
 
+/* Lit from the start rather than only on hover. These exist only on the tapped
+   channel, where the neck has stopped being a picture of the answer and become
+   the way of giving one, and a phone has no hover to discover that with. */
 .nf-fret-hit::before {
   content: '';
   position: absolute;
@@ -169,12 +175,13 @@
   top: 14%;
   height: 58%;
   border-radius: var(--radius-sm);
-  background: transparent;
+  background: rgb(255 255 255 / 0.045);
   transition: background var(--dur-base) ease;
 }
 
-.nf-fret-hit:hover::before {
-  background: rgb(255 255 255 / 0.07);
+.nf-fret-hit:hover::before,
+.nf-fret-hit:active::before {
+  background: rgb(255 255 255 / 0.12);
 }
 
 .nf-fret-hit:focus-visible {

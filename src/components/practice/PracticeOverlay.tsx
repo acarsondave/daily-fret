@@ -340,7 +340,11 @@ export function PracticeOverlay({ task, onClose }: Props) {
           <Metronome
             plan={tempoPlan}
             planKey={tempoKey}
-            autoPlay={drill ? drillLive && drill.kind !== 'song' : true}
+            // Neither the play-along nor the note finder has a pace of its own:
+            // one runs to a record and the other is a question. The panel is
+            // still there for a player who wants a click; it just does not start
+            // one over them.
+            autoPlay={drill ? drillLive && drill.kind !== 'song' && drill.kind !== 'note-finder' : true}
           />
           <button className="practice-close" onClick={leave} title="Exit (Esc)" aria-label="Exit this drill">
             <CloseIcon size={20} />
