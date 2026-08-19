@@ -16,13 +16,21 @@ export type CoachSegment =
 // Parse a free-form duration label ("5 mins", "2-3 mins", "90s") into seconds.
 // Durations are now captured as plain minute numbers ("5"), but legacy labels
 // still parse so older saved routines keep working.
+//
+// The unit is read from the word attached to the number rather than from
+// anywhere in the string. The old test was /\bs(ec)?\b/, and a word boundary
+// never falls between a digit and the s written against it, so "90s" and
+// "30 seconds" both came back as minutes and clamped to the half-hour ceiling:
+// a ninety-second warm-up turned into a thirty-minute block, in the two spellings
+// the comment above names as supported.
+const SECONDS_UNIT = /^s(ec|ecs|econd|econds)?$/i;
+
 export function parseDuration(label: string | undefined): number {
   if (!label) return 180;
-  const m = label.match(/\d+/);
+  const m = label.match(/(\d+)\s*([a-z]*)/i);
   if (!m) return 180;
-  const n = parseInt(m[0], 10);
-  const isSeconds = /\bs(ec)?\b/i.test(label) && !/min/i.test(label);
-  const seconds = isSeconds ? n : n * 60;
+  const n = parseInt(m[1], 10);
+  const seconds = SECONDS_UNIT.test(m[2]) ? n : n * 60;
   return Math.min(1800, Math.max(15, seconds));
 }
 
