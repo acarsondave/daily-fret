@@ -47,3 +47,6 @@ curriculum/lessons/
 
 # Agent worktrees: whole copies of this repo, never committed from here.
 .claude/
+
+# The owner drops reference sheets here. Not shipped, not imported.
+*.pdf
