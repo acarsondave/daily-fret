@@ -345,12 +345,19 @@ const SKILLS: Skill[] = [
     summary: 'A written pattern played as written, at a tempo you can hold.',
     family: 'rhythm',
     requires: ['rhythm.up-strums'],
+    // The second entry in this column to move from measurable to measured, and
+    // it arrived without the thing the old `needs` asked for first. Direction is
+    // still not in the signal, and reading a pattern turns out not to need it:
+    // the pattern says which of the eight eighth-note slots should sound, the
+    // analyser says which did, and `D-DU-UD-` has a distinctive fingerprint
+    // across those eight slots whichever way the hand was moving
+    // (src/lib/strumPattern.ts). The ghost slots are not heard because there is
+    // nothing to hear; a hand that really is a pendulum lands every sounded
+    // strum on its own slot, so grid adherence measures the motion indirectly.
     measure: {
-      kind: 'measurable',
-      needs:
-        'up strums, and then a matcher that reads a written pattern as expected positions ' +
-        'on the beat grid the timing drill already fits',
-      metric: 'attacks matched to the pattern, misses and extras counted separately',
+      kind: 'measured',
+      drill: 'strum-pattern',
+      metric: 'slots that sounded against the slots the pattern asks for, and the bar it settled on',
     },
     lessons: ['b1-307', 'b1-404', 'b1-502', 'b1-503'],
   },

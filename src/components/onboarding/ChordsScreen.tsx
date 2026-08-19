@@ -7,13 +7,8 @@ import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { useCapoOffset } from '../../hooks/useCapo';
 import { NO_CHORD } from '../../audio/detector';
 import { DETECTABLE_CHORDS } from '../../audio/chords';
-import {
-  BEGINNER_MODULES,
-  buildRoutine,
-  measuredTaskCount,
-  moduleForChords,
-  routineMinutes,
-} from './course';
+import { BEGINNER_MODULES, moduleForChords } from './course';
+import { buildFirstRunPlan } from './buildPlan';
 import type { FirstRunPlan } from './plan';
 
 /**
@@ -46,10 +41,12 @@ interface Props {
   // during render to bridge that is exactly the pattern React's compiler
   // rules exist to stop.
   onKnownChange: (update: (previous: string[]) => string[]) => void;
+  /** Called once the summary is worth fetching, which is the moment this opens. */
+  onReady: () => void;
   onNext: (plan: FirstRunPlan) => void;
 }
 
-export function ChordsScreen({ headingRef, micLive, known, onKnownChange, onNext }: Props) {
+export function ChordsScreen({ headingRef, micLive, known, onKnownChange, onReady, onNext }: Props) {
   const detector = useChordDetector();
   const templates = useLearnedTemplates();
   const capo = useCapoOffset();
@@ -82,6 +79,11 @@ export function ChordsScreen({ headingRef, micLive, known, onKnownChange, onNext
       },
       { templates, offset: capo },
     );
+    // The summary screen draws chord diagrams, so it costs an engraver and the
+    // shape table. Bought here rather than on the tap that shows it: this screen
+    // is where someone stands still for a while, and the next one has to land
+    // the moment they press Next.
+    onReady();
     return () => {
       void detector.stop();
     };
@@ -110,17 +112,14 @@ export function ChordsScreen({ headingRef, micLive, known, onKnownChange, onNext
 
   const go = async () => {
     await detector.stop();
-    const routine = buildRoutine({
-      track: derived?.track ?? null,
-      module: moduleNumber,
-      knownChords: known,
-    });
-    onNext({
-      routine,
-      minutes: routineMinutes(routine),
-      measured: measuredTaskCount(routine),
-      lessonCode: named?.firstLessonCode ?? null,
-    });
+    onNext(
+      buildFirstRunPlan({
+        track: derived?.track ?? null,
+        module: moduleNumber,
+        knownChords: known,
+        lessonCode: named?.firstLessonCode ?? null,
+      }),
+    );
   };
 
   return (

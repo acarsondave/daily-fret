@@ -37,6 +37,47 @@ export function findSong(songs: readonly Song[], id: string | undefined): Song |
   return id ? songs.find((s) => s.id === id) : undefined;
 }
 
+// --- What a vocabulary opens ----------------------------------------------
+//
+// The app has always known which shapes each chart needs and never once used it.
+// A routine's closing block was a five minute timer titled "Play a song",
+// described as "anything you can get through with the chords you have", which is
+// the app declining to answer a question it holds the answer to. These two are
+// that answer: what you can play now, and what one more shape would open.
+
+/** Charts every one of whose chords is already under the hand. */
+export function songsPlayableWith(songs: readonly Song[], chords: readonly string[]): Song[] {
+  const held = new Set(chords);
+  return songs.filter((song) => song.chords.length > 0 && song.chords.every((c) => held.has(c)));
+}
+
+export interface SongOneShapeAway {
+  song: Song;
+  /** The single chord standing between the player and this chart. */
+  missing: string;
+}
+
+/**
+ * Charts that need exactly one shape the player does not have yet.
+ *
+ * Exactly one, never two. "Learn these three chords and you can play four more
+ * songs" is a wish; "learn G" is this evening.
+ */
+export function songsOneShapeAway(
+  songs: readonly Song[],
+  chords: readonly string[],
+): SongOneShapeAway[] {
+  const held = new Set(chords);
+  const out: SongOneShapeAway[] = [];
+  for (const song of songs) {
+    if (!song.chords.length) continue;
+    const missing = song.chords.filter((c) => !held.has(c));
+    if (missing.length !== 1) continue;
+    out.push({ song, missing: missing[0] });
+  }
+  return out;
+}
+
 // --- Authoring ------------------------------------------------------------
 
 /**

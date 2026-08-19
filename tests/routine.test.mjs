@@ -8,7 +8,12 @@ import {
   routineBasis,
   routineMinutes,
   skillsInModule,
+  taskMinutes,
 } from '../src/lib/routineBuilder.ts';
+import { anchorsBetween, bestAnchoredPair } from '../src/lib/anchors.ts';
+import { songsOneShapeAway, songsPlayableWith } from '../src/lib/songCatalog.ts';
+import { SONGS } from '../src/data/songs.ts';
+import { buildSegments } from '../src/lib/coached.ts';
 import { BEGINNER_GRADES, BEGINNER_MODULES } from '../src/lib/beginnerCourse.ts';
 import { CURRICULUM } from '../src/data/curriculum.ts';
 import { ALL_SKILLS } from '../src/data/skills.ts';
@@ -18,7 +23,13 @@ import { hasChordShape } from '../src/data/chordShapes.ts';
 let failures = 0;
 const check = (l, ok, d) => { if (!ok) failures++; console.log(`  ${ok?'ok  ':'FAIL'}  ${l}${d?' — '+d:''}`); };
 
-const DRILL_KINDS = new Set(['one-minute-changes', 'chord-trainer', 'song', 'chord-rotation', 'strum-timing']);
+const DRILL_KINDS = new Set([
+  'one-minute-changes', 'chord-trainer', 'song', 'chord-rotation', 'strum-timing', 'strum-pattern',
+]);
+// Drills with nothing of their own to name: the click is the exercise for both
+// rhythm drills, and a song names a chart rather than a set of shapes.
+const NAMES_NO_CHORDS = new Set(['strum-timing', 'strum-pattern', 'song']);
+const songOf = (task) => SONGS.find((s) => s.id === task.drill?.songId) ?? null;
 
 // Every number onboarding prints has to be a number the data still agrees with.
 // The screen used to hardcode which courses existed and count their modules by
@@ -127,7 +138,15 @@ console.log('\nA routine for the module the owner is on\n');
   check('changes are drilled on pairs involving Dm',
     r.tasks.find(t => t.drill?.kind === 'one-minute-changes').drill.pairs.every(p => p.from==='Dm'||p.to==='Dm'));
   check('it does not run to a shift', r.tasks.find(t=>t.drill?.kind==='one-minute-changes').drill.pairs.length <= 3);
-  check('it ends on something musical', r.tasks[r.tasks.length-1].title.includes('song'));
+  // Pinned to the behaviour, not the words. This used to read `.includes('song')`
+  // against a task literally called "Play a song", which passed for the whole
+  // life of a five minute timer that named nothing.
+  const last = r.tasks[r.tasks.length-1];
+  const lastSong = songOf(last);
+  check('it ends on a song, and the song is a real chart', lastSong !== null, last.title);
+  check('and it is one the chords in the routine actually open',
+    lastSong !== null && lastSong.chords.every(c => r.chords.includes(c)),
+    lastSong?.chords.join(' ') ?? 'no chart');
   check('every task has a unique id', new Set(r.tasks.map(t=>t.id)).size === r.tasks.length);
   check('the vocabulary includes old and new', r.chords.includes('Dm') && r.chords.includes('A'));
   const mins = routineMinutes(r);
@@ -136,9 +155,16 @@ console.log('\nA routine for the module the owner is on\n');
   // The rhythm block used to be a clock with "the app cannot hear timing yet"
   // written under it, which stopped being true when strum timing was built and
   // graded. A skill that names a drill gets that drill.
-  check('the rhythm task is the drill that measures it',
-    r.tasks.some(t => t.drill?.kind === 'strum-timing'),
-    JSON.stringify(r.tasks.filter(t => /strum|rhythm|beat/i.test(t.title)).map(t => t.title)));
+  check('the rhythm task is a drill the app measures, not a clock',
+    r.tasks.some(t => t.drill?.kind === 'strum-timing' || t.drill?.kind === 'strum-pattern'),
+    JSON.stringify(r.tasks.filter(t => /strum|rhythm|beat|pattern/i.test(t.title)).map(t => t.title)));
+  // Module 4 is "Metronome, Stretches & THE Pattern" and maps two measured
+  // rhythm skills. The pattern is what the module is asking the hand to learn,
+  // and the deck it deals from is the newest drill in the product; the builder
+  // could not emit it at all until the taxonomy admitted the drill existed.
+  check('and where a module teaches a written pattern, that is the block',
+    r.tasks.some(t => t.drill?.kind === 'strum-pattern'),
+    r.tasks.map(t => `${t.title}:${t.drill?.kind ?? 'timer'}`).join(' '));
   check('and nothing claims the app is deaf to timing',
     !r.tasks.some(t => /cannot hear timing/.test(t.description ?? '')));
   check('it says what it was built from, in words',
@@ -221,7 +247,13 @@ console.log('\nGrade 2 and Grade 3, where the app has no drills mapped\n');
   check('it says so, rather than claiming the module',
     /no drills mapped/.test(r.description), r.description);
   check('it still measures something', measuredTaskCount(r) >= 2, `${measuredTaskCount(r)} measured`);
-  check('and it is a session, not a stub', routineMinutes(r) >= 10, `${routineMinutes(r)} min`);
+  // Minutes no longer carry a song: a play-along ends when the record does and
+  // the routine does not get to claim five minutes for it. The stub this guards
+  // against was two timed tasks and nothing measured, so the check is on both.
+  check('and it is a session, not a stub',
+    routineMinutes(r) >= 8 && r.tasks.length >= 4, `${routineMinutes(r)} min, ${r.tasks.length} tasks`);
+  check('and it still ends on a chart those eight shapes open',
+    songOf(r.tasks[r.tasks.length-1]) !== null, r.tasks[r.tasks.length-1].title);
   const empty = buildRoutine({ track:'bg3', module:17, knownChords: [] });
   check('with nothing ticked it does not pretend either', /counted/.test(empty.description), empty.description);
 
@@ -279,9 +311,22 @@ console.log('\nEvery routine the flow can produce is runnable\n');
       if (!t.drill && !t.duration) bad.push(`${label}: "${t.title}" is neither timed nor a drill`);
       if (!t.drill) continue;
       if (!DRILL_KINDS.has(t.drill.kind)) bad.push(`${label}: unknown drill ${t.drill.kind}`);
-      // Strum timing is one down strum on every click, so it is the one drill
-      // with nothing to name: the click is the exercise.
-      if (t.drill.kind === 'strum-timing') continue;
+      // A song names a chart rather than a set of shapes, and the chart has to
+      // exist and has to be inside the vocabulary the routine was built from.
+      // The block this replaced was a timer that named nothing, so there was
+      // nothing here to check and the app could not be caught prescribing a
+      // song needing a chord the player has never met.
+      if (t.drill.kind === 'song') {
+        const song = songOf(t);
+        if (!song) bad.push(`${label}: "${t.title}" names no chart in the catalogue`);
+        else if (!song.chords.every((c) => r.chords.includes(c))) {
+          bad.push(`${label}: "${song.title}" wants ${song.chords.join(' ')}, routine has ${r.chords.join(' ')}`);
+        }
+        continue;
+      }
+      // The rhythm drills are the click and the arm, so they are the ones with
+      // nothing to name.
+      if (NAMES_NO_CHORDS.has(t.drill.kind)) continue;
       const chords = [
         ...(t.drill.chords ?? []),
         ...(t.drill.pairs ?? []).flatMap((p) => [p.from, p.to]),
@@ -299,7 +344,10 @@ console.log('\nEvery routine the flow can produce is runnable\n');
       }
     }
     const mins = routineMinutes(r);
-    if (mins < 5 || mins > 35) bad.push(`${label}: ${mins} minutes`);
+    if (mins !== r.tasks.reduce((n, t) => n + taskMinutes(t), 0)) {
+      bad.push(`${label}: the total is not the sum of its tasks`);
+    }
+    if (mins < 3 || mins > 35) bad.push(`${label}: ${mins} minutes`);
     // A single warm-up is not a session. It used to be the whole routine for a
     // Grade 2 learner who had not said which chords they have.
     if (r.tasks.length === 1 && r.tasks[0].title === 'Finger stretches') {
@@ -309,19 +357,131 @@ console.log('\nEvery routine the flow can produce is runnable\n');
   check(`all ${cases.length} routines the flow can produce are runnable`, bad.length === 0, bad.slice(0, 6).join(' | '));
 }
 
-console.log('\nThe minutes the ready screen prints\n');
+// First run draws this number as well as printing it: one stroke per minute,
+// grouped by task. A total that did not equal the strokes beside it would be the
+// drawing and the caption disagreeing in public, so whole minutes per task and
+// their sum is the definition rather than a rounding of one.
+console.log('\nThe minutes the ready screen prints, and draws\n');
 {
   const r = buildRoutine({ track:'bg1', module:4, knownChords:['A','D','E','Am','Em'] });
-  let seconds = 0;
+  const perTask = r.tasks.map(taskMinutes);
+  check('the total is exactly the strokes drawn beside it',
+    routineMinutes(r) === perTask.reduce((a, b) => a + b, 0), `${routineMinutes(r)} vs ${perTask.join('+')}`);
+  check('and every task with a length is at least one stroke',
+    r.tasks.every((t, i) => (t.drill?.kind === 'song' ? perTask[i] === 0 : perTask[i] >= 1)),
+    perTask.join(','));
   for (const t of r.tasks) {
-    if (t.duration) seconds += Number(t.duration) * 60;
-    else if (t.drill?.kind === 'one-minute-changes') seconds += t.drill.pairs.length * t.drill.durationSec;
-    else seconds += t.drill.durationSec;
+    if (t.drill) continue;
+    check(`"${t.title}" states its minutes`, Number(t.duration) > 0, t.duration);
   }
-  check('are the sum of what the routine actually holds',
-    routineMinutes(r) === Math.round(seconds / 60), `${routineMinutes(r)} vs ${Math.round(seconds/60)}`);
-  check('and every timed task states its minutes',
-    r.tasks.filter(t => !t.drill).every(t => Number(t.duration) > 0));
+  // The one task with no length. It runs until the record ends.
+  const song = r.tasks.find(t => t.drill?.kind === 'song');
+  check('a song claims no minutes at all', taskMinutes(song) === 0, `${taskMinutes(song)}`);
+}
+
+// The app has always held the chords each chart needs and never once used them.
+// The closing block of every routine was a five minute timer called "Play a
+// song", described as "anything you can get through with the chords you have".
+console.log('\nWhich songs a vocabulary opens\n');
+{
+  const ade = songsPlayableWith(SONGS, ['A', 'D', 'E']);
+  check('three shapes already open a chart', ade.length >= 1, ade.map(s => s.title).join(', '));
+  check('and never one that needs a shape they do not have',
+    ade.every(s => s.chords.every(c => ['A','D','E'].includes(c))));
+  check('no chords opens nothing', songsPlayableWith(SONGS, []).length === 0);
+  check('every chart in the catalogue is opened by its own chords',
+    SONGS.every(s => songsPlayableWith(SONGS, s.chords).includes(s)));
+
+  const near = songsOneShapeAway(SONGS, ['A', 'D', 'E']);
+  check('and something is exactly one shape away', near.length >= 1,
+    near.map(n => `${n.missing} opens ${n.song.title}`).join(', '));
+  check('one shape means one, never two',
+    near.every(n => n.song.chords.filter(c => !['A','D','E'].includes(c)).length === 1));
+  check('a chart already open is not also one shape away',
+    near.every(n => !ade.includes(n.song)));
+  check('everything one shape away names a shape the app can hear',
+    near.every(n => HEARABLE_CHORDS.includes(n.missing)), near.map(n => n.missing).join(' '));
+}
+
+// "Anchor changes" asserted a technique rather than checking for one. The ring
+// it dealt first, A to D to E, has no shared finger anywhere in it: A and D
+// press the same fret of the G string with different fingers, and E shares
+// nothing with either.
+console.log('\nWhether two shapes actually share a finger\n');
+{
+  check('E and Em keep two fingers exactly where they are',
+    anchorsBetween('E', 'Em').length === 2, JSON.stringify(anchorsBetween('E', 'Em')));
+  check('Am and C keep two', anchorsBetween('Am', 'C').length === 2,
+    JSON.stringify(anchorsBetween('Am', 'C')));
+  check('A and D share a fret but not a finger, so they share no anchor',
+    anchorsBetween('A', 'D').length === 0, JSON.stringify(anchorsBetween('A', 'D')));
+  check('and A to E shares nothing at all', anchorsBetween('A', 'E').length === 0);
+  check('an open string is never an anchor: nothing is being held down',
+    anchorsBetween('Em', 'Em7').every(a => a.fret > 0));
+  check('a chord is not an anchor with itself', anchorsBetween('A', 'A').length === 0);
+  check('an unknown shape answers nothing rather than throwing',
+    anchorsBetween('A', 'Xmaj9') .length === 0);
+  check('the first ring onboarding ever dealt has no anchor in it',
+    bestAnchoredPair(['A', 'D', 'E']) === null);
+  check('and a vocabulary that does have one finds it',
+    bestAnchoredPair(['A', 'D', 'E', 'Em', 'Am'])?.anchors.length === 2);
+  // Order in, order out. The ring used to be the first three chords ticked.
+  check('the answer does not depend on the order the chords arrive in',
+    JSON.stringify(bestAnchoredPair(['C', 'Am', 'G'])) === JSON.stringify(bestAnchoredPair(['C', 'Am', 'G'])));
+
+  const anchoredRoutine = buildRoutine({ track:'bg1', module:2, knownChords:['A','D','E'] });
+  check('so module 2 gets no anchor task, because those three have no anchor',
+    !anchoredRoutine.tasks.some(t => t.drill?.kind === 'chord-rotation'),
+    anchoredRoutine.tasks.map(t => t.title).join(' > '));
+  const withAnchor = buildRoutine({ track:'bg1', module:3, knownChords:['A','D','E','Em','Am'] });
+  const ring = withAnchor.tasks.find(t => t.drill?.kind === 'chord-rotation');
+  check('and module 3 does, once E and Em are both in hand', ring !== undefined,
+    withAnchor.tasks.map(t => t.title).join(' > '));
+  check('the ring opens on the change that actually anchors',
+    anchorsBetween(ring.drill.chords[0], ring.drill.chords[1]).length > 0,
+    ring?.drill.chords.join(' '));
+  check('and the description names that change rather than the whole ring',
+    ring.description.includes(`${ring.drill.chords[0]} to ${ring.drill.chords[1]}`), ring?.description);
+}
+
+// A task the coached runner cannot recognise does not fail loudly: it falls into
+// the timed branch, which announces it, counts it in and then measures nothing.
+// Both blocks added here are new drill kinds for the builder, so both are exactly
+// the sort of thing that would land there silently.
+console.log('\nEvery block the builder makes survives being flattened for coached mode\n');
+{
+  const bad = [];
+  for (const m of BEGINNER_MODULES) {
+    const grade = BEGINNER_GRADES.find((g) => g.modules.some((x) => x.number === m.number));
+    for (const known of [[], chordsTaughtBy(m.number), [...HEARABLE_CHORDS]]) {
+      const r = buildRoutine({ track: grade.code, module: m.number, knownChords: known });
+      if (!r.tasks.length) continue;
+      const segments = buildSegments(r);
+      const label = `${grade.code}/${m.number}/${known.length}`;
+      for (const t of r.tasks) {
+        const mine = segments.filter((seg) => seg.taskId === t.id);
+        if (!mine.length) { bad.push(`${label}: "${t.title}" flattened to nothing`); continue; }
+        const kind = t.drill?.kind;
+        const want =
+          kind === 'song' ? 'song'
+          : kind === 'strum-pattern' ? 'patterns'
+          : kind === 'strum-timing' ? 'timing'
+          : kind === 'chord-trainer' ? 'trainer'
+          : kind === 'one-minute-changes' ? 'changes'
+          : kind === 'chord-rotation' ? 'rotation'
+          : 'timed';
+        if (!mine.some((seg) => seg.kind === want)) {
+          bad.push(`${label}: "${t.title}" (${kind ?? 'timed'}) became ${mine.map(s => s.kind).join('+')}`);
+        }
+      }
+      for (const seg of segments) {
+        if (seg.kind === 'song' && !SONGS.some((s) => s.id === seg.songId)) {
+          bad.push(`${label}: a song segment for a chart that does not exist`);
+        }
+      }
+    }
+  }
+  check('every task becomes the segment its drill asks for', bad.length === 0, bad.slice(0, 5).join(' | '));
 }
 
 console.log('\nEdge cases\n');

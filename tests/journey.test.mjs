@@ -252,15 +252,18 @@ console.log('\nWhat the panel is allowed to say\n');
     BEGINNER_MODULE_PATH.every((m) => (m.paidNotListed > 0) === (paidGap(m) !== null)));
 
   const find = (id) => standings.find((s) => s.skill.id === id);
-  // rhythm.patterns rather than rhythm.metronome, which used to be the example
-  // here and is now measured by the strum timing drill. Patterns still needs up
-  // strums and a pattern matcher, so it is the honest stand-in.
+  // The exemplar has now moved twice, both times because the drill it named got
+  // built: first off rhythm.metronome when strum timing shipped, then off
+  // rhythm.patterns when the pattern matcher did. A riff is the stand-in now,
+  // and deliberately one whose prerequisites the app cannot measure either: a
+  // locked row prints why it is locked, which is a different sentence from the
+  // one being checked here.
   check('a skill with no analysis says so, and does not say "Ready" forever',
-    stateLabel(find('rhythm.patterns')) === 'Not measured yet',
-    stateLabel(find('rhythm.patterns')));
+    stateLabel(find('riffs.single-note')) === 'Not measured yet',
+    stateLabel(find('riffs.single-note')));
   check('and a skill that has just gained one no longer says it',
-    stateLabel(find('rhythm.metronome')) !== 'Not measured yet',
-    stateLabel(find('rhythm.metronome')));
+    stateLabel(find('rhythm.patterns')) !== 'Not measured yet',
+    stateLabel(find('rhythm.patterns')));
   check('a timed skill says the clock is the measure',
     stateLabel(find('technique.stretches')) === 'On the clock',
     stateLabel(find('technique.stretches')));
@@ -275,7 +278,7 @@ console.log('\nWhat the panel is allowed to say\n');
     lines.every((l) => !/mark it/i.test(l)),
     lines.filter((l) => /mark it/i.test(l)).join(' | '));
   check('the two chips that carry their own story print no second sentence',
-    evidenceLine(find('rhythm.patterns')) === null &&
+    evidenceLine(find('riffs.single-note')) === null &&
       evidenceLine(find('technique.stretches')) === null);
   check('a measured skill keeps its real evidence',
     (evidenceLine(find('chord.D')) ?? '').includes('No change drill has used D yet'),

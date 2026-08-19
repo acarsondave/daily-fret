@@ -20,13 +20,26 @@
 // The third is `isPracticeSkill` below. A curriculum lesson is not a practice
 // task, and treating the two as the same thing put "How To Hold Your Guitar" on
 // a daily list next to a chord drill. See the note on that function.
+//
+// The fourth is that a task must name the thing it is actually going to do. Two
+// blocks broke that rule for a long time and both were fixed together, because
+// they were the same mistake wearing different clothes. "Anchor changes" claimed
+// a technique on any three shapes the learner had, including rings with no
+// shared finger anywhere in them; it now checks (lib/anchors.ts) and does not
+// exist when there is nothing to anchor. "Play a song" was a five minute timer
+// described as "anything you can get through with the chords you have", written
+// by an app that holds a chart for every song it ships and knows exactly which
+// of them those chords open (lib/songCatalog.ts). It now names one and runs it.
 
 import type { Routine, Task } from '../types';
 import { ALL_SKILLS, type Skill } from '../data/skills';
 import { DETECTABLE_CHORDS } from '../audio/chords';
 import { trackModules } from '../data/curriculum';
+import { SONGS, type Song } from '../data/songs';
+import { bestAnchoredPair, describeAnchors, type Anchor } from './anchors';
 import { BEGINNER_MODULES, findModule, gradeOfModule } from './beginnerCourse';
 import { chordPairs } from './pairs';
+import { songsPlayableWith } from './songCatalog';
 
 const CHORD_PERFECT_SECONDS = 90;
 const CHANGES_SECONDS = 60;
@@ -48,6 +61,14 @@ const MAX_PAIRS = 3;
 const MAX_PERFECT_POOL = 3;
 /** Stretches join the routine once the course has taught them, and stay. */
 const STRETCHES_FROM_MODULE = 4;
+/**
+ * Anchor work joins on the same terms, from "How To Use Anchor Fingers"
+ * (b1-109). A technique does not stop applying at the end of the module that
+ * taught it, and gating on the module alone meant the rotation drill could only
+ * ever appear in the two modules that mention anchors, which are also the two
+ * where the shapes in hand have no anchor between them.
+ */
+const ANCHORS_FROM_MODULE = 1;
 
 /** Chords the course teaches, in the order it teaches them. */
 const TAUGHT_ORDER: readonly string[] = ALL_SKILLS.filter(
@@ -385,6 +406,68 @@ export function buildRoutine(input: BuildInput): Routine {
   };
 }
 
+/** The drill that actually measures a skill, or null where nothing does. */
+function measuringDrill(skill: Skill): 'strum-timing' | 'strum-pattern' | null {
+  if (skill.measure.kind !== 'measured') return null;
+  // Tuning is measured and is not practice. It is excluded from routines
+  // everywhere; this is the rhythm branch's copy of that rule.
+  const drill = skill.measure.drill;
+  return drill === 'strum-timing' || drill === 'strum-pattern' ? drill : null;
+}
+
+/**
+ * A ring of three worth rotating, built around a change that really anchors.
+ *
+ * The anchored pair leads, and the third shape is whichever of the rest anchors
+ * against one of them, falling back to the most recently taught. Order inside
+ * the ring is the rotation the drill will deal, so putting the anchored change
+ * first is putting the point of the exercise first.
+ */
+function anchorRing(vocabulary: string[]): { ring: string[]; anchors: Anchor[] } | null {
+  if (vocabulary.length < 3) return null;
+  const pair = bestAnchoredPair(vocabulary);
+  if (!pair) return null;
+  const rest = vocabulary.filter((c) => c !== pair.from && c !== pair.to);
+  const third =
+    rest.find((c) => bestAnchoredPair([pair.to, c]) !== null) ??
+    rest.find((c) => bestAnchoredPair([pair.from, c]) !== null) ??
+    rest[rest.length - 1];
+  return { ring: [pair.from, pair.to, third], anchors: pair.anchors };
+}
+
+/**
+ * The chart that closes the session, or null when the vocabulary opens none.
+ *
+ * Ranked, in this order, and every term earns its place:
+ *
+ * - a chart using a shape the module has just introduced, because putting
+ *   today's work into music is the whole reason the block is last;
+ * - one the catalogue already has a recording for, because a first session that
+ *   ends by asking a stranger to go and find a YouTube link ends badly;
+ * - the lowest capo, because a beginner three days in may not own one;
+ * - the most chords, because everything left is playable by definition and the
+ *   richer chart exercises more of what the player has;
+ * - then catalogue order, so the answer is deterministic and the order chords
+ *   were ticked in cannot change it.
+ */
+function pickSong(vocabulary: string[], newChords: string[]): Song | null {
+  const playable = songsPlayableWith(SONGS, vocabulary);
+  if (!playable.length) return null;
+  const fresh = new Set(newChords);
+  const rank = (song: Song): number[] => [
+    song.chords.some((c) => fresh.has(c)) ? 0 : 1,
+    song.youtubeId ? 0 : 1,
+    song.capo ?? 0,
+    -song.chords.length,
+  ];
+  return [...playable].sort((a, b) => {
+    const ra = rank(a);
+    const rb = rank(b);
+    for (let i = 0; i < ra.length; i++) if (ra[i] !== rb[i]) return ra[i] - rb[i];
+    return 0;
+  })[0];
+}
+
 function buildPlayingTasks(basis: RoutineBasis, module: number | null): Task[] {
   const { newChords, vocabulary, skills } = basis;
   const tasks: Task[] = [];
@@ -404,12 +487,23 @@ function buildPlayingTasks(basis: RoutineBasis, module: number | null): Task[] {
     );
   }
 
-  // Anchor work, once there are enough shapes for a ring to mean anything.
-  if (vocabulary.length >= 3 && has('technique.anchor-fingers')) {
+  // Anchor work, once the course has taught it and the shapes in hand actually
+  // have an anchor in them. Both halves are required and only the first used to
+  // be checked, so a learner in module 2 was handed a ring of A, D and E under a
+  // title claiming a shared finger those three do not have between them: A and D
+  // press the same fret of the G string with different fingers, and E shares
+  // nothing with either. The task now describes the finger it means, by name,
+  // and does not exist when there is no such finger.
+  const anchorsTaught =
+    has('technique.anchor-fingers') || module === null || module >= ANCHORS_FROM_MODULE;
+  const anchored = anchorsTaught ? anchorRing(vocabulary) : null;
+  if (anchored) {
     tasks.push(
       task('Anchor changes', {
-        description: 'Rotate the ring, keeping the shared finger planted.',
-        drill: { kind: 'chord-rotation', durationSec: ROTATION_SECONDS, chords: vocabulary.slice(0, 3) },
+        description:
+          `Around the ring. ${anchored.ring[0]} to ${anchored.ring[1]} ` +
+          `without lifting ${describeAnchors(anchored.anchors)}.`,
+        drill: { kind: 'chord-rotation', durationSec: ROTATION_SECONDS, chords: anchored.ring },
       }),
     );
   }
@@ -424,17 +518,26 @@ function buildPlayingTasks(basis: RoutineBasis, module: number | null): Task[] {
     );
   }
 
-  // Rhythm. The skill itself says whether there is a drill that measures it, so
-  // the routine reads that rather than assuming there is not: this branch used
-  // to put every rhythm skill on a clock and tell a first-time player "the app
-  // cannot hear timing yet", which stopped being true when strum timing was
-  // built and graded. The timer is still the honest answer for the rhythm
-  // skills that have no measure, and it says which of the two it is.
-  const rhythm = skills.filter(isPracticeSkill).find((s) => s.family === 'rhythm');
+  // Rhythm. One block, and where there is a choice it is the one the microphone
+  // counts. This used to take whichever rhythm skill the module mapped first,
+  // which in module 3 is up strums, a skill nothing in the signal measures; the
+  // player got a four minute clock with a disclaimer under it while the pattern
+  // drill the same module teaches sat unreachable. The timer is still the honest
+  // answer where a module's rhythm work has no measure at all, and it says which
+  // of the two it is.
+  //
+  // Where a module maps two measured rhythm skills, the later one wins. The
+  // rhythm family is authored in teaching order in src/data/skills.ts and its
+  // own `requires` chain says so (patterns requires up strums requires on the
+  // beat), so the last one a module reaches is the newest work in it. Module 4
+  // teaches both the metronome and a written pattern, and the pattern is what
+  // that module is asking the hand to learn.
+  const rhythms = skills.filter(isPracticeSkill).filter((s) => s.family === 'rhythm');
+  const rhythm = rhythms.findLast((s) => measuringDrill(s) !== null) ?? rhythms[0];
   if (rhythm) {
-    const measuredBy = rhythm.measure.kind === 'measured' ? rhythm.measure.drill : null;
+    const measuredBy = measuringDrill(rhythm);
     tasks.push(
-      measuredBy && measuredBy !== 'tuner'
+      measuredBy
         ? task(rhythm.title, {
             description: rhythm.summary,
             drill: { kind: measuredBy, durationSec: RHYTHM_SECONDS },
@@ -457,12 +560,17 @@ function buildPlayingTasks(basis: RoutineBasis, module: number | null): Task[] {
     }
   }
 
-  // End on something that sounds like music, once there is enough to make any.
-  if (vocabulary.length >= 2) {
+  // End on something that sounds like music. A named chart the vocabulary
+  // actually opens, run as the play-along drill, rather than five minutes on a
+  // clock under the word "anything". No song at all is the right answer when
+  // nothing opens yet: there is no chart in the catalogue for two shapes, and
+  // inventing a timer to stand in for one is how the old block came to exist.
+  const song = pickSong(vocabulary, newChords);
+  if (song) {
     tasks.push(
-      task('Play a song', {
-        description: 'Anything you can get through with the chords you have.',
-        duration: '5',
+      task(song.title, {
+        description: `${song.artist}. ${list(song.chords)}.`,
+        drill: { kind: 'song', songId: song.id },
       }),
     );
   }
@@ -486,22 +594,53 @@ function buildPlayingTasks(basis: RoutineBasis, module: number | null): Task[] {
   ];
 }
 
-/** Rough minutes a generated routine will take, for showing before committing. */
-export function routineMinutes(routine: Routine): number {
-  let seconds = 0;
-  for (const t of routine.tasks) {
-    if (t.duration) seconds += Number(t.duration) * 60;
-    else if (t.drill?.kind === 'one-minute-changes') {
-      seconds += (t.drill.pairs?.length ?? 1) * (t.drill.durationSec ?? CHANGES_SECONDS);
-    } else if (t.drill?.kind === 'chord-trainer') {
-      seconds += t.drill.durationSec ?? CHORD_PERFECT_SECONDS;
-    } else if (t.drill) {
-      seconds += t.drill.durationSec ?? CHANGES_SECONDS;
-    }
+/**
+ * Whole minutes one task will take, or 0 for one that has no length.
+ *
+ * Whole minutes because the number is drawn as well as printed: first run shows
+ * the session as one stroke per minute, and a total that did not equal the
+ * strokes beside it would be the drawing and the caption disagreeing in public.
+ * Rounding per task and summing is therefore the definition, not an
+ * approximation of one.
+ *
+ * A song play-along comes back as 0. It runs until the record ends and the
+ * routine does not get to say how long that is; the block it replaced claimed
+ * five minutes, which was a number nobody had measured.
+ */
+export function taskMinutes(task: Task): number {
+  if (task.duration) return Math.max(1, Math.round(Number(task.duration)));
+  if (task.blocks?.length) {
+    const seconds = task.blocks.reduce((total, b) => total + b.durationSec, 0);
+    return seconds > 0 ? Math.max(1, Math.round(seconds / 60)) : 0;
   }
+  const drill = task.drill;
+  if (!drill) return 0;
+  if (drill.kind === 'song') return 0;
+  const seconds =
+    drill.kind === 'one-minute-changes'
+      ? (drill.pairs?.length ?? 1) * (drill.durationSec ?? CHANGES_SECONDS)
+      : drill.kind === 'chord-trainer'
+        ? (drill.durationSec ?? CHORD_PERFECT_SECONDS)
+        : (drill.durationSec ?? CHANGES_SECONDS);
   return Math.max(1, Math.round(seconds / 60));
 }
 
-/** How many of a routine's tasks the microphone actually counts. */
+/**
+ * Minutes a generated routine will take, for showing before committing.
+ *
+ * Everything with a length, and nothing without one: a session that ends on a
+ * song is this many minutes and then a song.
+ */
+export const routineMinutes = (routine: Routine): number =>
+  routine.tasks.reduce((total, t) => total + taskMinutes(t), 0);
+
+/**
+ * How many of a routine's tasks the microphone actually counts.
+ *
+ * Every drill except the play-along. A song is a drill because it runs inside
+ * the app, and it is deliberately never graded: nothing is recorded from it, so
+ * counting it here would put a number's worth of confidence on the one block of
+ * the session that cannot produce one.
+ */
 export const measuredTaskCount = (routine: Routine): number =>
-  routine.tasks.filter((t) => t.drill).length;
+  routine.tasks.filter((t) => t.drill && t.drill.kind !== 'song').length;

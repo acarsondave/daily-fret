@@ -271,13 +271,44 @@ console.log('\nSelf-report, for the things the app cannot hear\n');
   check('and the standing switches to measured', contradicted.source === 'measured', contradicted.evidence);
 }
 
+// The exemplar moved when the pattern drill was built: rhythm.patterns used to
+// stand here and is now measured by strum-pattern. Up strums are the honest
+// replacement, and for the reason strum-pattern itself records: which way the
+// hand was moving is not in the signal and is not inferred.
 console.log('\nUnmeasurable skills say so instead of scoring zero\n');
 {
   const st = stand({});
-  const rhythm = find(st, 'rhythm.patterns');
+  const rhythm = find(st, 'rhythm.up-strums');
   check('a measurable-but-unbuilt skill has no bar', rhythm.bar === null);
   check('and explains what is missing', /not measured yet/i.test(rhythm.evidence), rhythm.evidence);
-  check('it is never offered as next up', !nextUp(st, 50).some(s => s.skill.id === 'rhythm.patterns'));
+  check('it is never offered as next up', !nextUp(st, 50).some(s => s.skill.id === 'rhythm.up-strums'));
+}
+
+// A rhythm skill used to read its standing off chord changes. There was no
+// branch for either rhythm drill, so a good week of pair work carried
+// "strumming on the beat" toward solid without one strum ever being timed.
+console.log('\nA rhythm skill reads its own drill, not the change drills\n');
+{
+  const withChanges = stand({
+    '2026-08-01': { date: '2026-08-01', routineId: 'r', completedTaskIds: [], drillResults: { 'pair:A|D': 60 } },
+    '2026-08-02': { date: '2026-08-02', routineId: 'r', completedTaskIds: [], drillResults: { 'pair:A|D': 60 } },
+    '2026-08-03': { date: '2026-08-03', routineId: 'r', completedTaskIds: [], drillResults: { 'pair:A|D': 60 } },
+  });
+  const beat = find(withChanges, 'rhythm.on-the-beat');
+  check('three fast change runs say nothing about strumming to a click',
+    beat.state !== 'solid' && beat.best === null, `${beat.state} / ${beat.best}`);
+  check('and it says so rather than showing a number', /no strum timing run yet/i.test(beat.evidence),
+    beat.evidence);
+  const patterns = find(withChanges, 'rhythm.patterns');
+  check('nor about holding a written pattern', patterns.best === null, `${patterns.best}`);
+
+  const withTiming = stand({
+    '2026-08-01': { date: '2026-08-01', routineId: 'r', completedTaskIds: [], drillResults: { 'timing:80': 92 } },
+  });
+  const timed = find(withTiming, 'rhythm.on-the-beat');
+  check('a timed block does reach it', timed.best === 92, `${timed.best}`);
+  check('and the pattern skill is still untouched by it',
+    find(withTiming, 'rhythm.patterns').best === null);
 }
 
 console.log('\nA drill measured over something other than a minute\n');

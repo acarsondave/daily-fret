@@ -25,13 +25,21 @@
 
 import type { DailyLog } from '../types';
 import { ALL_SKILLS, getSkill, type Skill } from '../data/skills';
+import { DRILL_UNIT } from './drills';
 import { PAIR_PREFIX, parsePairKey } from './pairs';
-import { RING_PREFIX, SWEEP_PREFIX, ratePerMinute } from './drillKeys';
+import {
+  PATTERN_PREFIX,
+  RING_PREFIX,
+  SWEEP_PREFIX,
+  TIMING_PREFIX,
+  ratePerMinute,
+} from './drillKeys';
 import { baseKey } from './drillWindow';
 import {
   CHANGES_BAR,
   CHORD_BAR,
   HELD_RUNS,
+  RHYTHM_BAR,
   ROTATION_BAR,
   everHeld,
   readiness,
@@ -435,6 +443,27 @@ function measure(skill: Skill, evidence: Evidence, claimed: boolean, today: stri
       ROTATION_BAR,
       'changes',
       `Anchor rotation: ${reading.standing.evidence}`,
+      reading.proven,
+    );
+  }
+
+  // The rhythm drills. Both store a percentage under their own key prefix, and
+  // without this they fell through to the change drills below: a skill about
+  // strumming to a click read its standing off chord changes, so a good week of
+  // pair work could carry "strumming on the beat" to solid without one strum
+  // ever having been timed. Every other measured family already asks its own
+  // drill, and these two were simply missed when the drills were built.
+  if (skill.measure.drill === 'strum-timing' || skill.measure.drill === 'strum-pattern') {
+    const prefix = skill.measure.drill === 'strum-timing' ? TIMING_PREFIX : PATTERN_PREFIX;
+    const runs = runsUnderPrefixes(evidence.tasks, [prefix]);
+    const reading = read(runs, RHYTHM_BAR, today);
+    const what = skill.measure.drill === 'strum-timing' ? 'strum timing' : 'pattern';
+    if (!reading) return noRuns(RHYTHM_BAR, DRILL_UNIT[skill.measure.drill], `No ${what} run yet.`);
+    return fromReading(
+      reading,
+      RHYTHM_BAR,
+      DRILL_UNIT[skill.measure.drill],
+      `${capitalise(what)}: ${reading.standing.evidence}`,
       reading.proven,
     );
   }
