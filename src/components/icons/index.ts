@@ -7,3 +7,4 @@ export { IconBase, ICON_STROKE, type IconProps } from './Icon';
 export * from './ui';
 export * from './practice';
 export * from './capture';
+export * from './theory';
