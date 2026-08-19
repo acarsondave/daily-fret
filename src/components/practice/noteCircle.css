@@ -439,8 +439,13 @@
    flat underneath it, read down. Beside each other is what a short laptop
    window can hold, and 572px of screen is the height the owner actually works
    on, so that is the arrangement the breakpoints default to rather than the
-   one they fall back to. */
-@media (min-width: 900px) and (min-height: 760px) {
+   one they fall back to.
+
+   860 rather than the 760 this first used. The dialog's own chrome takes 110px
+   before the figures get any, and at 1280x800 the stacked pair came to 718px in
+   a 690px body: the panel scrolled. The number is what the two figures actually
+   measure plus the chrome, not a round one. */
+@media (min-width: 900px) and (min-height: 860px) {
   .nc-stage {
     flex-direction: column;
     gap: var(--space-6);

@@ -182,7 +182,18 @@ export function NoteCircle() {
     fret: anchorFret + cell,
   }));
 
-  const segmentDelay = (index: number) => (reduceMotion ? 0 : index * 0.032);
+  // The one authored moment: the walk steps out, one semitone at a time, on the
+  // ring and along the string at the same instant. That simultaneity is the
+  // whole argument that the two figures are one object.
+  //
+  // Reduced motion suppresses the entrance by refusing an initial state, not by
+  // giving the entrance a zero duration. `transition: { duration: 0 }` was the
+  // first attempt and it left every segment and every pip stranded at the
+  // initial opacity of nought: measured under prefers-reduced-motion, the arc,
+  // the frets and the count's pips were all invisible and stayed that way. The
+  // reading a reduced-motion player is owed is the finished drawing, arrived at
+  // without a transition, which is what `initial={false}` actually produces.
+  const segmentDelay = (index: number) => index * 0.032;
   const glide = reduceMotion
     ? { duration: 0 }
     : { duration: 0.34, ease: [0.16, 1, 0.3, 1] as const };
@@ -208,9 +219,9 @@ export function NoteCircle() {
               key={`${fromSlot}-${steps}-${i}`}
               className="nc-ring-step"
               d={segmentPath(fromSlot + i)}
-              initial={{ opacity: 0 }}
+              initial={reduceMotion ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: reduceMotion ? 0 : 0.2, delay: segmentDelay(i) }}
+              transition={{ duration: 0.2, delay: segmentDelay(i) }}
             />
           ))}
 
@@ -292,9 +303,9 @@ export function NoteCircle() {
                     <motion.i
                       className="nc-pip"
                       key={`${fromSlot}-${steps}-${index}`}
-                      initial={{ opacity: 0, scale: 0.4 }}
+                      initial={reduceMotion ? false : { opacity: 0, scale: 0.4 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: reduceMotion ? 0 : 0.2, delay: segmentDelay(index) }}
+                      transition={{ duration: 0.2, delay: segmentDelay(index) }}
                     />
                   );
                 })}
@@ -391,9 +402,9 @@ export function NoteCircle() {
                 y1={STRING_Y}
                 x2={cellX(i + 1) - 5}
                 y2={STRING_Y}
-                initial={{ opacity: 0 }}
+                initial={reduceMotion ? false : { opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: reduceMotion ? 0 : 0.2, delay: segmentDelay(i) }}
+                transition={{ duration: 0.2, delay: segmentDelay(i) }}
               />
             ))}
 
