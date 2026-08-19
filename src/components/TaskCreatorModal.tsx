@@ -85,6 +85,10 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
       };
     } else if (drillKind === 'strum-timing') {
       drill = { kind: 'strum-timing', durationSec: 60, bpm: timingBpm };
+    } else if (drillKind === 'strum-pattern') {
+      // No deck stated: the drill deals the opening rungs of the ladder, which
+      // is what a player the app has never seen should be given.
+      drill = { kind: 'strum-pattern', durationSec: 90, bpm: timingBpm };
     } else if (drillKind === 'song') {
       drill = { kind: 'song', songId };
     }
@@ -172,6 +176,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
                 ['chord-rotation', 'Anchor'],
                 ['chord-trainer', 'Trainer'],
                 ['strum-timing', 'Timing'],
+                ['strum-pattern', 'Patterns'],
                 ['song', 'Song'],
               ] as const).map(([value, label]) => (
                 <button
@@ -184,11 +189,12 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
                 </button>
               ))}
             </div>
-            {drillKind === 'strum-timing' && (
+            {(drillKind === 'strum-timing' || drillKind === 'strum-pattern') && (
               <>
                 <span className="drill-hint">
-                  One down strum per click, measured against the click in the room. Needs speakers
-                  rather than headphones.
+                  {drillKind === 'strum-pattern'
+                    ? 'Patterns dealt from a deck against a click that never stops. Needs speakers rather than headphones.'
+                    : 'One down strum per click, measured against the click in the room. Needs speakers rather than headphones.'}
                 </span>
                 <label className="drill-bpm" htmlFor={`${fieldId}-bpm`}>
                   <span>Tempo</span>

@@ -3,7 +3,8 @@ export type DrillKind =
   | 'chord-trainer'
   | 'song'
   | 'chord-rotation'
-  | 'strum-timing';
+  | 'strum-timing'
+  | 'strum-pattern';
 
 export interface DrillConfig {
   kind: DrillKind;
@@ -25,6 +26,15 @@ export interface DrillConfig {
   // number the way a change rate does; a routine states it, or the standard
   // practice click is used.
   bpm?: number;
+  // strum-pattern: the deck this run deals from, as D/U/- strings. A deck is
+  // stored as strings rather than as pattern ids for the same reason a block
+  // is: deleting a saved pattern must never silently change what a task asks
+  // for. Absent means the opening rungs of the built-in ladder.
+  patterns?: string[];
+  // strum-pattern: bars each dealt pattern is played for before the next is
+  // dealt. Absent takes MIN_PATTERN_BARS, which is the shortest run the
+  // matcher will form an opinion about (src/lib/strumPattern.ts).
+  bars?: number;
 }
 
 // One labeled block inside a configurable timed task. Lets a single task (e.g.
@@ -91,6 +101,17 @@ export interface TaskRecord {
 // thing it is a summary of.
 export interface DrillRun {
   value: number;
+  /**
+   * The bar this run's pattern first came out whole on, or null when it never
+   * did. Only the strum-pattern drill writes it, and it is here rather than
+   * folded into `value` because it answers a different question: `value` says
+   * how much of the pattern landed in time, and this says how long it took to
+   * arrive. `patternStanding` needs both, and a score alone cannot tell a
+   * pattern you have from one you are working out.
+   *
+   * Absent on every run that is not a dealt pattern.
+   */
+  settledBar?: number | null;
   // Epoch ms. Absent on runs reconstructed from a day that predates this, where
   // the only honest statement is that the day held at least one run at that
   // value, not when.

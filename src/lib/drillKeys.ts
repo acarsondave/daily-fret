@@ -17,6 +17,7 @@
 //   ring:A>E>D      one turn of an anchor rotation, looping in one direction
 //   sweep:D>A>E     an anchor rotation swept back and forth along the same path
 //   timing:80       one strum-timing block, at the tempo it was measured at
+//   pattern:D-DU-UD-~80  one dealt strumming pattern, at the tempo it was held at
 //
 // Every one of those but the last counts something, and a count needs the window
 // it was counted over, so a run that knows its own length says so on the end:
@@ -36,12 +37,31 @@ import type { DailyLog, DrillRun, Routine, Task } from '../types';
 import { DRILL_UNIT } from './drills';
 import { PAIR_PREFIX, parsePairKey } from './pairs';
 import { ASSUMED_WINDOW_SEC, WINDOW_SEP, baseKey, keyWindow, perMinute } from './drillWindow';
+import { patternName } from '../data/strumPatterns';
 
 export const CHORD_PREFIX = 'chord:';
 export const POOL_PREFIX = 'pool:';
 export const RING_PREFIX = 'ring:';
 export const SWEEP_PREFIX = 'sweep:';
 export const TIMING_PREFIX = 'timing:';
+export const PATTERN_PREFIX = 'pattern:';
+
+/**
+ * What separates a pattern from the tempo it was held at.
+ *
+ * Not `@`, which this drill was written with and which was right when it was
+ * written: `@` has since been given to the window a count was counted over
+ * (lib/drillWindow.ts), and one character cannot mean two things on the same
+ * key. Left as it was, `pattern:D-DU-UD-@80` would have read as a pattern
+ * measured over eighty seconds, and the score, which is a share and not a count,
+ * would have been divided by it.
+ *
+ * `~` instead, for the reason `@` was chosen: a key is split on its first colon
+ * everywhere it is read, and a pattern string is only D, U and -, so the two
+ * halves can never be confused for one another. See `countedDrillKey` for the
+ * second half of the fix, which is that a pattern score is never divided at all.
+ */
+const PATTERN_TEMPO_SEP = '~';
 
 const POOL_SEP = '|';
 const RING_SEP = '>';
@@ -163,6 +183,33 @@ export function parseTimingKey(key: string): number | null {
   return Number.isFinite(bpm) && bpm > 0 ? bpm : null;
 }
 
+/**
+ * One dealt strumming pattern, named by the pattern and the tempo it was held at.
+ *
+ * The tempo is part of the key for the same reason it is part of a timing key:
+ * the score is the share of the pattern's own strums that landed inside 50 ms,
+ * and 50 ms is a fifth of an eighth-note slot at 60 BPM and a third of one at
+ * 100. Holding Old Faithful at those two tempos is not one series, and a chart
+ * that averaged them would report a tempo change as a change in the player.
+ *
+ * Bucketed to the same ten as a timing key, and by the same argument.
+ */
+export function patternKey(pattern: string, bpm: number): string {
+  const bucket = Math.round(bpm / TEMPO_BUCKET) * TEMPO_BUCKET;
+  return `${PATTERN_PREFIX}${pattern}${PATTERN_TEMPO_SEP}${bucket}`;
+}
+
+export function parsePatternKey(key: string): { pattern: string; bpm: number } | null {
+  if (!key.startsWith(PATTERN_PREFIX)) return null;
+  const body = key.slice(PATTERN_PREFIX.length);
+  const at = body.lastIndexOf(PATTERN_TEMPO_SEP);
+  if (at <= 0) return null;
+  const pattern = body.slice(0, at);
+  const bpm = Number(body.slice(at + 1));
+  if (!/^[DU-]+$/.test(pattern)) return null;
+  return Number.isFinite(bpm) && bpm > 0 ? { pattern, bpm } : null;
+}
+
 /** The shapes a Chord Perfect block will drill, config first. */
 export function trainerPool(chords: readonly string[] | undefined): string[] {
   return chords?.length ? [...new Set(chords)] : [...DEFAULT_TRAINER_POOL];
@@ -173,7 +220,8 @@ export function rotationRing(chords: readonly string[] | undefined): string[] {
   return chords && chords.length >= 2 ? [...chords] : [...DEFAULT_ROTATION_RING];
 }
 
-export type DrillKeyKind = 'pair' | 'chord' | 'pool' | 'ring' | 'sweep' | 'timing' | 'retired';
+export type DrillKeyKind =
+  | 'pair' | 'chord' | 'pool' | 'ring' | 'sweep' | 'timing' | 'pattern' | 'retired';
 
 export interface DrillKeyDescription {
   kind: DrillKeyKind;
@@ -235,6 +283,19 @@ export function describeDrillKey(key: string): DrillKeyDescription {
   if (bpm) {
     return { kind: 'timing', label: `${bpm} BPM`, unit: DRILL_UNIT['strum-timing'] };
   }
+  const dealt = parsePatternKey(key);
+  if (dealt) {
+    // The pattern's own name where it has one, and the string itself where it
+    // does not, because a player who wrote `D-DUDU--` recognises that and would
+    // not recognise anything the app made up for it. The tempo rides along for
+    // the reason the key carries it: two tempos are two exercises.
+    const named = patternName(dealt.pattern, []);
+    return {
+      kind: 'pattern',
+      label: `${named ?? dealt.pattern} \u00b7 ${dealt.bpm} BPM`,
+      unit: DRILL_UNIT['strum-pattern'],
+    };
+  }
   return RETIRED;
 }
 
@@ -242,28 +303,30 @@ export function describeDrillKey(key: string): DrillKeyDescription {
 export const isDrillKey = (key: string): boolean =>
   // A key that says it carries a window has to carry a readable one. Without
   // this, "pair:A|D@later" would be treated as a real pair and quietly collect
-  // A↔D's runs under a window nothing can divide by.
+  // A to D's runs under a window nothing can divide by.
   (!key.includes(WINDOW_SEP) || keyWindow(key) !== null) &&
   (key.startsWith(PAIR_PREFIX) ||
     key.startsWith(CHORD_PREFIX) ||
     key.startsWith(POOL_PREFIX) ||
     key.startsWith(RING_PREFIX) ||
     key.startsWith(SWEEP_PREFIX) ||
-    key.startsWith(TIMING_PREFIX));
+    key.startsWith(TIMING_PREFIX) ||
+    key.startsWith(PATTERN_PREFIX));
 
 /**
  * Whether the number under this key is a count of things done, rather than
  * something already independent of how long the block ran.
  *
  * Only a count needs the window recorded on it, and only a count may be divided
- * by one. Strum timing stores the share of strums that landed in time: that is
- * the same figure over ninety seconds as over sixty, and turning it into a rate
- * would make a grade out of nonsense. A key the app no longer recognises is left
- * alone for the same reason it is still shown at all — it happened, and the app
- * no longer knows in what unit.
+ * by one. Strum timing stores the share of strums that landed in time, and the
+ * pattern drill stores the share of a pattern's own slots that were struck in
+ * time: both are the same figure over ninety seconds as over sixty, and turning
+ * either into a rate would make a grade out of nonsense. A key the app no longer
+ * recognises is left alone for the same reason it is still shown at all: it
+ * happened, and the app no longer knows in what unit.
  */
 export const countedDrillKey = (key: string): boolean =>
-  isDrillKey(key) && !key.startsWith(TIMING_PREFIX);
+  isDrillKey(key) && !key.startsWith(TIMING_PREFIX) && !key.startsWith(PATTERN_PREFIX);
 
 /**
  * One stored number, as the per-minute rate it stands for.

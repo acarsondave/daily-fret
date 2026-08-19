@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { CloseIcon } from '../icons';
 import { useStore, getTodayString, drillLogsOf } from '../../store';
 import { pairKey } from '../../lib/pairs';
-import { chordKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } from '../../lib/drillKeys';
+import { chordKey, patternKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } from '../../lib/drillKeys';
+import { deckOf, patternRuns } from '../../lib/patternDeck';
 import { keyDrillHistory } from '../../lib/drillStats';
 import { trainerBlockSeconds } from '../../lib/drills';
 import { drillSeries, planTempo, fixedTempo, DEFAULT_PRACTICE_BPM, type TempoPlan } from '../../lib/tempo';
@@ -17,6 +18,7 @@ import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
 import { ChordRotation } from './ChordRotation';
 import { StrumTiming } from './StrumTiming';
+import { StrumPatterns } from './StrumPatterns';
 import { SongPlayer } from './SongPlayer';
 import { TimedSegment } from './TimedSegment';
 import { Metronome } from './Metronome';
@@ -68,6 +70,22 @@ export function PracticeOverlay({ task, onClose }: Props) {
     if (!acc) return 0;
     return keyDrillHistory(drillLogsOf(acc), timingKey(drill.bpm ?? DEFAULT_PRACTICE_BPM)).best;
   }, [drill]);
+
+  // The deck this task deals from, and what the player's own history says about
+  // each card in it. Snapshotted at mount, before this run is recorded, so a
+  // standing on the deck cannot move under the player mid-session.
+  const patternDeck = useMemo(
+    () => (drill?.kind === 'strum-pattern' ? deckOf(drill.patterns) : []),
+    [drill],
+  );
+  const patternHistory = useMemo(() => {
+    if (drill?.kind !== 'strum-pattern') return {};
+    const state = useStore.getState();
+    const acc = state.accounts[state.currentAccountId];
+    const logs = acc ? drillLogsOf(acc) : {};
+    const at = drill.bpm ?? DEFAULT_PRACTICE_BPM;
+    return Object.fromEntries(patternDeck.map((p) => [p, patternRuns(logs, p, at)]));
+  }, [drill, patternDeck]);
 
   // A changes drill can prescribe exact pairs (Justin's Module 3 set). When it
   // does, walk them in order here — the same experience as Coached mode — instead
@@ -130,6 +148,8 @@ export function PracticeOverlay({ task, onClose }: Props) {
     ? `block-${blockIdx}`
     : drill.kind === 'strum-timing'
       ? `timing-${drill.bpm ?? 'default'}`
+      : drill.kind === 'strum-pattern'
+      ? `pattern-${drill.bpm ?? 'default'}`
       : drill.kind === 'one-minute-changes'
       ? explicitPairs.length
         ? `pair-${Math.min(pairIdx, explicitPairs.length - 1)}`
@@ -152,6 +172,14 @@ export function PracticeOverlay({ task, onClose }: Props) {
       return fixedTempo(
         drill.bpm,
         `Hold ${drill.bpm ?? DEFAULT_PRACTICE_BPM} in 4/4. One down strum on every click.`,
+      );
+    }
+    // Patterns state their tempo too. The click has to run unbroken through the
+    // whole block, which is the thing the drill is about.
+    if (drill.kind === 'strum-pattern') {
+      return fixedTempo(
+        drill.bpm,
+        `Hold ${drill.bpm ?? DEFAULT_PRACTICE_BPM} in 4/4. The arm keeps moving through every slot.`,
       );
     }
     if (drill.kind === 'one-minute-changes') {
@@ -415,6 +443,32 @@ export function PracticeOverlay({ task, onClose }: Props) {
               // zero, so the day records that the drill ran and heard nothing
               // rather than looking as though it was never opened.
               measured([{ key: timingKey(bpm), value: summary.score }]);
+              settleTask(today, task.id);
+            }}
+            onClose={leave}
+          />
+        )}
+        {drill?.kind === 'strum-pattern' && (
+          <StrumPatterns
+            config={drill}
+            bpm={tempoPlan?.bpm ?? DEFAULT_PRACTICE_BPM}
+            deck={patternDeck}
+            history={patternHistory}
+            onSessionStart={beginDrill}
+            onResult={({ bpm, deals }) => {
+              // One measurement per deal, each under the pattern it was played
+              // on. A block with nothing in it still reports, under the first
+              // card of the deck and at zero, so the day records that the drill
+              // ran and heard nothing rather than looking unopened.
+              measured(
+                deals.length
+                  ? deals.map((d) => ({
+                      key: patternKey(d.pattern, bpm),
+                      value: d.score,
+                      settledBar: d.settledBar,
+                    }))
+                  : [{ key: patternKey(patternDeck[0] ?? 'D-D-D-D-', bpm), value: 0 }],
+              );
               settleTask(today, task.id);
             }}
             onClose={leave}

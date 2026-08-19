@@ -1,0 +1,279 @@
+/* Strum patterns: the deck, the bar being played, and what the run left behind.
+   The bar itself is patternBar.css; this is only the surface around it.
+   Imported by the component rather than by practice.css, the way the groove rail
+   is, so no other drill carries rules it never renders. */
+
+/* --- The deck ------------------------------------------------------------- */
+
+.sp-setup {
+  gap: var(--space-6);
+  width: min(520px, 92vw);
+}
+
+.sp-deck {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+/* One card. The row itself carries the standing through its own weight
+   (patternBar.css), so the card is only a place to stand and a name. */
+.sp-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.sp-card .pattern-bar {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* A card the player has made their own sits forward: the ground lifts and the
+   hairline strengthens, so the deck reads as a ladder from across a desk before
+   any of the names are read. */
+.sp-card.is-automatic {
+  border-color: var(--border-default);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.sp-card-name {
+  flex: 0 0 auto;
+  width: 8.5em;
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.sp-card.is-automatic .sp-card-name {
+  color: var(--text-primary);
+}
+
+/* --- The bar being played -------------------------------------------------- */
+
+.sp-stage {
+  gap: var(--space-6);
+}
+
+.sp-bars {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-6);
+  width: min(840px, 100%);
+}
+
+.sp-current {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The card coming up, beside the one being played rather than after it. A bar
+   out is enough warning to see it without stopping, which is the only reason it
+   is on screen at all. The hairline is the same one the day's rail uses. */
+.sp-next {
+  flex: 0 0 32%;
+  max-width: 260px;
+  min-width: 104px;
+  padding-left: var(--space-6);
+  border-left: 1px solid var(--border-subtle);
+}
+
+/* --- What the app is witnessing -------------------------------------------- */
+
+/* Bars of the deal, as bars. A "2 / 4" would be one more thing to read with both
+   hands on the guitar, and this says the same thing without being read. */
+.sp-bars-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sp-tick {
+  width: 22px;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: rgb(236 222 205 / 0.16);
+  transition: background var(--dur-base) ease;
+}
+
+.sp-tick.is-done {
+  background: var(--accent-primary);
+}
+
+/* --- The click that never arrived ------------------------------------------ */
+
+.sp-diagram {
+  max-width: min(340px, 100%);
+}
+
+/* Two classes deep on purpose: `.mic-gate p` is more specific than a single
+   class and would otherwise hold this at body size under its own paragraph. */
+.sp-deaf .sp-deaf-title {
+  font-family: var(--font-primary);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.25;
+  color: var(--warning-color);
+}
+
+/* --- What the run left behind ---------------------------------------------- */
+
+.sp-results {
+  width: min(640px, 92vw);
+  gap: var(--space-4);
+}
+
+.sp-report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.sp-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+}
+
+.sp-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sp-row-name {
+  font-family: var(--font-primary);
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+}
+
+/* Three clean runs is what makes a pattern automatic, so the standing is three
+   strokes filling in rather than a word that would have to be learned. */
+.sp-standing {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.sp-standing-tick {
+  width: 3px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  background: rgb(236 222 205 / 0.18);
+}
+
+.sp-standing-tick.is-on {
+  background: var(--accent-primary);
+}
+
+/* The one line the picture cannot carry. Up strums stop being detectable below
+   about two thirds of the level of the downs, and a run under that floor has not
+   been measured rather than played badly, which is a claim about the recording
+   and not about the row above it. */
+.sp-note {
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--warning-color);
+}
+
+.sp-call {
+  font-family: var(--font-primary);
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+  max-width: 40ch;
+  text-align: center;
+  text-wrap: balance;
+}
+
+/* --- Small screens ---------------------------------------------------------- */
+
+@media (max-width: 600px) {
+  .sp-bars {
+    gap: var(--space-3);
+  }
+  /* On a phone the card coming up takes a fixed strip rather than a share of
+     the row. Eight slots need about ninety pixels before the picks start
+     sitting on each other, and a percentage of a 390px frame does not give
+     them that; below it the preview stops being readable at all, which is
+     worse than it being small. */
+  .sp-next {
+    flex: 0 0 118px;
+    min-width: 108px;
+    max-width: 140px;
+    padding-left: var(--space-3);
+  }
+  .sp-next .pattern-bar {
+    --pb-pick: 11px;
+    --pb-lane: 56px;
+    --pb-stem: 7px;
+  }
+  .sp-card {
+    gap: var(--space-3);
+    padding: var(--space-1) var(--space-3);
+  }
+  .sp-card-name {
+    width: 6.5em;
+    font-size: var(--text-micro);
+  }
+  .sp-tick {
+    width: 18px;
+  }
+}
+
+/* The result card on a short landscape frame. The rows are the whole card, so
+   the room comes out of the space between them and out of each row's own lane.
+   Last in the file because these are same-specificity overrides of rules above
+   and a media query buys no specificity. */
+@media (min-width: 860px) and (max-height: 780px) {
+  /* The bar is a measurement across a width, so on a short landscape frame it
+     takes the column that can actually give it one and the clock stands beside
+     it. Matching what the groove rail already does one drill over. */
+  .sp-stage .drill-cue {
+    flex: 1 1 620px;
+    min-width: 360px;
+  }
+  .sp-stage .drill-read {
+    flex: 0 0 auto;
+  }
+  .sp-stage .pattern-bar {
+    --pb-lane: 120px;
+  }
+  .sp-results {
+    gap: var(--space-3);
+  }
+  .sp-report {
+    gap: var(--space-2);
+  }
+  .sp-results .pattern-bar.is-card {
+    --pb-lane: 52px;
+  }
+}
+
+/* The card drawn but not yet dealt, while the drill is still finding the click.
+   Quieter than a live one, because nothing is being measured against it yet and
+   a bar at full weight would read as a run already under way. It is here at all
+   so the stage is never blank under a running clock. */
+.sp-current.is-waiting {
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sp-current.is-waiting {
+    transition: opacity var(--dur-slow) ease;
+  }
+}

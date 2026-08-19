@@ -11,6 +11,17 @@ export type CoachSegment =
   | { kind: 'rotation'; taskId: string; title: string; chords: string[]; seconds: number }
   | { kind: 'song'; taskId: string; title: string; songId: string }
   | { kind: 'timing'; taskId: string; title: string; seconds: number; bpm?: number }
+  | {
+      kind: 'patterns';
+      taskId: string;
+      title: string;
+      seconds: number;
+      bpm?: number;
+      /** The deck to deal from. Absent takes the opening rungs of the ladder. */
+      patterns?: string[];
+      /** Bars each dealt pattern is played for. */
+      bars?: number;
+    }
   | { kind: 'timed'; taskId: string; title: string; description?: string; seconds: number; pattern?: string; bpm?: number };
 
 // Parse a free-form duration label ("5 mins", "2-3 mins", "90s") into seconds.
@@ -132,6 +143,20 @@ export function buildSegments(routine: Routine | undefined): CoachSegment[] {
         title: task.title,
         seconds: drillSeconds,
         bpm: task.drill?.bpm,
+      });
+    } else if (kind === 'strum-pattern') {
+      // Its own segment for the same reason timing is: the timer branch below
+      // would announce it, count it in and then measure nothing, which is the
+      // "the app says it heard something it did not" failure the product exists
+      // to avoid.
+      segments.push({
+        kind: 'patterns',
+        taskId: task.id,
+        title: task.title,
+        seconds: drillSeconds,
+        bpm: task.drill?.bpm,
+        patterns: task.drill?.patterns,
+        bars: task.drill?.bars,
       });
     } else if (kind === 'song' && task.drill?.songId) {
       // Play-along: no fixed length, it ends when the record does.

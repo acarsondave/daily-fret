@@ -11,7 +11,8 @@ import {
 } from '../icons';
 import { useStore, getTodayString, drillLogsOf, type CoachStepResult } from '../../store';
 import { pairKey } from '../../lib/pairs';
-import { chordKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } from '../../lib/drillKeys';
+import { chordKey, patternKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } from '../../lib/drillKeys';
+import { deckOf, patternRuns } from '../../lib/patternDeck';
 import { buildSegments, isResumable } from '../../lib/coached';
 import { keyDrillHistory } from '../../lib/drillStats';
 import { DRILL_UNIT, trainerBlockSeconds } from '../../lib/drills';
@@ -27,6 +28,7 @@ import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
 import { ChordRotation } from './ChordRotation';
 import { StrumTiming } from './StrumTiming';
+import { StrumPatterns } from './StrumPatterns';
 import { SongPlayer } from './SongPlayer';
 import { TimedSegment } from './TimedSegment';
 import { MicPermissionHint } from './MicPermissionHint';
@@ -74,7 +76,12 @@ export function CoachedSession({ routine, onClose }: Props) {
   const needsMic = useMemo(
     () =>
       segments.some(
-        (s) => s.kind === 'changes' || s.kind === 'trainer' || s.kind === 'rotation' || s.kind === 'timing',
+        (s) =>
+          s.kind === 'changes' ||
+          s.kind === 'trainer' ||
+          s.kind === 'rotation' ||
+          s.kind === 'timing' ||
+          s.kind === 'patterns',
       ),
     [segments],
   );
@@ -145,6 +152,23 @@ export function CoachedSession({ routine, onClose }: Props) {
     return keyDrillHistory(drillLogsOf(acc), timingKey(seg.bpm ?? DEFAULT_PRACTICE_BPM)).best;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
+  // The deck this block will deal, and what the player's own history says about
+  // each card in it. Snapshotted when the segment opens, before this run is
+  // recorded, so a standing cannot move under the player mid-block.
+  const patternDeck = useMemo(
+    () => (seg?.kind === 'patterns' ? deckOf(seg.patterns) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [index],
+  );
+  const patternHistory = useMemo(() => {
+    if (seg?.kind !== 'patterns') return {};
+    const state = useStore.getState();
+    const acc = state.accounts[state.currentAccountId];
+    const logs = acc ? drillLogsOf(acc) : {};
+    const at = seg.bpm ?? DEFAULT_PRACTICE_BPM;
+    return Object.fromEntries(patternDeck.map((p) => [p, patternRuns(logs, p, at)]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, patternDeck]);
   const rotationBest = useMemo(() => {
     if (!ring) return 0;
     const state = useStore.getState();
@@ -184,6 +208,14 @@ export function CoachedSession({ routine, onClose }: Props) {
     // percentage, and a percentage implies nothing about how fast to go next.
     if (seg.kind === 'timing') {
       return fixedTempo(seg.bpm, `Hold ${seg.bpm ?? DEFAULT_PRACTICE_BPM} in 4/4. One down strum on every click.`);
+    }
+    // Patterns state theirs too, and for the same reason. The click also has to
+    // run unbroken through the whole block, which is what the drill is about.
+    if (seg.kind === 'patterns') {
+      return fixedTempo(
+        seg.bpm,
+        `Hold ${seg.bpm ?? DEFAULT_PRACTICE_BPM} in 4/4. The arm keeps moving through every slot.`,
+      );
     }
     // Songs are played to the record, not to a click. The tempo is still loaded
     // so one tap gives the right click if the player wants it while learning.
@@ -270,7 +302,14 @@ export function CoachedSession({ routine, onClose }: Props) {
     // audio sessions at once, which is the thing Safari is least forgiving
     // about, and would run a chord matcher over a drill that never asks it
     // anything.
-    if (seg.kind === 'timed' || seg.kind === 'song' || seg.kind === 'timing') void detector.stop();
+    if (
+      seg.kind === 'timed' ||
+      seg.kind === 'song' ||
+      seg.kind === 'timing' ||
+      seg.kind === 'patterns'
+    ) {
+      void detector.stop();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
 
@@ -424,7 +463,9 @@ export function CoachedSession({ routine, onClose }: Props) {
             ? 'Play along with the real song'
             : seg.kind === 'timing'
               ? 'One down strum on every click'
-              : mins(seg.seconds);
+              : seg.kind === 'patterns'
+                ? 'Patterns dealt against a click that never stops'
+                : mins(seg.seconds);
 
   return createPortal(
     <motion.div
@@ -629,6 +670,44 @@ export function CoachedSession({ routine, onClose }: Props) {
             onResult={({ bpm, summary }) => {
               recordMeasurements(today, seg.taskId, [{ key: timingKey(bpm), value: summary.score }]);
               lastValueRef.current = summary.score;
+              void speak('done');
+            }}
+            onNext={() => advance({
+              title: seg.title,
+              value: lastValueRef.current,
+              unit: '% in time',
+              done: (lastValueRef.current ?? 0) > 0,
+            })}
+            onClose={exit}
+          />
+        )}
+
+        {phase === 'segment' && seg.kind === 'patterns' && (
+          <StrumPatterns
+            key={`seg-${index}`}
+            config={{ kind: 'strum-pattern', durationSec: seg.seconds, bpm: seg.bpm, bars: seg.bars }}
+            bpm={tempoPlan?.bpm ?? DEFAULT_PRACTICE_BPM}
+            deck={patternDeck}
+            history={patternHistory}
+            autoStart
+            autoAdvance
+            nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
+            onResult={({ bpm, deals }) => {
+              // One measurement per deal, each under the pattern it was played
+              // on. A block with nothing in it still reports, under the first
+              // card of the deck and at zero, so the day records that the drill
+              // ran and heard nothing rather than looking unopened.
+              const results = deals.length
+                ? deals.map((d) => ({
+                    key: patternKey(d.pattern, bpm),
+                    value: d.score,
+                    settledBar: d.settledBar,
+                  }))
+                : [{ key: patternKey(patternDeck[0] ?? 'D-D-D-D-', bpm), value: 0 }];
+              recordMeasurements(today, seg.taskId, results);
+              lastValueRef.current = deals.length
+                ? Math.max(...deals.map((d) => d.score))
+                : 0;
               void speak('done');
             }}
             onNext={() => advance({
