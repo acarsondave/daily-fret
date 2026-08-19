@@ -12,19 +12,36 @@
   --pb-bone-quiet: rgb(236 222 205 / 0.3);
   /* How far off the strings a pick sits. Half its own height and a little more,
      so the glyph clears the hairline instead of resting on it. */
-  --pb-off: calc(var(--pb-pick) * 0.5 + 5px);
-  --pb-lane: 104px;
-  --pb-stroke-h: 46%;
+  --pb-off: calc(var(--pb-pick) * 0.5 + 6px);
+  --pb-pick: 32px;
+  --pb-lane: 148px;
+  --pb-stroke-h: 40%;
+  /* The count's tallest stem. Short enough to stay clear of the picks either
+     side of the strings: a stem that reaches them turns every slot into a
+     lollipop and the notation stops being readable at all. */
+  --pb-stem: 17px;
 }
 
 .pattern-bar.is-card {
-  --pb-lane: 66px;
-  --pb-stroke-h: 52%;
+  --pb-pick: 22px;
+  --pb-lane: 88px;
+  --pb-stroke-h: 46%;
+  --pb-stem: 12px;
 }
 
 .pattern-bar.is-deck {
-  --pb-lane: 48px;
-  --pb-stroke-h: 54%;
+  --pb-pick: 18px;
+  --pb-lane: 64px;
+  --pb-stroke-h: 50%;
+  --pb-stem: 9px;
+}
+
+/* The glyph takes its size from the row, so a narrow phone shrinks it without
+   the component knowing anything about viewports. */
+.pb-pick {
+  display: block;
+  width: var(--pb-pick);
+  height: var(--pb-pick);
 }
 
 .pb-lane {
@@ -48,18 +65,18 @@
 }
 
 .pb-stem.is-one {
-  height: 78%;
-  color: rgb(236 222 205 / 0.16);
+  height: var(--pb-stem);
+  color: rgb(236 222 205 / 0.4);
 }
 
 .pb-stem.is-beat {
-  height: 54%;
-  color: rgb(236 222 205 / 0.11);
+  height: calc(var(--pb-stem) * 0.66);
+  color: rgb(236 222 205 / 0.26);
 }
 
 .pb-stem.is-and {
-  height: 28%;
-  color: rgb(236 222 205 / 0.07);
+  height: calc(var(--pb-stem) * 0.36);
+  color: rgb(236 222 205 / 0.18);
 }
 
 /* The strings. `.rail-wire` is the app's hairline; it only needs placing. */
@@ -122,7 +139,7 @@
 .pb-stroke {
   position: absolute;
   top: 50%;
-  width: 2px;
+  width: 3px;
   height: var(--pb-stroke-h);
   border-radius: 1px;
   transform: translate(-50%, -50%) rotate(-10.5deg);
@@ -149,8 +166,8 @@
   position: absolute;
   top: 50%;
   left: 0;
-  width: 3px;
-  height: 20px;
+  width: 4px;
+  height: 30px;
   margin-left: 0;
   border-radius: var(--radius-full);
   background: var(--pb-bone);
@@ -160,8 +177,8 @@
 
 .pattern-bar.is-card .pb-arm,
 .pattern-bar.is-deck .pb-arm {
-  height: 14px;
-  width: 2px;
+  height: 18px;
+  width: 3px;
 }
 
 /* --- a deck card ----------------------------------------------------------
@@ -169,13 +186,13 @@
    The standing is the row's own weight rather than a badge beside it. */
 
 .pattern-bar.is-new {
-  --pb-bone: rgb(236 222 205 / 0.34);
-  --pb-bone-quiet: rgb(236 222 205 / 0.16);
+  --pb-bone: rgb(236 222 205 / 0.52);
+  --pb-bone-quiet: rgb(236 222 205 / 0.24);
 }
 
 .pattern-bar.is-learning {
-  --pb-bone: rgb(236 222 205 / 0.6);
-  --pb-bone-quiet: rgb(236 222 205 / 0.24);
+  --pb-bone: rgb(236 222 205 / 0.74);
+  --pb-bone-quiet: rgb(236 222 205 / 0.3);
 }
 
 .pattern-bar.is-automatic {
@@ -189,17 +206,31 @@
   fill: none;
 }
 
+/* A phone has room for eight slots or for big ones, not both. The glyph gives
+   way first, because eight of them in a row is the notation and a bigger one
+   that collides with its neighbour says nothing at all. */
 @media (max-width: 600px) {
   .pattern-bar {
-    --pb-lane: 88px;
+    --pb-pick: 23px;
+    --pb-lane: 118px;
+    --pb-stem: 13px;
   }
   .pattern-bar.is-card {
-    --pb-lane: 60px;
+    --pb-pick: 18px;
+    --pb-lane: 74px;
   }
   .pattern-bar.is-deck {
-    --pb-lane: 42px;
+    --pb-pick: 15px;
+    --pb-lane: 54px;
   }
   .pb-arm {
-    height: 17px;
+    height: 24px;
+  }
+}
+
+@media (max-width: 400px) {
+  .pattern-bar {
+    --pb-pick: 20px;
+    --pb-lane: 106px;
   }
 }

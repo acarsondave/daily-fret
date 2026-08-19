@@ -619,7 +619,7 @@ export function StrumPatterns({
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
             >
-              <PatternBar pattern={next} size="deck" label={`Next. ${describePattern(next)}`} />
+              <PatternBar pattern={next} size="card" label={`Next. ${describePattern(next)}`} />
             </motion.div>
           )}
         </div>

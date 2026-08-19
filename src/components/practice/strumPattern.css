@@ -65,8 +65,8 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--space-5);
-  width: min(680px, 100%);
+  gap: var(--space-6);
+  width: min(840px, 100%);
 }
 
 .sp-current {
@@ -78,10 +78,10 @@
    out is enough warning to see it without stopping, which is the only reason it
    is on screen at all. The hairline is the same one the day's rail uses. */
 .sp-next {
-  flex: 0 0 30%;
-  max-width: 220px;
-  min-width: 96px;
-  padding-left: var(--space-5);
+  flex: 0 0 32%;
+  max-width: 260px;
+  min-width: 104px;
+  padding-left: var(--space-6);
   border-left: 1px solid var(--border-subtle);
 }
 
@@ -127,7 +127,7 @@
 /* --- What the run left behind ---------------------------------------------- */
 
 .sp-results {
-  width: min(560px, 92vw);
+  width: min(640px, 92vw);
   gap: var(--space-4);
 }
 
@@ -206,10 +206,16 @@
   .sp-bars {
     gap: var(--space-3);
   }
+  /* The card coming up gives back most of the width on a phone: it is a
+     glance, and the bar being played is the thing both hands are following. */
   .sp-next {
-    flex-basis: 34%;
-    min-width: 84px;
+    flex-basis: 27%;
+    min-width: 78px;
     padding-left: var(--space-3);
+  }
+  .sp-next .pattern-bar {
+    --pb-pick: 13px;
+    --pb-lane: 62px;
   }
   .sp-card {
     gap: var(--space-3);
@@ -229,6 +235,19 @@
    Last in the file because these are same-specificity overrides of rules above
    and a media query buys no specificity. */
 @media (min-width: 860px) and (max-height: 780px) {
+  /* The bar is a measurement across a width, so on a short landscape frame it
+     takes the column that can actually give it one and the clock stands beside
+     it. Matching what the groove rail already does one drill over. */
+  .sp-stage .drill-cue {
+    flex: 1 1 620px;
+    min-width: 360px;
+  }
+  .sp-stage .drill-read {
+    flex: 0 0 auto;
+  }
+  .sp-stage .pattern-bar {
+    --pb-lane: 120px;
+  }
   .sp-results {
     gap: var(--space-3);
   }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties } from 'react';
+import { useEffect, useRef } from 'react';
 import clsx from 'clsx';
 import { ICON_STROKE } from '../icons/Icon';
 import { SLOTS_PER_BAR, type Pattern, type SlotStroke } from '../../lib/strumPattern';
@@ -101,20 +101,15 @@ function directionAt(slot: number, expected: SlotStroke): 'D' | 'U' {
  * The pick.
  *
  * The app's own plectrum outline, drawn here rather than through the icon set
- * because this notation has to fill it, point it either way and scale it with
- * the row, none of which an icon is allowed to decide. The pen is the same one,
- * held at the same weight whatever the row's size.
+ * because this notation has to fill it, point it either way and take its size
+ * from the row it is drawn in, none of which an icon is allowed to decide. The
+ * size comes through CSS rather than a prop so a narrow phone can shrink the
+ * glyph without the component knowing anything about viewports. The pen is the
+ * icon set's, and it thins with the glyph exactly as the icon set's does.
  */
-function Pick({ up, filled, size }: { up: boolean; filled: boolean; size: number }) {
+function Pick({ up, filled }: { up: boolean; filled: boolean }) {
   return (
-    <svg
-      className="pb-pick"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-    >
+    <svg className="pb-pick" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path
         d="M12 3.6c3.7 0 6.6 2.2 6.6 5.4 0 3.5-3.3 8-5.4 10.3a1.6 1.6 0 0 1-2.4 0C8.7 17 5.4 12.5 5.4 9c0-3.2 2.9-5.4 6.6-5.4Z"
         fill={filled ? 'currentColor' : 'none'}
@@ -127,8 +122,6 @@ function Pick({ up, filled, size }: { up: boolean; filled: boolean; size: number
     </svg>
   );
 }
-
-const PICK_SIZE: Record<BarSize, number> = { live: 26, card: 18, deck: 14 };
 
 /** The x of a slot's centre, as a percentage of the bar. */
 const centreOf = (slot: number, offset = 0): string =>
@@ -143,7 +136,6 @@ export function PatternBar({
   className,
   label,
 }: Props) {
-  const pick = PICK_SIZE[size];
   const armRef = useRef<HTMLSpanElement | null>(null);
 
   // The arm, from one number, written straight to the element. Inside a slot it
@@ -175,7 +167,6 @@ export function PatternBar({
   return (
     <div
       className={clsx('pattern-bar', `is-${size}`, standing && `is-${standing}`, className)}
-      style={{ '--pb-pick': `${pick}px` } as CSSProperties}
       role="img"
       aria-label={label}
     >
@@ -214,7 +205,7 @@ export function PatternBar({
                 )}
                 style={{ left: centreOf(slot) }}
               >
-                <Pick up={up} filled={!!expected && state !== 'unheard'} size={pick} />
+                <Pick up={up} filled={!!expected && state !== 'unheard'} />
               </span>
               {landed && (
                 <span
