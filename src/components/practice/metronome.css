@@ -164,10 +164,6 @@
 .metro-note.is-warning {
   color: var(--warning-color);
 }
-.metro-note.is-live {
-  color: var(--accent-primary);
-}
-
 .metro-stepper {
   display: flex;
   align-items: center;

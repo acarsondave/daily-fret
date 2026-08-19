@@ -99,10 +99,26 @@ export function GrooveRail({ marks, centreMs, spreadMs, locked, clickPulse }: Li
             the start even when two clicks land inside its own duration. */}
         <span key={clickPulse} className="groove-pulse" aria-hidden="true" />
       </div>
-      <div className="groove-scale">
-        <span>ahead of the click</span>
-        <span>behind it</span>
-      </div>
+      <RailScale />
+    </div>
+  );
+}
+
+/**
+ * What the rail is measured in, on the rail.
+ *
+ * The window's width used to be explained under the results card: forty words
+ * saying what counts as in time, at what tempo, and why a lean smaller than the
+ * drill can resolve is drawn but never named. The first of those is a number
+ * belonging to a band that is already drawn, so it is written on the band. The
+ * rest was the app explaining its own arithmetic to someone holding a guitar.
+ */
+function RailScale() {
+  return (
+    <div className="groove-scale">
+      <span>ahead of the click</span>
+      <span className="groove-scale-window">±{IN_TIME_MS} ms</span>
+      <span>behind it</span>
     </div>
   );
 }
@@ -157,10 +173,7 @@ export function GrooveTrace({ offsets }: { offsets: readonly BeatOffset[] }) {
           />
         ))}
       </div>
-      <div className="groove-scale">
-        <span>ahead of the click</span>
-        <span>behind it</span>
-      </div>
+      <RailScale />
     </div>
   );
 }

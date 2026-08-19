@@ -36,6 +36,13 @@
   white-space: nowrap;
 }
 
+/* Nothing to say. Three green bars are already the whole of "good signal", so
+   the meter shrinks to the mark and the bars and gets out of the way of the
+   drill it is sitting under. */
+.signal-meter.is-bare {
+  padding-inline: var(--space-2);
+}
+
 /* Quality states */
 .signal-meter.is-good { color: var(--success-color); }
 .signal-meter.is-good .signal-bar.is-on { background: var(--success-color); }

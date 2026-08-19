@@ -27,9 +27,11 @@ export function MicGate({ error, onRetry, onTimer }: Props) {
     <div className="mic-gate">
       <MicIcon size={40} color="var(--text-secondary)" />
       <p className="mic-gate-reason">{error ?? 'The microphone did not open.'}</p>
-      <p className="mic-gate-note">
-        On a timer this drill still runs and still counts as practice. Nothing is measured.
-      </p>
+      {/* What the way out costs used to be a sentence above the buttons, saying
+          in fourteen words what the second button's own label says in five and
+          what the drill then repeats on screen for its whole length. The choice
+          is between two named actions, so the two named actions are the whole
+          of it. */}
       <div className="mic-gate-actions">
         <button className="practice-btn primary" onClick={onRetry}>
           <RetryIcon size={18} /> Try again
@@ -65,10 +67,10 @@ export function TimerRunEnded({
   return (
     <div className="mic-gate">
       <HourglassIcon size={40} color="var(--text-secondary)" />
-      <p className="mic-gate-reason">Time is up. That block is on the record as time played.</p>
-      <p className="mic-gate-note">
-        Nothing was counted: the microphone was off, so there is no number to compare.
-      </p>
+      {/* Two sentences said the same thing twice: the block ran, and no number
+          came of it. The absence of a results ring is already the second half,
+          on a surface where every other ending has one. */}
+      <p className="mic-gate-reason">Time played. Nothing counted.</p>
       {autoAdvance && onNext ? (
         <div className="coach-advance">
           <span className="coach-advance-label">{nextLabel} in</span>
@@ -94,7 +96,7 @@ export function TimerRunEnded({
 export function UncountedNotice() {
   return (
     <p className="drill-uncounted" role="status">
-      <HourglassIcon size={15} /> Timer only. Nothing is being counted.
+      <HourglassIcon size={15} /> Nothing is being counted
     </p>
   );
 }

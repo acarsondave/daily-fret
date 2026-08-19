@@ -340,12 +340,14 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
               )}
             </div>
 
+            {/* The count-in has no line of its own any more: the strip above is
+                already drawing four count-in cells filling one at a time, and a
+                sentence under a picture of the thing it describes is the picture
+                said twice. The muted case keeps a line because nothing on this
+                panel can draw a browser refusing to make a sound, but it is the
+                fault only — the button below it is the fix and says so. */}
             {silent ? (
-              <p className="metro-note is-warning">
-                Your browser is holding the sound. Tap below to turn the click on.
-              </p>
-            ) : counting ? (
-              <p className="metro-note is-live">Counting you in.</p>
+              <p className="metro-note is-warning">The browser is holding the sound.</p>
             ) : plan && auto && onPlan ? (
               <p className="metro-note">{plan.reason}</p>
             ) : plan && auto ? (
