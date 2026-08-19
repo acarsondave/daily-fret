@@ -1,0 +1,205 @@
+/* One bar of eight slots. See PatternBar.tsx for what each mark means.
+ *
+ * Imported by the component rather than by practice.css, the way the groove rail
+ * is: nothing else in the app draws a bar, and every other drill would otherwise
+ * carry the rules for one. */
+
+.pattern-bar {
+  width: 100%;
+  /* Bone. The same colour the day's rail and its inlay are drawn in, because
+     this is the same thing: a landmark the player finds their place against. */
+  --pb-bone: rgb(236 222 205 / 0.82);
+  --pb-bone-quiet: rgb(236 222 205 / 0.3);
+  /* How far off the strings a pick sits. Half its own height and a little more,
+     so the glyph clears the hairline instead of resting on it. */
+  --pb-off: calc(var(--pb-pick) * 0.5 + 5px);
+  --pb-lane: 104px;
+  --pb-stroke-h: 46%;
+}
+
+.pattern-bar.is-card {
+  --pb-lane: 66px;
+  --pb-stroke-h: 52%;
+}
+
+.pattern-bar.is-deck {
+  --pb-lane: 48px;
+  --pb-stroke-h: 54%;
+}
+
+.pb-lane {
+  position: relative;
+  height: var(--pb-lane);
+  /* Half a slot of breathing room each end, so the first and last picks are not
+     cut in half by the row's own edge. */
+  margin: 0 calc(var(--pb-pick) * 0.5 + 2px);
+}
+
+/* --- the count, drawn ------------------------------------------------------
+   Beat one is a full stem, the other beats are shorter, the "and"s shorter
+   still. A row of eight then reads as 1 + 2 + 3 + 4 + with nothing written. */
+
+.pb-stem {
+  position: absolute;
+  top: 50%;
+  width: 1px;
+  transform: translate(-50%, -50%);
+  background: currentColor;
+}
+
+.pb-stem.is-one {
+  height: 78%;
+  color: rgb(236 222 205 / 0.16);
+}
+
+.pb-stem.is-beat {
+  height: 54%;
+  color: rgb(236 222 205 / 0.11);
+}
+
+.pb-stem.is-and {
+  height: 28%;
+  color: rgb(236 222 205 / 0.07);
+}
+
+/* The strings. `.rail-wire` is the app's hairline; it only needs placing. */
+.pb-strings {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+}
+
+/* `display: contents` so the marks position against the lane rather than
+   against a wrapper that would have to be sized for them. */
+.pb-slot {
+  display: contents;
+}
+
+/* --- the pick at each slot ------------------------------------------------- */
+
+.pb-pick-mark {
+  position: absolute;
+  display: flex;
+  color: var(--pb-bone);
+  transition: color var(--dur-base) ease;
+}
+
+.pb-pick-mark.is-down {
+  top: calc(50% - var(--pb-off));
+  transform: translate(-50%, -50%);
+}
+
+.pb-pick-mark.is-up {
+  top: calc(50% + var(--pb-off));
+  transform: translate(-50%, -50%);
+}
+
+/* A slot the arm passes through with the pick lifted. Outline, and quieter than
+   the slots that sound, because it is an instruction to keep moving rather than
+   an instruction to play. */
+.pb-pick-mark.is-ghost {
+  color: var(--pb-bone-quiet);
+}
+
+/* Expected, and nothing arrived. Dimmed rather than reddened: the lesson calls
+   a variation a variation, and the drill never marks a slot wrong. */
+.pb-pick-mark.is-missed {
+  color: var(--text-muted);
+}
+
+/* Expected, and the microphone had nothing to say about it. Hollow, because an
+   absence of evidence is not a miss and must not be drawn as one. */
+.pb-pick-mark.is-unheard {
+  color: var(--text-muted);
+}
+
+/* --- a strum that was actually played -------------------------------------- */
+
+/* A stroke across the strings, at the position inside the slot it landed on.
+   Raked with the room's own angle, so a strum reads as a hand crossing the
+   strings rather than as a tick on an axis. */
+.pb-stroke {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: var(--pb-stroke-h);
+  border-radius: 1px;
+  transform: translate(-50%, -50%) rotate(-10.5deg);
+  background: var(--accent-primary);
+  box-shadow: 0 0 12px -2px var(--accent-glow);
+  transition:
+    left var(--dur-fast) var(--ease-out),
+    opacity var(--dur-base) ease;
+}
+
+/* A strum where the pattern is silent. Never an error colour: "Exploring
+   Strumming" tells the player in as many words that they may add strums, so an
+   added one is a variation and is drawn as one. */
+.pb-stroke.is-added {
+  background: var(--text-secondary);
+  box-shadow: none;
+}
+
+/* --- the arm ---------------------------------------------------------------
+   The one thing on the surface that never stops. It is bone, not accent,
+   because it is what the click is asking for and not what the player did. */
+
+.pb-arm {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 3px;
+  height: 20px;
+  margin-left: 0;
+  border-radius: var(--radius-full);
+  background: var(--pb-bone);
+  box-shadow: 0 0 16px -1px rgb(236 222 205 / 0.45);
+  pointer-events: none;
+}
+
+.pattern-bar.is-card .pb-arm,
+.pattern-bar.is-deck .pb-arm {
+  height: 14px;
+  width: 2px;
+}
+
+/* --- a deck card ----------------------------------------------------------
+   Outline when new, solid when automatic, and the rung between them halfway.
+   The standing is the row's own weight rather than a badge beside it. */
+
+.pattern-bar.is-new {
+  --pb-bone: rgb(236 222 205 / 0.34);
+  --pb-bone-quiet: rgb(236 222 205 / 0.16);
+}
+
+.pattern-bar.is-learning {
+  --pb-bone: rgb(236 222 205 / 0.6);
+  --pb-bone-quiet: rgb(236 222 205 / 0.24);
+}
+
+.pattern-bar.is-automatic {
+  --pb-bone: rgb(236 222 205 / 0.95);
+  --pb-bone-quiet: rgb(236 222 205 / 0.34);
+}
+
+/* A new pattern's sounded slots are outlines too, so "not yet mine" is legible
+   from the shape of the row and not only from its weight. */
+.pattern-bar.is-new .pb-pick-mark .pb-pick path {
+  fill: none;
+}
+
+@media (max-width: 600px) {
+  .pattern-bar {
+    --pb-lane: 88px;
+  }
+  .pattern-bar.is-card {
+    --pb-lane: 60px;
+  }
+  .pattern-bar.is-deck {
+    --pb-lane: 42px;
+  }
+  .pb-arm {
+    height: 17px;
+  }
+}

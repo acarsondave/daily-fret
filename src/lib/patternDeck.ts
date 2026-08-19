@@ -14,6 +14,7 @@ import { BUILTIN_PATTERNS } from '../data/strumPatterns';
 import {
   MIN_PATTERN_BARS,
   patternStanding,
+  type Pattern,
   type PatternRunRecord,
   type PatternStanding,
   type PatternSummary,
@@ -133,4 +134,22 @@ export function upStrumsUnheard(summary: PatternSummary): boolean {
   const allUpsGone = ups.every((s) => s.bars > 0 && s.struck <= s.bars * HEARD_FRACTION);
   const downsClean = downs.every((s) => s.bars > 0 && s.struck >= s.bars * CLEAN_FRACTION);
   return allUpsGone && downsClean;
+}
+
+/**
+ * The pattern in words, for anything that cannot see the row.
+ *
+ * The spoken coach and the visual UI are each meant to be a complete path, and a
+ * row of picks is the one thing on this drill a screen reader cannot reach any
+ * other way.
+ */
+export function describePattern(pattern: Pattern): string {
+  const said = pattern.slots
+    .map((stroke, i) => {
+      if (!stroke) return null;
+      const count = i % 2 === 0 ? `${i / 2 + 1}` : 'and';
+      return `${stroke === 'D' ? 'down' : 'up'} on ${count}`;
+    })
+    .filter((s): s is string => s !== null);
+  return `${said.join(', ')}. The arm travels through the rest.`;
 }
