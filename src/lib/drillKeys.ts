@@ -18,6 +18,16 @@
 //   sweep:D>A>E     an anchor rotation swept back and forth along the same path
 //   timing:80       one strum-timing block, at the tempo it was measured at
 //
+// Every one of those but the last counts something, and a count needs the window
+// it was counted over, so a run that knows its own length says so on the end:
+//
+//   pair:A|D@30     twenty seconds short of the usual minute
+//   pool:A|C|D|E|G@100  a Chord Perfect block that really ran a hundred seconds
+//
+// See lib/drillWindow.ts for why it lives on the key and not beside the value.
+// A key with no window is a run from before that existed; it is read as a minute
+// and nothing about it is rewritten.
+//
 // A key with no prefix is a result written before this existed, under a task id.
 // Those are never rewritten. They are read through `resolveDrillLogs`, which
 // leaves the stored day exactly as it was recorded.
@@ -25,6 +35,7 @@
 import type { DailyLog, DrillRun, Routine, Task } from '../types';
 import { DRILL_UNIT } from './drills';
 import { PAIR_PREFIX, parsePairKey } from './pairs';
+import { ASSUMED_WINDOW_SEC, WINDOW_SEP, baseKey, keyWindow, perMinute } from './drillWindow';
 
 export const CHORD_PREFIX = 'chord:';
 export const POOL_PREFIX = 'pool:';
@@ -58,7 +69,7 @@ export function chordKey(chord: string): string {
 
 export function parseChordKey(key: string): string | null {
   if (!key.startsWith(CHORD_PREFIX)) return null;
-  return key.slice(CHORD_PREFIX.length) || null;
+  return baseKey(key).slice(CHORD_PREFIX.length) || null;
 }
 
 /**
@@ -77,7 +88,7 @@ export function poolKey(chords: readonly string[]): string {
 
 export function parsePoolKey(key: string): string[] | null {
   if (!key.startsWith(POOL_PREFIX)) return null;
-  const chords = key.slice(POOL_PREFIX.length).split(POOL_SEP).filter(Boolean);
+  const chords = baseKey(key).slice(POOL_PREFIX.length).split(POOL_SEP).filter(Boolean);
   return chords.length ? chords : null;
 }
 
@@ -108,7 +119,7 @@ export function ringKey(chords: readonly string[]): string {
 
 export function parseRingKey(key: string): string[] | null {
   if (!key.startsWith(RING_PREFIX)) return null;
-  const chords = key.slice(RING_PREFIX.length).split(RING_SEP).filter(Boolean);
+  const chords = baseKey(key).slice(RING_PREFIX.length).split(RING_SEP).filter(Boolean);
   return chords.length ? chords : null;
 }
 
@@ -137,7 +148,7 @@ export function sweepKey(chords: readonly string[]): string {
 
 export function parseSweepKey(key: string): string[] | null {
   if (!key.startsWith(SWEEP_PREFIX)) return null;
-  const chords = key.slice(SWEEP_PREFIX.length).split(RING_SEP).filter(Boolean);
+  const chords = baseKey(key).slice(SWEEP_PREFIX.length).split(RING_SEP).filter(Boolean);
   return chords.length ? chords : null;
 }
 
@@ -148,7 +159,7 @@ export function timingKey(bpm: number): string {
 
 export function parseTimingKey(key: string): number | null {
   if (!key.startsWith(TIMING_PREFIX)) return null;
-  const bpm = Number(key.slice(TIMING_PREFIX.length));
+  const bpm = Number(baseKey(key).slice(TIMING_PREFIX.length));
   return Number.isFinite(bpm) && bpm > 0 ? bpm : null;
 }
 
@@ -229,12 +240,43 @@ export function describeDrillKey(key: string): DrillKeyDescription {
 
 /** Whether a key names a drill at all, or a task id from before these existed. */
 export const isDrillKey = (key: string): boolean =>
-  key.startsWith(PAIR_PREFIX) ||
-  key.startsWith(CHORD_PREFIX) ||
-  key.startsWith(POOL_PREFIX) ||
-  key.startsWith(RING_PREFIX) ||
-  key.startsWith(SWEEP_PREFIX) ||
-  key.startsWith(TIMING_PREFIX);
+  // A key that says it carries a window has to carry a readable one. Without
+  // this, "pair:A|D@later" would be treated as a real pair and quietly collect
+  // A↔D's runs under a window nothing can divide by.
+  (!key.includes(WINDOW_SEP) || keyWindow(key) !== null) &&
+  (key.startsWith(PAIR_PREFIX) ||
+    key.startsWith(CHORD_PREFIX) ||
+    key.startsWith(POOL_PREFIX) ||
+    key.startsWith(RING_PREFIX) ||
+    key.startsWith(SWEEP_PREFIX) ||
+    key.startsWith(TIMING_PREFIX));
+
+/**
+ * Whether the number under this key is a count of things done, rather than
+ * something already independent of how long the block ran.
+ *
+ * Only a count needs the window recorded on it, and only a count may be divided
+ * by one. Strum timing stores the share of strums that landed in time: that is
+ * the same figure over ninety seconds as over sixty, and turning it into a rate
+ * would make a grade out of nonsense. A key the app no longer recognises is left
+ * alone for the same reason it is still shown at all — it happened, and the app
+ * no longer knows in what unit.
+ */
+export const countedDrillKey = (key: string): boolean =>
+  isDrillKey(key) && !key.startsWith(TIMING_PREFIX);
+
+/**
+ * One stored number, as the per-minute rate it stands for.
+ *
+ * The one place a count becomes comparable with another count. Everything that
+ * ranks, charts or judges a drill result reads it through here, so a block
+ * length can never again change what a bar or a personal best means. Values that
+ * are not counts come back untouched.
+ */
+export function ratePerMinute(key: string, value: number): number {
+  if (!countedDrillKey(key)) return value;
+  return perMinute(value, keyWindow(key) ?? ASSUMED_WINDOW_SEC);
+}
 
 /**
  * The key a task's *score* is written under, or null when it has no single one.

@@ -139,7 +139,7 @@ console.log('\nThe rule, over every shape a history can take\n');
     if (p.targetChangesPerMin > best && p.trend !== 'progress') overWindow += 1;
     if (p.trend === 'progress' && p.targetChangesPerMin > Math.round(latest * 1.05)) overNudge += 1;
     if (!(p.targetChangesPerMin >= 1)) notPositive += 1;
-    if (![2, 4, 8].includes(p.beatsPerChange)) badBeats += 1;
+    if (![2, 4, 8, 16].includes(p.beatsPerChange)) badBeats += 1;
     if (p.bpm < MIN_BPM || p.bpm > MAX_BPM || p.bpm % 2 !== 0) outOfBand += 1;
   }
   console.log(`    ${shapes.length} histories`);
@@ -173,6 +173,46 @@ console.log('\nThe click the target turns into\n');
   check('and the click is the pace times the hold',
     normal.bpm === normal.targetChangesPerMin * normal.beatsPerChange,
     `${normal.bpm} vs ${normal.targetChangesPerMin}x${normal.beatsPerChange}`);
+}
+
+console.log('\nA player slower than the click used to be able to go\n');
+{
+  // The defect: the click bottoms out at MIN_BPM, the longest hold was eight
+  // beats, and 40 over 8 is five changes a minute. Every target under five was
+  // therefore prescribed as five while the sentence underneath went on printing
+  // the target, so a first run of three or four changes on a hard shape was
+  // answered with a click asking for more than had ever been played. The rule
+  // this pins is the one the file's header states: what the click works out to
+  // is what the plan is asking for, and only the climbing branch may exceed the
+  // runs it read.
+  for (const first of [3, 4, 5, 6, 7, 8]) {
+    const p = plan(first, first, first, first);
+    const asked = p.bpm / p.beatsPerChange;
+    check(`a steady ${first} a minute is answered at ${first} a minute, not faster`,
+      asked <= first + 0.001,
+      `${p.bpm} bpm every ${p.beatsPerChange} beats is ${asked.toFixed(2)}/min`);
+    check('  and the plan reports the pace the click will actually keep',
+      Math.abs(p.targetChangesPerMin - asked) < 0.001,
+      `${p.targetChangesPerMin} vs ${asked.toFixed(2)}`);
+  }
+
+  const three = plan(3, 3, 3, 3);
+  check('three a minute is held for four bars at a click worth following',
+    three.beatsPerChange === 16 && three.bpm === 48,
+    `${three.bpm} bpm every ${three.beatsPerChange} beats`);
+  check('and the reason says how long the shape is held',
+    /four bars/.test(three.reason), three.reason);
+
+  // Two a minute is still below what the click can express (40 over 16 is 2.5),
+  // and the honest move there is to say so rather than print the target and
+  // click something else.
+  const floored = plan(2, 2, 2, 2);
+  check('the floor is half what it was', floored.bpm / floored.beatsPerChange === 2.5,
+    String(floored.bpm / floored.beatsPerChange));
+  check('and a plan that cannot go slow enough says so',
+    /will not go slower/i.test(floored.reason), floored.reason);
+  check('naming the pace it will keep instead',
+    floored.reason.includes('2.5/min'), floored.reason);
 }
 
 console.log('\nBlocks with no pace of their own\n');
@@ -215,6 +255,21 @@ console.log('\nReading a drill\'s history out of the logs\n');
     drillSeries(logs, 'pair:C|G', 60).length === 0);
   check('and an empty history is a plan the coach can still make',
     planTempo(drillSeries(logs, 'pair:C|G', 60), TODAY).bpm === DEFAULT_PRACTICE_BPM);
+
+  // The `durationSec` argument is an assumption about runs that never recorded
+  // one, and it stops being used the moment a run does. A run measured over
+  // thirty seconds read against today's sixty-second block was the prescription
+  // asking for half of what the player had just managed.
+  const stated = {
+    '2026-07-05': { date: '2026-07-05', routineId: 'r', drillResults: { 'pair:A|D@30': 20 } },
+    '2026-07-06': { date: '2026-07-06', routineId: 'r', drillResults: { 'pair:A|D': 35 } },
+  };
+  const both = drillSeries(stated, 'pair:A|D', 60);
+  check('a run that recorded its own window is read by that window, not the caller\'s',
+    both.map((r) => r.value).join() === '40,35', both.map((r) => r.value).join());
+  check('and a run that recorded none still takes the caller\'s assumption',
+    drillSeries(stated, 'pair:A|D', 120).map((r) => r.value).join() === '40,17.5',
+    drillSeries(stated, 'pair:A|D', 120).map((r) => r.value).join());
 }
 
 console.log('\nChord Perfect, read against the block it actually ran\n');

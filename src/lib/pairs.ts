@@ -1,4 +1,5 @@
 import type { Routine } from '../types';
+import { baseKey } from './drillWindow';
 
 // Chord-change results are stored per *pair*, not per task, so "A↔D" keeps its
 // own benchmark regardless of which task/routine it was played in. Keys are
@@ -12,9 +13,12 @@ export function pairKey(a: string, b: string): string {
   return `${PAIR_PREFIX}${[a, b].sort().join('|')}`;
 }
 
+// Reads through the window a run may have recorded (lib/drillWindow.ts): which
+// two chords were changed between is the same question whether the block ran for
+// thirty seconds or ninety.
 export function parsePairKey(key: string): { from: string; to: string } | null {
   if (!key.startsWith(PAIR_PREFIX)) return null;
-  const [from, to] = key.slice(PAIR_PREFIX.length).split('|');
+  const [from, to] = baseKey(key).slice(PAIR_PREFIX.length).split('|');
   if (!from || !to) return null;
   return { from, to };
 }

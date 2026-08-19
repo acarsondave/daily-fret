@@ -280,6 +280,55 @@ console.log('\nUnmeasurable skills say so instead of scoring zero\n');
   check('it is never offered as next up', !nextUp(st, 50).some(s => s.skill.id === 'rhythm.patterns'));
 }
 
+console.log('\nA drill measured over something other than a minute\n');
+{
+  // The defect: a drill's raw count was compared straight against a per-minute
+  // bar. Every path that builds a changes drill uses sixty seconds, so the count
+  // and the rate happened to agree and nothing showed; a thirty-second block
+  // would have halved what "held" means without saying a word. The window a run
+  // was measured over is part of its key now, and the comparison is a rate.
+  const half = stand(logs(repeat(3, { [`${pairKey('A', 'D')}@30`]: 12 })));
+  check('twelve changes in thirty seconds is twenty-four a minute, and clears twenty',
+    find(half, 'chord.A').state === 'solid', find(half, 'chord.A').evidence);
+
+  const long = stand(logs(repeat(3, { [`${pairKey('A', 'D')}@120`]: 30 })));
+  check('and thirty in two minutes is fifteen a minute, which does not',
+    find(long, 'chord.A').state !== 'solid', find(long, 'chord.A').evidence);
+
+  // The history already on disk carries no window at all. Every one of those
+  // runs was measured over a minute, so reading them any other way would rewrite
+  // months of practice that nobody re-played.
+  const legacy = stand(logs(repeat(3, { [pairKey('A', 'D')]: 22 })));
+  check('a key with no window recorded is read as a minute',
+    find(legacy, 'chord.A').state === 'solid', find(legacy, 'chord.A').evidence);
+  check('and its number is reported exactly as it was stored',
+    find(legacy, 'chord.A').best === 22, String(find(legacy, 'chord.A').best));
+
+  // One pair drilled at two lengths is one history, not two, or the three-run
+  // rule would be counting a fraction of the runs that were played.
+  const ev = readEvidence(logs([
+    { [pairKey('A', 'D')]: 31 },
+    { [`${pairKey('A', 'D')}@30`]: 16 },
+    { [pairKey('A', 'D')]: 33 },
+  ]));
+  check('runs of the same pair at different lengths share one series',
+    ev.pairs.get(pairKey('A', 'D'))?.length === 3,
+    String(ev.pairs.get(pairKey('A', 'D'))?.length));
+  check('each read as the rate it actually was',
+    ev.pairs.get(pairKey('A', 'D'))?.map((r) => r.value).join() === '31,32,33',
+    ev.pairs.get(pairKey('A', 'D'))?.map((r) => r.value).join());
+  check('and the awards read one lifetime best for the pair, in the same unit',
+    lifetimeBests(ev).get(pairKey('A', 'D')) === 33,
+    String(lifetimeBests(ev).get(pairKey('A', 'D'))));
+
+  // Anchor rotations are compared against a bar of their own, so they get the
+  // same treatment or the bar means something different per block length.
+  const shortRing = stand(logs(repeat(3, { [`${sweepKey(['D', 'A', 'E'])}@30`]: 14 })));
+  check('a rotation is read as a rate too',
+    find(shortRing, 'technique.anchor-fingers').state === 'solid',
+    find(shortRing, 'technique.anchor-fingers').evidence);
+}
+
 console.log('\nEdge cases\n');
 {
   check('a log with no drillResults does not crash',

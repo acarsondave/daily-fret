@@ -172,14 +172,35 @@ export function readiness(runs: readonly DrillRun[], bar: number, today: string)
   // a player who made no changes at all, and lib/tempo.ts already refuses to
   // treat one as a data point for the same reason. Counting it as a failed run
   // would let a blocked mic wipe out a real streak.
-  const counted = runs.filter((r) => Number.isFinite(r.value) && r.value > 0);
-  if (counted.length === 0) return nothing(bar);
+  const countedAt: number[] = [];
+  runs.forEach((run, i) => {
+    if (Number.isFinite(run.value) && run.value > 0) countedAt.push(i);
+  });
+  if (countedAt.length === 0) return nothing(bar);
+  const counted = countedAt.map((i) => runs[i]);
 
   const latest = counted[counted.length - 1];
   const idle = daysBetween(latest.date, today);
 
   let streak = 0;
   for (let i = counted.length - 1; i >= 0 && counted[i].value >= bar; i -= 1) streak += 1;
+
+  /**
+   * "your last three runs", or "your last three counted runs" when they were
+   * not the last three.
+   *
+   * The filtering above is right and stays. The sentence was not: a session the
+   * microphone never heard sits in the history as a zero, the player remembers
+   * doing it, and describing the three either side of it as their last three
+   * runs is the app claiming to have read a stretch of practice it skipped part
+   * of. The word is only spent where a run was actually skipped, so the usual
+   * sentence stays exactly as short as it was.
+   */
+  const describedRuns = (shown: number): string => {
+    const first = countedAt[counted.length - shown];
+    const skipped = runs.length - first > shown;
+    return `${skipped ? 'counted ' : ''}${shown === 1 ? 'run' : 'runs'}`;
+  };
 
   if (streak >= HELD_RUNS) {
     if (idle > STALE_DAYS) {
@@ -200,7 +221,7 @@ export function readiness(runs: readonly DrillRun[], bar: number, today: string)
       evidence:
         streak > HELD_RUNS
           ? `${streak} runs in a row at ${bar} or better. The last three were ${window}.`
-          : `${window} on your last three runs, all at ${bar} or better.`,
+          : `${window} on your last three ${describedRuns(HELD_RUNS)}, all at ${bar} or better.`,
     };
   }
 
@@ -213,7 +234,8 @@ export function readiness(runs: readonly DrillRun[], bar: number, today: string)
       bar,
       label: `${streak} of ${HELD_RUNS}`,
       evidence:
-        `${seen} on your last ${streak === 1 ? 'run' : `${spell(streak).toLowerCase()} runs`}. ` +
+        `${seen} on your last ${streak === 1 ? '' : `${spell(streak).toLowerCase()} `}` +
+        `${describedRuns(streak)}. ` +
         `${spell(left)} more at ${bar} or better ${left === 1 ? 'makes' : 'make'} it held.`,
     };
   }
@@ -223,6 +245,8 @@ export function readiness(runs: readonly DrillRun[], bar: number, today: string)
     streak: 0,
     bar,
     label: null,
-    evidence: `${figure(latest.value, bar)} on your last run. Held is three runs running at ${bar} or better.`,
+    evidence:
+      `${figure(latest.value, bar)} on your last ${describedRuns(1)}. ` +
+      `Held is three runs running at ${bar} or better.`,
   };
 }

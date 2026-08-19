@@ -105,6 +105,31 @@ console.log('\nResting is not failing\n');
   // two real runs. Counting it as a failure would let a permissions problem
   // wipe out weeks of evidence.
   check('a silent session does not break a streak', at([34, 0, 31, 36]).state === 'held');
+
+  // ...but the sentence underneath used to describe the three it kept as "your
+  // last three runs", with a fourth session sitting among them that the player
+  // remembers doing and the app is not counting. The filtering is right; the
+  // claim about which runs it read was not.
+  const skipped = at([34, 0, 31, 36]);
+  check('and the evidence does not call three of four runs the last three',
+    !/on your last three runs/.test(skipped.evidence), skipped.evidence);
+  check('it says which three it counted',
+    /34, 31 and 36 on your last three counted runs/.test(skipped.evidence), skipped.evidence);
+
+  const partway = at([24, 33, 0, 35]);
+  check('the same on the way up', /33 and 35 on your last two counted runs/.test(partway.evidence),
+    partway.evidence);
+  check('and a silent session before the ones described is not the sentence\'s business',
+    /33 and 35 on your last two runs/.test(at([24, 0, 33, 35]).evidence),
+    at([24, 0, 33, 35]).evidence);
+
+  const latestSilent = at([24, 0]);
+  check('a run under the bar with a silent session after it says so too',
+    /24 on your last counted run/.test(latestSilent.evidence), latestSilent.evidence);
+
+  check('and nothing skipped keeps the plain sentence',
+    /34, 31 and 36 on your last three runs/.test(at([34, 31, 36]).evidence),
+    at([34, 31, 36]).evidence);
 }
 
 console.log('\nGoing cold\n');

@@ -18,6 +18,8 @@
 //     nothing of its own to say, which is what an older log looks like.
 
 import type { DailyLog, DrillRun, TaskEvidence, TaskRecord } from '../types';
+import { countedDrillKey } from '../lib/drillKeys';
+import { withWindow } from '../lib/drillWindow';
 
 /**
  * A safety bound on runs kept per drill per day, not a policy.
@@ -67,6 +69,21 @@ export interface DrillMeasurement {
    */
   key: string;
   value: number;
+  /**
+   * Seconds this number was counted over.
+   *
+   * A count only means something beside the window it was taken in, and the
+   * comparison it feeds is per-minute: thirty changes a minute is the course's
+   * own gate. Stating it here files the run under a key that says so, so no
+   * later reader has to assume the drill is still the length it was.
+   *
+   * Absent means the run did not say, which is what every call site written
+   * before this does. Such a run is filed under exactly the key it always was
+   * and read as a minute, which is the length every one of those paths uses.
+   * It is not a default standing in for a missing fact: an unmarked key is a
+   * distinguishable thing and lib/drillWindow.ts says what it is taken to mean.
+   */
+  durationSec?: number;
 }
 
 /**
@@ -103,7 +120,13 @@ export function applyMeasurement(
       at,
     });
   }
-  const { key, value } = result;
+  const { value } = result;
+  // A percentage is already independent of the block it was taken over, so it
+  // is filed plain even when a length is offered; only counts carry a window.
+  const key =
+    result.durationSec !== undefined && countedDrillKey(result.key)
+      ? withWindow(result.key, result.durationSec)
+      : result.key;
   const best = Math.max(log.drillResults?.[key] ?? 0, value);
   const runs = [...(log.drillRuns?.[key] ?? []), { value, at }].slice(-MAX_RUNS_PER_KEY);
   const measured: DailyLog = {
