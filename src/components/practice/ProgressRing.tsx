@@ -35,7 +35,7 @@ interface ProgressRingProps {
    * draws itself once and the mark walks up to a new best after it lands.
    */
   phase?: 'live' | 'result';
-  /** Intrinsic size. A stylesheet may override it through --ring-size. */
+  /** Intrinsic size. A stylesheet overrides it through --ring-size. */
   size?: number;
   stroke?: number;
   className?: string;
@@ -89,9 +89,14 @@ export function ProgressRing({
   };
 
   return (
+    // `size` is the intrinsic width and travels as its own property, because an
+    // inline declaration beats every author rule without `!important`. Written
+    // as `--ring-size` it silently outranked the stylesheet that claims to own
+    // it, so `.om-ring-live`'s larger live ring and every media query that
+    // shrinks a ring on a short frame had never once applied.
     <div
       className={clsx('progress-ring', className)}
-      style={{ '--ring-size': `${size}px` } as CSSProperties}
+      style={{ '--ring-intrinsic': `${size}px` } as CSSProperties}
     >
       <svg viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
         <circle

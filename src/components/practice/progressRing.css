@@ -34,8 +34,8 @@
    CSS, which is the only place that decision belongs. */
 .progress-ring {
   position: relative;
-  width: var(--ring-size);
-  height: var(--ring-size);
+  width: var(--ring-size, var(--ring-intrinsic, 220px));
+  height: var(--ring-size, var(--ring-intrinsic, 220px));
   flex-shrink: 0;
 }
 .progress-ring svg {

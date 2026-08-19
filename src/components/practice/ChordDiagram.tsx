@@ -59,12 +59,17 @@ export function ChordDiagram({ chord, size = 132, showFingers = true, flipped, c
   const label = describeShape(shape, start);
 
   return (
-    // Width travels as a custom property rather than an inline width so a
-    // caller's media query can still shrink the box; an inline style could not
-    // be overridden by the stylesheet that owns the layout around it.
+    // The `size` prop is the box's intrinsic width, and it travels as its own
+    // custom property so a stylesheet can still override the width.
+    //
+    // It used to be written as `--cd-size`, the same property the stylesheet
+    // sets, which cannot work: an inline declaration beats every author rule
+    // without `!important`. Four media queries that shrink a diagram on a narrow
+    // phone or a short laptop had therefore never applied once. The stylesheet
+    // owns `--cd-size` and this only supplies what it falls back to.
     <figure
       className={clsx('chord-diagram', className)}
-      style={{ '--cd-size': `${size}px` } as CSSProperties}
+      style={{ '--cd-intrinsic': `${size}px` } as CSSProperties}
     >
       <svg
         viewBox="0 0 100 124"

@@ -85,24 +85,6 @@
   }
 }
 
-/* The setup screens on the same short frame. A 460-pixel column is the right
-   measure for a phone and the wrong one here: Chord Perfect's nine shapes wrap
-   to four rows in it, which on a 572-pixel window puts its own Start button
-   below the fold. The picker is a row of what the player has to choose from, so
-   it is given the width to be one. */
-@media (min-width: 860px) and (max-height: 780px) {
-  .om-setup {
-    width: min(920px, 94vw);
-    gap: var(--space-5);
-  }
-  .ct-chip-grid {
-    max-width: min(920px, 94vw);
-    flex-wrap: nowrap;
-  }
-  .ct-chip .chord-diagram {
-    --cd-size: 52px;
-  }
-}
 
 /* --- Setup --------------------------------------------------------------- */
 .om-setup {
@@ -683,5 +665,27 @@
   }
   .rot-chord-shape {
     --cd-size: 62px;
+  }
+}
+
+/* The setup screens on a short landscape frame. Last in the file on purpose:
+   these are same-specificity overrides of rules declared above, and a media
+   query buys no specificity at all, so placed earlier they simply lost.
+
+   A 460-pixel column is the right measure for a phone and the wrong one here: Chord Perfect's nine shapes wrap
+   to four rows in it, which on a 572-pixel window puts its own Start button
+   below the fold. The picker is a row of what the player has to choose from, so
+   it is given the width to be one. */
+@media (min-width: 860px) and (max-height: 780px) {
+  .om-setup {
+    width: min(920px, 94vw);
+    gap: var(--space-5);
+  }
+  .ct-chip-grid {
+    max-width: min(920px, 94vw);
+    flex-wrap: nowrap;
+  }
+  .ct-chip .chord-diagram {
+    --cd-size: 52px;
   }
 }
