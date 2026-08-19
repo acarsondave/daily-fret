@@ -264,11 +264,65 @@
 .metro-auto:hover {
   color: var(--text-primary);
 }
-.metro-auto input {
-  width: 15px;
-  height: 15px;
-  accent-color: var(--accent-primary);
-  cursor: pointer;
+/* Hidden from sight, not from anything else. Clipped rather than
+   `display: none`, which would take it out of the tab order and out of the
+   accessibility tree along with it. */
+.metro-auto-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The switch the input drives. A track and a knob at the panel's own radius, in
+   the panel's own borders, so the one control here that was a browser default
+   stops being the one control here that looks like a browser default. */
+.metro-switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px var(--border-default);
+  transition: background var(--dur-base) ease, box-shadow var(--dur-base) ease;
+}
+
+.metro-switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+  background: var(--text-secondary);
+  transition: transform var(--dur-base) var(--ease-out), background var(--dur-base) ease;
+}
+
+.metro-auto-input:checked + .metro-switch {
+  background: var(--accent-glow);
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.5);
+}
+
+.metro-auto-input:checked + .metro-switch .metro-switch-knob {
+  background: var(--accent-primary);
+  transform: translateX(14px);
+}
+
+.metro-auto-input:focus-visible + .metro-switch {
+  box-shadow: var(--focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metro-switch,
+  .metro-switch-knob {
+    transition: none;
+  }
 }
 
 /* Touch. On a coarse pointer every one of these is hit with a thumb while the

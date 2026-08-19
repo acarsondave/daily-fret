@@ -375,12 +375,22 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
               </button>
             </div>
 
+            {/* The input stays and is only hidden: it is what a keyboard tabs
+                to and what a screen reader announces, and a div pretending to be
+                a checkbox has to reimplement both badly. The switch beside it is
+                the part that is drawn. The accent is allowed here because it is
+                a live state rather than decoration: on means the app is driving
+                the number above. */}
             <label className="metro-auto">
               <input
                 type="checkbox"
+                className="metro-auto-input"
                 checked={auto}
                 onChange={(e) => setMetronomeAuto(e.target.checked)}
               />
+              <span className="metro-switch" aria-hidden="true">
+                <span className="metro-switch-knob" />
+              </span>
               <span>Set the tempo for me</span>
             </label>
 
