@@ -251,6 +251,35 @@ export function planBeats(
   return { beats, nextTime: time, nextPosition: pos, skipped };
 }
 
+/**
+ * The phase, as arithmetic, so it can be checked without an audio context.
+ *
+ * `nextHeard` and `position` describe the next click the scheduler has not
+ * placed yet, which is the pair the scheduler itself carries. Counting back from
+ * there is what finds the most recent click that has actually been heard.
+ */
+export function phaseAt(
+  nextHeard: number,
+  now: number,
+  secondsPerBeat: number,
+  position: number,
+  beatsPerBar: number,
+): ClickPhase | null {
+  if (!(secondsPerBeat > 0)) return null;
+  const back = Math.ceil((nextHeard - now) / secondsPerBeat);
+  // A whole beat past the next click the scheduler has placed means it has not
+  // woken since before that click was due, which is what a backgrounded tab
+  // does. `planBeats` will skip the count forward when it next wakes, so the
+  // beats in between are ones nobody will ever hear and there is no phase to
+  // report. A stale count is not a late one.
+  if (back < 0) return null;
+  const sinceSeconds = now - (nextHeard - back * secondsPerBeat);
+  if (!Number.isFinite(sinceSeconds) || sinceSeconds < 0 || sinceSeconds >= secondsPerBeat) {
+    return null;
+  }
+  return { position: position - back, sinceSeconds, secondsPerBeat, beatsPerBar };
+}
+
 // Which voice a beat gets. A cycle that divides into bars of four gets a mark
 // halfway so the bar has a shape; anything else is downbeat and beats.
 export function accentFor(position: number, beatsPerBar: number): BeatAccent {
@@ -259,6 +288,19 @@ export function accentFor(position: number, beatsPerBar: number): BeatAccent {
   if (beat === 0) return 'downbeat';
   if (beatsPerBar > 4 && beatsPerBar % 4 === 0 && beat % 4 === 0) return 'midbar';
   return 'beat';
+}
+
+/** Where the audible click is in its bar, as of the moment it was asked. */
+export interface ClickPhase {
+  /**
+   * Bar-relative count of the most recent click to reach the ear. Beat one of a
+   * bar is a multiple of `beatsPerBar`; a count-in is negative.
+   */
+  position: number;
+  /** Seconds since that click. Always at least zero and under one beat. */
+  sinceSeconds: number;
+  secondsPerBeat: number;
+  beatsPerBar: number;
 }
 
 interface QueuedSource {
@@ -349,6 +391,38 @@ export class Metronome {
 
   getBeatsPerBar(): number {
     return this.beatsPerBar;
+  }
+
+  /**
+   * Where the click is in its bar right now.
+   *
+   * `onBeat` fires once per click and is already taken by the metronome panel,
+   * and one callback cannot carry a marker that has to move between clicks
+   * anyway. A drill drawing a continuous eighth-note pendulum needs the phase on
+   * every animation frame, so it asks for it.
+   *
+   * Reported against the ear, not the scheduler: the output latency is taken off
+   * the same way `drainVisuals` takes it off, so a marker driven from this sits
+   * where the player hears the click rather than where the audio thread queued
+   * it. Nothing here mutates the count, so asking is free and asking often is
+   * safe.
+   *
+   * Null whenever there is no click to be in phase with, which the caller has to
+   * handle: a marker that keeps sweeping over a stopped metronome is the app
+   * claiming a beat nobody can hear.
+   */
+  phase(): ClickPhase | null {
+    const ctx = getOutputContext();
+    if (!this.running || !ctx || ctx.state !== 'running') return null;
+    // `nextNoteTime` is when the next click is queued to start; it reaches the
+    // ear an output latency later, and so did every beat before it.
+    return phaseAt(
+      this.nextNoteTime - this.outputDelay(ctx),
+      ctx.currentTime,
+      60 / this.bpm,
+      this.position,
+      this.beatsPerBar,
+    );
   }
 
   // How many beats the accent cycle spans. Drills set this to the beats between

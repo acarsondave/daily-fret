@@ -67,6 +67,15 @@ export interface DrillMeasurement {
    */
   key: string;
   value: number;
+  /**
+   * The bar a dealt strumming pattern first came out whole on, or null when it
+   * never did. Carried beside the score rather than folded into it because the
+   * two answer different questions and `patternStanding` needs both; see
+   * DrillRun.settledBar in src/types.
+   *
+   * Absent on every drill that is not dealing patterns.
+   */
+  settledBar?: number | null;
 }
 
 /**
@@ -105,7 +114,9 @@ export function applyMeasurement(
   }
   const { key, value } = result;
   const best = Math.max(log.drillResults?.[key] ?? 0, value);
-  const runs = [...(log.drillRuns?.[key] ?? []), { value, at }].slice(-MAX_RUNS_PER_KEY);
+  const run: DrillRun =
+    result.settledBar === undefined ? { value, at } : { value, at, settledBar: result.settledBar };
+  const runs = [...(log.drillRuns?.[key] ?? []), run].slice(-MAX_RUNS_PER_KEY);
   const measured: DailyLog = {
     ...log,
     drillResults: { ...log.drillResults, [key]: best },
