@@ -49,8 +49,9 @@ const sideways = (page) =>
 const CONTENT = [
   '.onboarding-chord',
   '.onboarding-preview-name',
-  '.onboarding-preview-note',
-  '.onboarding-preview-kind',
+  '.onboarding-preview-chords',
+  '.onboarding-preview-by',
+  '.onboarding-shape-name',
   '.onboarding-modules',
 ];
 
@@ -204,12 +205,73 @@ for (const vp of VIEWPORTS) {
 
   // --- three: tomorrow -----------------------------------------------------
   await page.waitForSelector('.onboarding-preview-item', { timeout: 15000 });
-  await page.waitForTimeout(600);
+  // The strip draws itself in and the rows land under it. Screenshots taken
+  // before that settles were showing a half-assembled screen and hiding real
+  // defects in it.
+  await page.waitForTimeout(1100);
   const readyText = await page.locator('.onboarding-body').innerText();
   const rows = await page.locator('.onboarding-preview-item').count();
   check('the session is listed', rows >= 2, `${rows} tasks`);
-  check('and every row says whether it is counted or timed',
-    (await page.locator('.onboarding-preview-kind').count()) === rows);
+
+  // The session is drawn, one stroke per minute, and the number beside the
+  // strip is a count of those strokes. A drawing and a caption disagreeing in
+  // public is the failure this replaces: the screen used to print "about 27
+  // minutes" in a sentence and show nothing.
+  const printed = Number((await page.locator('.onboarding-total').innerText()).match(/\d+/)[0]);
+  const strokes = await page.locator('.onboarding-comb-stroke').count();
+  const openStrokes = await page.locator('.onboarding-comb-stroke.is-open').count();
+  check('the minutes are drawn, not stated', strokes > 0, `${strokes} strokes`);
+  check('and the number beside them counts them',
+    strokes - openStrokes === printed, `${strokes - openStrokes} strokes vs ${printed} printed`);
+
+  // The word "counted" used to sit on every row as a pill beside a mark that
+  // already said it. The mark carries it now, so the fact has to reach a screen
+  // reader some other way, and it does.
+  const spokenRows = await page.locator('.onboarding-preview-item .sr-only').allInnerTexts();
+  check('and every row says whether it is counted or timed, without printing it',
+    spokenRows.length === rows &&
+      spokenRows.every((t) => /counted|timer|play-along/i.test(t)),
+    JSON.stringify(spokenRows));
+  check('nothing on the screen prints the word "counted" as a label',
+    (await page.locator('.onboarding-preview-item').allInnerTexts())
+      .every((t) => !/^counted$/im.test(t)));
+
+  // The single most motivating thing a beginner app can say, and the app has
+  // held the answer since the chord grid: these shapes, this song, by name.
+  // Which shapes get lit depends on what the fake guitar plays, so both real
+  // answers are checked: a chart the vocabulary opens, or the nearest one and
+  // the single shape standing in front of it. What is never acceptable is the
+  // block this replaced, a five minute clock that named nothing.
+  const songRow = page.locator('.onboarding-preview-item.is-song');
+  const horizon = page.locator('.onboarding-horizon');
+  const hasSong = (await songRow.count()) === 1;
+  check('the session names a chart, or the screen names the next one',
+    hasSong || (await horizon.count()) === 1,
+    `song ${await songRow.count()}, horizon ${await horizon.count()}`);
+  check('and nothing anywhere offers "play a song" as a block',
+    !/play a song/i.test(readyText), readyText);
+
+  if (hasSong) {
+    const songTitle = await songRow.locator('.onboarding-preview-name').innerText();
+    check('the chart is a real title', songTitle.trim().length > 2, songTitle);
+    check('with its shapes drawn rather than listed',
+      (await songRow.locator('.chord-diagram').count()) >= 2,
+      `${await songRow.locator('.chord-diagram').count()} diagrams`);
+    check('and every drawn shape is named beside it',
+      (await songRow.locator('.onboarding-shape-name').allInnerTexts()).length ===
+        (await songRow.locator('.chord-diagram').count()));
+  }
+
+  if ((await horizon.count()) === 1) {
+    check('the next chart is one shape away, and the shape is drawn',
+      (await horizon.locator('.chord-diagram').count()) === 1);
+    check('and it is drawn as one they do not have yet',
+      (await horizon.locator('.onboarding-shapes.is-muted').count()) === 1);
+    check('and the chart it opens is named',
+      (await horizon.locator('.onboarding-horizon-text').innerText()).trim().length > 6,
+      await horizon.locator('.onboarding-horizon-text').innerText());
+  }
+
   check('it says what the routine was built from', /built|first steps/i.test(readyText));
   check('and never prints an internal track code', !/\bbg[123]\b/i.test(readyText));
   await record();
@@ -233,8 +295,12 @@ for (const vp of VIEWPORTS) {
     questions.join(' '));
   check('four taps carry a player from a cold load into a running session',
     taps === 4, `${taps} taps`);
-  check('and the flow spends under eighty words of its own getting them there',
-    words.length < 80, `${words.length} words`);
+  // Tightened from eighty when the summary stopped describing the session and
+  // started drawing it. Two sentences of prose became a strip of strokes and a
+  // number, and the budget follows the screen down rather than banking the
+  // headroom for the next paragraph.
+  check('and the flow spends under seventy-five words of its own getting them there',
+    words.length < 75, `${words.length} words`);
   check('no console errors through the whole flow', errors.length === 0,
     errors.slice(0, 2).join(' | '));
   await ctx.close();
@@ -260,6 +326,10 @@ for (const vp of VIEWPORTS) {
   if ((await card.getAttribute('aria-pressed')) === 'false') await card.click();
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.onboarding-panel');
+  // Waits for the screen rather than for the panel around it. A resume lands on
+  // the chord grid, which lives in its own chunk, so asserting the instant the
+  // panel exists was racing a network fetch and only ever passed by luck.
+  await page.waitForSelector('.onboarding-chord', { timeout: 15000 });
   check('a reload comes back to the screen it was on',
     (await page.locator('.onboarding-chord').count()) === 9);
   check('with the shapes it had already lit',
@@ -297,9 +367,18 @@ for (const vp of VIEWPORTS) {
   await page.locator('.onboarding-chord').filter({ hasText: /^A$/ }).first().click();
   await page.getByRole('button', { name: /^next/i }).click();
   await page.waitForSelector('.onboarding-preview-item');
-  const ready = await page.locator('.onboarding-body').innerText();
+  await page.waitForTimeout(1100);
+  // Refused, and the screen has to say so without a sentence doing all the
+  // work. The strokes for the counted blocks are drawn hollow, and the same
+  // fact is spoken, because "would be counted" and "are counted" are different
+  // claims and this app does not blur them.
+  const hollow = await page.locator('.onboarding-comb-stroke.is-waiting').count();
+  const filled = await page.locator('.onboarding-comb-stroke.is-counted').count();
+  check('the counted blocks are drawn empty, because nothing is counting',
+    hollow > 0 && filled === 0, `${hollow} waiting, ${filled} counted`);
+  const readySpoken = await page.locator('.onboarding-shape .sr-only').innerText();
   check('and the summary says the counting is waiting on the microphone',
-    /once the microphone is on/i.test(ready), ready.split('\n')[2]);
+    /once the microphone is on/i.test(readySpoken), readySpoken);
   await page.screenshot({ path: `${OUT}/mic-blocked-ready.png` });
   await ctx.close();
   await strict.close();

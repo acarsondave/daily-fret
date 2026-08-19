@@ -6,8 +6,9 @@
 
 export { BEGINNER_MODULES } from '../../lib/beginnerCourse';
 export {
+  HEARABLE_CHORDS,
   buildRoutine,
-  measuredTaskCount,
   moduleForChords,
   routineMinutes,
+  taskMinutes,
 } from '../../lib/routineBuilder';

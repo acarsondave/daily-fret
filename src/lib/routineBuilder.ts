@@ -634,6 +634,13 @@ export function taskMinutes(task: Task): number {
 export const routineMinutes = (routine: Routine): number =>
   routine.tasks.reduce((total, t) => total + taskMinutes(t), 0);
 
-/** How many of a routine's tasks the microphone actually counts. */
+/**
+ * How many of a routine's tasks the microphone actually counts.
+ *
+ * Every drill except the play-along. A song is a drill because it runs inside
+ * the app, and it is deliberately never graded: nothing is recorded from it, so
+ * counting it here would put a number's worth of confidence on the one block of
+ * the session that cannot produce one.
+ */
 export const measuredTaskCount = (routine: Routine): number =>
-  routine.tasks.filter((t) => t.drill).length;
+  routine.tasks.filter((t) => t.drill && t.drill.kind !== 'song').length;
