@@ -210,255 +210,255 @@ export function NoteCircle() {
       </p>
 
       <div className="nc-stage">
-      <div className="nc-ring-wrap">
-        <svg className="nc-ring" viewBox={`0 0 ${RING_VIEW} ${RING_VIEW}`} aria-hidden="true" focusable="false">
-          <circle className="nc-ring-track" cx={RING_MID} cy={RING_MID} r={RING_R} />
+        <div className="nc-ring-wrap">
+          <svg className="nc-ring" viewBox={`0 0 ${RING_VIEW} ${RING_VIEW}`} aria-hidden="true" focusable="false">
+            <circle className="nc-ring-track" cx={RING_MID} cy={RING_MID} r={RING_R} />
 
-          {Array.from({ length: steps }, (_, i) => (
-            <motion.path
-              key={`${fromSlot}-${steps}-${i}`}
-              className="nc-ring-step"
-              d={segmentPath(fromSlot + i)}
-              initial={reduceMotion ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2, delay: segmentDelay(i) }}
-            />
-          ))}
-
-          {CIRCLE_ORDER.map((pc, slot) => {
-            const at = polar(slot, RING_R);
-            const sharp = isSharp(pc);
-            return (
-              <circle
-                key={pc}
-                className={clsx('nc-note-dot', sharp && 'is-sharp', pc === from && 'is-from', pc === to && 'is-to')}
-                cx={at.x}
-                cy={at.y}
-                r={sharp ? 3.2 : 5.2}
-              />
-            );
-          })}
-
-          {/* The anchor is an open ring and the target is filled, the same two
-              marks the string uses, so a glance at either figure finds the same
-              two ends. */}
-          <circle className="nc-anchor" cx={polar(fromSlot, RING_R).x} cy={polar(fromSlot, RING_R).y} r={9} />
-          <motion.circle
-            className="nc-target"
-            cx={target.x}
-            cy={target.y}
-            r={7.4}
-            animate={{ cx: target.x, cy: target.y }}
-            initial={false}
-            transition={glide}
-          />
-        </svg>
-
-        {/* Real buttons over the drawing, the way the headstock does it: the
-            targets have to be focusable, named and big enough for a thumb, and
-            an SVG <g> is none of those without inventing semantics for it. */}
-        <div
-          className="nc-ring-hits"
-          role="radiogroup"
-          aria-label="The twelve notes"
-          onKeyDown={onRingKey}
-        >
-          {CIRCLE_ORDER.map((pc, slot) => {
-            const at = polar(slot, RING_HIT_R);
-            const flat = flatName(pc);
-            return (
-              <button
-                key={pc}
-                type="button"
-                role="radio"
-                aria-checked={pc === to}
-                tabIndex={pc === to ? 0 : -1}
-                ref={(el) => { noteRefs.current[pc] = el; }}
-                className={clsx('nc-note', isSharp(pc) && 'is-sharp', pc === from && 'is-from', pc === to && 'is-to')}
-                style={{ '--nc-x': `${(at.x / RING_VIEW) * 100}%`, '--nc-y': `${(at.y / RING_VIEW) * 100}%` } as CSSProperties}
-                aria-label={flat ? `${sharpName(pc)}, also ${flat}` : sharpName(pc)}
-                onClick={() => pick(pc)}
-              >
-                {/* Both names, always, on the five notes that have two. The
-                    equivalence is a permanent fact about the circle, so it is
-                    drawn as one label in two lines rather than revealed by an
-                    interaction nobody would think to try. */}
-                <span className="nc-note-name" aria-hidden="true">{sharpName(pc)}</span>
-                {flat && <span className="nc-note-alt" aria-hidden="true">{flat}</span>}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* The count, where a clock keeps its hands. */}
-        <div className="nc-count" aria-hidden="true">
-          <span className="nc-count-value">{steps}</span>
-          <span className="nc-count-unit">{steps === 1 ? 'semitone' : 'semitones'}</span>
-          <span className="nc-pips">
-            {pairUp(steps).map((size, pairIndex) => (
-              <span className="nc-pip-pair" key={pairIndex}>
-                {Array.from({ length: size }, (_, i) => {
-                  const index = pairIndex * 2 + i;
-                  return (
-                    <motion.i
-                      className="nc-pip"
-                      key={`${fromSlot}-${steps}-${index}`}
-                      initial={reduceMotion ? false : { opacity: 0, scale: 0.4 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.2, delay: segmentDelay(index) }}
-                    />
-                  );
-                })}
-              </span>
-            ))}
-          </span>
-          <span className="nc-tones">{toneReading(steps)}</span>
-        </div>
-      </div>
-
-      <div className="nc-neck-wrap">
-        <div className="nc-strings" role="radiogroup" aria-label="String, standard tuning" onKeyDown={onStringKey}>
-          {STRINGS.map((s) => (
-            <button
-              key={s.position}
-              type="button"
-              role="radio"
-              aria-checked={s.position === stringPosition}
-              tabIndex={s.position === stringPosition ? 0 : -1}
-              ref={(el) => { stringRefs.current[s.position] = el; }}
-              className={clsx('nc-string', s.position === stringPosition && 'is-on')}
-              aria-label={s.label}
-              onClick={() => setStringPosition(s.position)}
-            >
-              {/* Gauge, not a number: the sixth string is the fat one, and that
-                  is how a player picks it out without reading anything. */}
-              <svg viewBox="0 0 34 8" aria-hidden="true" focusable="false">
-                <line x1="1" y1="4" x2="33" y2="4" strokeWidth={0.7 + (s.position - 1) * 0.7} />
-              </svg>
-              <span aria-hidden="true">{s.name}</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="nc-neck">
-          <svg viewBox={`0 0 ${NECK_VIEW_W} ${NECK_VIEW_H}`} aria-hidden="true" focusable="false">
-            <rect
-              className="nc-fretboard"
-              x={anchorFret === 0 ? wireX(0) : 0}
-              y={NECK_TOP}
-              width={(anchorFret === 0 ? NECK_VIEW_W - wireX(0) : NECK_VIEW_W)}
-              height={NECK_BOTTOM - NECK_TOP}
-            />
-
-            {Array.from({ length: CELLS }, (_, cell) => (
-              <line
-                key={`w${cell}`}
-                className="nc-fret-wire"
-                x1={wireX(cell + 1)}
-                y1={NECK_TOP}
-                x2={wireX(cell + 1)}
-                y2={NECK_BOTTOM}
-              />
-            ))}
-
-            {anchorFret === 0 ? (
-              <line className="nc-nut" x1={wireX(0)} y1={NECK_TOP} x2={wireX(0)} y2={NECK_BOTTOM} />
-            ) : (
-              <line className="nc-fret-wire" x1={wireX(0)} y1={NECK_TOP} x2={wireX(0)} y2={NECK_BOTTOM} />
-            )}
-
-            {cells.map(({ cell, fret }) => {
-              const dots = inlayAt(fret);
-              if (dots === 0 || cell === 0) return null;
-              return dots === 2 ? (
-                <g key={`i${cell}`} className="nc-inlay">
-                  <circle cx={cellX(cell) - 7} cy={INLAY_Y} r={2.6} />
-                  <circle cx={cellX(cell) + 7} cy={INLAY_Y} r={2.6} />
-                </g>
-              ) : (
-                <circle key={`i${cell}`} className="nc-inlay" cx={cellX(cell)} cy={INLAY_Y} r={2.6} />
-              );
-            })}
-
-            {/* The drawn string thickens with the one that is chosen, so the
-                picker above and the figure below are visibly the same object. */}
-            <line
-              className="nc-string-line"
-              x1={0}
-              y1={STRING_Y}
-              x2={NECK_VIEW_W}
-              y2={STRING_Y}
-              style={{ strokeWidth: 1 + (string.position - 1) * 0.42 }}
-            />
-
-            {/* The same walk again, one segment per fret, timed with the ring's
-                so the two figures step together. That simultaneity is the whole
-                argument that they are one object. */}
             {Array.from({ length: steps }, (_, i) => (
-              <motion.line
-                key={`s${anchorFret}-${steps}-${i}`}
-                className="nc-neck-step"
-                x1={cellX(i) + 5}
-                y1={STRING_Y}
-                x2={cellX(i + 1) - 5}
-                y2={STRING_Y}
+              <motion.path
+                key={`${fromSlot}-${steps}-${i}`}
+                className="nc-ring-step"
+                d={segmentPath(fromSlot + i)}
                 initial={reduceMotion ? false : { opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.2, delay: segmentDelay(i) }}
               />
             ))}
 
-            {cells.map(({ cell, pc }) => (
-              <text
-                key={`n${cell}`}
-                className={clsx('nc-fret-name', isSharp(pc) && 'is-sharp', cell === 0 && 'is-from', cell === steps && 'is-to')}
-                x={cellX(cell)}
-                y={NAME_Y}
-                textAnchor="middle"
-              >
-                {sharpName(pc)}
-              </text>
-            ))}
+            {CIRCLE_ORDER.map((pc, slot) => {
+              const at = polar(slot, RING_R);
+              const sharp = isSharp(pc);
+              return (
+                <circle
+                  key={pc}
+                  className={clsx('nc-note-dot', sharp && 'is-sharp', pc === from && 'is-from', pc === to && 'is-to')}
+                  cx={at.x}
+                  cy={at.y}
+                  r={sharp ? 3.2 : 5.2}
+                />
+              );
+            })}
 
-            {/* Only the two frets the player is being asked about. Thirteen fret
-                numbers is a row of noise, and the dots already say where on the
-                neck this is. */}
-            {[0, steps].map((cell) => (
-              <text key={`f${cell}`} className="nc-fret-number" x={cellX(cell)} y={FRET_Y} textAnchor="middle">
-                {cells[cell].fret}
-              </text>
-            ))}
-
-            <circle className="nc-anchor" cx={cellX(0)} cy={STRING_Y} r={9} />
+            {/* The anchor is an open ring and the target is filled, the same two
+                marks the string uses, so a glance at either figure finds the same
+                two ends. */}
+            <circle className="nc-anchor" cx={polar(fromSlot, RING_R).x} cy={polar(fromSlot, RING_R).y} r={9} />
             <motion.circle
               className="nc-target"
-              cx={cellX(steps)}
-              cy={STRING_Y}
-              r={6.6}
-              animate={{ cx: cellX(steps) }}
+              cx={target.x}
+              cy={target.y}
+              r={7.4}
+              animate={{ cx: target.x, cy: target.y }}
               initial={false}
               transition={glide}
             />
           </svg>
 
-          <div className="nc-fret-hits" role="radiogroup" aria-label="Frets" onKeyDown={onNeckKey}>
-            {cells.map(({ cell, pc, fret }) => (
-              <button
-                key={cell}
-                type="button"
-                role="radio"
-                aria-checked={cell === steps}
-                tabIndex={cell === steps ? 0 : -1}
-                ref={(el) => { fretRefs.current[cell] = el; }}
-                className="nc-fret-hit"
-                style={{ '--nc-x': `${(wireX(cell) / NECK_VIEW_W) * 100}%` } as CSSProperties}
-                aria-label={`Fret ${fret}, ${sharpName(pc)}`}
-                onClick={() => pick(pc)}
-              />
-            ))}
+          {/* Real buttons over the drawing, the way the headstock does it: the
+              targets have to be focusable, named and big enough for a thumb, and
+              an SVG <g> is none of those without inventing semantics for it. */}
+          <div
+            className="nc-ring-hits"
+            role="radiogroup"
+            aria-label="The twelve notes"
+            onKeyDown={onRingKey}
+          >
+            {CIRCLE_ORDER.map((pc, slot) => {
+              const at = polar(slot, RING_HIT_R);
+              const flat = flatName(pc);
+              return (
+                <button
+                  key={pc}
+                  type="button"
+                  role="radio"
+                  aria-checked={pc === to}
+                  tabIndex={pc === to ? 0 : -1}
+                  ref={(el) => { noteRefs.current[pc] = el; }}
+                  className={clsx('nc-note', isSharp(pc) && 'is-sharp', pc === from && 'is-from', pc === to && 'is-to')}
+                  style={{ '--nc-x': `${(at.x / RING_VIEW) * 100}%`, '--nc-y': `${(at.y / RING_VIEW) * 100}%` } as CSSProperties}
+                  aria-label={flat ? `${sharpName(pc)}, also ${flat}` : sharpName(pc)}
+                  onClick={() => pick(pc)}
+                >
+                  {/* Both names, always, on the five notes that have two. The
+                      equivalence is a permanent fact about the circle, so it is
+                      drawn as one label in two lines rather than revealed by an
+                      interaction nobody would think to try. */}
+                  <span className="nc-note-name" aria-hidden="true">{sharpName(pc)}</span>
+                  {flat && <span className="nc-note-alt" aria-hidden="true">{flat}</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* The count, where a clock keeps its hands. */}
+          <div className="nc-count" aria-hidden="true">
+            <span className="nc-count-value">{steps}</span>
+            <span className="nc-count-unit">{steps === 1 ? 'semitone' : 'semitones'}</span>
+            <span className="nc-pips">
+              {pairUp(steps).map((size, pairIndex) => (
+                <span className="nc-pip-pair" key={pairIndex}>
+                  {Array.from({ length: size }, (_, i) => {
+                    const index = pairIndex * 2 + i;
+                    return (
+                      <motion.i
+                        className="nc-pip"
+                        key={`${fromSlot}-${steps}-${index}`}
+                        initial={reduceMotion ? false : { opacity: 0, scale: 0.4 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.2, delay: segmentDelay(index) }}
+                      />
+                    );
+                  })}
+                </span>
+              ))}
+            </span>
+            <span className="nc-tones">{toneReading(steps)}</span>
           </div>
         </div>
-      </div>
+
+        <div className="nc-neck-wrap">
+          <div className="nc-strings" role="radiogroup" aria-label="String, standard tuning" onKeyDown={onStringKey}>
+            {STRINGS.map((s) => (
+              <button
+                key={s.position}
+                type="button"
+                role="radio"
+                aria-checked={s.position === stringPosition}
+                tabIndex={s.position === stringPosition ? 0 : -1}
+                ref={(el) => { stringRefs.current[s.position] = el; }}
+                className={clsx('nc-string', s.position === stringPosition && 'is-on')}
+                aria-label={s.label}
+                onClick={() => setStringPosition(s.position)}
+              >
+                {/* Gauge, not a number: the sixth string is the fat one, and that
+                    is how a player picks it out without reading anything. */}
+                <svg viewBox="0 0 34 8" aria-hidden="true" focusable="false">
+                  <line x1="1" y1="4" x2="33" y2="4" strokeWidth={0.7 + (s.position - 1) * 0.7} />
+                </svg>
+                <span aria-hidden="true">{s.name}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="nc-neck">
+            <svg viewBox={`0 0 ${NECK_VIEW_W} ${NECK_VIEW_H}`} aria-hidden="true" focusable="false">
+              <rect
+                className="nc-fretboard"
+                x={anchorFret === 0 ? wireX(0) : 0}
+                y={NECK_TOP}
+                width={(anchorFret === 0 ? NECK_VIEW_W - wireX(0) : NECK_VIEW_W)}
+                height={NECK_BOTTOM - NECK_TOP}
+              />
+
+              {Array.from({ length: CELLS }, (_, cell) => (
+                <line
+                  key={`w${cell}`}
+                  className="nc-fret-wire"
+                  x1={wireX(cell + 1)}
+                  y1={NECK_TOP}
+                  x2={wireX(cell + 1)}
+                  y2={NECK_BOTTOM}
+                />
+              ))}
+
+              {anchorFret === 0 ? (
+                <line className="nc-nut" x1={wireX(0)} y1={NECK_TOP} x2={wireX(0)} y2={NECK_BOTTOM} />
+              ) : (
+                <line className="nc-fret-wire" x1={wireX(0)} y1={NECK_TOP} x2={wireX(0)} y2={NECK_BOTTOM} />
+              )}
+
+              {cells.map(({ cell, fret }) => {
+                const dots = inlayAt(fret);
+                if (dots === 0 || cell === 0) return null;
+                return dots === 2 ? (
+                  <g key={`i${cell}`} className="nc-inlay">
+                    <circle cx={cellX(cell) - 7} cy={INLAY_Y} r={2.6} />
+                    <circle cx={cellX(cell) + 7} cy={INLAY_Y} r={2.6} />
+                  </g>
+                ) : (
+                  <circle key={`i${cell}`} className="nc-inlay" cx={cellX(cell)} cy={INLAY_Y} r={2.6} />
+                );
+              })}
+
+              {/* The drawn string thickens with the one that is chosen, so the
+                  picker above and the figure below are visibly the same object. */}
+              <line
+                className="nc-string-line"
+                x1={0}
+                y1={STRING_Y}
+                x2={NECK_VIEW_W}
+                y2={STRING_Y}
+                style={{ strokeWidth: 1 + (string.position - 1) * 0.42 }}
+              />
+
+              {/* The same walk again, one segment per fret, timed with the ring's
+                  so the two figures step together. That simultaneity is the whole
+                  argument that they are one object. */}
+              {Array.from({ length: steps }, (_, i) => (
+                <motion.line
+                  key={`s${anchorFret}-${steps}-${i}`}
+                  className="nc-neck-step"
+                  x1={cellX(i) + 5}
+                  y1={STRING_Y}
+                  x2={cellX(i + 1) - 5}
+                  y2={STRING_Y}
+                  initial={reduceMotion ? false : { opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2, delay: segmentDelay(i) }}
+                />
+              ))}
+
+              {cells.map(({ cell, pc }) => (
+                <text
+                  key={`n${cell}`}
+                  className={clsx('nc-fret-name', isSharp(pc) && 'is-sharp', cell === 0 && 'is-from', cell === steps && 'is-to')}
+                  x={cellX(cell)}
+                  y={NAME_Y}
+                  textAnchor="middle"
+                >
+                  {sharpName(pc)}
+                </text>
+              ))}
+
+              {/* Only the two frets the player is being asked about. Thirteen fret
+                  numbers is a row of noise, and the dots already say where on the
+                  neck this is. */}
+              {[0, steps].map((cell) => (
+                <text key={`f${cell}`} className="nc-fret-number" x={cellX(cell)} y={FRET_Y} textAnchor="middle">
+                  {cells[cell].fret}
+                </text>
+              ))}
+
+              <circle className="nc-anchor" cx={cellX(0)} cy={STRING_Y} r={9} />
+              <motion.circle
+                className="nc-target"
+                cx={cellX(steps)}
+                cy={STRING_Y}
+                r={6.6}
+                animate={{ cx: cellX(steps) }}
+                initial={false}
+                transition={glide}
+              />
+            </svg>
+
+            <div className="nc-fret-hits" role="radiogroup" aria-label="Frets" onKeyDown={onNeckKey}>
+              {cells.map(({ cell, pc, fret }) => (
+                <button
+                  key={cell}
+                  type="button"
+                  role="radio"
+                  aria-checked={cell === steps}
+                  tabIndex={cell === steps ? 0 : -1}
+                  ref={(el) => { fretRefs.current[cell] = el; }}
+                  className="nc-fret-hit"
+                  style={{ '--nc-x': `${(wireX(cell) / NECK_VIEW_W) * 100}%` } as CSSProperties}
+                  aria-label={`Fret ${fret}, ${sharpName(pc)}`}
+                  onClick={() => pick(pc)}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
