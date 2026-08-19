@@ -131,17 +131,26 @@ const meterText = (page) => page.locator('.signal-meter .signal-label').first().
 
   const killed = await page.evaluate(() => window.__killMic());
   check('the drill had a live track to lose', killed === true);
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(2200);
 
+  // This used to assert the meter had turned red and said "microphone stopped",
+  // and that was right until the drill stopped standing there saying it. A
+  // chord drill can fall back to a clock, so a lost microphone now ends the run
+  // where it stands and files the seconds as time played with no number, exactly
+  // as a refused microphone does. The meter is gone because the run is.
+  const body = (await page.locator('.practice-overlay').innerText()).toLowerCase();
   check(
-    'the meter stops saying the drill can hear',
-    (await page.locator('.signal-meter.is-lost').count()) === 1,
-    await meterText(page),
+    'the run ends rather than counting down over a dead microphone',
+    (await page.locator('.mic-gate').count()) === 1,
+    body.replace(/\n+/g, ' / ').slice(0, 110),
   );
+  check('and it is filed as time played with no number', /time played|nothing counted/.test(body), body.slice(0, 90));
+  // The claim underneath both versions of this test, and the one that must never
+  // come back: a dead microphone must not be reported as bad playing.
   check(
-    'and names what happened rather than blaming the playing',
-    /microphone stopped/i.test(await meterText(page)),
-    await meterText(page).catch(() => 'no meter'),
+    'nothing blames the playing for a microphone that is gone',
+    !/too quiet|strum louder|move closer/.test(body),
+    body.slice(0, 110),
   );
   check('nothing threw on the way', errors.length === 0, errors.join(' | '));
 
@@ -178,6 +187,11 @@ const meterText = (page) => page.locator('.signal-meter .signal-label').first().
 // had fixed. The frames stop, the meter freezes on its last reading, and the one
 // drill in the app that grades rhythm goes on drawing a live signal over a
 // microphone that has been revoked.
+// Strum timing keeps the older shape on purpose, and the difference is not an
+// oversight. It grades rhythm against a click and has no clock to fall back to,
+// so there is no honest "run it blind" ending for it to take. What it must do is
+// stop claiming to hear, which is what this checks. It writes no number either
+// way: a run with no grid reports `enough: false` and nothing is stored.
 {
   console.log('\nthe strum-timing drill notices it too\n');
   const { browser, page, errors } = await open();
