@@ -335,7 +335,6 @@ export function ChordTrainer({
             )}
           </div>
         )}
-        <p className="om-caption">Pick the shapes to drill. Each gets {perChord}s.</p>
         <div className="ct-chip-grid">
           {ALL_CHORDS.map((c) => (
             <button
@@ -353,6 +352,11 @@ export function ChordTrainer({
             </button>
           ))}
         </div>
+        {/* A grid of nine shapes with some of them lit is already the whole of
+            "pick the shapes to drill", and the button already carries the total.
+            All that was left of the sentence is the one number neither of them
+            says: how long each shape gets. */}
+        <p className="om-caption">{perChord}s each</p>
         <button
           className="practice-btn primary"
           onClick={() => void startSession()}

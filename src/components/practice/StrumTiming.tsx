@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
+  ArrowDownIcon,
   ArrowRightIcon,
   HourglassIcon,
   MicIcon,
@@ -290,9 +291,7 @@ export function StrumTiming({
             paragraph this replaced said it in twenty-eight words and then said
             it again in three other states. */}
         <ClickPath state="reaching" className="st-diagram" />
-        <div className="st-brief">
-          <p className="st-brief-line">One down strum on every click, at {bpm} BPM.</p>
-        </div>
+        <BeatAndStrum />
         <button className="practice-btn primary" onClick={startSession}>
           <PlayIcon size={20} /> Start {duration}s
         </button>
@@ -471,6 +470,33 @@ export function StrumTiming({
         </div>
       )}
     </motion.div>
+  );
+}
+
+/**
+ * The exercise, drawn: four clicks, and one down strum under each.
+ *
+ * "One down strum on every click, at 80 BPM" was the last sentence left on this
+ * screen, and every part of it is already somewhere else or drawable. The tempo
+ * is on the metronome in the top bar, which is also where it is changed. What is
+ * left is a correspondence between two things, and a correspondence is a
+ * picture: the clicks in the app's own beat-strip cells, the strums in the same
+ * arrows every strum pattern in the app is drawn with, one under one.
+ */
+function BeatAndStrum() {
+  return (
+    <div className="st-figure-beat" role="img" aria-label="One down strum on every click.">
+      <div className="st-figure-clicks">
+        {[0, 1, 2, 3].map((i) => (
+          <span key={i} className={i === 0 ? 'st-figure-click is-downbeat' : 'st-figure-click'} />
+        ))}
+      </div>
+      <div className="st-figure-strums">
+        {[0, 1, 2, 3].map((i) => (
+          <ArrowDownIcon key={i} size={20} />
+        ))}
+      </div>
+    </div>
   );
 }
 

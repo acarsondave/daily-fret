@@ -272,7 +272,6 @@ export function ChordRotation({
             </span>
           ))}
         </div>
-        <p className="om-caption">One clean change at a time</p>
         <button className="practice-btn primary" onClick={() => void startSession()}>
           <PlayIcon size={20} /> Start {duration}s
         </button>

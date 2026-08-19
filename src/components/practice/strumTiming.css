@@ -357,22 +357,43 @@
   max-width: min(340px, 100%);
 }
 
-.st-brief {
+/* Four clicks, and a down strum under each. The cells are the metronome panel's
+   own beat strip and the arrows are the same ones every strum pattern in the app
+   is drawn with, so nothing here has to be learned twice; the downbeat is taller
+   for the same reason it is taller there. */
+.st-figure-beat {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: var(--space-3);
-  max-width: min(420px, 100%);
 }
 
-.st-brief-line {
-  font-family: var(--font-primary);
-  font-size: var(--text-lg);
-  font-weight: 600;
-  letter-spacing: var(--tracking-tight);
-  color: var(--text-primary);
-  /* Two words on the second line reads as a mistake on a phone. Browsers that
-     do not know this property simply wrap as before. */
-  text-wrap: balance;
+/* Both rows are the same four equal columns, so each arrow sits under its own
+   click by construction rather than by two gap values happening to agree. */
+.st-figure-clicks,
+.st-figure-strums {
+  display: grid;
+  grid-template-columns: repeat(4, 40px);
+  justify-items: center;
+}
+
+.st-figure-clicks {
+  align-items: end;
+  height: 22px;
+}
+.st-figure-click {
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.22);
+}
+.st-figure-click.is-downbeat {
+  height: 22px;
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.st-figure-strums {
+  color: var(--accent-primary);
 }
 
 /* Two classes deep on purpose. This sits inside `.mic-gate`, whose own
