@@ -196,8 +196,10 @@ console.log('\nThe drill hears the click in the room\n');
     /^\d+\/\d+$/.test(beats) && Number(beats.split('/')[1]) >= 12, beats);
   check('the finished block is drawn as a trace',
     (await page.locator('.groove-tick').count()) >= 12);
-  check('and the footnote states what in time means',
-    /within 50 ms of the click/.test(await page.locator('.st-footnote').innerText()));
+  // The width of the in-time window used to be stated in a footnote under the
+  // card. It is the same claim, written on the band it measures.
+  check('and the rail states what in time means',
+    /±50\s?ms/.test(await page.locator('.groove-trace .groove-scale-window').innerText()));
   check('no page errors', errors.length === 0, errors.join(' | '));
   await page.screenshot({ path: `${OUT}/timing-result-1280.png` });
   await browser.close();

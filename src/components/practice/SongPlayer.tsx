@@ -176,7 +176,7 @@ export function SongPlayer({
             decode before it means anything; the arrows are the movement. The
             chords were three initials, and this screen is the last look at them
             before a record starts and does not wait. */}
-        <StrumRow strum={song.strum} size={20} />
+        <StrumRow strum={song.strum} size={24} />
         <div className="song-shape-row">
           {song.chords.map((c) => (
             <span key={c} className="song-shape">
