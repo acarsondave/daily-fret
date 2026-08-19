@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
+  ArrowDownIcon,
   ArrowRightIcon,
   HourglassIcon,
   MicIcon,
@@ -13,7 +14,6 @@ import { metronome } from '../../audio/metronome';
 import { diag, DIAG_CODE } from '../../audio/diagnostics';
 import { sfx } from '../../audio/sfx';
 import {
-  IN_TIME_MS,
   MIN_MEASURED_BEATS,
   TIMING_RESOLUTION_MS,
   describeTiming,
@@ -291,9 +291,7 @@ export function StrumTiming({
             paragraph this replaced said it in twenty-eight words and then said
             it again in three other states. */}
         <ClickPath state="reaching" className="st-diagram" />
-        <div className="st-brief">
-          <p className="st-brief-line">One down strum on every click, at {bpm} BPM.</p>
-        </div>
+        <BeatAndStrum />
         <button className="practice-btn primary" onClick={startSession}>
           <PlayIcon size={20} /> Start {duration}s
         </button>
@@ -357,15 +355,18 @@ export function StrumTiming({
       summary.spreadMs <= TIMING_RESOLUTION_MS;
 
     return (
-      <div className="st-stage">
-        <GrooveRail
-          marks={marks}
-          centreMs={measuring ? summary.medianMs : null}
-          spreadMs={summary?.spreadMs ?? 0}
-          locked={locked}
-          clickPulse={clickPulse}
-        />
+      <div className="st-stage drill-stage">
+        <div className="drill-cue">
+          <GrooveRail
+            marks={marks}
+            centreMs={measuring ? summary.medianMs : null}
+            spreadMs={summary?.spreadMs ?? 0}
+            locked={locked}
+            clickPulse={clickPulse}
+          />
+        </div>
 
+        <div className="drill-read">
         <p className={locked ? 'st-call is-locked' : 'st-call'} aria-live="polite">
           {liveCall(clicksHeard, marks.length, summary)}
         </p>
@@ -391,6 +392,7 @@ export function StrumTiming({
           <HourglassIcon size={26} /> {timeLeft}
         </div>
         <SignalMeter quality={signal} />
+        </div>
       </div>
     );
   }
@@ -436,11 +438,6 @@ export function StrumTiming({
             <Figure value={`±${Math.round(summary.spreadMs)}`} unit="ms" label="spread" />
             <Figure value={`${summary.beatsInTime}/${summary.expectedBeats}`} label="in time" />
           </div>
-          <p className="st-footnote">
-            In time means within {IN_TIME_MS} ms of the click, at {result?.bpm} BPM. A strum is timed
-            when its sound arrives, a few milliseconds after the pick, so leans under{' '}
-            {TIMING_RESOLUTION_MS} ms are shown but never named.
-          </p>
         </>
       )}
 
@@ -473,6 +470,33 @@ export function StrumTiming({
         </div>
       )}
     </motion.div>
+  );
+}
+
+/**
+ * The exercise, drawn: four clicks, and one down strum under each.
+ *
+ * "One down strum on every click, at 80 BPM" was the last sentence left on this
+ * screen, and every part of it is already somewhere else or drawable. The tempo
+ * is on the metronome in the top bar, which is also where it is changed. What is
+ * left is a correspondence between two things, and a correspondence is a
+ * picture: the clicks in the app's own beat-strip cells, the strums in the same
+ * arrows every strum pattern in the app is drawn with, one under one.
+ */
+function BeatAndStrum() {
+  return (
+    <div className="st-figure-beat" role="img" aria-label="One down strum on every click.">
+      <div className="st-figure-clicks">
+        {[0, 1, 2, 3].map((i) => (
+          <span key={i} className={i === 0 ? 'st-figure-click is-downbeat' : 'st-figure-click'} />
+        ))}
+      </div>
+      <div className="st-figure-strums">
+        {[0, 1, 2, 3].map((i) => (
+          <ArrowDownIcon key={i} size={20} />
+        ))}
+      </div>
+    </div>
   );
 }
 

@@ -211,6 +211,7 @@ select:focus-visible {
      everyone. */
   .app-loader-string::after,
   .coach-advance-count,
+  .count-in-beat,
   .om-sparkle,
   .metro-pulse.is-beat,
   .icon-spin {

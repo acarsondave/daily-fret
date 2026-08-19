@@ -5,7 +5,6 @@ import {
   CloseIcon,
   CheckCircleIcon,
   CircleIcon,
-  TrophyIcon,
   SpeakerIcon,
   SpeakerOffIcon,
   SkipIcon,
@@ -32,6 +31,9 @@ import { SongPlayer } from './SongPlayer';
 import { TimedSegment } from './TimedSegment';
 import { MicPermissionHint } from './MicPermissionHint';
 import { Metronome } from './Metronome';
+import { SegmentRail } from './SegmentRail';
+import { SegmentCue, CountIn } from './CoachCue';
+import { ProgressRing } from './ProgressRing';
 import { CapoBadge } from './CapoBadge';
 import { RecordingIndicator } from './RecordingIndicator';
 import { useSessionRecording, type ActiveClip } from '../../media/useSessionRecording';
@@ -433,9 +435,11 @@ export function CoachedSession({ routine, onClose }: Props) {
       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
     >
       <div className="practice-topbar">
-        <span className="practice-eyebrow">
-          Coached · {Math.min(index + 1, segments.length)} / {segments.length}
-        </span>
+        <SegmentRail
+          total={segments.length}
+          index={index}
+          complete={phase === 'summary'}
+        />
         <CapoBadge />
         <div className="practice-topbar-actions">
           <RecordingIndicator
@@ -481,9 +485,11 @@ export function CoachedSession({ routine, onClose }: Props) {
       <div className="practice-body">
         {phase === 'resume' && (
           <motion.div className="coach-intro" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-            <span className="coach-up-next">Resume session</span>
             <div className="coach-intro-title">{routine.name}</div>
-            <div className="om-caption">You stopped at {index + 1} / {segments.length}</div>
+            {/* Where the session stopped, on the same neck the topbar draws it
+                on, so "resume" is a place rather than a fraction to work out. */}
+            <SegmentRail total={segments.length} index={index} className="is-summary" />
+            <SegmentCue segment={seg} className="is-quiet" />
             <div className="om-actions">
               <button className="practice-btn ghost" onClick={startOver}>Start over</button>
               <button className="practice-btn primary" onClick={() => setPhase('intro')} autoFocus>
@@ -495,23 +501,35 @@ export function CoachedSession({ routine, onClose }: Props) {
 
         {phase === 'intro' && (
           <motion.div key={`intro-${index}`} className="coach-intro" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-            <span className="coach-up-next">Up next</span>
             <div className="coach-intro-title">{seg.title}</div>
-            <div className="om-caption">{subLabel}</div>
-            {countdown > 0 ? (
-              <div className="coach-countdown">{countdown}</div>
-            ) : (
-              <div className="coach-countdown-ready">Get ready…</div>
-            )}
+            {/* The shapes, not their names. This is the last quiet moment before
+                the drill and the only one where a hand is free to find them. */}
+            <SegmentCue segment={seg} fallback={<div className="om-caption">{subLabel}</div>} />
+            <CountIn at={countdown} />
             {needsMic && <MicPermissionHint />}
           </motion.div>
         )}
 
         {phase === 'rest' && (
           <motion.div key={`rest-${index}`} className="coach-intro" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-            <span className="coach-up-next">Rest</span>
-            <div className="coach-countdown">{restLeft}</div>
-            <div className="om-caption">Next: {seg.title} · {subLabel}</div>
+            {/* The rest, as the length it is. A bare number counting down says
+                nothing about how much of the break is left, and this is the one
+                screen in the session with no other thing to look at. */}
+            <ProgressRing
+              progress={1 - restLeft / REST_SECONDS}
+              size={168}
+              stroke={8}
+              className="coach-rest-ring"
+            >
+              <div className="coach-rest-count">{restLeft}</div>
+            </ProgressRing>
+            <div className="coach-intro-title is-next">{seg.title}</div>
+            <SegmentCue
+              segment={seg}
+              size={72}
+              className="is-quiet"
+              fallback={<div className="om-caption">{subLabel}</div>}
+            />
             <button className="practice-btn ghost coach-skip-rest" onClick={skipRest}>
               <SkipIcon size={16} /> Skip the rest
             </button>
@@ -672,11 +690,16 @@ export function CoachedSession({ routine, onClose }: Props) {
         {phase === 'summary' && (
           <motion.div className="coach-summary" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <div className="coach-summary-head">
-              <TrophyIcon size={36} className="coach-summary-trophy" />
-              <h2 className="coach-summary-title">Session complete</h2>
-              <p className="coach-summary-sub">
-                {routine.name} · {results.length} drill{results.length === 1 ? '' : 's'}
-              </p>
+              {/* The neck, run through. It has been on screen for the whole
+                  session and this is the frame where it is finally full, which
+                  is what "complete" looks like without a trophy on top of it. */}
+              <SegmentRail
+                total={segments.length}
+                index={segments.length}
+                complete
+                className="is-summary"
+              />
+              <h2 className="coach-summary-title">{routine.name}</h2>
             </div>
             {/* A summary that checks off every step it walked past would be the
                 same lie the day's list used to tell. A step that produced

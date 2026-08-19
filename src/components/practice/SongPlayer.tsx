@@ -6,6 +6,8 @@ import { useStore } from '../../store';
 import { YouTubePlayer, type PlaybackPhase } from './YouTubePlayer';
 import { SyncedChart, ChartStandIn } from './SyncedChart';
 import { PlaybackControls } from './PlaybackControls';
+import { ChordDiagram } from './ChordDiagram';
+import { StrumRow } from './StrumRow';
 import { sfx } from '../../audio/sfx';
 import { useSong } from '../../hooks/useSongs';
 import { usePlayerClock } from '../../hooks/usePlayerClock';
@@ -176,17 +178,19 @@ export function SongPlayer({
             <div className="om-caption">{song.artist}</div>
           </div>
         </div>
-        <p className="om-caption">
-          {timed?.ok
-            ? `The chart moves with the record. Strum ${song.strum}.`
-            : `Play along with the record. Strum ${song.strum}.`}
-        </p>
-        <div className="song-chip-row">
+        {/* The hand, not the sentence. "Strum DDUUDU" is a code a beginner has to
+            decode before it means anything; the arrows are the movement. The
+            chords were three initials, and this screen is the last look at them
+            before a record starts and does not wait. */}
+        <StrumRow strum={song.strum} size={24} />
+        <div className="song-shape-row">
           {song.chords.map((c) => (
-            <span key={c} className="song-chip">{c}</span>
+            <span key={c} className="song-shape">
+              <ChordDiagram chord={c} size={78} showFingers={false} />
+              <span className="song-shape-name">{c}</span>
+            </span>
           ))}
         </div>
-        <p className="song-honest">Not graded, just play.</p>
         <button className="practice-btn primary" onClick={() => { sfx.go(); setPhase('play'); }}>
           <PlayIcon size={20} /> Start play-along
         </button>
@@ -311,9 +315,12 @@ export function SongPlayer({
 
   return (
     <motion.div className="om-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+      {/* The record ran to its end with the player on it, which is the only
+          thing this drill can honestly witness, so that is all the card says.
+          "Nice playing" was the app congratulating someone for showing up,
+          which is the one thing its voice is not for. */}
       <CheckCircleIcon size={48} className="coach-summary-check" />
       <div className="coach-intro-title">{song.title}</div>
-      <div className="om-caption">Nice playing.</div>
       {autoAdvance ? (
         <div className="coach-advance">
           <span className="coach-advance-label">{nextLabel} in</span>

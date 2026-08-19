@@ -5,7 +5,7 @@
 .chord-diagram {
   display: block;
   margin: 0;
-  width: var(--cd-size, 132px);
+  width: var(--cd-size, var(--cd-intrinsic, 132px));
   color: var(--text-primary);
   /* Which fret a dot sits on is read off these lines, so they are content, not
      chrome, and carry the 3:1 minimum. Same weight as the tuner's strings: one

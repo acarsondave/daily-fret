@@ -336,7 +336,6 @@ export function ChordTrainer({
             )}
           </div>
         )}
-        <p className="om-caption">Pick the shapes to drill. Each gets {perChord}s.</p>
         <div className="ct-chip-grid">
           {ALL_CHORDS.map((c) => (
             <button
@@ -354,6 +353,11 @@ export function ChordTrainer({
             </button>
           ))}
         </div>
+        {/* A grid of nine shapes with some of them lit is already the whole of
+            "pick the shapes to drill", and the button already carries the total.
+            All that was left of the sentence is the one number neither of them
+            says: how long each shape gets. */}
+        <p className="om-caption">{perChord}s each</p>
         <button
           className="practice-btn primary"
           onClick={() => void startSession()}
@@ -365,6 +369,10 @@ export function ChordTrainer({
       </div>
     );
   }
+
+  // First block of a pool this player has never scored on. After that the drill
+  // has already shown what it wants and the line is repetition.
+  const showMotionHint = slot === 0 && poolBest === 0 && reps === 0;
 
   if (view === 'playing') {
     if (!onTimer && status === 'error') {
@@ -385,54 +393,69 @@ export function ChordTrainer({
       );
     }
     return (
-      <>
-        <div className="practice-mode is-chord">place · strum · lift off · place again</div>
-        <div className="ct-stage">
-          <div ref={heroRef} className="practice-hero ct-target">
-            {pool[slot]}
-          </div>
-          {/* The drill's instruction is "place the shape", so the shape is on
-              screen. It turns green while the chord is actually being held,
-              which closes the loop between the hand and the readout. */}
-          <div ref={shapeRef} className="ct-shape">
-            <ChordDiagram chord={pool[slot]} size={130} />
-          </div>
-        </div>
-
-        <div className="ct-blocks">
-          {pool.map((c, i) => (
-            <span
-              key={c}
-              className={i === slot ? 'ct-block is-now' : i < slot ? 'ct-block is-done' : 'ct-block'}
-            >
-              {c}
-              {!onTimer && i < slot && <b>{tally[i]}</b>}
-            </span>
-          ))}
-        </div>
-
-        <div className="ct-stats">
-          {/* Small, because the shape above it is the drill and this is the
-              score. The mark is still the best for this set of shapes, so the
-              gap to it is readable without leaving the exercise. */}
-          {!onTimer && (
-            <ProgressRing
-              {...ringScale(reps, poolBest)}
-              phase="live"
-              size={104}
-              stroke={7}
-              className="om-ring ct-ring-live"
-            >
-              <span className="ct-score">{reps}</span>
-              <span className="om-caption">placed</span>
-            </ProgressRing>
+      /* Cue and readout as two halves, side by side on a propped laptop. Stacked,
+         the meter sat on the fold of a 572-pixel window and the timer with it. */
+      <div className="drill-stage">
+        <div className="drill-cue">
+          {/* The motion the drill asks for, said once and then gone. It is four
+              words describing a thing the screen demonstrates a second later
+              (the shape turns green under the hand, the count moves), so it
+              belongs to the first block a player ever runs on these shapes and
+              to no other. Text that survives past first use is furniture. */}
+          {showMotionHint && (
+            <div className="practice-mode is-chord ct-motion-hint">
+              place · strum · lift off · place again
+            </div>
           )}
-          <span className="om-timer">
-            <HourglassIcon size={22} /> {timeLeft}
-          </span>
+          <div className="ct-stage">
+            <div ref={heroRef} className="practice-hero ct-target">
+              {pool[slot]}
+            </div>
+            {/* The drill's instruction is "place the shape", so the shape is on
+                screen. It turns green while the chord is actually being held,
+                which closes the loop between the hand and the readout. */}
+            <div ref={shapeRef} className="ct-shape">
+              <ChordDiagram chord={pool[slot]} size={130} />
+            </div>
+          </div>
+
+          <div className="ct-blocks">
+            {pool.map((c, i) => (
+              <span
+                key={c}
+                className={i === slot ? 'ct-block is-now' : i < slot ? 'ct-block is-done' : 'ct-block'}
+              >
+                {c}
+                {!onTimer && i < slot && <b>{tally[i]}</b>}
+              </span>
+            ))}
+          </div>
         </div>
-        {onTimer ? <UncountedNotice /> : <SignalMeter quality={signal} />}
-      </>
+
+        <div className="drill-read">
+          <div className="ct-stats">
+            {/* Small, because the shape above it is the drill and this is the
+                score. The mark is still the best for this set of shapes, so the
+                gap to it is readable without leaving the exercise. */}
+            {!onTimer && (
+              <ProgressRing
+                {...ringScale(reps, poolBest)}
+                phase="live"
+                size={104}
+                stroke={7}
+                className="om-ring ct-ring-live"
+              >
+                <span className="ct-score">{reps}</span>
+                <span className="om-caption">placed</span>
+              </ProgressRing>
+            )}
+            <span className="om-timer">
+              <HourglassIcon size={22} /> {timeLeft}
+            </span>
+          </div>
+          {onTimer ? <UncountedNotice /> : <SignalMeter quality={signal} />}
+        </div>
+      </div>
     );
   }
 
