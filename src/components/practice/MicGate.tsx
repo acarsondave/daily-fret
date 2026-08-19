@@ -14,6 +14,7 @@
 // The gate says both halves of that before the player chooses.
 
 import { HourglassIcon, MicIcon, RetryIcon } from '../icons';
+import { CoachAdvance } from './CoachAdvance';
 
 interface Props {
   /** The browser's own reason, which can be as terse as "Not supported". */
@@ -57,12 +58,19 @@ export function TimerRunEnded({
   nextLabel,
   onNext,
   onClose,
+  onAgain,
+  onSkip,
 }: {
   autoAdvance: boolean;
   advanceLeft: number;
   nextLabel: string;
   onNext?: () => void;
   onClose?: () => void;
+  // Coached steering. Again matters most here of anywhere: this screen is what a
+  // run the microphone could not open leaves behind, and the microphone may well
+  // be back by the time it is read.
+  onAgain?: () => void;
+  onSkip?: () => void;
 }) {
   return (
     <div className="mic-gate">
@@ -72,10 +80,12 @@ export function TimerRunEnded({
           on a surface where every other ending has one. */}
       <p className="mic-gate-reason">Time played. Nothing counted.</p>
       {autoAdvance && onNext ? (
-        <div className="coach-advance">
-          <span className="coach-advance-label">{nextLabel} in</span>
-          <span className="coach-advance-count">{advanceLeft}</span>
-        </div>
+        <CoachAdvance
+          nextLabel={nextLabel}
+          advanceLeft={advanceLeft}
+          onAgain={onAgain}
+          onSkip={onSkip}
+        />
       ) : (
         <div className="mic-gate-actions">
           <button className="practice-btn ghost" onClick={() => onClose?.()}>

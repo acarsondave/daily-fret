@@ -13,6 +13,7 @@ import { PersonalBestSparkle } from './PersonalBestSparkle';
 import { ProgressRing } from './ProgressRing';
 import { ringScale } from '../../lib/ringScale';
 import { SignalMeter } from './SignalMeter';
+import { CoachAdvance } from './CoachAdvance';
 import { ChordDiagram } from './ChordDiagram';
 import { useMicLoss, useSignalMeter } from './signalQuality';
 import { sfx } from '../../audio/sfx';
@@ -48,6 +49,11 @@ interface Props {
   onNext?: () => void;
   autoAdvance?: boolean;
   nextLabel?: string;
+  // Steering, in a coached session only. Again re-runs this segment; Skip leaves
+  // it out of the record entirely. Absent when the drill is opened on its own,
+  // where the results screen already has its own two buttons.
+  onAgain?: () => void;
+  onSkip?: () => void;
   detector?: ChordDetectorApi;
   onSessionStart?: () => void; // the drill is now live (drives the auto metronome)
   // A run the microphone could not hear, timed instead. Kept separate from
@@ -76,6 +82,8 @@ export function ChordRotation({
   onNext,
   autoAdvance = false,
   nextLabel = 'Up next',
+  onAgain,
+  onSkip,
   detector,
   onSessionStart,
   onTimedRun,
@@ -383,6 +391,8 @@ export function ChordRotation({
         nextLabel={nextLabel}
         onNext={onNext}
         onClose={onClose}
+        onAgain={onAgain}
+        onSkip={onSkip}
       />
     );
   }
@@ -418,10 +428,12 @@ export function ChordRotation({
       </div>
 
       {autoAdvance ? (
-        <div className="coach-advance">
-          <span className="coach-advance-label">{nextLabel} in</span>
-          <span className="coach-advance-count">{advanceLeft}</span>
-        </div>
+        <CoachAdvance
+          nextLabel={nextLabel}
+          advanceLeft={advanceLeft}
+          onAgain={onAgain}
+          onSkip={onSkip}
+        />
       ) : (
         <div className="om-actions">
           <button className="practice-btn ghost" onClick={() => onClose?.()}>

@@ -26,6 +26,7 @@ import { useStore } from '../../store';
 import { PatternBar, type SlotView } from './PatternBar';
 import { ClickPath } from './ClickPath';
 import { SignalMeter } from './SignalMeter';
+import { CoachAdvance } from './CoachAdvance';
 import { useTimingSignalMeter } from './signalQuality';
 import type { DrillConfig } from '../../types';
 import './strumPattern.css';
@@ -74,6 +75,11 @@ interface Props {
   onNext?: () => void;
   autoAdvance?: boolean;
   nextLabel?: string;
+  // Steering, in a coached session only. Again re-runs this segment; Skip leaves
+  // it out of the record entirely. Absent when the drill is opened on its own,
+  // where the results screen already has its own two buttons.
+  onAgain?: () => void;
+  onSkip?: () => void;
   onSessionStart?: () => void;
 }
 
@@ -123,6 +129,8 @@ export function StrumPatterns({
   onNext,
   autoAdvance = false,
   nextLabel = 'Up next',
+  onAgain,
+  onSkip,
   onSessionStart,
 }: Props) {
   const { status, route, error, start, stop } = useStrumTiming();
@@ -709,10 +717,12 @@ export function StrumPatterns({
       )}
 
       {autoAdvance ? (
-        <div className="coach-advance">
-          <span className="coach-advance-label">{nextLabel} in</span>
-          <span className="coach-advance-count">{advanceLeft}</span>
-        </div>
+        <CoachAdvance
+          nextLabel={nextLabel}
+          advanceLeft={advanceLeft}
+          onAgain={onAgain}
+          onSkip={onSkip}
+        />
       ) : (
         <div className="om-actions">
           <button className="practice-btn ghost" onClick={() => onClose?.()}>

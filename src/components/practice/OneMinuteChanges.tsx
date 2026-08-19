@@ -11,6 +11,7 @@ import { ProgressRing } from './ProgressRing';
 import { ringScale } from '../../lib/ringScale';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
+import { CoachAdvance } from './CoachAdvance';
 import { ChordDiagram } from './ChordDiagram';
 import { useMicLoss, useSignalMeter } from './signalQuality';
 import { useDrillLogs } from '../../store';
@@ -32,6 +33,11 @@ interface Props {
   onNext?: () => void; // when set, the results "Next" advances a sequence
   autoAdvance?: boolean; // results auto-continue after a short countdown (no button)
   nextLabel?: string; // what the auto-advance is moving toward, e.g. "Rest"
+  // Steering, in a coached session only. Again re-runs this segment; Skip leaves
+  // it out of the record entirely. Absent when the drill is opened on its own,
+  // where the results screen already has its own two buttons.
+  onAgain?: () => void;
+  onSkip?: () => void;
   defaultPair?: { from: string; to: string }; // reopen on the last pair played
   onSessionStart?: (from: string, to: string) => void; // remember the pair
   detector?: ChordDetectorApi; // shared mic (Coached) so it isn't restarted per drill
@@ -49,6 +55,8 @@ export function OneMinuteChanges({
   onNext,
   autoAdvance = false,
   nextLabel = 'Up next',
+  onAgain,
+  onSkip,
   defaultPair,
   onSessionStart,
   detector,
@@ -402,6 +410,8 @@ export function OneMinuteChanges({
         nextLabel={nextLabel}
         onNext={onNext}
         onClose={onClose}
+        onAgain={onAgain}
+        onSkip={onSkip}
       />
     );
   }
@@ -440,10 +450,12 @@ export function OneMinuteChanges({
       </div>
 
       {autoAdvance ? (
-        <div className="coach-advance">
-          <span className="coach-advance-label">{nextLabel} in</span>
-          <span className="coach-advance-count">{advanceLeft}</span>
-        </div>
+        <CoachAdvance
+          nextLabel={nextLabel}
+          advanceLeft={advanceLeft}
+          onAgain={onAgain}
+          onSkip={onSkip}
+        />
       ) : (
         <div className="om-actions">
           <button className="practice-btn ghost" onClick={() => onClose?.()}>

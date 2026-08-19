@@ -24,6 +24,7 @@ import { diag } from '../../audio/diagnostics';
 import { speak, announceDrill, preloadCoachVoice, stopVoice, isCoachVoiceEnabled, setCoachVoiceEnabled } from '../../audio/coachVoice';
 import { useChordDetector } from '../../hooks/useChordDetector';
 import type { Routine } from '../../types';
+import type { TimedOutcome } from '../../store/completion';
 import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
 import { ChordRotation } from './ChordRotation';
@@ -48,6 +49,34 @@ type Phase = 'resume' | 'intro' | 'rest' | 'segment' | 'summary';
 const COUNT_IN_SECONDS = 3;
 
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * A finished run, held on the results screen rather than written on the spot.
+ *
+ * The write used to happen the instant a drill ended, which made both of the
+ * results screen's new controls impossible to honour. Again cannot keep the
+ * better of two takes if the worse one is already in the day's record, and Skip
+ * cannot advance without recording something the store was told about five
+ * seconds earlier.
+ *
+ * So a run is a proposal until the session leaves the segment. Nothing is lost
+ * by waiting: the same commit runs when the countdown expires, when Again's
+ * replacement lands, and when the player exits the overlay mid-hand-off.
+ */
+interface PendingRun {
+  /** Tells the day's record what happened. Runs exactly once, or never. */
+  commit: () => void;
+  /** The row this run puts in the session summary. */
+  row: CoachStepResult;
+  /**
+   * What the run scored, for choosing between takes of one segment. Null for a
+   * run that produced no number at all, which never displaces one that did.
+   */
+  value: number | null;
+}
+
+/** A run that leaves nothing in the day's record, because it was skipped. */
+const RECORD_NOTHING = () => {};
 
 interface Props {
   routine: Routine;
@@ -126,7 +155,15 @@ export function CoachedSession({ routine, onClose }: Props) {
   const [restLeft, setRestLeft] = useState(0);
   const [voiceOn, setVoiceOn] = useState(isCoachVoiceEnabled());
   const restLeftRef = useRef(0);
-  const lastValueRef = useRef<number | null>(null);
+  // Which attempt at the current segment is on screen. Again bumps it, which
+  // remounts the drill and gives the retake its own recording clip.
+  const [take, setTake] = useState(0);
+  // What the segment on screen has produced so far, held rather than written.
+  // See `propose` below for why the write waits.
+  const pendingRef = useRef<PendingRun | null>(null);
+  // One departure per take. The auto-advance countdown, Again and Skip can all
+  // fire within the same tick, and only the first of them may move the session.
+  const departedRef = useRef(false);
   // Wall clock for the segment currently on screen. Only the song play-along
   // reads it: it is the one segment with no clock of its own, and time spent
   // with the record playing is the only thing the app can honestly witness there.
@@ -234,13 +271,17 @@ export function CoachedSession({ routine, onClose }: Props) {
   //
   // One clip per drill, filed under the task it belongs to, which is what makes
   // "show me the last time I played this" answerable later. It also means the
-  // rests are not filmed: thirty seconds of an empty chair, eight times a
-  // session, is storage spent on nothing and footage nobody will scrub past.
+  // rests are not filmed: an empty chair, eight times a session, is storage
+  // spent on nothing and footage nobody will scrub past.
+  //
+  // A retake is its own clip. The take is in the key because the footage of an
+  // attempt the player chose to redo is a different piece of practice from the
+  // one that replaced it, and overwriting either would lose whichever went well.
   const clip = useMemo<ActiveClip | null>(
     () =>
       phase === 'segment' && seg
         ? {
-            key: `seg-${index}`,
+            key: `seg-${index}-${take}`,
             date: today,
             taskId: seg.taskId,
             routineId: routine.id,
@@ -248,7 +289,7 @@ export function CoachedSession({ routine, onClose }: Props) {
           }
         : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [phase, index, seg?.taskId, seg?.title],
+    [phase, index, take, seg?.taskId, seg?.title],
   );
   const recording = useSessionRecording(clip);
 
@@ -258,7 +299,47 @@ export function CoachedSession({ routine, onClose }: Props) {
   const isFinalSegmentOfTask = (i: number) =>
     !!segments[i] && segments[i + 1]?.taskId !== segments[i].taskId;
 
+  /**
+   * Offer a finished run as what this segment will be recorded as.
+   *
+   * Called by every drill the moment it ends, in place of writing to the store.
+   * When Again has produced a second take, the better of the two survives: that
+   * is what "keeps the better result" has to mean, because the reason to go
+   * again is a run the microphone spoiled and the reason not to lose the retake
+   * is a run that went better.
+   */
+  const propose = (run: PendingRun) => {
+    const held = pendingRef.current;
+    // A run with no number never displaces one that has a number, whichever way
+    // round the takes came: a mic that died halfway through the second attempt
+    // must not erase the first attempt's count.
+    if (held && (run.value ?? -1) <= (held.value ?? -1)) return;
+    pendingRef.current = run;
+  };
+
+  /**
+   * A drill that ran with nothing counted: the microphone was refused, or it
+   * went away mid-run. Time played, no number, and the summary row says so.
+   */
+  const timedProposal = (taskId: string, title: string, outcome: TimedOutcome): PendingRun => ({
+    commit: () => recordTime(today, taskId, outcome),
+    row: { title, value: null, unit: '', done: false },
+    value: null,
+  });
+
+  /** Write whatever the segment is holding, once, and let go of it. */
+  const commitPending = (): PendingRun | null => {
+    const pending = pendingRef.current;
+    pendingRef.current = null;
+    pending?.commit();
+    return pending;
+  };
+
   const exit = () => {
+    // Walking out is not skipping. A run held on the results screen was played
+    // and heard, so it goes into the day's record on the way out exactly as it
+    // would have if the countdown had been allowed to finish.
+    commitPending();
     if (phase !== 'summary' && index > 0) {
       saveCoachProgress({ routineId: routine.id, date: today, startedAt, index, results });
     }
@@ -277,6 +358,11 @@ export function CoachedSession({ routine, onClose }: Props) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, index, results]);
+
+  // A new segment, or a new attempt at one, is a fresh chance to leave it.
+  useEffect(() => {
+    departedRef.current = false;
+  }, [index, take]);
 
   // Warm the voice pack so the first line doesn't lag.
   useEffect(() => {
@@ -406,18 +492,17 @@ export function CoachedSession({ routine, onClose }: Props) {
     );
   }
 
-  const advance = (result?: CoachStepResult) => {
-    // The segment on screen is over, so its number is over with it.
-    //
-    // This ref used to survive into the next segment, and every measured drill
-    // reads it to build its own summary row. A drill that produced no number at
-    // all still calls advance: a run on the timer after the microphone was
-    // refused mid-session ends on `TimerRunEnded`, which advances without ever
-    // calling onResult. The next row then carried the previous drill's figure
-    // and a tick beside it, so the summary reported a measurement of a pair the
-    // app had not heard a single note of. Callers read this before advance runs,
-    // so clearing it here is the moment nothing is left to read.
-    lastValueRef.current = null;
+  const advance = () => {
+    // Only the first thing to leave this take moves the session. The countdown
+    // reaching zero, Again and Skip all race each other by design.
+    if (departedRef.current) return;
+    departedRef.current = true;
+    // The run the segment settled on, written now that no take can replace it.
+    // The summary row comes from the same place as the record, so the two can no
+    // longer disagree about what the app heard. This is what `lastValueRef` used
+    // to do, badly: it survived into the next segment, so a drill that produced
+    // nothing at all showed the previous drill's number with a tick beside it.
+    const recorded = commitPending();
     songReachedEndRef.current = false;
     // Settle the underlying task only when this was its last segment, so a
     // multi-pair changes task is judged once, on everything it produced, rather
@@ -426,7 +511,7 @@ export function CoachedSession({ routine, onClose }: Props) {
     if (isFinalSegmentOfTask(index)) {
       settleTask(today, seg.taskId);
     }
-    const nextResults = result ? [...results, result] : results;
+    const nextResults = recorded ? [...results, recorded.row] : results;
     setResults(nextResults);
     const nextIndex = index + 1;
     if (nextIndex < segments.length) {
@@ -454,10 +539,55 @@ export function CoachedSession({ routine, onClose }: Props) {
     }
   };
 
+  /**
+   * Run the segment on screen again, from the top.
+   *
+   * No announcement and no rest first: the player has just asked for it with the
+   * guitar already in their hands, and the whole reason this control exists is
+   * that the cost of another go used to be quitting the session and reopening
+   * it. Whatever the previous take produced stays held, so the better of the two
+   * is what the day ends up with.
+   */
+  const runAgain = () => {
+    if (departedRef.current) return;
+    departedRef.current = true;
+    stopVoice();
+    diag.mark(`coached segment ${index + 1}/${segments.length}: ${seg.title}, running again`);
+    setTake((t) => t + 1);
+  };
+
+  /**
+   * Move on, recording nothing for this segment.
+   *
+   * Everything the segment produced is dropped, including a take an earlier
+   * Again had banked: Skip means this drill does not go into the day, and a
+   * version of it that quietly filed the best attempt anyway would be the app
+   * recording practice the player just told it not to.
+   */
+  const skipSegment = () => {
+    if (departedRef.current) return;
+    diag.mark(`coached segment ${index + 1}/${segments.length}: ${seg.title}, skipped`);
+    // The summary still carries the step, with no number and no tick. A session
+    // that quietly dropped the row would report nine tasks as eight, which is a
+    // different claim from "this one was not counted".
+    pendingRef.current = {
+      commit: RECORD_NOTHING,
+      row: {
+        title: seg.kind === 'changes' ? `${seg.from} ↔ ${seg.to}` : seg.title,
+        value: null,
+        unit: '',
+        done: false,
+      },
+      value: null,
+    };
+    advance();
+  };
+
   const startOver = () => {
     setIndex(0);
+    setTake(0);
     setResults([]);
-    lastValueRef.current = null;
+    pendingRef.current = null;
     clearCoachProgress();
     // Starting over is a new session, so it belongs to now rather than to the
     // date of the sitting it just discarded.
@@ -596,34 +726,34 @@ export function CoachedSession({ routine, onClose }: Props) {
 
         {phase === 'segment' && seg.kind === 'changes' && (
           <OneMinuteChanges
-            key={`seg-${index}`}
+            key={`seg-${index}-${take}`}
             config={{ kind: 'one-minute-changes', chordFrom: seg.from, chordTo: seg.to, durationSec: seg.seconds }}
             autoStart
             autoAdvance
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             detector={detector}
             onResult={(cpm, f, t) => {
-              // Records what was heard; it does not complete anything. The task
+              // Proposes what was heard; it does not complete anything. The task
               // is settled once, after its last pair (see advance).
-              recordMeasurements(today, seg.taskId, [{ key: pairKey(f, t), value: cpm }]);
               setLastPair(f, t);
-              lastValueRef.current = cpm;
+              propose({
+                commit: () => recordMeasurements(today, seg.taskId, [{ key: pairKey(f, t), value: cpm }]),
+                row: { title: `${seg.from} ↔ ${seg.to}`, value: cpm, unit: 'cpm', done: cpm > 0 },
+                value: cpm,
+              });
               void speak('done');
             }}
-            onTimedRun={(outcome) => recordTime(today, seg.taskId, outcome)}
-            onNext={() => advance({
-              title: `${seg.from} ↔ ${seg.to}`,
-              value: lastValueRef.current,
-              unit: 'cpm',
-              done: (lastValueRef.current ?? 0) > 0,
-            })}
+            onTimedRun={(outcome) => propose(timedProposal(seg.taskId, `${seg.from} ↔ ${seg.to}`, outcome))}
+            onNext={advance}
+            onAgain={runAgain}
+            onSkip={skipSegment}
             onClose={exit}
           />
         )}
 
         {phase === 'segment' && seg.kind === 'trainer' && (
           <ChordTrainer
-            key={`seg-${index}`}
+            key={`seg-${index}-${take}`}
             config={{ kind: 'chord-trainer', chords: seg.chords, durationSec: seg.seconds }}
             autoStart
             autoAdvance
@@ -631,27 +761,33 @@ export function CoachedSession({ routine, onClose }: Props) {
             detector={detector}
             onResult={({ perChord, total }) => {
               // The block's score and each shape's own count, from one run.
-              recordMeasurements(today, seg.taskId, [
-                { key: poolKey(perChord.map((p) => p.chord)), value: total },
-                ...perChord.map((p) => ({ key: chordKey(p.chord), value: p.placements })),
-              ]);
-              lastValueRef.current = total;
+              propose({
+                commit: () =>
+                  recordMeasurements(today, seg.taskId, [
+                    { key: poolKey(perChord.map((p) => p.chord)), value: total },
+                    ...perChord.map((p) => ({ key: chordKey(p.chord), value: p.placements })),
+                  ]),
+                row: {
+                  title: seg.title,
+                  value: total,
+                  unit: DRILL_UNIT['chord-trainer'],
+                  done: total > 0,
+                },
+                value: total,
+              });
               void speak('done');
             }}
-            onTimedRun={(outcome) => recordTime(today, seg.taskId, outcome)}
-            onNext={() => advance({
-              title: seg.title,
-              value: lastValueRef.current,
-              unit: DRILL_UNIT['chord-trainer'],
-              done: (lastValueRef.current ?? 0) > 0,
-            })}
+            onTimedRun={(outcome) => propose(timedProposal(seg.taskId, seg.title, outcome))}
+            onNext={advance}
+            onAgain={runAgain}
+            onSkip={skipSegment}
             onClose={exit}
           />
         )}
 
         {phase === 'segment' && seg.kind === 'rotation' && ring && (
           <ChordRotation
-            key={`seg-${index}`}
+            key={`seg-${index}-${take}`}
             config={{ kind: 'chord-rotation', chords: ring, durationSec: seg.seconds }}
             personalBest={rotationBest}
             autoStart
@@ -659,24 +795,24 @@ export function CoachedSession({ routine, onClose }: Props) {
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             detector={detector}
             onResult={({ ring: turned, changes }) => {
-              recordMeasurements(today, seg.taskId, [{ key: sweepKey(turned), value: changes }]);
-              lastValueRef.current = changes;
+              propose({
+                commit: () => recordMeasurements(today, seg.taskId, [{ key: sweepKey(turned), value: changes }]),
+                row: { title: seg.title, value: changes, unit: 'changes', done: changes > 0 },
+                value: changes,
+              });
               void speak('done');
             }}
-            onTimedRun={(outcome) => recordTime(today, seg.taskId, outcome)}
-            onNext={() => advance({
-              title: seg.title,
-              value: lastValueRef.current,
-              unit: 'changes',
-              done: (lastValueRef.current ?? 0) > 0,
-            })}
+            onTimedRun={(outcome) => propose(timedProposal(seg.taskId, seg.title, outcome))}
+            onNext={advance}
+            onAgain={runAgain}
+            onSkip={skipSegment}
             onClose={exit}
           />
         )}
 
         {phase === 'segment' && seg.kind === 'timing' && (
           <StrumTiming
-            key={`seg-${index}`}
+            key={`seg-${index}-${take}`}
             config={{ kind: 'strum-timing', durationSec: seg.seconds, bpm: seg.bpm }}
             bpm={tempoPlan?.bpm ?? DEFAULT_PRACTICE_BPM}
             personalBest={timingBest}
@@ -684,23 +820,24 @@ export function CoachedSession({ routine, onClose }: Props) {
             autoAdvance
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             onResult={({ bpm, summary }) => {
-              recordMeasurements(today, seg.taskId, [{ key: timingKey(bpm), value: summary.score }]);
-              lastValueRef.current = summary.score;
+              propose({
+                commit: () =>
+                  recordMeasurements(today, seg.taskId, [{ key: timingKey(bpm), value: summary.score }]),
+                row: { title: seg.title, value: summary.score, unit: '% in time', done: summary.score > 0 },
+                value: summary.score,
+              });
               void speak('done');
             }}
-            onNext={() => advance({
-              title: seg.title,
-              value: lastValueRef.current,
-              unit: '% in time',
-              done: (lastValueRef.current ?? 0) > 0,
-            })}
+            onNext={advance}
+            onAgain={runAgain}
+            onSkip={skipSegment}
             onClose={exit}
           />
         )}
 
         {phase === 'segment' && seg.kind === 'patterns' && (
           <StrumPatterns
-            key={`seg-${index}`}
+            key={`seg-${index}-${take}`}
             config={{ kind: 'strum-pattern', durationSec: seg.seconds, bpm: seg.bpm, bars: seg.bars }}
             bpm={tempoPlan?.bpm ?? DEFAULT_PRACTICE_BPM}
             deck={patternDeck}
@@ -713,25 +850,24 @@ export function CoachedSession({ routine, onClose }: Props) {
               // on. A block with nothing in it still reports, under the first
               // card of the deck and at zero, so the day records that the drill
               // ran and heard nothing rather than looking unopened.
-              const results = deals.length
+              const measurements = deals.length
                 ? deals.map((d) => ({
                     key: patternKey(d.pattern, bpm),
                     value: d.score,
                     settledBar: d.settledBar,
                   }))
                 : [{ key: patternKey(patternDeck[0] ?? 'D-D-D-D-', bpm), value: 0 }];
-              recordMeasurements(today, seg.taskId, results);
-              lastValueRef.current = deals.length
-                ? Math.max(...deals.map((d) => d.score))
-                : 0;
+              const best = deals.length ? Math.max(...deals.map((d) => d.score)) : 0;
+              propose({
+                commit: () => recordMeasurements(today, seg.taskId, measurements),
+                row: { title: seg.title, value: best, unit: '% in time', done: best > 0 },
+                value: best,
+              });
               void speak('done');
             }}
-            onNext={() => advance({
-              title: seg.title,
-              value: lastValueRef.current,
-              unit: '% in time',
-              done: (lastValueRef.current ?? 0) > 0,
-            })}
+            onNext={advance}
+            onAgain={runAgain}
+            onSkip={skipSegment}
             onClose={exit}
           />
         )}
@@ -754,12 +890,17 @@ export function CoachedSession({ routine, onClose }: Props) {
               // unconditionally: tapping Done ten seconds in filed the segment as
               // a clock that had run out, which the task row then printed as one.
               const elapsed = (Date.now() - segmentStartRef.current) / 1000;
-              recordTime(today, seg.taskId, {
+              const outcome = {
                 elapsedSeconds: elapsed,
                 reachedEnd: songReachedEndRef.current,
                 done: true,
+              };
+              propose({
+                commit: () => recordTime(today, seg.taskId, outcome),
+                row: { title: seg.title, value: null, unit: '', done: true },
+                value: null,
               });
-              advance({ title: seg.title, value: null, unit: '', done: true });
+              advance();
             }}
             onClose={exit}
           />
@@ -767,7 +908,7 @@ export function CoachedSession({ routine, onClose }: Props) {
 
         {phase === 'segment' && seg.kind === 'timed' && (
           <TimedSegment
-            key={`seg-${index}`}
+            key={`seg-${index}-${take}`}
             title={seg.title}
             description={seg.description}
             seconds={seg.seconds}
@@ -775,9 +916,16 @@ export function CoachedSession({ routine, onClose }: Props) {
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             onFinish={() => void speak('done')}
             onDone={(outcome) => {
-              recordTime(today, seg.taskId, outcome);
-              advance({ title: seg.title, value: null, unit: '', done: outcome.done });
+              propose({
+                commit: () => recordTime(today, seg.taskId, outcome),
+                row: { title: seg.title, value: null, unit: '', done: outcome.done },
+                value: null,
+              });
+              advance();
             }}
+            // Walking out of a block mid-clock is not a run to be held and
+            // chosen between. It is a teardown, and the seconds it really ran
+            // for are written straight away.
             onLeave={(outcome) => recordTime(today, seg.taskId, outcome)}
           />
         )}
