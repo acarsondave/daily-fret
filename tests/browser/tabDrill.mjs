@@ -24,7 +24,7 @@ mkdirSync(SHOT.slice(0, SHOT.lastIndexOf('/')), { recursive: true });
 let failures = 0;
 const check = (label, ok, detail) => {
   if (!ok) failures += 1;
-  console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${label}${!ok && detail !== undefined ? ` — ${detail}` : ''}`);
+  console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${label}${!ok && detail !== undefined ? `: ${detail}` : ''}`);
 };
 
 // --- The riffs ---------------------------------------------------------------
@@ -64,12 +64,14 @@ const WIDE = [
 // Two strings, one bar, and no count anywhere in it.
 const UNCOUNTED = ['A|:--0--1--2--2--1--0--:|', `E|:${'-'.repeat(20)}:|`].join('\n');
 
-// One riff typed over two staves.
+// One riff typed over two staves, each counted over its own frets.
 const MULTI = [
   'Verse',
+  '    1  +  2  +',
   'e|--0--2--3--0--|',
   'B|--------------|',
   '',
+  '    1  +  2  +',
   'e|--3--2--0--2--|',
   'B|--------------|',
 ].join('\n');
@@ -171,24 +173,29 @@ const headX = (page) =>
 
     const fit = await page.evaluate(() => {
       const frame = document.querySelector('.tab-frame');
+      const sheet = document.querySelector('.tab-sheet');
       const systems = [...document.querySelectorAll('.tab-system')];
       const f = frame.getBoundingClientRect();
+      const sh = sheet.getBoundingClientRect();
       return {
-        overflow: frame.scrollWidth - frame.clientWidth,
+        overflow: Math.max(sheet.scrollWidth - sheet.clientWidth, frame.scrollWidth - frame.clientWidth),
         systems: systems.length,
         widest: Math.max(...systems.map((s) => s.getBoundingClientRect().width)),
         inner: f.width,
+        sheet: sh.width,
         right: Math.max(...systems.map((s) => s.getBoundingClientRect().right)),
-        frameRight: f.right,
+        frameRight: sh.right,
         names: systems.map((s) => [...s.querySelectorAll('.tab-name')].length),
       };
     });
     check(`${vp.width}: the staff never scrolls`, fit.overflow <= 1, `${fit.overflow}px`);
-    check(`${vp.width}: nothing spills out of the frame`, fit.right <= fit.frameRight + 1,
+    check(`${vp.width}: nothing spills out of the sheet`, fit.right <= fit.frameRight + 1,
       `${fit.right.toFixed(1)} vs ${fit.frameRight.toFixed(1)}`);
     check(`${vp.width}: every system reprints all six string names`,
       fit.names.every((n) => n === 6), fit.names.join(','));
-    console.log(`        ${fit.systems} system(s), widest ${fit.widest.toFixed(0)}px in ${fit.inner.toFixed(0)}px`);
+    console.log(`        ${fit.systems} system(s), widest ${fit.widest.toFixed(0)}px, sheet ${fit.sheet.toFixed(0)}px in ${fit.inner.toFixed(0)}px`);
+    check(`${vp.width}: the sheet is no wider than the music on it`,
+      fit.sheet <= fit.widest + 30, `${fit.sheet.toFixed(0)} vs ${fit.widest.toFixed(0)}`);
 
     if (vp.width <= 390) {
       check(`${vp.width}: a wide riff wraps rather than scrolling`, fit.systems >= 2, fit.systems);
@@ -349,6 +356,38 @@ const headX = (page) =>
   // the second.
   await page.keyboard.press('Escape');
   await leave(page);
+  check('no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
+// --- Several staves are one piece -------------------------------------------
+{
+  console.log('\nTwo staves, one playhead\n');
+  const { ctx, page, errors } = await open({ width: 1280, height: 900 });
+
+  await enter(page, 'Two staves');
+  // Which stave is holding the marker, sampled through more than one full pass.
+  // Two playheads moving at once would be two staves being played at the same
+  // time, which is not a thing a person can do.
+  const holders = [];
+  const started = Date.now();
+  while (Date.now() - started < 14_000) {
+    holders.push(
+      await page.evaluate(() =>
+        [...document.querySelectorAll('.tab-riff')].map((r) =>
+          [...r.querySelectorAll('.tab-head')].some((g) => g.style.opacity !== '0'))),
+    );
+    await page.waitForTimeout(150);
+  }
+  const live = holders.filter((h) => h.some(Boolean));
+  check('only ever one stave at a time', live.every((h) => h.filter(Boolean).length === 1),
+    `${live.filter((h) => h.filter(Boolean).length > 1).length} frames with two`);
+  check('the first stave holds it', live.some((h) => h[0]));
+  check('and then hands it to the second', live.some((h) => h[1]));
+  const order = live.map((h) => (h[0] ? 0 : 1));
+  check('in that order', order.indexOf(0) < order.indexOf(1), order.slice(0, 20).join(''));
+  await leave(page);
+
   check('no console errors', errors.length === 0, errors.join(' | '));
   await ctx.close();
 }

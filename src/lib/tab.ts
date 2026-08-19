@@ -161,9 +161,9 @@ export interface TabBar {
   column: number;
   /** Columns the rule occupies, so "||" is never split down the middle. */
   width: number;
-  /** ":|" — sends the player back. */
+  /** ":|", which sends the player back. */
   repeatEnd: boolean;
-  /** "|:" — where a repeat sends them. */
+  /** "|:", which is where a repeat sends them. */
   repeatStart: boolean;
   /** Two rules rather than one. */
   heavy: boolean;

@@ -195,21 +195,28 @@ interface RiffProps {
 
 function Riff({ score, strings, timeline, offsetQuarters, totalQuarters, honourRepeat }: RiffProps) {
   const frameRef = useRef<HTMLDivElement>(null);
-  const [columnsPerSystem, setColumnsPerSystem] = useState(UNMEASURED_COLUMNS);
+  // What one column is worth here, and how many of them fit. The pitch is a
+  // design value and lives in the stylesheet; the count is arithmetic and lives
+  // here, measured off the rendered frame rather than guessed from a breakpoint.
+  const [fit, setFit] = useState<{ columns: number; colPx: number }>({
+    columns: UNMEASURED_COLUMNS,
+    colPx: FALLBACK_COL_PX,
+  });
 
-  // How many columns fit, measured off the rendered frame rather than guessed
-  // from a breakpoint. What one column is worth is a design value and lives in
-  // the stylesheet; how many of them fit is arithmetic and lives here.
   useLayoutEffect(() => {
     const el = frameRef.current;
     if (!el) return;
     const measure = () => {
-      const pitch = Number.parseFloat(getComputedStyle(el).getPropertyValue('--tab-col'));
+      const styles = getComputedStyle(el);
+      const pitch = Number.parseFloat(styles.getPropertyValue('--tab-col'));
+      const pad = Number.parseFloat(styles.getPropertyValue('--tab-pad'));
       const colPx = Number.isFinite(pitch) && pitch > 0 ? pitch : FALLBACK_COL_PX;
-      const scale = colPx / COL;
-      const usable = el.clientWidth / scale - GUTTER - PAD_R;
-      const fits = Math.max(MIN_COLUMNS, Math.floor(usable / COL));
-      setColumnsPerSystem((prev) => (prev === fits ? prev : fits));
+      // The frame is measured but never painted; the sheet inside it carries the
+      // padding and the border, and its own width comes back out of this.
+      const inset = (Number.isFinite(pad) ? pad : 0) * 2 + 2;
+      const usable = (el.clientWidth - inset) / (colPx / COL) - GUTTER - PAD_R;
+      const columns = Math.max(MIN_COLUMNS, Math.floor(usable / COL));
+      setFit((prev) => (prev.columns === columns && prev.colPx === colPx ? prev : { columns, colPx }));
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -222,19 +229,22 @@ function Riff({ score, strings, timeline, offsetQuarters, totalQuarters, honourR
   // its column pitch, the way an engraver justifies a line; a short last one
   // keeps its natural spacing and simply ends sooner.
   const layout = useMemo(() => {
-    const view = GUTTER + columnsPerSystem * COL + PAD_R;
-    return readSystems(score, Math.floor(columnsPerSystem * SQUEEZE)).map((system) => {
+    const view = GUTTER + fit.columns * COL + PAD_R;
+    return readSystems(score, Math.floor(fit.columns * SQUEEZE)).map((system) => {
       const span = system.to - system.from;
       const natural = GUTTER + span * COL + PAD_R;
       const justify = natural >= view * JUSTIFY_FLOOR;
+      const width = justify ? view : natural;
       return {
         system,
         col: justify ? (view - GUTTER - PAD_R) / span : COL,
-        width: justify ? view : natural,
-        view,
+        width,
+        // Stated in real pixels rather than as a percentage, so the sheet behind
+        // the music can shrink to the music instead of the column it sits in.
+        px: (width * fit.colPx) / COL,
       };
     });
-  }, [score, columnsPerSystem]);
+  }, [score, fit]);
   const repeat = useMemo(() => readRepeatSpan(score), [score]);
   const hasCount = score.beats.length > 0;
   const band = (repeat ? ARC_BAND : 0) + (hasCount ? COUNT_BAND : 0);
@@ -283,8 +293,14 @@ function Riff({ score, strings, timeline, offsetQuarters, totalQuarters, honourR
         pipsRef.current.forEach((pip, i) => pip?.classList.toggle('is-lit', i < filled));
       }
 
+      // During the count-in the marker parks at the top of the piece, which is
+      // the first stave's start and nowhere else. Parking every stave at its own
+      // start would put a playhead on each of them at once, and a riff written
+      // over two staves is still one riff.
       const local = counting
-        ? 0
+        ? offsetQuarters === 0
+          ? 0
+          : null
         : honourRepeat
           ? positionAt(timeline, elapsed)
           : sequenced(elapsed, offsetQuarters, timeline.quarters, totalQuarters);
@@ -336,14 +352,15 @@ function Riff({ score, strings, timeline, offsetQuarters, totalQuarters, honourR
           <li key={i}>{line}</li>
         ))}
       </ol>
-      <div className={layout.length === 1 ? 'tab-frame is-single' : 'tab-frame'} ref={frameRef}>
-        {layout.map(({ system, col, width, view }, i) => {
+      <div className="tab-frame" ref={frameRef}>
+        <div className="tab-sheet">
+        {layout.map(({ system, col, width, px }, i) => {
           return (
             <svg
               key={`${system.from}-${system.to}`}
               className="tab-system"
               viewBox={`0 0 ${width.toFixed(2)} ${height}`}
-              style={{ width: `${(width / view) * 100}%`, animationDelay: `${0.04 + i * 0.07}s` }}
+              style={{ width: `${px.toFixed(2)}px`, animationDelay: `${0.04 + i * 0.07}s` }}
               aria-hidden="true"
               focusable="false"
             >
@@ -355,7 +372,7 @@ function Riff({ score, strings, timeline, offsetQuarters, totalQuarters, honourR
                 top={top}
                 hasCount={hasCount}
                 repeat={repeat}
-                countIn={i === 0 && timeline !== null}
+                countIn={i === 0 && timeline !== null && offsetQuarters === 0}
                 pipsRef={pipsRef}
                 countInRef={countInRef}
               />
@@ -396,6 +413,7 @@ function Riff({ score, strings, timeline, offsetQuarters, totalQuarters, honourR
             </svg>
           );
         })}
+        </div>
       </div>
     </figure>
   );
@@ -527,7 +545,6 @@ function System({ score, strings, system, col, top, hasCount, repeat, countIn, p
           ref={(el) => {
             countInRef.current = el;
           }}
-          className="tab-countin"
           style={{ opacity: 0 }}
         >
           {Array.from({ length: COUNT_IN }, (_, i) => (
@@ -640,7 +657,7 @@ function Barline({ bar, x, top, lines }: { bar: TabBar; x: number; top: number; 
     // player tells an opening from a closing without reading anything.
     const side = bar.repeatEnd ? -1 : 1;
     return (
-      <g className="tab-bar">
+      <g>
         {rule(x, 'heavy', 'tab-rule is-heavy')}
         {rule(x + side * 3.6, 'thin')}
         {repeatDots(top, lines, mid).map((cy, i) => (
@@ -651,7 +668,7 @@ function Barline({ bar, x, top, lines }: { bar: TabBar; x: number; top: number; 
   }
 
   return (
-    <g className="tab-bar">
+    <g>
       {rule(x, 'a')}
       {bar.heavy && rule(x + 3.2, 'b', 'tab-rule is-heavy')}
     </g>

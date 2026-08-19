@@ -7,7 +7,7 @@
    pinned string-name gutter. That fixed which-string-is-which and nothing else:
    a riff wider than the phone still had to be dragged sideways with the hand
    that is supposed to be holding the guitar, and every piece of musical
-   structure in it — bars, repeats, ties — was a punctuation character sitting at
+   structure in it (bars, repeats, ties) was a punctuation character sitting at
    the same weight as the dashes around it. There are no characters left. */
 
 /* A riff is the thing being read while playing, so the cue column takes the
@@ -61,21 +61,26 @@
   }
 }
 
+/* The sheet is only as wide as the music on it, so everything that labels it
+   lines up with its centre rather than with the edge of a column the music
+   never reaches. */
 .tab-staff {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: var(--space-5);
   width: 100%;
   max-width: min(680px, 100%);
   margin-inline: auto;
-  text-align: left;
 }
 
 .tab-riff {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: var(--space-2);
   margin: 0;
+  width: 100%;
 }
 
 /* The riff's own name, under the block's. Deliberately not in the accent: the
@@ -98,40 +103,45 @@
   color: var(--text-secondary);
 }
 
-/* The staff sits on its own ground so it reads as an object rather than as a
-   translucent smear over the overlay's backdrop blur. It is the only container
-   here: there is no scroll, no fade, and no edge to be dragged. */
+/* Two elements, on purpose. The frame is the room the riff has and is never
+   painted; the sheet is the piece of paper, and it is exactly as wide as the
+   music on it. Measuring one and painting the other is what lets a four-bar riff
+   sit in a panel its own size rather than in a full-width box with a small
+   drawing lost in the middle of it. */
 .tab-frame {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-3) var(--space-2);
-  border-radius: var(--radius-lg);
-  background: var(--surface-color);
-  border: 1px solid var(--border-subtle);
+  justify-content: center;
+  width: 100%;
 
   /* What one column of the author's grid is worth on this screen. The renderer
      reads this to decide how many columns fit on a line, which is the whole of
      how the riff wraps. Everything else in the drawing is proportional to it. */
   --tab-col: 11px;
+  --tab-pad: 12px;
   /* The instrument. Same value as the chord box's fretboard: which fret a
      numeral sits at is read off these lines, so they are content carrying the
      3:1 minimum, not chrome. */
   --tab-line: rgba(255, 255, 255, 0.38);
 }
 
-/* A riff short enough to fit one line is not stretched to the frame's width:
-   notation does not justify a single short system, and neither does this. It is
-   centred instead, so the empty margin falls on both sides rather than all on
-   the right. */
-.tab-frame.is-single {
-  align-items: center;
+/* The paper. Opaque, so the staff reads as an object rather than as a
+   translucent smear over the overlay's backdrop blur. There is no scroll here,
+   no fade, and no edge to be dragged. */
+.tab-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 100%;
+  padding: var(--tab-pad);
+  border-radius: var(--radius-lg);
+  background: var(--surface-color);
+  border: 1px solid var(--border-subtle);
 }
 
 @media (max-width: 400px) {
   .tab-frame {
     --tab-col: 10px;
-    padding: var(--space-2);
+    --tab-pad: 8px;
   }
 }
 
