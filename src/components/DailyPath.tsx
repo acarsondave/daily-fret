@@ -33,6 +33,7 @@ import {
   CameraIcon,
   SessionIcon,
   TuningForkIcon,
+  NoteCircleIcon,
 } from './icons';
 import clsx from 'clsx';
 import './DailyPath.css';
@@ -73,6 +74,12 @@ const RecordingLibrary = lazy(() =>
 
 const TechniqueCheck = lazy(() =>
   import('./practice/TechniqueCheck').then((m) => ({ default: m.TechniqueCheck })),
+);
+
+// Theory, and the first of it. Split for the same reason as the rest: nothing
+// here is needed to paint the day's tasks.
+const NoteCirclePanel = lazy(() =>
+  import('./practice/NoteCircle').then((m) => ({ default: m.NoteCircle })),
 );
 
 type ProgressView = 'journey' | 'numbers' | 'awards' | 'history';
@@ -139,6 +146,7 @@ export function DailyPath() {
   };
   const [isCoachedOpen, setIsCoachedOpen] = useState(false);
   const [isTunerOpen, setIsTunerOpen] = useState(false);
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [isTechniqueOpen, setIsTechniqueOpen] = useState(false);
   const [isFootageOpen, setIsFootageOpen] = useState(false);
   // The camera entry point appears only for someone who has opted in. Offering
@@ -506,6 +514,18 @@ export function DailyPath() {
           >
             <TuningForkIcon size={18} className="progress-launch-icon" />
             <span>Tune</span>
+          </button>
+
+          {/* Next to the tuner rather than under Progress: both are things you
+              step out of the routine to go and look at, and neither is a record
+              of anything you did. */}
+          <button
+            className="progress-launch"
+            onClick={() => setIsNotesOpen(true)}
+            title="The twelve notes, and the frets between them"
+          >
+            <NoteCircleIcon size={18} className="progress-launch-icon" />
+            <span>Notes</span>
           </button>
 
           {recordingOn && (
@@ -892,6 +912,23 @@ export function DailyPath() {
       <AnimatePresence>
         {isTunerOpen && <TunerLauncher key="tuner" onClose={() => setIsTunerOpen(false)} />}
       </AnimatePresence>
+
+      <Modal
+        isOpen={isNotesOpen}
+        onClose={() => setIsNotesOpen(false)}
+        title="Note circle"
+        position="full"
+      >
+        <SurfaceBoundary
+          name="The note circle"
+          resetKey={isNotesOpen ? 'open' : null}
+          onDismiss={() => setIsNotesOpen(false)}
+        >
+          <Suspense fallback={<Loader label="Opening the note circle…" />}>
+            <NoteCirclePanel />
+          </Suspense>
+        </SurfaceBoundary>
+      </Modal>
 
       <SurfaceBoundary
         name="The technique check"
