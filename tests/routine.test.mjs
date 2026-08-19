@@ -13,6 +13,7 @@ import {
 import { anchorsBetween, bestAnchoredPair } from '../src/lib/anchors.ts';
 import { songsOneShapeAway, songsPlayableWith } from '../src/lib/songCatalog.ts';
 import { SONGS } from '../src/data/songs.ts';
+import { buildSegments } from '../src/lib/coached.ts';
 import { BEGINNER_GRADES, BEGINNER_MODULES } from '../src/lib/beginnerCourse.ts';
 import { CURRICULUM } from '../src/data/curriculum.ts';
 import { ALL_SKILLS } from '../src/data/skills.ts';
@@ -141,9 +142,11 @@ console.log('\nA routine for the module the owner is on\n');
   // against a task literally called "Play a song", which passed for the whole
   // life of a five minute timer that named nothing.
   const last = r.tasks[r.tasks.length-1];
-  check('it ends on a song, and the song is a real chart', songOf(last) !== null, last.title);
+  const lastSong = songOf(last);
+  check('it ends on a song, and the song is a real chart', lastSong !== null, last.title);
   check('and it is one the chords in the routine actually open',
-    songOf(last).chords.every(c => r.chords.includes(c)), songOf(last)?.chords.join(' '));
+    lastSong !== null && lastSong.chords.every(c => r.chords.includes(c)),
+    lastSong?.chords.join(' ') ?? 'no chart');
   check('every task has a unique id', new Set(r.tasks.map(t=>t.id)).size === r.tasks.length);
   check('the vocabulary includes old and new', r.chords.includes('Dm') && r.chords.includes('A'));
   const mins = routineMinutes(r);
@@ -439,6 +442,46 @@ console.log('\nWhether two shapes actually share a finger\n');
     ring?.drill.chords.join(' '));
   check('and the description names that change rather than the whole ring',
     ring.description.includes(`${ring.drill.chords[0]} to ${ring.drill.chords[1]}`), ring?.description);
+}
+
+// A task the coached runner cannot recognise does not fail loudly: it falls into
+// the timed branch, which announces it, counts it in and then measures nothing.
+// Both blocks added here are new drill kinds for the builder, so both are exactly
+// the sort of thing that would land there silently.
+console.log('\nEvery block the builder makes survives being flattened for coached mode\n');
+{
+  const bad = [];
+  for (const m of BEGINNER_MODULES) {
+    const grade = BEGINNER_GRADES.find((g) => g.modules.some((x) => x.number === m.number));
+    for (const known of [[], chordsTaughtBy(m.number), [...HEARABLE_CHORDS]]) {
+      const r = buildRoutine({ track: grade.code, module: m.number, knownChords: known });
+      if (!r.tasks.length) continue;
+      const segments = buildSegments(r);
+      const label = `${grade.code}/${m.number}/${known.length}`;
+      for (const t of r.tasks) {
+        const mine = segments.filter((seg) => seg.taskId === t.id);
+        if (!mine.length) { bad.push(`${label}: "${t.title}" flattened to nothing`); continue; }
+        const kind = t.drill?.kind;
+        const want =
+          kind === 'song' ? 'song'
+          : kind === 'strum-pattern' ? 'patterns'
+          : kind === 'strum-timing' ? 'timing'
+          : kind === 'chord-trainer' ? 'trainer'
+          : kind === 'one-minute-changes' ? 'changes'
+          : kind === 'chord-rotation' ? 'rotation'
+          : 'timed';
+        if (!mine.some((seg) => seg.kind === want)) {
+          bad.push(`${label}: "${t.title}" (${kind ?? 'timed'}) became ${mine.map(s => s.kind).join('+')}`);
+        }
+      }
+      for (const seg of segments) {
+        if (seg.kind === 'song' && !SONGS.some((s) => s.id === seg.songId)) {
+          bad.push(`${label}: a song segment for a chart that does not exist`);
+        }
+      }
+    }
+  }
+  check('every task becomes the segment its drill asks for', bad.length === 0, bad.slice(0, 5).join(' | '));
 }
 
 console.log('\nEdge cases\n');
