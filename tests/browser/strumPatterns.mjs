@@ -195,6 +195,22 @@ const stored = (page) =>
     return acc.dailyLogs[key] ?? null;
   });
 
+/**
+ * Words a surface asks the player to read, counted as a number to hold down.
+ *
+ * A screen that grew text since the last pass has regressed, and the drill's
+ * whole claim is that its eight slots say what a paragraph would have. Bare
+ * numbers do not count: a countdown is read at a glance, not read.
+ */
+const wordsIn = (page, selector) =>
+  page.evaluate((sel) => {
+    const root = document.querySelector(sel);
+    if (!root) return -1;
+    return (root.innerText || '')
+      .split(/\s+/)
+      .filter((w) => /[a-z]/i.test(w)).length;
+  }, selector);
+
 /** ONLY=quiet runs one section. The whole suite takes several minutes. */
 const ONLY = process.env.ONLY ?? '';
 const run = (name) => !ONLY || name.includes(ONLY);
@@ -219,6 +235,8 @@ console.log('\nThe deck a run deals from\n');
     (await page.locator('.sp-card.is-automatic').count()) === 0);
   check('the deck reads without a paragraph under it',
     (await page.locator('.sp-setup p').count()) === 0);
+  const deckWords = await wordsIn(page, '.sp-setup');
+  check(`the deck is four names and a button (${deckWords} words)`, deckWords <= 16, String(deckWords));
   check('no page errors', errors.length === 0, errors.join(' | '));
   await page.screenshot({ path: `${OUT}/patterns-deck-1366.png` });
   await browser.close();
@@ -241,8 +259,12 @@ console.log('\nA clean run of straight eighths\n');
     await new Promise((r) => setTimeout(r, 180));
     return arm.style.left !== first && arm.style.opacity === '1';
   }));
-  check('nothing on the playing screen has to be read',
-    (await page.locator('.sp-stage p').count()) === 0);
+  // The requirement, as a number. Everything the drill says while both hands
+  // are on the guitar it says by drawing; the only glyphs left are the seconds
+  // on the clock, which are read at a glance rather than read.
+  const playingWords = await wordsIn(page, '.sp-stage');
+  check(`nothing on the playing screen has to be read (${playingWords} words)`,
+    playingWords === 0, String(playingWords));
 
   await page.waitForFunction(
     () => document.querySelectorAll('.sp-current .pb-stroke.is-struck').length >= 4,
@@ -267,6 +289,9 @@ console.log('\nA clean run of straight eighths\n');
     String(await page.locator('.sp-row .pb-pick-mark.is-missed').count()));
   check('and the ups were heard, so nothing is said about their level',
     (await page.locator('.sp-note').count()) === 0);
+  const resultWords = await wordsIn(page, '.sp-results');
+  check(`the result is a name and two buttons (${resultWords} words)`,
+    resultWords <= 8, String(resultWords));
 
   const day = await stored(page);
   const keys = Object.keys(day?.drillResults ?? {});
@@ -351,6 +376,9 @@ console.log('\nA run whose up strums are too quiet to hear\n');
     JSON.stringify(day?.drillResults));
   check('but the day records that the drill ran and heard nothing',
     day?.taskRecords?.t1?.evidence === 'silent', JSON.stringify(day?.taskRecords));
+  const quietWords = await wordsIn(page, '.sp-results');
+  check(`the one sentence the picture cannot carry is the only one (${quietWords} words)`,
+    quietWords <= 16, String(quietWords));
   check('no page errors', errors.length === 0, errors.join(' | '));
   await page.screenshot({ path: `${OUT}/patterns-quiet-1366.png` });
   await browser.close();
