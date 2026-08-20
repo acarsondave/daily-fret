@@ -1,13 +1,12 @@
 // The arithmetic and the honesty of the note finder.
 //
 // Three things are settled here. The first is what a played pitch is allowed to
-// prove: a prompt that named a string plus a rung that named the frets pins one
-// fret, so the note coming back settles it, and the one window that holds two
-// frets for the same note asks for the octave as well. The second is that a
-// position played against a lit answer is never counted as one recalled from
-// memory, anywhere. The third is the ladder: which rung a session runs at comes
-// from that rung's own history, three clean runs clear it, one poor run takes it
-// back.
+// prove: a prompt that named a string is answered only by the exact MIDI number
+// that position makes, and the same letter an octave away is reported as a
+// different position rather than waved through. The second is that a position
+// played against a lit answer is never counted as one recalled from memory,
+// anywhere. The third is the ladder: which rung a session runs at comes from that
+// rung's own history, three clean runs clear it, one poor run takes it back.
 //
 // The drawing is checked in a browser; this is where the maths is settled.
 
@@ -24,7 +23,6 @@ import {
   TOP_FRET,
   currentRung,
   fretOn,
-  fretsForNote,
   getRung,
   isShown,
   judge,
@@ -86,43 +84,34 @@ check(
 
 console.log('\nWhat a pitch is allowed to prove\n');
 
-// C on the fifth string, drilled by the low-naturals rung, whose window is the
-// first three frets. C has exactly one home in there, so the note coming back is
-// the whole of the evidence needed and the octave is not.
+// C on the fifth string, as the low-naturals rung asks for it.
+//
+// An earlier pass loosened this to the pitch class wherever the rung's own frets
+// left one place the note could be, on the theory that the estimator mis-octaves
+// a low string. It does not: tests/pitch.test.mjs asserts zero octave errors
+// across the range on signals built to trip a naive detector, and measuring it
+// again over plucks with no fundamental, quiet plucks and inharmonic
+// reverberant ones produced none either. The loosening was taken back out. A
+// drill that cannot be failed measures nothing.
 const asked = { form: 'string', pc: pcOf('C'), stringPosition: 5, fret: 3, midi: 48, rungId: 'low-naturals' };
-
 const lowNaturals = getRung('low-naturals');
-check('the window holds one C on this string', fretsForNote(lowNaturals, 5, pcOf('C')).join() === '3');
-check('the exact pitch is a find', judge(asked, 48).kind === 'right');
-check('a different letter is not', judge(asked, 47).kind === 'other');
-// A fretted note's octave is twelve frets away, which on the fifth string is
-// past the end of the neck. Nothing is loosened here at all: this string simply
-// cannot make that C, so it came off another one.
-check('nor is the right letter in a register this string cannot reach',
-  judge(asked, 60).kind === 'other');
-check('nor one below its range', judge(asked, 36).kind === 'other');
 
-// The open string is the one case where a string really can make the note twice
-// below the twelfth fret, and it is exactly where a pitch estimator's one
-// characteristic mistake lands. This rung stops at the third fret, so the
-// twelfth is not a place it is asking about and the note settles the fret.
+check('the exact pitch is a find', judge(asked, 48).kind === 'right');
+check('the same letter an octave up is not', judge(asked, 60).kind === 'octave');
+check('the same letter an octave down is not', judge(asked, 36).kind === 'octave');
+check('a different letter is not', judge(asked, 47).kind === 'other');
+
+// The open string is the one place a string can make the same note twice below
+// the twelfth fret, and it is not waved through either.
 const openLow = { form: 'string', pc: pcOf('E'), stringPosition: 6, fret: 0, midi: 40, rungId: 'low-naturals' };
 check('the open string is a find', judge(openLow, 40).kind === 'right');
-check(
-  'and so is the octave above it, because this rung asks about no other E on this string',
-  judge(openLow, 52).kind === 'right',
-);
-check('the octave below is off the neck entirely and is not', judge(openLow, 28).kind === 'other');
+check('the twelfth fret of the same string is not', judge(openLow, 52).kind === 'octave');
+check('and neither is an E off the bottom of the neck', judge(openLow, 28).kind === 'octave');
 
-// The one window that does hold the same note twice on one string: the whole
-// neck, where an open string's own note is also its twelfth fret. There the
-// octave is the only thing separating them, so it is asked for.
 const wholeNeck = getRung('whole-neck');
-check('the whole neck holds two Es on the sixth string', fretsForNote(wholeNeck, 6, pcOf('E')).join() === '0,12');
-const openE = { ...openLow, rungId: 'whole-neck' };
-check('the open string itself is still a find', judge(openE, 40).kind === 'right');
-check('and the twelfth fret is not, because it is the other one', judge(openE, 52).kind === 'octave');
 
+// Not part of the judgement. It is how the drill draws a wrong note where it
+// actually sits, so the distance to the answer is a distance and not a sentence.
 check('a fret is read back off a string', fretOn(6, 43) === 3 && fretOn(6, 40) === 0);
 check('and a pitch that string cannot make reads back as none', fretOn(6, 39) === null);
 check('nor can it reach past the twelfth', fretOn(6, 53) === null);

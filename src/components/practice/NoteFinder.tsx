@@ -23,11 +23,13 @@
 // it: the answer lights there, a wrong note lands there beside it, and this
 // run's answers stay there as the board fills in.
 //
-// WHAT IS BEING CLAIMED. The prompt named a position, the note that position
-// makes came back, and inside the frets this rung asks about only that fret on
-// that string makes it. Not "you played it there" — a frequency does not carry
-// the string it came off, and C at the third fret of the A string and C at the
-// eighth fret of the low E are the same 130.81 Hz forever.
+// WHAT IS BEING CLAIMED. Exactly this: the prompt named a position, and the
+// pitch that position makes came back. Not "you played it there" — a frequency
+// does not carry the string it came off, and C at the third fret of the A string
+// and C at the eighth fret of the low E are the same 130.81 Hz forever. See
+// src/lib/noteFinder.ts, which holds the whole argument, the octave rule that
+// was considered and rejected on measurement, and the two prompt forms that
+// deliberately record nothing because the app was never told where to look.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -773,9 +775,8 @@ export function NoteFinder({
       {/* The one sentence on this surface, and it is the drill's own honesty:
           what the microphone settled, and what no microphone ever can. */}
       <p className="nf-limit">
-        The note came back, and inside these frets it has one home on the string
-        named. Which string it actually came off is the one thing a microphone
-        cannot tell.
+        The pitch is confirmed, note and octave. Which string it came off is the
+        one thing a microphone cannot tell.
       </p>
 
       {autoAdvance ? (

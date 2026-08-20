@@ -11,9 +11,9 @@
 // WHAT IS ACTUALLY ASSERTED. That a note played in the room reaches the screen
 // and is counted; that a note the drill did not ask for is heard, shown, and not
 // counted; that a position the player has never recalled is lit and that playing
-// a lit answer is never filed as a recall; and that a note the app can only have
-// mis-octaved is accepted where the rung's own frets leave one place it can be,
-// and refused where they do not. A suite that only proved the component mounted
+// a lit answer is never filed as a recall; and that the right letter an octave
+// from the answer is a different position and is reported as one, over a whole
+// run of them. A suite that only proved the component mounted
 // would be worth nothing here: this product has already shipped a feature where
 // every test passed and the feature did not work, because the tests confirmed
 // the code ran rather than that the thing happened.
@@ -60,12 +60,10 @@ const SPOTS = rungPositions(OPENING);
 const CALLABLE = [...new Set(SPOTS.map((p) => p.midi))].sort((a, b) => a - b);
 
 // A rung with fretted questions on it, pinned by id where a case needs one: the
-// octave rules only have two sides to prove where a rung has both kinds of
-// position in it.
+// octave rule is only worth proving where the same note really does live at two
+// frets a player might reach for.
 const MIXED = getRung('low-naturals');
 const MIXED_SPOTS = rungPositions(MIXED);
-const MIXED_OPEN = MIXED_SPOTS.filter((p) => p.fret === 0);
-const MIXED_FRETTED = MIXED_SPOTS.filter((p) => p.fret > 0);
 const NOTE_SEC = 1.7;
 const GAP_SEC = 0.6;
 
@@ -90,19 +88,10 @@ take('mixed-answer', [...new Set(MIXED_SPOTS.map((p) => p.midi))], 110);
 // F, which no open string sounds, so the opening rung cannot be asking for it
 // wherever the roll lands. It must be heard, shown, and not counted.
 take('wrong-note', [midiAt(6, 1) + 24], 60);
-// The octave above every answer. On an open string that is the twelfth fret,
-// which the rung is not asking about, so the note settles the position and a
-// mis-octaved reading is still an answer. On a fretted one it is off the end of
-// the string entirely, so it cannot be. The take mixes both so one run proves
-// both halves.
-take(
-  'octave-open',
-  [...MIXED_OPEN.map((p) => p.midi + 12), ...MIXED_FRETTED.map((p) => p.midi)],
-  110,
-);
-// Nothing but the octave of one fretted answer, which is off the end of that
-// string and must never be waved through.
-take('octave-fretted', [MIXED_FRETTED[0].midi + 12], 60);
+// The octave above every answer the fretted rung can call, and nothing else.
+// None of these is any position's own pitch, so whatever is asked, what arrives
+// is the right letter in the wrong place and must be reported as one.
+take('octave-away', MIXED_SPOTS.map((p) => p.midi + 12), 110);
 
 const RUN_SECONDS = 45;
 
@@ -392,62 +381,39 @@ const start = async (page) => {
   await browser.close();
 }
 
-// --- The octave, both halves ----------------------------------------------
+// --- The octave is a different position and is reported as one -------------
 //
-// The half that matters most for a player: a reading one octave from the answer
-// is what a pitch estimator gets wrong on a low string, and where the rung's own
-// frets leave exactly one place the note can be, refusing it is the app blaming
-// the player for its own hearing. The other half matters just as much: where the
-// octave really is a different position, it still is one.
+// A pass on this drill loosened the judgement to the pitch class wherever a
+// rung's own frets left one place the note could be, on the theory that a
+// monophonic estimator mis-octaves a low string. This one does not
+// (tests/pitch.test.mjs asserts zero octave errors across the range on signals
+// built to trip a naive detector), so the loosening was buying nothing but the
+// twelfth fret being accepted when the nut was asked for. It came back out, and
+// this is what holds it out.
 
 {
-  console.log('\nan octave away is an answer where the rung leaves one place it can be\n');
-  // The open positions are the only ones this take answers an octave away, so
-  // the deal is leaned towards them and away from the fretted ones.
-  const before = recalledNeck(MIXED_OPEN, MIXED_SPOTS);
+  console.log('\nan octave away is a different position and is counted as one\n');
+  const before = recalledNeck([], MIXED_SPOTS);
   const { browser, page, errors } = await open({
-    wav: 'octave-open.wav',
+    wav: 'octave-away.wav',
     seed: account({ rungId: MIXED.id, noteMap: before }),
-  });
-  await start(page);
-  await page.waitForFunction(
-    () => Number(document.querySelector('.nf-read .om-count')?.textContent ?? 0) >= 1,
-    null,
-    { timeout: 44000 },
-  );
-  check('a recall lands', (await recalled(page)) >= 1);
-
-  await page.waitForSelector('.nf-results', { timeout: RUN_SECONDS * 1000 + 20000 });
-  await page.waitForTimeout(1200);
-  const acc = await storedAccount(page);
-  const grew = MIXED_OPEN.map((p) => positionKey(p.stringPosition, p.fret))
-    .filter((k) => acc.noteMap[k].found > before[k].found);
-  check('and it is at an open position, which the take only ever answered an octave up',
-    grew.length >= 1, JSON.stringify(acc.noteMap));
-  check('no console errors', errors.length === 0, errors.join(' | '));
-  await browser.close();
-}
-
-{
-  console.log('\nbut an octave that is off the end of the named string is not\n');
-  const { browser, page, errors } = await open({
-    wav: 'octave-fretted.wav',
-    seed: account({ rungId: MIXED.id, noteMap: recalledNeck([], MIXED_SPOTS) }),
   });
   await start(page);
   // Heard: the drill has to show what arrived. This is what separates "not
   // counted" from "not listening".
   await page.waitForSelector('.nf-miss', { timeout: 30000 });
-  check('what arrived is shown', /^[A-G]#?\d$/.test((await page.locator('.nf-miss').innerText()).trim()),
+  check('what arrived is shown',
+    /^[A-G]#?\d$/.test((await page.locator('.nf-miss').innerText()).trim()),
     await page.locator('.nf-miss').innerText());
 
   await page.waitForSelector('.nf-results', { timeout: RUN_SECONDS * 1000 + 20000 });
-  check('and nothing was ever counted for it',
+  check('nothing was counted for a whole run of them',
     (await page.locator('.nf-results .om-ring-value').innerText()) === '0');
   await page.waitForTimeout(1200);
   const acc = await storedAccount(page);
-  const untouched = Object.values(acc.noteMap ?? {}).every((f) => f.found === 6 && !f.shown);
-  check('and the neck is exactly where it was', untouched, JSON.stringify(acc.noteMap));
+  const moved = Object.entries(acc.noteMap ?? {})
+    .filter(([k, f]) => f.found > before[k].found || (f.shown ?? 0) > 0);
+  check('and the neck recorded nothing anywhere', moved.length === 0, JSON.stringify(moved));
   check('no console errors', errors.length === 0, errors.join(' | '));
   await browser.close();
 }
