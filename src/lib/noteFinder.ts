@@ -7,20 +7,32 @@
 // on the end of it. So the app calls a note, the player plays it, and the pitch
 // detector confirms it.
 //
+// SHOWN, THEN RECALLED. This started life as a test of knowledge the player did
+// not have. Rung one named a note, drew a blank neck and started a clock, which
+// is a wall rather than a drill for anyone who has not already learnt where the
+// naturals are. A position nobody has ever recalled is therefore lit on the neck
+// and simply played; only once it has come back from memory is it asked with
+// nothing drawn, and a failed recall lights it again. The two are different
+// facts about a player and are kept apart everywhere: `found` counts recalls and
+// nothing else, `shown` counts placements, and `positionStanding` reads only the
+// first of them.
+//
 // WHAT THE MICROPHONE CAN AND CANNOT SETTLE. A pitch is a frequency, and a
 // frequency does not carry the string it came off: C at the third fret of the A
 // string and C at the eighth fret of the low E are the same 130.81 Hz and no
-// analysis of the sound will ever separate them. What a pitch does settle,
-// exactly, is the note and its octave, and on one named string a note and its
-// octave belong to exactly one fret. So the honest claim is:
+// analysis of the sound will ever separate them. That ambiguity is permanent and
+// no comparison of MIDI numbers ever touched it. What a named string plus a
+// rung's fret window does settle is the fret: inside a window narrower than an
+// octave a pitch class has exactly one home on one string. So the honest claim
+// is:
 //
-//   the prompt named a position, and the pitch that position makes came back.
+//   the prompt named a position, the note that position makes came back, and
+//   inside the frets this rung asks about only that fret on that string makes it.
 //
-// It is not "you played it there". Everything downstream is written to that
-// standard: `judge` compares MIDI numbers rather than pitch classes wherever the
-// prompt named a string, the neck map records the position that was *asked for*,
-// and the two prompt forms where the app was never told where to look
-// (`free`, `echo`) deliberately write nothing to the map at all.
+// It is not "you played it there". `judge` holds the whole rule, including the
+// one case where a window does admit two frets and the octave is asked for after
+// all. The two prompt forms where the app was never told where to look (`free`,
+// `echo`) deliberately write nothing to the map at all.
 //
 // THE LADDER. Open-position naturals is a week. This drill has to still be worth
 // opening in Grade 5, so the rungs run from the two lowest strings in first
@@ -240,15 +252,55 @@ export function reachable(midi: number): boolean {
   });
 }
 
+/** Which fret of one string makes this pitch, or null when none of it does. */
+export function fretOn(stringPosition: number, midi: number): number | null {
+  const fret = midi - openMidiOf(stringPosition);
+  return fret >= 0 && fret <= TOP_FRET ? fret : null;
+}
+
+/** Every fret inside a rung's own window, on one string, that makes this note. */
+export function fretsForNote(
+  rung: FinderRung,
+  stringPosition: number,
+  pc: PitchClass,
+): number[] {
+  const open = openMidiOf(stringPosition);
+  const out: number[] = [];
+  for (let fret = rung.minFret; fret <= rung.maxFret; fret += 1) {
+    if (noteAtFret(open, fret) === pc) out.push(fret);
+  }
+  return out;
+}
+
+/**
+ * The stretch of neck a rung's questions live on, plus a fret either side.
+ *
+ * The drill used to draw all twelve frets whatever it was asking, so the first
+ * rung's four-fret world was a quarter of a picture nobody could read from a
+ * propped laptop. Drawing the window instead makes a fret a target the size of a
+ * fingertip. The margin is there so the window still reads as part of a neck
+ * rather than as a diagram of nothing in particular.
+ */
+export function rungWindow(rung: FinderRung): { from: number; to: number } {
+  return {
+    from: Math.max(0, rung.minFret - 1),
+    to: Math.min(TOP_FRET, rung.maxFret + 1),
+  };
+}
+
 // --- The neck map ---------------------------------------------------------
 //
 // One entry per position the drill has asked for and been answered at. This is
 // the thing that fills in over months, and the note circle draws it.
 
 export interface NoteFind {
-  /** Times the prompt named this position and the pitch it makes came back. */
+  /**
+   * Times this position was recalled: asked with nothing drawn on the neck, and
+   * the note it makes came back. A placement made against a lit answer is never
+   * counted here, which is the whole of what keeps the two apart.
+   */
   found: number;
-  /** Fastest of those, in milliseconds. */
+  /** Fastest of those, in milliseconds. Zero until something has been recalled. */
   bestMs: number;
   /**
    * The most recent times, oldest first, capped at what the standing reads.
@@ -258,8 +310,16 @@ export interface NoteFind {
    * a mean over months cannot move far enough to say so.
    */
   recentMs: number[];
-  /** Epoch ms of the most recent find here. */
+  /** Epoch ms of the most recent find here, of either kind. */
   at: number;
+  /**
+   * Times this position was played with its answer lit on the neck.
+   *
+   * Absent on everything recorded before the drill started showing answers, and
+   * absent is exactly zero rather than unknown: nothing was ever lit then, so
+   * every one of those finds was made from memory.
+   */
+  shown?: number;
 }
 
 export type NoteMap = Record<string, NoteFind>;
@@ -293,11 +353,16 @@ export const QUICK_RUNS = 3;
 export type PositionStanding = 'unasked' | 'found' | 'quick';
 
 /**
- * Where one position stands.
+ * Where one position stands, as a matter of recall.
+ *
+ * Reads `found` and nothing else, so a position played a dozen times against a
+ * lit answer still stands at `unasked`. That is not a technicality: the whole
+ * value of this record is that it says what the player can do from memory, and a
+ * mark earned by copying a light would make it say something else.
  *
  * `unasked` is not a failure and must never be drawn as one. It is the app
  * saying nothing, which is the only honest thing to say about a fret it has
- * never put a question to.
+ * never had a recall out of.
  */
 export function positionStanding(find: NoteFind | undefined): PositionStanding {
   if (!find || find.found === 0) return 'unasked';
@@ -306,12 +371,24 @@ export function positionStanding(find: NoteFind | undefined): PositionStanding {
   return recent.every((ms) => ms <= QUICK_MS) ? 'quick' : 'found';
 }
 
+/** Times this position has been played with its answer lit. */
+export const timesShown = (find: NoteFind | undefined): number => find?.shown ?? 0;
+
 /**
- * One correct find, folded into the map.
+ * Whether the drill lights this position before asking for it.
  *
- * Only ever called for a prompt that named a string. The other two forms leave
- * the map alone on purpose: the app was not told where to look, so it has
- * nothing true to write about a position.
+ * One recall retires the light for good; a failed recall brings it back for that
+ * question only. Which makes the moment the light stops appearing a real
+ * transition in what the player can do rather than an announcement about it.
+ */
+export const isShown = (find: NoteFind | undefined): boolean => !find || find.found === 0;
+
+/**
+ * One recall, folded into the map.
+ *
+ * Only ever called for a prompt that named a string and drew nothing. The other
+ * two forms leave the map alone on purpose: the app was not told where to look,
+ * so it has nothing true to write about a position.
  */
 export function recordFind(
   map: NoteMap,
@@ -326,12 +403,41 @@ export function recordFind(
   const key = positionKey(stringPosition, fret);
   const previous = map[key];
   const recentMs = [...(previous?.recentMs ?? []), Math.round(ms)].slice(-QUICK_RUNS);
+  const best = previous && previous.found > 0 ? previous.bestMs : Number.POSITIVE_INFINITY;
   return {
     ...map,
     [key]: {
+      ...previous,
       found: (previous?.found ?? 0) + 1,
-      bestMs: Math.min(previous?.bestMs ?? Number.POSITIVE_INFINITY, Math.round(ms)),
+      bestMs: Math.min(best, Math.round(ms)),
       recentMs,
+      at,
+    },
+  };
+}
+
+/**
+ * One position played while its answer was lit.
+ *
+ * Carries no time, because there is no time worth carrying: how fast a hand
+ * reaches a fret it is being pointed at says nothing about whether the player
+ * knows where that fret is. It touches nothing `positionStanding` reads.
+ */
+export function recordShown(
+  map: NoteMap,
+  stringPosition: number,
+  fret: number,
+  at: number,
+): NoteMap {
+  const key = positionKey(stringPosition, fret);
+  const previous = map[key];
+  return {
+    ...map,
+    [key]: {
+      found: previous?.found ?? 0,
+      bestMs: previous?.bestMs ?? 0,
+      recentMs: previous?.recentMs ?? [],
+      shown: timesShown(previous) + 1,
       at,
     },
   };
@@ -395,7 +501,21 @@ export const namesString = (form: PromptForm): boolean => form === 'string';
  * the worst three would never ask a quick position again, and a position that is
  * never asked cannot be shown to have gone cold.
  */
-const WEIGHT: Record<PositionStanding, number> = { unasked: 5, found: 3, quick: 1 };
+const WEIGHT: Record<PositionStanding, number> = { unasked: 6, found: 3, quick: 1 };
+/**
+ * A position that has been lit and played but never recalled.
+ *
+ * Between the two: seeing where a note lives is worth something and is worth
+ * asking about again soon, but it is not the recall the rung is after, so it
+ * still outweighs everything that has come back from memory.
+ */
+const WEIGHT_SHOWN = 4;
+
+const weightOf = (find: NoteFind | undefined): number => {
+  const standing = positionStanding(find);
+  if (standing === 'unasked' && timesShown(find) > 0) return WEIGHT_SHOWN;
+  return WEIGHT[standing];
+};
 
 /**
  * What to ask next, decided by the player's own history at this rung.
@@ -417,7 +537,7 @@ export function nextPrompt(
   );
   const pool = eligible.length ? eligible : all;
 
-  const weights = pool.map((p) => WEIGHT[positionStanding(map[positionKey(p.stringPosition, p.fret)])]);
+  const weights = pool.map((p) => weightOf(map[positionKey(p.stringPosition, p.fret)]));
   const total = weights.reduce((sum, w) => sum + w, 0);
   let cursor = Math.min(Math.max(roll, 0), 0.999999) * total;
   let chosen = pool[pool.length - 1];
@@ -442,13 +562,27 @@ export function nextPrompt(
 /**
  * What arrived, judged against what was asked.
  *
- * `right` on a `string` prompt is an exact MIDI match and nothing looser, which
- * is the whole of the drill's honesty: the same letter an octave away is a
- * different position and is reported as one.
+ * `right` on a `string` prompt used to mean an exact MIDI match, on the grounds
+ * that a pitch settles a note and its octave and one named string turns that
+ * into one fret. True, and it was buying almost nothing. The ambiguity it never
+ * touched is the one that matters: C at the third fret of the A string and C at
+ * the eighth of the low E are the same frequency, and the strict rule waved that
+ * through as it must. All it actually caught was the same letter twelve frets
+ * from where the drill had drawn it, which is a place no rung with a window
+ * narrower than an octave is asking about, and it caught the pitch detector's
+ * one characteristic mistake as well.
+ *
+ * So the rule follows the evidence instead. The prompt names the string and the
+ * rung names the frets. Count the frets in that window, on that string, that
+ * make the note asked for: where there is exactly one, the note coming back
+ * identifies it, and the octave the microphone reported is not needed to say so.
+ * Where a window does hold two of them — only the whole-neck rung, and only for
+ * the note its open string already makes — the octave is the one thing that
+ * separates them, so it is asked for.
  */
 export type FindOutcome =
   | { kind: 'right' }
-  /** The letter is right and the octave is not, so it is a different fret. */
+  /** The note is right and this rung's window holds two frets for it, so which one is not settled. */
   | { kind: 'octave' }
   /** An `echo` answered with the very pitch that was shown. */
   | { kind: 'same' }
@@ -458,7 +592,15 @@ export function judge(prompt: FinderPrompt, midi: number): FindOutcome {
   const sameClass = pitchClass(midi) === prompt.pc;
   if (prompt.form === 'string') {
     if (midi === prompt.midi) return { kind: 'right' };
-    return sameClass ? { kind: 'octave' } : { kind: 'other' };
+    if (!sameClass) return { kind: 'other' };
+    // The right letter, but nowhere this string can make it: it came off some
+    // other string, in a register this one does not reach.
+    if (fretOn(prompt.stringPosition, midi) === null) return { kind: 'other' };
+    const rung = getRung(prompt.rungId);
+    if (!rung) throw new Error(`No rung called ${prompt.rungId} to judge against.`);
+    return fretsForNote(rung, prompt.stringPosition, prompt.pc).length === 1
+      ? { kind: 'right' }
+      : { kind: 'octave' };
   }
   if (prompt.form === 'free') {
     if (sameClass && reachable(midi)) return { kind: 'right' };

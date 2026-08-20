@@ -228,7 +228,12 @@ export function NoteFinder({
         // The other two forms never told the app where to look, so it has
         // nothing true to write about a fret.
         if (namesString(asked.form)) {
-          foundRef.current.push({ stringPosition: asked.stringPosition, fret: asked.fret, ms });
+          foundRef.current.push({
+            stringPosition: asked.stringPosition,
+            fret: asked.fret,
+            ms,
+            shown: false,
+          });
         }
         sfx.tick();
       }

@@ -1,11 +1,13 @@
 // The arithmetic and the honesty of the note finder.
 //
-// Two things are settled here. The first is what a played pitch is allowed to
-// prove: a prompt that named a string is answered only by the exact MIDI number
-// that position makes, and the same letter an octave away is reported as a
-// different position rather than waved through. The second is the ladder: which
-// rung a session runs at comes from that rung's own history, three clean runs
-// clear it, and one poor run takes it back.
+// Three things are settled here. The first is what a played pitch is allowed to
+// prove: a prompt that named a string plus a rung that named the frets pins one
+// fret, so the note coming back settles it, and the one window that holds two
+// frets for the same note asks for the octave as well. The second is that a
+// position played against a lit answer is never counted as one recalled from
+// memory, anywhere. The third is the ladder: which rung a session runs at comes
+// from that rung's own history, three clean runs clear it, one poor run takes it
+// back.
 //
 // The drawing is checked in a browser; this is where the maths is settled.
 
@@ -20,7 +22,10 @@ import {
   STRING_POSITIONS,
   TOP_FRET,
   currentRung,
+  fretOn,
+  fretsForNote,
   getRung,
+  isShown,
   judge,
   medianFindMs,
   mergeNoteMaps,
@@ -33,9 +38,12 @@ import {
   positionsOf,
   reachable,
   recordFind,
+  recordShown,
   rungNumber,
   rungPositions,
   rungStanding,
+  rungWindow,
+  timesShown,
 } from '../src/lib/noteFinder.ts';
 import { midiToName } from '../src/audio/tuning.ts';
 import { pitchClass } from '../src/lib/noteCircle.ts';
@@ -77,14 +85,54 @@ check(
 
 console.log('\nWhat a pitch is allowed to prove\n');
 
-const asked = { form: 'string', pc: pcOf('C'), stringPosition: 5, fret: 3, midi: 48, rungId: 'x' };
+// C on the fifth string, drilled by the opening rung, whose window is the first
+// three frets. C has exactly one home in there, so the note coming back is the
+// whole of the evidence needed and the octave is not.
+const asked = { form: 'string', pc: pcOf('C'), stringPosition: 5, fret: 3, midi: 48, rungId: 'low-naturals' };
 
+check('the window holds one C on this string', fretsForNote(RUNGS[0], 5, pcOf('C')).join() === '3');
 check('the exact pitch is a find', judge(asked, 48).kind === 'right');
-check('the same letter an octave up is not', judge(asked, 60).kind === 'octave');
-check('the same letter an octave down is not', judge(asked, 36).kind === 'octave');
 check('a different letter is not', judge(asked, 47).kind === 'other');
+// A fretted note's octave is twelve frets away, which on the fifth string is
+// past the end of the neck. Nothing is loosened here at all: this string simply
+// cannot make that C, so it came off another one.
+check('nor is the right letter in a register this string cannot reach',
+  judge(asked, 60).kind === 'other');
+check('nor one below its range', judge(asked, 36).kind === 'other');
+
+// The open string is the one case where a string really can make the note twice
+// below the twelfth fret, and it is exactly where a pitch estimator's one
+// characteristic mistake lands. The opening rung stops at the third fret, so the
+// twelfth is not a place it is asking about and the note settles the fret.
+const openLow = { form: 'string', pc: pcOf('E'), stringPosition: 6, fret: 0, midi: 40, rungId: 'low-naturals' };
+check('the open string is a find', judge(openLow, 40).kind === 'right');
+check(
+  'and so is the octave above it, because this rung asks about no other E on this string',
+  judge(openLow, 52).kind === 'right',
+);
+check('the octave below is off the neck entirely and is not', judge(openLow, 28).kind === 'other');
+
+// The one window that does hold the same note twice on one string: the whole
+// neck, where an open string's own note is also its twelfth fret. There the
+// octave is the only thing separating them, so it is asked for.
+const wholeNeck = getRung('whole-neck');
+check('the whole neck holds two Es on the sixth string', fretsForNote(wholeNeck, 6, pcOf('E')).join() === '0,12');
+const openE = { ...openLow, rungId: 'whole-neck' };
+check('the open string itself is still a find', judge(openE, 40).kind === 'right');
+check('and the twelfth fret is not, because it is the other one', judge(openE, 52).kind === 'octave');
+
+check('a fret is read back off a string', fretOn(6, 43) === 3 && fretOn(6, 40) === 0);
+check('and a pitch that string cannot make reads back as none', fretOn(6, 39) === null);
+check('nor can it reach past the twelfth', fretOn(6, 53) === null);
+
 check('a prompt that names a string may be filed against a position', namesString('string'));
 check('one that names none may not', !namesString('free') && !namesString('echo'));
+
+check('a rung draws its own frets, with one either side', JSON.stringify(rungWindow(RUNGS[0])) === '{"from":0,"to":4}');
+check(
+  'and never past the ends of the neck',
+  rungWindow(wholeNeck).from === 0 && rungWindow(wholeNeck).to === TOP_FRET,
+);
 
 const anywhere = { ...asked, form: 'free' };
 check('with no string named, any C on the neck answers', judge(anywhere, 60).kind === 'right');
@@ -202,6 +250,55 @@ try {
   threw = true;
 }
 check('a find of no duration is refused rather than stored', threw);
+
+console.log('\nShown is not found\n');
+
+check('a position nothing is known about is shown before it is asked for', isShown(undefined));
+
+let lit = recordShown({}, 6, 1, 100);
+lit = recordShown(lit, 6, 1, 200);
+const litFind = lit[positionKey(6, 1)];
+check('playing a lit answer is counted', timesShown(litFind) === 2);
+check('but it is never counted as a recall', litFind.found === 0);
+check('so the neck still says nothing about it', positionStanding(litFind) === 'unasked');
+check('and the drill goes on lighting it', isShown(litFind));
+check('it carries no time, because a pointed-at fret is not a recall time',
+  litFind.recentMs.length === 0);
+
+lit = recordFind(lit, 6, 1, 3000, 300);
+check('one recall retires the light', !isShown(lit[positionKey(6, 1)]));
+check('and the position finally stands as found', positionStanding(lit[positionKey(6, 1)]) === 'found');
+check('the times it was shown are still there to be read',
+  timesShown(lit[positionKey(6, 1)]) === 2);
+check('and the recall sets the best rather than being beaten by a stored zero',
+  lit[positionKey(6, 1)].bestMs === 3000);
+
+// Three quick recalls at a position that was shown first. The light being there
+// once must not make the standing any easier or any harder to reach.
+let mixed = recordShown({}, 5, 2, 1);
+for (const ms of [1200, 1300, 1100]) mixed = recordFind(mixed, 5, 2, ms, 2);
+check('a position that was shown first still has to earn quick the same way',
+  positionStanding(mixed[positionKey(5, 2)]) === 'quick');
+
+// The weighting: a shown position is asked more than a recalled one and less
+// than one nothing at all is known about.
+const weighted = {};
+for (const p of rungPositions(RUNGS[0])) {
+  weighted[positionKey(p.stringPosition, p.fret)] = {
+    found: 3, bestMs: 900, recentMs: [900, 900, 900], at: 1,
+  };
+}
+delete weighted[positionKey(6, 0)];
+weighted[positionKey(6, 1)] = { found: 0, bestMs: 0, recentMs: [], shown: 4, at: 1 };
+const deals = Array.from({ length: 300 }, (_, i) => nextPrompt(RUNGS[0], weighted, null, i / 300));
+const onUnasked = deals.filter((p) => p.stringPosition === 6 && p.fret === 0).length;
+const onShown = deals.filter((p) => p.stringPosition === 6 && p.fret === 1).length;
+const onQuick = deals.length - onUnasked - onShown;
+check('a shown position is asked more often than a quick one',
+  onShown > onQuick / (rungPositions(RUNGS[0]).length - 2),
+  `${onShown} shown vs ${onQuick} over the rest`);
+check('and less often than one nothing is known about',
+  onUnasked > onShown, `${onUnasked} unasked vs ${onShown} shown`);
 
 const mine = { '6:0': { found: 1, bestMs: 3000, recentMs: [3000], at: 10 } };
 const theirs = {
