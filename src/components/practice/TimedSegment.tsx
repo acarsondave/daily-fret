@@ -167,8 +167,12 @@ export function TimedSegment({ title, description, seconds, pattern, onDone, onL
     );
   }
 
+  // A riff is a cue worth the room a cue gets: it is the thing being read while
+  // playing, not a note beside a clock. Everything else timed keeps the stack.
+  const riff = description !== undefined && looksLikeTab(description);
+
   return (
-    <div className="drill-stage is-timed">
+    <div className={riff ? 'drill-stage is-timed is-riff' : 'drill-stage is-timed'}>
       <div className="drill-cue">
         <div className="practice-mode is-chord">{title}</div>
         {pattern && <StrumRow strum={pattern} size={18} />}
@@ -176,11 +180,7 @@ export function TimedSegment({ title, description, seconds, pattern, onDone, onL
             `description.includes('|')`, which also fired on any prose containing a
             pipe; looksLikeTab needs two actual staff lines. */}
         {description &&
-          (looksLikeTab(description) ? (
-            <TabStaff source={description} />
-          ) : (
-            <p className="timed-desc">{description}</p>
-          ))}
+          (riff ? <TabStaff source={description} /> : <p className="timed-desc">{description}</p>)}
       </div>
       <div className="drill-read">
         <ProgressRing progress={progress} className="om-ring">

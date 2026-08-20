@@ -1,101 +1,850 @@
-import { useEffect, useRef, useState } from 'react';
-import { parseTab, tokenizeTabLine, type TabBlock } from '../../lib/tab';
+// A riff, engraved and paced.
+//
+// THESIS. Tab is a timeline drawn on six strings, and this app draws real
+// instruments everywhere else: the chord boxes, the tuner's headstock, the neck
+// inside the note circle. The riff was the one surface that dropped to monospace
+// dashes and pipes, which is a text file pretending to be music and read as
+// exactly that next to everything around it. So the strings are strings, drawn
+// at their real gauge; the fret numbers break the string the way engraved tab
+// does; a bar division is a division; a repeat is a repeat with the return drawn
+// as a return. Nothing on this surface is a character.
+//
+// STORY. The click is already running when a riff block opens. One bar of it is
+// the count-in, drawn as four pips that fill; on beat one the playhead enters the
+// staff and walks the riff at the tempo the click is holding. At the close repeat
+// it jumps visibly back to the open repeat, which is the answer to "where does
+// this send me?" given once and never asked again. A note in brackets is drawn as
+// a tie arriving from the note before it, which is the answer to the other
+// question the owner had to ask out loud.
+//
+// WHAT IS NOT HERE. Nothing listens. The playhead is the click's position, not
+// the player's, and the surface says so in the only four words it spends on the
+// subject. When note detection arrives, `notesAtQuarter` in lib/tab.ts is the
+// seam: it already answers "what is this riff asking for right now", and the
+// missing half is "what came through the microphone".
+//
+// PRECISION. A playhead may only move as precisely as the riff states its own
+// rhythm. With a count row it walks the beat; with barlines alone it can only
+// say which bar, so it lights the bar rather than drawing a line inside it; with
+// neither it does not exist. See `readTimeline` in lib/tab.ts.
+
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { COUNT_IN_BEATS, metronome } from '../../audio/metronome';
+import {
+  barAt,
+  columnAt,
+  parseTab,
+  positionAt,
+  readScore,
+  readStrings,
+  readSystems,
+  readTimeline,
+  type TabBar,
+  type TabJoin,
+  type TabJoinKind,
+  type TabNote,
+  type TabScore,
+  type TabString,
+  type TabSystem,
+  type TabTimeline,
+} from '../../lib/tab';
 import './tab.css';
 
 interface Props {
   source: string;
 }
 
-// One staff. The string names live in a pinned gutter rather than in the
-// scrolling text, because a riff is wider than a phone and the moment you reach
-// bar three the old renderer had scrolled "e B G D A E" off the left edge,
-// leaving six identical rows of dashes and no way to tell which string is which.
-function Staff({ block, index }: { block: TabBlock; index: number }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [more, setMore] = useState(false);
+// Fixed engraving, like the chord boxes and the note circle's neck: the numbers
+// are written out rather than derived from a scale factor, because a half pixel
+// of drift shows on a figure this regular. Only the stylesheet ever picks a
+// size, and it does it by saying what one grid column is worth in real pixels.
+const COL = 10;
+/**
+ * Glyph scale: how wide a fret numeral and the marks around it are.
+ *
+ * Separate from the column pitch because a justified system stretches its
+ * columns and must not stretch its numbers with them. The same split every
+ * engraver makes between the spacing of a line and the size of its type.
+ */
+const GLYPH = 10;
+const STRING_GAP = 16;
+/** Room for the string names, which every system reprints. */
+const GUTTER = 26;
+const PAD_R = 7;
+const PAD_T = 7;
+const PAD_B = 16;
+/** The count row's band, above the strings. */
+const COUNT_BAND = 20;
+/** The repeat's return arc, above everything. */
+const ARC_BAND = 16;
+/** The least headroom a paced riff needs, for the count-in pips. */
+const PIP_BAND = 12;
 
-  // Fade the right edge only when the staff genuinely continues past it, so a
-  // riff that fits is never dimmed for no reason.
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const measure = () => {
-      const overflowing = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
-      setMore((prev) => (prev === overflowing ? prev : overflowing));
-    };
-    measure();
-    el.addEventListener('scroll', measure, { passive: true });
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => {
-      el.removeEventListener('scroll', measure);
-      ro.disconnect();
-    };
-  }, [block]);
+/** Column pitch in px, used only before the first measurement lands. */
+const FALLBACK_COL_PX = 12;
+/** Under this a system is too narrow to be a staff, and the riff stops wrapping. */
+const MIN_COLUMNS = 8;
+/** Columns assumed before the frame has been measured. */
+const UNMEASURED_COLUMNS = 32;
+/**
+ * How full a system has to be before it is stretched to the full width.
+ *
+ * Notation justifies every system but a short last one, and this is the line
+ * between the two. Under it a system keeps its natural spacing and ends where
+ * it ends; over it, it fills, which is what stops a riff of three equal bars
+ * from sitting in the left two thirds of the screen with nothing beside it.
+ */
+const JUSTIFY_FLOOR = 0.62;
+/**
+ * How far past the design pitch a line may be packed to save a system.
+ *
+ * A riff four columns wider than the screen would otherwise become two lines,
+ * the first full and the second holding a bar and a half of air. Tightening the
+ * spacing by a sixth is invisible; a half-empty second line is not.
+ */
+const SQUEEZE = 1.18;
 
-  if (!block.lines.length) {
-    return block.caption ? <p className="tab-caption is-alone">{block.caption}</p> : null;
-  }
+/** Beats of click spent before the riff starts. Musicians count in fours. */
+const COUNT_IN = COUNT_IN_BEATS;
+
+export function TabStaff({ source }: Props) {
+  const riffs = useMemo(() => {
+    return parseTab(source).map((block) => {
+      const score = readScore(block);
+      return {
+        score,
+        strings: readStrings(score.labels),
+        // Four is the click's own cycle for a plain timed block (`fixedTempo` in
+        // lib/tempo.ts), so a riff that states no count of its own still divides
+        // its bars the way the thing the player is listening to divides them.
+        timeline: score.columns ? readTimeline(score, 4) : null,
+      };
+    });
+  }, [source]);
+
+  // Several staves in one note are one piece played in order, not several
+  // playheads moving at once. Each holds the marker for its own written length.
+  const paced = riffs.filter((r) => r.timeline !== null).length;
+  const offsets = useMemo(() => {
+    const out: number[] = [];
+    let running = 0;
+    for (const riff of riffs) {
+      out.push(running);
+      running += riff.timeline?.quarters ?? 0;
+    }
+    return out;
+  }, [riffs]);
+  const totalQuarters = riffs.reduce((sum, riff) => sum + (riff.timeline?.quarters ?? 0), 0);
+
+  if (!riffs.length) return null;
 
   return (
-    <div className="tab-block">
-      {block.caption && <p className="tab-caption">{block.caption}</p>}
-      <div className={more ? 'tab-staff-frame has-more' : 'tab-staff-frame'}>
-        {/* A scrollable region needs to be reachable without a pointer, or a
-            keyboard can never see the second half of the riff. */}
-        <div
-          ref={scrollRef}
-          className="tab-scroll"
-          tabIndex={0}
-          role="region"
-          aria-label={`Guitar tab, staff ${index + 1}`}
-        >
-          <div className="tab-gutter" aria-hidden="true">
-            {/* An empty cell opposite the count row, so the string names stay
-                on the same baselines as the strings they label. */}
-            {block.timing !== undefined && (
-              <span className="tab-string is-timing"> </span>
-            )}
-            {block.lines.map((line, i) => (
-              <span key={i} className="tab-string">
-                {line.label}
-              </span>
-            ))}
-          </div>
-          <div className="tab-lines">
-            {/* The count belongs in the grid, not above it as prose: it only
-                means anything while each beat sits over its own fret. */}
-            {block.timing !== undefined && (
-              <span className="tab-line is-timing">{block.timing}</span>
-            )}
-            {block.lines.map((line, i) => (
-              <span key={i} className="tab-line">
-                {tokenizeTabLine(line.content).map((token, j) => (
-                  <span key={j} className={`tab-t is-${token.kind}`}>
-                    {token.text}
-                  </span>
-                ))}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
+    <div className="tab-staff">
+      {riffs.map((riff, i) => (
+        <Riff
+          key={i}
+          score={riff.score}
+          strings={riff.strings}
+          timeline={riff.timeline}
+          offsetQuarters={offsets[i]}
+          totalQuarters={totalQuarters}
+          // A single riff turns at its own repeat. Several in a row are a
+          // sequence, and a repeat inside one of them would be a jump the
+          // sequence has no honest way to draw.
+          honourRepeat={paced === 1}
+        />
+      ))}
+      {totalQuarters > 0 && (
+        // The playhead is the click's position, not the player's. On a product
+        // whose whole promise is never claiming to have heard something, a
+        // marker sweeping over a riff has to say which of the two it is, once,
+        // where it can be read while playing.
+        <p className="tab-honesty">
+          <ClickMark />
+          Keeping time. Nothing heard.
+        </p>
+      )}
     </div>
   );
 }
 
-// Renders an authored tab as an actual staff: pinned string names, tight
-// leading so the six lines read as one system, and fret numbers carrying the
-// weight instead of sitting at the same value as the dashes around them.
-export function TabStaff({ source }: Props) {
-  const blocks = parseTab(source);
-  if (!blocks.length) return null;
+/**
+ * The click, as a mark rather than as a word.
+ *
+ * The metronome's own pen: the body and beam of MetronomeIcon, cut down to the
+ * three strokes that survive at this size.
+ */
+function ClickMark() {
+  return (
+    <svg className="tab-click-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M8 20 10 5a2 2 0 0 1 4 0l2 15Z" />
+      <path d="M6.4 20h11.2" />
+      <path d="M12 17.6 12 8.4" />
+    </svg>
+  );
+}
+
+interface RiffProps {
+  score: TabScore;
+  strings: TabString[];
+  timeline: TabTimeline | null;
+  offsetQuarters: number;
+  totalQuarters: number;
+  honourRepeat: boolean;
+}
+
+function Riff({ score, strings, timeline, offsetQuarters, totalQuarters, honourRepeat }: RiffProps) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  // What one column is worth here, and how many of them fit. The pitch is a
+  // design value and lives in the stylesheet; the count is arithmetic and lives
+  // here, measured off the rendered frame rather than guessed from a breakpoint.
+  const [fit, setFit] = useState<{ columns: number; colPx: number }>({
+    columns: UNMEASURED_COLUMNS,
+    colPx: FALLBACK_COL_PX,
+  });
+
+  useLayoutEffect(() => {
+    const el = frameRef.current;
+    if (!el) return;
+    const measure = () => {
+      const styles = getComputedStyle(el);
+      const pitch = Number.parseFloat(styles.getPropertyValue('--tab-col'));
+      const pad = Number.parseFloat(styles.getPropertyValue('--tab-pad'));
+      const colPx = Number.isFinite(pitch) && pitch > 0 ? pitch : FALLBACK_COL_PX;
+      // The frame is measured but never painted; the sheet inside it carries the
+      // padding and the border, and its own width comes back out of this.
+      const inset = (Number.isFinite(pad) ? pad : 0) * 2 + 2;
+      const usable = (el.clientWidth - inset) / (colPx / COL) - GUTTER - PAD_R;
+      const columns = Math.max(MIN_COLUMNS, Math.floor(usable / COL));
+      setFit((prev) => (prev.columns === columns && prev.colPx === colPx ? prev : { columns, colPx }));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Every system is drawn in a viewBox of the same width, so they stack as one
+  // block with one staff height. A full system fills that width by stretching
+  // its column pitch, the way an engraver justifies a line; a short last one
+  // keeps its natural spacing and simply ends sooner.
+  const layout = useMemo(() => {
+    const view = GUTTER + fit.columns * COL + PAD_R;
+    return readSystems(score, Math.floor(fit.columns * SQUEEZE)).map((system) => {
+      const span = system.to - system.from;
+      const natural = GUTTER + span * COL + PAD_R;
+      const justify = natural >= view * JUSTIFY_FLOOR;
+      const width = justify ? view : natural;
+      return {
+        system,
+        col: justify ? (view - GUTTER - PAD_R) / span : COL,
+        width,
+        // Stated in real pixels rather than as a percentage, so the sheet behind
+        // the music can shrink to the music instead of the column it sits in.
+        px: (width * fit.colPx) / COL,
+      };
+    });
+  }, [score, fit]);
+  const repeat = useMemo(() => readRepeatSpan(score), [score]);
+  const hasCount = score.beats.length > 0;
+  const band = (repeat ? ARC_BAND : 0) + (hasCount ? COUNT_BAND : 0);
+  const top = PAD_T + Math.max(band, timeline ? PIP_BAND : 0);
+  const height = top + Math.max(0, score.labels.length - 1) * STRING_GAP + PAD_B;
+
+  // Where the playhead is, written straight onto the SVG on every frame.
+  //
+  // Not React state: the marker moves at the frame rate, and re-rendering a
+  // staff of several hundred drawn elements sixty times a second to move one of
+  // them is work the phone this runs on cannot spare. The staff is drawn once
+  // and the marker is moved.
+  const headsRef = useRef<(SVGGElement | null)[]>([]);
+  const litRef = useRef<(SVGRectElement | null)[]>([]);
+  const pipsRef = useRef<(SVGCircleElement | null)[]>([]);
+  const countInRef = useRef<SVGGElement | null>(null);
+
+  useEffect(() => {
+    if (!timeline) return;
+    let quiet = false;
+
+    let frame = requestAnimationFrame(function tick() {
+      frame = requestAnimationFrame(tick);
+      const phase = metronome.phase();
+
+      // No click, no playhead. A marker that keeps sweeping over a stopped
+      // metronome is the app claiming a beat nobody can hear.
+      if (!phase) {
+        if (quiet) return;
+        quiet = true;
+        for (const head of headsRef.current) if (head) head.style.opacity = '0';
+        for (const lit of litRef.current) if (lit) lit.style.opacity = '0';
+        if (countInRef.current) countInRef.current.style.opacity = '0';
+        return;
+      }
+      quiet = false;
+
+      const elapsed = phase.position + phase.sinceSeconds / phase.secondsPerBeat - COUNT_IN;
+
+      // The count-in: one bar of the click before the riff starts, filling one
+      // pip a beat, so coming in on time is watched rather than counted.
+      const counting = elapsed < 0;
+      const filled = counting ? Math.floor(elapsed + COUNT_IN) + 1 : 0;
+      if (countInRef.current) countInRef.current.style.opacity = counting ? '1' : '0';
+      if (counting) {
+        pipsRef.current.forEach((pip, i) => pip?.classList.toggle('is-lit', i < filled));
+      }
+
+      // During the count-in the marker parks at the top of the piece, which is
+      // the first stave's start and nowhere else. Parking every stave at its own
+      // start would put a playhead on each of them at once, and a riff written
+      // over two staves is still one riff.
+      const local = counting
+        ? offsetQuarters === 0
+          ? 0
+          : null
+        : honourRepeat
+          ? positionAt(timeline, elapsed)
+          : sequenced(elapsed, offsetQuarters, timeline.quarters, totalQuarters);
+      const column = local === null ? null : columnAt(timeline, local);
+      const bar = local === null ? -1 : barAt(timeline, local);
+
+      layout.forEach(({ system, col }, i) => {
+        const at = (c: number) => GUTTER + (c - system.from + 0.5) * col;
+        const head = headsRef.current[i];
+        const lit = litRef.current[i];
+        const here = column !== null && column >= system.from && column <= system.to;
+        if (head) {
+          head.style.opacity = here && timeline.precision === 'beat' ? '1' : '0';
+          if (here && column !== null) head.setAttribute('transform', `translate(${at(column).toFixed(2)} 0)`);
+        }
+        if (!lit) return;
+        const span = bar >= 0 ? timeline.bars[bar] : undefined;
+        const visible =
+          timeline.precision === 'bar' && span !== undefined && span.to > system.from && span.from < system.to;
+        lit.style.opacity = visible ? '1' : '0';
+        if (visible && span) {
+          const from = Math.max(span.from, system.from);
+          const to = Math.min(span.to, system.to);
+          lit.setAttribute('x', (at(from) - col / 2).toFixed(2));
+          lit.setAttribute('width', Math.max(0, (to - from) * col).toFixed(2));
+        }
+      });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [timeline, layout, honourRepeat, offsetQuarters, totalQuarters]);
+
+  if (!score.labels.length) {
+    return score.caption ? <p className="tab-caption is-alone">{score.caption}</p> : null;
+  }
+
+  const spoken = describe(score, strings, timeline);
 
   return (
-    <div className="tab-staff">
-      {blocks.map((block, i) => (
-        <Staff key={i} block={block} index={i} />
-      ))}
-    </div>
+    <figure className="tab-riff">
+      {score.caption && <figcaption className="tab-caption">{score.caption}</figcaption>}
+      {/* The staff is drawn, so it is a picture; the riff is a sequence, so it
+          is also a list. Sighted players get the first, screen readers the
+          second, and neither is a summary of the other. The old renderer needed
+          a focusable scroll region because half the riff was off-screen; this
+          one has nothing off-screen left to reach. */}
+      <ol className="sr-only tab-spoken">
+        {spoken.map((line, i) => (
+          <li key={i}>{line}</li>
+        ))}
+      </ol>
+      <div className="tab-frame" ref={frameRef}>
+        <div className="tab-sheet">
+        {layout.map(({ system, col, width, px }, i) => {
+          return (
+            <svg
+              key={`${system.from}-${system.to}`}
+              className="tab-system"
+              viewBox={`0 0 ${width.toFixed(2)} ${height}`}
+              style={{ width: `${px.toFixed(2)}px`, animationDelay: `${0.04 + i * 0.07}s` }}
+              aria-hidden="true"
+              focusable="false"
+            >
+              <System
+                score={score}
+                strings={strings}
+                system={system}
+                col={col}
+                top={top}
+                hasCount={hasCount}
+                repeat={repeat}
+                countIn={i === 0 && timeline !== null && offsetQuarters === 0}
+                pipsRef={pipsRef}
+                countInRef={countInRef}
+              />
+              {/* Which bar is being played, for a riff that states its bars and
+                  not its beats. Under the staff rather than over it: a wash
+                  across the music hides the frets it is meant to be pointing
+                  at, and the point of this marker is that it knows less than a
+                  playhead does, not that it is louder. */}
+              <rect
+                ref={(el) => {
+                  litRef.current[i] = el;
+                }}
+                className="tab-lit"
+                x={0}
+                y={top + Math.max(0, score.labels.length - 1) * STRING_GAP + STRING_GAP * 0.5}
+                width={0}
+                height={2.6}
+                rx={1.3}
+                style={{ opacity: 0 }}
+              />
+              <g
+                ref={(el) => {
+                  headsRef.current[i] = el;
+                }}
+                className="tab-head"
+                style={{ opacity: 0 }}
+              >
+                {/* Tall enough to clear the count row, so the marker never
+                    sits on the number it is arriving at. */}
+                <line
+                  x1={0}
+                  y1={top - (hasCount ? COUNT_BAND + 2 : STRING_GAP * 0.7)}
+                  x2={0}
+                  y2={top + Math.max(0, score.labels.length - 1) * STRING_GAP + STRING_GAP * 0.55}
+                />
+                <circle cx={0} cy={top - (hasCount ? COUNT_BAND + 2 : STRING_GAP * 0.7)} r={2.1} />
+              </g>
+            </svg>
+          );
+        })}
+        </div>
+      </div>
+    </figure>
   );
+}
+
+/**
+ * Where a run of several staves has got to, or null when it is elsewhere.
+ *
+ * A riff written across four staves is played as one piece: each stave holds the
+ * marker for its own written length and then hands it on.
+ */
+function sequenced(elapsed: number, offset: number, quarters: number, total: number): number | null {
+  if (!(total > 0)) return null;
+  const at = ((elapsed % total) + total) % total;
+  if (at < offset || at >= offset + quarters) return null;
+  return at - offset;
+}
+
+interface RepeatSpan {
+  /** Column the repeat sends the player back to. */
+  from: number;
+  /** Column the repeat turns at. */
+  to: number;
+}
+
+function readRepeatSpan(score: TabScore): RepeatSpan | null {
+  const close = score.bars.findIndex((bar) => bar.repeatEnd);
+  if (close < 0) return null;
+  let open = 0;
+  for (let i = close - 1; i >= 0; i--) {
+    if (score.bars[i].repeatStart) {
+      open = score.bars[i].column;
+      break;
+    }
+  }
+  return { from: open, to: score.bars[close].column };
+}
+
+interface SystemProps {
+  score: TabScore;
+  strings: TabString[];
+  system: TabSystem;
+  /** This system's column pitch, which justification may have stretched. */
+  col: number;
+  top: number;
+  hasCount: boolean;
+  repeat: RepeatSpan | null;
+  countIn: boolean;
+  pipsRef: { current: (SVGCircleElement | null)[] };
+  countInRef: { current: SVGGElement | null };
+}
+
+/** One line of staff: strings, frets, bars, and the marks between them. */
+function System({ score, strings, system, col, top, hasCount, repeat, countIn, pipsRef, countInRef }: SystemProps) {
+  const x = (column: number) => GUTTER + (column - system.from + 0.5) * col;
+  const y = (line: number) => top + line * STRING_GAP;
+  const notes = score.notes.filter((n) => n.column >= system.from && n.column < system.to);
+  const bars = score.bars.filter((b) => b.column >= system.from && b.column < system.to);
+  // A staff that starts on a barline starts *at* it, not half a column short of
+  // it: the stub of string hanging off the front is the one thing that makes an
+  // otherwise clean system look unfinished.
+  const opensOnRule = bars.some((b) => b.column === system.from);
+  const closesOnRule = bars.some((b) => b.column + b.width === system.to);
+  const left = opensOnRule ? x(system.from) : x(system.from) - col / 2;
+  const right = closesOnRule ? x(system.to - 1) : x(system.to - 1) + col / 2;
+  const joins = score.joins.filter((j) => j.from >= system.from && j.to <= system.to);
+  const beats = score.beats.filter((b) => b.column >= system.from && b.column < system.to);
+
+  return (
+    <>
+      {/* The strings. Gauge follows the instrument, thinnest at the top, the
+          same taper the chord boxes and the tuner draw, so the three screens
+          describe one guitar. Each line is cut where a numeral sits on it,
+          which is what engraved tab does and what stops a fret number looking
+          like it floats over the string rather than stopping it. */}
+      {strings.map((string, line) => (
+        <g key={line} className="tab-string" style={{ strokeWidth: 0.5 + (string.position - 1) * 0.16 }}>
+          {stringSegments(notes, line, left, right, x).map((seg, i) => (
+            <line key={i} x1={seg[0]} y1={y(line)} x2={seg[1]} y2={y(line)} />
+          ))}
+        </g>
+      ))}
+
+      {/* String names, reprinted on every system the way a clef is. */}
+      {strings.map((string, line) => (
+        <text key={`n${line}`} className="tab-name" x={GUTTER - 9} y={y(line)} dy="0.34em" textAnchor="end">
+          {string.label || string.position}
+        </text>
+      ))}
+
+      {bars.map((bar, i) => (
+        <Barline key={`b${i}`} bar={bar} x={x(bar.column)} top={top} lines={score.labels.length} />
+      ))}
+
+      {joins.map((join, i) => (
+        <Join key={`j${i}`} join={join} x={x} y={y} />
+      ))}
+
+      {notes.map((note, i) => (
+        <Note key={`f${i}`} note={note} score={score} system={system} col={col} x={x} y={y} />
+      ))}
+
+      {/* The count, drawn as a ruler rather than typed as a row of characters:
+          numbers on the beats, dots on the subdivisions between them. It reads
+          as rhythm at a glance, which "1 + 2 + 3 + 4 +" never does. */}
+      {hasCount &&
+        beats.map((beat, i) =>
+          beat.primary ? (
+            <text
+              key={`c${i}`}
+              className="tab-count"
+              x={x(beat.column)}
+              y={top - COUNT_BAND * 0.55}
+              textAnchor="middle"
+            >
+              {beat.label}
+            </text>
+          ) : (
+            <circle key={`c${i}`} className="tab-off" cx={x(beat.column)} cy={top - COUNT_BAND * 0.68} r={1.25} />
+          ),
+        )}
+
+      {repeat && <ReturnArc repeat={repeat} system={system} col={col} x={x} top={top} />}
+
+      {/* The count-in, filling one pip a beat in the corner the music does not
+          use. On "one" the last pip lands and the playhead enters the staff. */}
+      {countIn && (
+        <g
+          ref={(el) => {
+            countInRef.current = el;
+          }}
+          style={{ opacity: 0 }}
+        >
+          {Array.from({ length: COUNT_IN }, (_, i) => (
+            <circle
+              key={`p${i}`}
+              ref={(el) => {
+                pipsRef.current[i] = el;
+              }}
+              className="tab-pip"
+              cx={3.4 + i * 6}
+              cy={PAD_T + 2.4}
+              r={2.2}
+            />
+          ))}
+        </g>
+      )}
+    </>
+  );
+}
+
+/**
+ * The string, minus the places a fret number is sitting on it.
+ *
+ * Written as gaps rather than as a filled box behind each numeral, so the cut is
+ * exact at any size and does not depend on the staff having a flat colour behind
+ * it.
+ */
+function stringSegments(
+  notes: readonly TabNote[],
+  line: number,
+  left: number,
+  right: number,
+  x: (column: number) => number,
+): [number, number][] {
+  const gaps = notes
+    .filter((n) => n.line === line)
+    .map((n): [number, number] => [x(n.column) - GLYPH * 0.62, x(n.column + n.width - 1) + GLYPH * 0.62])
+    .sort((a, b) => a[0] - b[0]);
+
+  const out: [number, number][] = [];
+  let cursor = left;
+  for (const [from, to] of gaps) {
+    if (from > cursor) out.push([cursor, from]);
+    cursor = Math.max(cursor, to);
+  }
+  if (cursor < right) out.push([cursor, right]);
+  return out;
+}
+
+function Note({
+  note,
+  score,
+  system,
+  col,
+  x,
+  y,
+}: {
+  note: TabNote;
+  score: TabScore;
+  system: TabSystem;
+  col: number;
+  x: (column: number) => number;
+  y: (line: number) => number;
+}) {
+  const cx = (x(note.column) + x(note.column + note.width - 1)) / 2;
+  const cy = y(note.line);
+  if (!note.tied) {
+    return (
+      <text className="tab-fret" x={cx} y={cy} dy="0.35em" textAnchor="middle">
+        {note.fret}
+      </text>
+    );
+  }
+
+  // A bracketed fret is a note still ringing, not a new one. Drawn as the tie it
+  // is: an arc arriving from whatever struck it, and the numeral held one step
+  // back, so "do not play this one" is seen rather than looked up. When the note
+  // it continues from sits on an earlier system the arc arrives from off the
+  // left edge, which is exactly what a tie across a system break looks like.
+  const previous = score.notes.filter((n) => n.line === note.line && n.column < note.column).pop();
+  const fromX =
+    previous && previous.column >= system.from
+      ? x(previous.column + previous.width - 1) + GLYPH * 0.5
+      : x(system.from) - col * 0.5;
+  const toX = cx - GLYPH * 0.6;
+  const lift = cy - STRING_GAP * 0.5;
+  return (
+    <g className="tab-tied">
+      <path
+        d={`M ${fromX.toFixed(2)} ${cy} Q ${((fromX + toX) / 2).toFixed(2)} ${lift.toFixed(2)} ${toX.toFixed(2)} ${cy}`}
+      />
+      <text x={cx} y={cy} dy="0.35em" textAnchor="middle">
+        {note.fret}
+      </text>
+    </g>
+  );
+}
+
+function Barline({ bar, x, top, lines }: { bar: TabBar; x: number; top: number; lines: number }) {
+  const y1 = top;
+  const y2 = top + Math.max(0, lines - 1) * STRING_GAP;
+  const mid = (y1 + y2) / 2;
+  const rule = (at: number, key: string, className = 'tab-rule') => (
+    <line key={key} className={className} x1={at} y1={y1} x2={at} y2={y2} />
+  );
+
+  if (bar.repeatStart || bar.repeatEnd) {
+    // Heavy rule outermost, thin rule inside it, dots inside that: the order
+    // printed music has used for two hundred years, and the whole of how a
+    // player tells an opening from a closing without reading anything.
+    const side = bar.repeatEnd ? -1 : 1;
+    return (
+      <g>
+        {rule(x, 'heavy', 'tab-rule is-heavy')}
+        {rule(x + side * 3.6, 'thin')}
+        {repeatDots(top, lines, mid).map((cy, i) => (
+          <circle key={i} className="tab-dot" cx={x + side * 8} cy={cy} r={1.6} />
+        ))}
+      </g>
+    );
+  }
+
+  return (
+    <g>
+      {rule(x, 'a')}
+      {bar.heavy && rule(x + 3.2, 'b', 'tab-rule is-heavy')}
+    </g>
+  );
+}
+
+/**
+ * Where a repeat's two dots go: in the spaces either side of the middle, never
+ * on a string.
+ *
+ * A dot sitting on a line reads as a note on that string, which on a tab staff
+ * is exactly the wrong thing to suggest.
+ */
+function repeatDots(top: number, lines: number, mid: number): [number, number] {
+  const spaces = lines - 1;
+  if (spaces < 2) return [mid - STRING_GAP * 0.24, mid + STRING_GAP * 0.24];
+  const low = spaces % 2 === 1 ? (spaces - 1) / 2 - 1 : spaces / 2 - 1;
+  const high = spaces % 2 === 1 ? (spaces - 1) / 2 + 1 : spaces / 2;
+  return [top + (low + 0.5) * STRING_GAP, top + (high + 0.5) * STRING_GAP];
+}
+
+/**
+ * Where the repeat sends the player, drawn as the journey it is.
+ *
+ * The owner asked out loud how to restart a riff, and the answer was two
+ * characters that looked like every other character on the staff. This is the
+ * same answer as a path: up out of the closing rule, back across the music, and
+ * down onto the opening one with the arrow on the end. A bracket rather than a
+ * slur, because a slur drawn over six hundred pixels of staff is a straight
+ * line, and a straight line above the music says nothing at all.
+ */
+function ReturnArc({
+  repeat,
+  system,
+  col,
+  x,
+  top,
+}: {
+  repeat: RepeatSpan;
+  system: TabSystem;
+  col: number;
+  x: (column: number) => number;
+  top: number;
+}) {
+  const startsHere = repeat.from >= system.from && repeat.from < system.to;
+  const endsHere = repeat.to >= system.from && repeat.to < system.to;
+  const spans = repeat.from < system.from && repeat.to >= system.to;
+  if (!startsHere && !endsHere && !spans) return null;
+
+  const x1 = startsHere ? x(repeat.from) : x(system.from) - col * 0.5;
+  const x2 = endsHere ? x(repeat.to) : x(system.to - 1) + col * 0.5;
+  if (x2 <= x1) return null;
+  // Down onto the rules themselves rather than to a floating point above them:
+  // the bracket has to visibly leave one barline and arrive at the other.
+  const base = top - 1;
+  const lane = PAD_T + 2.5;
+  const r = Math.min(4, (x2 - x1) / 2);
+
+  // Only the end that is actually on this system turns down onto a rule. An end
+  // that carries on runs flat off the edge, which is the whole of how a reader
+  // knows the repeat continues on the line below.
+  const d =
+    (endsHere
+      ? `M ${x2.toFixed(2)} ${base.toFixed(2)} V ${(lane + r).toFixed(2)}` +
+        ` Q ${x2.toFixed(2)} ${lane.toFixed(2)} ${(x2 - r).toFixed(2)} ${lane.toFixed(2)}`
+      : `M ${x2.toFixed(2)} ${lane.toFixed(2)}`) +
+    ` H ${(startsHere ? x1 + r : x1).toFixed(2)}` +
+    (startsHere
+      ? ` Q ${x1.toFixed(2)} ${lane.toFixed(2)} ${x1.toFixed(2)} ${(lane + r).toFixed(2)}` +
+        ` V ${base.toFixed(2)}`
+      : '');
+
+  return (
+    <g className="tab-return">
+      <path d={d} />
+      {startsHere && (
+        <path
+          className="tab-return-head"
+          d={`M ${(x1 - 2.6).toFixed(2)} ${(base - 3.6).toFixed(2)} L ${x1.toFixed(2)} ${base.toFixed(2)} L ${(x1 + 2.6).toFixed(2)} ${(base - 3.6).toFixed(2)}`}
+        />
+      )}
+    </g>
+  );
+}
+
+/** Printed tab puts a letter on the slur for these two, and nothing on the rest. */
+const JOIN_LETTER: Record<TabJoinKind, string> = {
+  hammer: 'H',
+  pull: 'P',
+  bend: 'B',
+  'slide-up': '',
+  'slide-down': '',
+  vibrato: '',
+};
+
+function Join({
+  join,
+  x,
+  y,
+}: {
+  join: TabJoin;
+  x: (column: number) => number;
+  y: (line: number) => number;
+}) {
+  const x1 = x(join.from) - GLYPH * 0.3;
+  const x2 = x(join.to) - GLYPH * 0.7;
+  const cy = y(join.line);
+
+  if (join.kind === 'vibrato') {
+    // A real wave, on the string's own line, rather than a run of tildes.
+    const width = Math.max(GLYPH, x2 - x1 + GLYPH);
+    const steps = Math.max(2, Math.round(width / 3.4));
+    const step = width / steps;
+    let d = `M ${x1.toFixed(2)} ${cy}`;
+    for (let i = 0; i < steps; i++) {
+      d += ` q ${(step / 2).toFixed(2)} ${i % 2 ? 2.2 : -2.2} ${step.toFixed(2)} 0`;
+    }
+    return <path className="tab-join is-vibrato" d={d} />;
+  }
+
+  if (join.kind === 'slide-up' || join.kind === 'slide-down') {
+    const rise = join.kind === 'slide-up' ? 3 : -3;
+    return <line className="tab-join is-slide" x1={x1} y1={cy + rise} x2={x2} y2={cy - rise} />;
+  }
+
+  const lift = cy - STRING_GAP * 0.48;
+  return (
+    <g className="tab-join">
+      <path
+        d={`M ${x1.toFixed(2)} ${(cy - 2.4).toFixed(2)} Q ${((x1 + x2) / 2).toFixed(2)} ${lift.toFixed(2)} ${x2.toFixed(2)} ${(cy - 2.4).toFixed(2)}`}
+      />
+      <text x={(x1 + x2) / 2} y={lift + 1.2} textAnchor="middle">
+        {JOIN_LETTER[join.kind]}
+      </text>
+    </g>
+  );
+}
+
+/**
+ * The riff as a sequence, for anyone who cannot see it.
+ *
+ * One line per column rather than one per note, because a chord is one thing to
+ * place and reading it as three separate frets describes a different instrument.
+ * Everything the drawing states is stated here too: the bar, the string, the
+ * fret, the tie, and where the repeat turns.
+ */
+function describe(score: TabScore, strings: TabString[], timeline: TabTimeline | null): string[] {
+  if (!score.notes.length) return [];
+  const lines: string[] = [];
+  const columns = [...new Set(score.notes.map((n) => n.column))].sort((a, b) => a - b);
+  let bar = -1;
+
+  for (const column of columns) {
+    if (timeline) {
+      const which = timeline.bars.findIndex((b) => column >= b.from && column < b.to);
+      if (which >= 0 && which !== bar) {
+        bar = which;
+        lines.push(`Bar ${which + 1}`);
+      }
+    }
+    const here = score.notes.filter((n) => n.column === column);
+    lines.push(
+      here
+        .map((note) => {
+          const string = strings[note.line];
+          const name = string ? string.spoken : `string ${note.line + 1}`;
+          return note.tied ? `${name} fret ${note.fret}, still ringing` : `${name} fret ${note.fret}`;
+        })
+        .join(', '),
+    );
+  }
+
+  const close = score.bars.findIndex((b) => b.repeatEnd);
+  if (close >= 0) {
+    const opens = score.bars.slice(0, close).some((b) => b.repeatStart);
+    lines.push(opens ? 'Repeat back to the opening repeat mark' : 'Repeat from the start');
+  }
+  return lines;
 }
