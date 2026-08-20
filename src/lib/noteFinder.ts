@@ -32,12 +32,13 @@
 // and the two prompt forms where the app was never told where to look
 // (`free`, `echo`) deliberately write nothing to the map at all.
 //
-// THE LADDER. Open-position naturals is a week. This drill has to still be worth
-// opening in Grade 5, so the rungs run from the two lowest strings in first
-// position to the whole neck with accidentals, then to finding a note with no
-// string named at all, then to finding the same note somewhere other than where
-// it was shown. Which rung a session runs at comes from that rung's own history
-// and never from ambition: exactly the rule lib/tempo.ts applies to BPM.
+// THE LADDER. The six open strings by name is a week. This drill has to still be
+// worth opening in Grade 5, so the rungs run from the nut to the whole neck with
+// accidentals, then to finding a note with no string named at all, then to
+// finding the same note somewhere other than where it was shown. Which rung a
+// session runs at comes from that rung's own history and never from ambition:
+// exactly the rule lib/tempo.ts applies to BPM. `RUNGS` carries the argument for
+// where the bottom of it is, which is a place the course has actually reached.
 
 import { pitchClass, noteAtFret, fretOf, type PitchClass } from './noteCircle';
 import { DEFAULT_TUNING_ID, getTuning } from '../audio/tuning';

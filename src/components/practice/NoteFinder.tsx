@@ -709,7 +709,7 @@ export function NoteFinder({
                 <div className="om-caption">recalled</div>
               </ProgressRing>
               {placed > 0 && (
-                <p className="nf-shown-count" aria-hidden="true">
+                <p className="nf-shown-count">
                   <span className="nf-shown-value">{placed}</span> shown
                 </p>
               )}

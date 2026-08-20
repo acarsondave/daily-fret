@@ -88,6 +88,12 @@ take('mixed-answer', [...new Set(MIXED_SPOTS.map((p) => p.midi))], 110);
 // F, which no open string sounds, so the opening rung cannot be asking for it
 // wherever the roll lands. It must be heard, shown, and not counted.
 take('wrong-note', [midiAt(6, 1) + 24], 60);
+// The same F, sounding without a break for the length of a run. A string that
+// has been struck once reads at full confidence for about four seconds
+// (measured), which is longer than the gap between two questions, so this is the
+// shape of what the microphone hears when the answer to the last question is
+// still ringing under the next one.
+write(`${DIR}/sustain.wav`, [addRoom(tone(hz(midiAt(6, 1) + 24), 70, 0.38), 0.0012, 5)]);
 // The octave above every answer the fretted rung can call, and nothing else.
 // None of these is any position's own pitch, so whatever is asked, what arrives
 // is the right letter in the wrong place and must be reported as one.
@@ -443,6 +449,36 @@ const start = async (page) => {
   check('the answer is lit rather than the question sticking',
     (await page.locator('.nm-mark-name').count()) >= 1);
   check('and a lit answer is still not a recall', (await recalled(page)) === 0);
+  check('no console errors', errors.length === 0, errors.join(' | '));
+  await browser.close();
+}
+
+// --- The answer to the last question is not this question's wrong note -----
+
+{
+  console.log('\na note that was already sounding is not judged against the next question\n');
+  const { browser, page, errors } = await open({
+    wav: 'sustain.wav',
+    seed: account({ rungId: MIXED.id, noteMap: recalledNeck([], MIXED_SPOTS) }),
+  });
+  await start(page);
+
+  // Judged once, as the wrong note it is.
+  await page.waitForSelector('.nf-miss', { timeout: 30000 });
+  check('the note is heard and reported once', true);
+  // The recall does not come, so the answer is lit and the question stays open.
+  await page.waitForSelector('.nm-mark.is-show', { timeout: 25000 });
+  check('the answer is lit rather than the question being dropped', true);
+  // And then the next question. The note has not stopped: this is exactly the
+  // moment a real player's last answer is still ringing.
+  await page.waitForSelector('.nm-mark.is-show', { state: 'detached', timeout: 25000 });
+
+  check('the next question does not open on a wrong note nobody played',
+    (await page.locator('.nf-miss').count()) === 0);
+  await page.waitForTimeout(4000);
+  check('and it stays that way while the same note goes on sounding',
+    (await page.locator('.nf-miss').count()) === 0);
+  check('nothing was counted for any of it', (await recalled(page)) === 0);
   check('no console errors', errors.length === 0, errors.join(' | '));
   await browser.close();
 }
