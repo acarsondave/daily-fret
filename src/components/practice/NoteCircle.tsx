@@ -330,6 +330,7 @@ export function NoteCircle() {
     const delta = arrowDelta(e.key);
     if (!delta) return;
     e.preventDefault();
+    demo.stop();
     const next = pitchClass(to + delta);
     pick(next);
     fretRefs.current[stepsRound(to, next)]?.focus();
@@ -339,6 +340,7 @@ export function NoteCircle() {
     const delta = arrowDelta(e.key);
     if (!delta) return;
     e.preventDefault();
+    demo.stop();
     // The row reads thickest first, so moving right in the row is moving down
     // a string number.
     const next = Math.min(6, Math.max(1, stringPosition - delta));
@@ -552,7 +554,10 @@ export function NoteCircle() {
                 ref={(el) => { stringRefs.current[s.position] = el; }}
                 className={clsx('nc-string', s.position === stringPosition && 'is-on')}
                 aria-label={s.label}
-                onClick={() => setStringPosition(s.position)}
+                onClick={() => {
+                  demo.stop();
+                  setStringPosition(s.position);
+                }}
               >
                 {/* Gauge, not a number: the sixth string is the fat one, and that
                     is how a player picks it out without reading anything. */}
