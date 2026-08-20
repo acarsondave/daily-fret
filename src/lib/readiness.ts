@@ -101,6 +101,18 @@ export const ROTATION_BAR = 25;
  */
 export const RHYTHM_BAR = PATTERN_CLEAN_SCORE;
 
+/**
+ * Notes found a minute that counts as knowing the neck at the rung being run.
+ *
+ * Ten, which is one find every six seconds including the wrong turns. The app's
+ * own, inferred rather than taught: no lesson puts a rate on the note finder, so
+ * it must not be presented as the course's. Set above the six a run has to reach
+ * to count towards clearing a rung (src/lib/noteFinder.ts) on purpose: clearing a
+ * rung is permission to be asked harder questions, and this is the claim that
+ * the skill itself is solid.
+ */
+export const FIND_BAR = 10;
+
 const SPELLED = ['no', 'one', 'two', 'three'] as const;
 
 /**

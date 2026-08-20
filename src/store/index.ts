@@ -21,6 +21,7 @@ import type { Song } from '../data/songs';
 import type { StrumPattern } from '../data/strumPatterns';
 import type { CalibrationData, ChordCalibration } from '../audio/calibration';
 import type { ReminderSettings } from '../lib/reminders';
+import { mergeNoteMaps, recordFind, type NoteMap } from '../lib/noteFinder';
 import {
   activeProfileOf,
   makeProfile,
@@ -156,6 +157,20 @@ export interface UserData {
   // there is no default reminder, because an app that starts notifying you
   // without being asked is one you turn off rather than tune.
   reminder?: ReminderSettings;
+  /**
+   * The neck, as the note finder has filled it in.
+   *
+   * One entry per position the drill named and was answered at, keyed
+   * `string:fret` (src/lib/noteFinder.ts). Not a daily log and deliberately not
+   * keyed by day: what a position is worth is the accumulation of every time it
+   * was asked, and the note circle draws it as a record that grows over months.
+   *
+   * What it records is exactly what the app can stand behind: the prompt named
+   * this position and the pitch that position makes came back. A microphone
+   * cannot see which string a pitch came off, so this is never a claim that the
+   * finger went here.
+   */
+  noteMap?: NoteMap;
   // What a task id used to mean, for the two drills that once filed their
   // results under one.
   //
@@ -184,6 +199,14 @@ const defaultUserData: UserData = {
   userSongs: [],
   updatedAt: 0,
 };
+
+/** One correct find, as the drill reports it to the store. */
+export interface NoteFindReport {
+  stringPosition: number;
+  fret: number;
+  /** How long the find took, in milliseconds. */
+  ms: number;
+}
 
 interface AppState {
   accounts: Record<string, UserData>;
@@ -248,6 +271,10 @@ interface AppState {
   setSkillClaimed: (skillId: string, claimed: boolean) => void;
   setCurrentLesson: (code: string | null) => void;
   setReminder: (reminder: ReminderSettings | null) => void;
+  // One run of the note finder's correct finds, folded into the neck map. Takes
+  // the whole run rather than a call per find, so a sixty-second run is one
+  // write and one sync rather than a dozen.
+  recordNoteFinds: (finds: readonly NoteFindReport[]) => void;
   // Records that today's nudge has been shown, so a missed day is mentioned
   // once rather than on every visit.
   markNudged: (date: string) => void;
@@ -345,6 +372,11 @@ export const useStore = create<AppState>()(
             leftHanded: data.leftHanded ?? local?.leftHanded,
             currentLesson: data.currentLesson ?? local?.currentLesson,
             reminder: data.reminder ?? local?.reminder,
+            // Unioned per position rather than picked, for the same reason the
+            // aliases below are: each device asks its own questions, so neither
+            // copy is a superset and taking one outright would forget frets the
+            // other was the one to ask about.
+            noteMap: mergeNoteMaps(local?.noteMap, data.noteMap),
             // Unioned rather than picked, then topped up from whatever routines
             // won the merge. Each device captures its own aliases, so the cloud
             // copy and the local one can each hold task ids the other has never
@@ -680,6 +712,18 @@ export const useStore = create<AppState>()(
           mutate(state, (a) => ({ ...a, leftHanded: left })),
         ),
 
+        recordNoteFinds: (finds) => set((state) => {
+          if (!finds.length) return state;
+          return mutate(state, (a) => {
+            const at = now();
+            let map = a.noteMap ?? {};
+            for (const find of finds) {
+              map = recordFind(map, find.stringPosition, find.fret, find.ms, at);
+            }
+            return { ...a, noteMap: map };
+          });
+        }),
+
         setSkillClaimed: (skillId, claimed) => set((state) =>
           mutate(state, (a) => {
             const current = a.claimedSkills ?? [];
@@ -781,5 +825,17 @@ export const drillLogsOf = (acc: UserData): Record<string, DailyLog> =>
 
 export const useDrillLogs = (): Record<string, DailyLog> =>
   useStore((s) => drillLogsOf(s.accounts[s.currentAccountId] ?? defaultUserData));
+
+/**
+ * The neck as the note finder has filled it in.
+ *
+ * Falls back to a shared empty object rather than a fresh one, because a new
+ * literal per render is a new reference and would re-render every drawing of the
+ * neck on every unrelated store write.
+ */
+const EMPTY_NOTE_MAP: NoteMap = {};
+
+export const useNoteMap = (): NoteMap =>
+  useStore((s) => s.accounts[s.currentAccountId]?.noteMap ?? EMPTY_NOTE_MAP);
 
 export { getTodayString, defaultUserData };

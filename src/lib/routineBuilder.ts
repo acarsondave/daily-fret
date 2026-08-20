@@ -55,6 +55,9 @@ const ROTATION_SECONDS = 60;
  * compares with a shorter one.
  */
 const RHYTHM_SECONDS = 180;
+/** The note finder joins the routine once the course has named the notes, and stays. */
+const NOTE_NAMES_FROM_MODULE = 5;
+const NOTE_FINDER_SECONDS = 60;
 /** Pairs in one changes task. More than this and the task becomes a shift. */
 const MAX_PAIRS = 3;
 /** Shapes in one Chord Perfect block when there is no new one to target. */
@@ -546,6 +549,26 @@ function buildPlayingTasks(basis: RoutineBasis, module: number | null): Task[] {
             description: `${rhythm.summary} On a timer: nothing in the signal measures this one yet.`,
             duration: '4',
           }),
+    );
+  }
+
+  // Where a named note lives on the neck, found and played. After the rhythm
+  // block and before the song: it is the one drill in the day that is mostly
+  // thinking, the hands have done their work by here, and the song is what a
+  // session should end on. Nothing is configured, because the drill reads its
+  // own history and runs the lowest rung it has not cleared (lib/noteFinder.ts).
+  //
+  // `basis.skills` only ever holds the current module's skills, so the module
+  // number is checked alongside it: the notes are named once and stay named.
+  if (
+    vocabulary.length &&
+    (has('theory.note-names') || module === null || module >= NOTE_NAMES_FROM_MODULE)
+  ) {
+    tasks.push(
+      task('Note finder', {
+        description: 'The app names a note and a string. Find it and play it.',
+        drill: { kind: 'note-finder', durationSec: NOTE_FINDER_SECONDS },
+      }),
     );
   }
 

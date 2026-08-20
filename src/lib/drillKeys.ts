@@ -16,10 +16,11 @@
 //   pool:A|C|D|E|G  one Chord Perfect block, scored across the pool it drilled
 //   ring:A>E>D      one turn of an anchor rotation, looping in one direction
 //   sweep:D>A>E     an anchor rotation swept back and forth along the same path
+//   find:open-naturals   one run of the note finder, at the rung it was run on
 //   timing:80       one strum-timing block, at the tempo it was measured at
 //   pattern:D-DU-UD-~80  one dealt strumming pattern, at the tempo it was held at
 //
-// Every one of those but the last counts something, and a count needs the window
+// Everything above the last two counts something, and a count needs the window
 // it was counted over, so a run that knows its own length says so on the end:
 //
 //   pair:A|D@30     twenty seconds short of the usual minute
@@ -38,6 +39,7 @@ import { DRILL_UNIT } from './drills';
 import { PAIR_PREFIX, parsePairKey } from './pairs';
 import { ASSUMED_WINDOW_SEC, WINDOW_SEP, baseKey, keyWindow, perMinute } from './drillWindow';
 import { patternName } from '../data/strumPatterns';
+import { getRung } from './noteFinder';
 
 export const CHORD_PREFIX = 'chord:';
 export const POOL_PREFIX = 'pool:';
@@ -45,6 +47,7 @@ export const RING_PREFIX = 'ring:';
 export const SWEEP_PREFIX = 'sweep:';
 export const TIMING_PREFIX = 'timing:';
 export const PATTERN_PREFIX = 'pattern:';
+export const FIND_PREFIX = 'find:';
 
 /**
  * What separates a pattern from the tempo it was held at.
@@ -210,6 +213,24 @@ export function parsePatternKey(key: string): { pattern: string; bpm: number } |
   return Number.isFinite(bpm) && bpm > 0 ? { pattern, bpm } : null;
 }
 
+/**
+ * One run of the note finder, named by the rung it was run on.
+ *
+ * The rung is the whole of what makes two runs comparable. Finding naturals on
+ * the two lowest strings in first position and finding accidentals anywhere
+ * below the twelfth fret are not the same exercise, and a count that mixed them
+ * would report the ladder moving as the player moving. Rung ids are stable for
+ * exactly this reason (src/lib/noteFinder.ts).
+ */
+export function findKey(rungId: string): string {
+  return `${FIND_PREFIX}${rungId}`;
+}
+
+export function parseFindKey(key: string): string | null {
+  if (!key.startsWith(FIND_PREFIX)) return null;
+  return baseKey(key).slice(FIND_PREFIX.length) || null;
+}
+
 /** The shapes a Chord Perfect block will drill, config first. */
 export function trainerPool(chords: readonly string[] | undefined): string[] {
   return chords?.length ? [...new Set(chords)] : [...DEFAULT_TRAINER_POOL];
@@ -221,7 +242,7 @@ export function rotationRing(chords: readonly string[] | undefined): string[] {
 }
 
 export type DrillKeyKind =
-  | 'pair' | 'chord' | 'pool' | 'ring' | 'sweep' | 'timing' | 'pattern' | 'retired';
+  | 'pair' | 'chord' | 'pool' | 'ring' | 'sweep' | 'timing' | 'pattern' | 'find' | 'retired';
 
 export interface DrillKeyDescription {
   kind: DrillKeyKind;
@@ -296,6 +317,18 @@ export function describeDrillKey(key: string): DrillKeyDescription {
       unit: DRILL_UNIT['strum-pattern'],
     };
   }
+  const rungId = parseFindKey(key);
+  if (rungId) {
+    // The rung's own label where the ladder still carries it, and the id itself
+    // where it does not. A rung retired from the ladder still has months of runs
+    // filed under it, and printing the raw id is a truer answer than inventing a
+    // name for something the app no longer defines.
+    return {
+      kind: 'find',
+      label: getRung(rungId)?.label ?? rungId,
+      unit: DRILL_UNIT['note-finder'],
+    };
+  }
   return RETIRED;
 }
 
@@ -311,7 +344,8 @@ export const isDrillKey = (key: string): boolean =>
     key.startsWith(RING_PREFIX) ||
     key.startsWith(SWEEP_PREFIX) ||
     key.startsWith(TIMING_PREFIX) ||
-    key.startsWith(PATTERN_PREFIX));
+    key.startsWith(PATTERN_PREFIX) ||
+    key.startsWith(FIND_PREFIX));
 
 /**
  * Whether the number under this key is a count of things done, rather than

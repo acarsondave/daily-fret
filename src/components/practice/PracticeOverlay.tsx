@@ -4,8 +4,9 @@ import { motion } from 'framer-motion';
 import { CloseIcon } from '../icons';
 import { useStore, getTodayString, drillLogsOf } from '../../store';
 import { pairKey } from '../../lib/pairs';
-import { chordKey, patternKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } from '../../lib/drillKeys';
+import { chordKey, findKey, patternKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } from '../../lib/drillKeys';
 import { deckOf, patternRuns } from '../../lib/patternDeck';
+import { finderHistory } from '../../lib/finderHistory';
 import { keyDrillHistory } from '../../lib/drillStats';
 import { trainerBlockSeconds } from '../../lib/drills';
 import { drillSeries, planTempo, fixedTempo, DEFAULT_PRACTICE_BPM, type TempoPlan } from '../../lib/tempo';
@@ -19,6 +20,7 @@ import { ChordTrainer } from './ChordTrainer';
 import { ChordRotation } from './ChordRotation';
 import { StrumTiming } from './StrumTiming';
 import { StrumPatterns } from './StrumPatterns';
+import { NoteFinder } from './NoteFinder';
 import { SongPlayer } from './SongPlayer';
 import { TimedSegment } from './TimedSegment';
 import { Metronome } from './Metronome';
@@ -34,6 +36,7 @@ interface Props {
 
 export function PracticeOverlay({ task, onClose }: Props) {
   const recordMeasurements = useStore((s) => s.recordMeasurements);
+  const recordNoteFinds = useStore((s) => s.recordNoteFinds);
   const recordTime = useStore((s) => s.recordTime);
   const settleTask = useStore((s) => s.settleTask);
   const setLastPair = useStore((s) => s.setLastPair);
@@ -86,6 +89,21 @@ export function PracticeOverlay({ task, onClose }: Props) {
     const at = drill.bpm ?? DEFAULT_PRACTICE_BPM;
     return Object.fromEntries(patternDeck.map((p) => [p, patternRuns(logs, p, at)]));
   }, [drill, patternDeck]);
+
+  // The neck as it stands, and every run behind each rung of the ladder.
+  // Snapshotted at mount, before this run is recorded, so neither the ladder nor
+  // the wear on the neck can move under the player mid-session.
+  const noteMap = useMemo(() => {
+    if (drill?.kind !== 'note-finder') return {};
+    const state = useStore.getState();
+    return state.accounts[state.currentAccountId]?.noteMap ?? {};
+  }, [drill]);
+  const finderRuns = useMemo(() => {
+    if (drill?.kind !== 'note-finder') return {};
+    const state = useStore.getState();
+    const acc = state.accounts[state.currentAccountId];
+    return finderHistory(acc ? drillLogsOf(acc) : {});
+  }, [drill]);
 
   // A changes drill can prescribe exact pairs (Justin's Module 3 set). When it
   // does, walk them in order here — the same experience as Coached mode — instead
@@ -150,6 +168,8 @@ export function PracticeOverlay({ task, onClose }: Props) {
       ? `timing-${drill.bpm ?? 'default'}`
       : drill.kind === 'strum-pattern'
       ? `pattern-${drill.bpm ?? 'default'}`
+      : drill.kind === 'note-finder'
+      ? `finder-${drill.rungId ?? 'auto'}`
       : drill.kind === 'one-minute-changes'
       ? explicitPairs.length
         ? `pair-${Math.min(pairIdx, explicitPairs.length - 1)}`
@@ -173,6 +193,12 @@ export function PracticeOverlay({ task, onClose }: Props) {
         drill.bpm,
         `Hold ${drill.bpm ?? DEFAULT_PRACTICE_BPM} in 4/4. One down strum on every click.`,
       );
+    }
+    // The note finder has no tempo of its own and does not want one: a click
+    // running under a question about where C is would be metronome practice
+    // happening at the same time as note practice, and neither would get done.
+    if (drill.kind === 'note-finder') {
+      return fixedTempo(undefined, 'No click. This one is a question, not a pace.');
     }
     // Patterns state their tempo too. The click has to run unbroken through the
     // whole block, which is the thing the drill is about.
@@ -314,7 +340,11 @@ export function PracticeOverlay({ task, onClose }: Props) {
           <Metronome
             plan={tempoPlan}
             planKey={tempoKey}
-            autoPlay={drill ? drillLive && drill.kind !== 'song' : true}
+            // Neither the play-along nor the note finder has a pace of its own:
+            // one runs to a record and the other is a question. The panel is
+            // still there for a player who wants a click; it just does not start
+            // one over them.
+            autoPlay={drill ? drillLive && drill.kind !== 'song' && drill.kind !== 'note-finder' : true}
           />
           <button className="practice-close" onClick={leave} title="Exit (Esc)" aria-label="Exit this drill">
             <CloseIcon size={20} />
@@ -471,6 +501,31 @@ export function PracticeOverlay({ task, onClose }: Props) {
               );
               settleTask(today, task.id);
             }}
+            onClose={leave}
+          />
+        )}
+        {drill?.kind === 'note-finder' && (
+          <NoteFinder
+            config={drill}
+            map={noteMap}
+            history={finderRuns}
+            onSessionStart={beginDrill}
+            onResult={(run) => {
+              // The count and the neck are written together: one run produced
+              // both, and a neck that filled in without a result behind it would
+              // be a record of practice the day cannot show.
+              measured([
+                {
+                  key: findKey(run.rungId),
+                  value: run.finds,
+                  durationSec: duration,
+                  findMs: run.findMs,
+                },
+              ]);
+              recordNoteFinds(run.found);
+              settleTask(today, task.id);
+            }}
+            onTimedRun={timedRun}
             onClose={leave}
           />
         )}

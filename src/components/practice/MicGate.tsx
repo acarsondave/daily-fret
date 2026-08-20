@@ -13,6 +13,7 @@
 // time spent, and nothing is written to drillResults because nothing was heard.
 // The gate says both halves of that before the player chooses.
 
+import type { ReactNode } from 'react';
 import { HourglassIcon, MicIcon, RetryIcon } from '../icons';
 import { CoachAdvance } from './CoachAdvance';
 
@@ -21,9 +22,19 @@ interface Props {
   error: string | null;
   onRetry: () => void;
   onTimer: () => void;
+  /**
+   * What the way out actually is, where it is not a bare clock.
+   *
+   * The note finder degrades to tapping the answer on a drawn neck, which is a
+   * real answer and a different one rather than the same drill running blind. It
+   * still counts nothing, but the button has to name what it does, so the label
+   * and the mark are the caller's where the caller has something truer to say.
+   */
+  timerLabel?: string;
+  timerIcon?: ReactNode;
 }
 
-export function MicGate({ error, onRetry, onTimer }: Props) {
+export function MicGate({ error, onRetry, onTimer, timerLabel, timerIcon }: Props) {
   return (
     <div className="mic-gate">
       <MicIcon size={40} color="var(--text-secondary)" />
@@ -38,7 +49,7 @@ export function MicGate({ error, onRetry, onTimer }: Props) {
           <RetryIcon size={18} /> Try again
         </button>
         <button className="practice-btn ghost" onClick={onTimer}>
-          <HourglassIcon size={18} /> Run it on a timer
+          {timerIcon ?? <HourglassIcon size={18} />} {timerLabel ?? 'Run it on a timer'}
         </button>
       </div>
     </div>

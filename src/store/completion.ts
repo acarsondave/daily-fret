@@ -93,6 +93,13 @@ export interface DrillMeasurement {
    * Absent on every drill that is not dealing patterns.
    */
   settledBar?: number | null;
+  /**
+   * Median milliseconds a find took on this run, carried beside the count for
+   * the same reason `settledBar` is: see DrillRun.findMs in src/types.
+   *
+   * Absent on every drill that is not finding notes.
+   */
+  findMs?: number | null;
 }
 
 /**
@@ -137,8 +144,9 @@ export function applyMeasurement(
       ? withWindow(result.key, result.durationSec)
       : result.key;
   const best = Math.max(log.drillResults?.[key] ?? 0, value);
-  const run: DrillRun =
-    result.settledBar === undefined ? { value, at } : { value, at, settledBar: result.settledBar };
+  const run: DrillRun = { value, at };
+  if (result.settledBar !== undefined) run.settledBar = result.settledBar;
+  if (result.findMs !== undefined) run.findMs = result.findMs;
   const runs = [...(log.drillRuns?.[key] ?? []), run].slice(-MAX_RUNS_PER_KEY);
   const measured: DailyLog = {
     ...log,

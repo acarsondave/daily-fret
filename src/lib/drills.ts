@@ -10,6 +10,7 @@ export const DRILL_UNIT: Record<DrillKind, string> = {
   'chord-trainer': 'placed',
   'strum-timing': '% in time',
   'strum-pattern': '% in time',
+  'note-finder': 'finds',
   song: '',
 };
 
@@ -19,6 +20,7 @@ export const DRILL_LABEL: Record<DrillKind, string> = {
   'chord-trainer': 'Chord Perfect',
   'strum-timing': 'Strum timing',
   'strum-pattern': 'Strum patterns',
+  'note-finder': 'Note finder',
   song: 'Song play-along',
 };
 

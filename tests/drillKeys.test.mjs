@@ -13,6 +13,8 @@ import {
   describeDrillKey,
   isDrillKey,
   mergeDrillKeyAliases,
+  findKey,
+  parseFindKey,
   parsePoolKey,
   parseRingKey,
   poolKey,
@@ -25,7 +27,10 @@ import {
 import { collectDrillStats, keyDrillHistory } from '../src/lib/drillStats.ts';
 import { drillSeries } from '../src/lib/tempo.ts';
 import { allStandings, readEvidence } from '../src/lib/progression.ts';
-import { ROTATION_BAR } from '../src/lib/readiness.ts';
+import { FIND_BAR, ROTATION_BAR } from '../src/lib/readiness.ts';
+import { finderHistory, rungRuns } from '../src/lib/finderHistory.ts';
+import { RUNGS, currentRung } from '../src/lib/noteFinder.ts';
+import { withWindow } from '../src/lib/drillWindow.ts';
 import { runsFor } from '../src/store/completion.ts';
 import { pairKey } from '../src/lib/pairs.ts';
 
@@ -284,6 +289,75 @@ console.log('\nTuning stops claiming to be measured\n');
   check('and it says what is actually missing',
     tuning.evidence.startsWith('Not measured yet.'), tuning.evidence);
   check('nothing is gated on it', tuning.blockedBy.length === 0);
+}
+
+console.log('\nThe note finder is keyed by the rung it ran\n');
+{
+  const rung = RUNGS[0].id;
+  check('a find key names the rung', findKey(rung) === `find:${rung}`);
+  check('and reads back off a windowed key', parseFindKey(withWindow(findKey(rung), 90)) === rung);
+  check('it is a drill key', isDrillKey(withWindow(findKey(rung), 60)));
+  check('and it counts something, so a window divides out',
+    describeDrillKey(findKey(rung)).kind === 'find');
+  check('it is labelled with the rung the player would recognise',
+    describeDrillKey(findKey(rung)).label === RUNGS[0].label);
+  // A rung retired from the ladder still has months of runs filed under it.
+  check('a rung the ladder no longer defines still names itself',
+    describeDrillKey('find:gone-away').label === 'gone-away');
+
+  // Two windows of one rung are one series, which is the whole reason the
+  // window lives on the key rather than beside the value.
+  const runs = (value, seconds, findMs) => ({ value, findMs, at: 1 });
+  const logs = Object.fromEntries([
+    day('2026-08-01', { [withWindow(findKey(rung), 60)]: 9 }, {
+      drillRuns: { [withWindow(findKey(rung), 60)]: [runs(9, 60, 4000)] },
+    }),
+    day('2026-08-02', { [withWindow(findKey(rung), 30)]: 5 }, {
+      drillRuns: { [withWindow(findKey(rung), 30)]: [runs(5, 30, 3800)] },
+    }),
+  ]);
+  const series = rungRuns(logs, rung);
+  check('both windows fold onto the one rung', series.length === 2, String(series.length));
+  check('and the shorter one is read as the rate it was',
+    Math.round(series[1].findsPerMin) === 10, String(series[1].findsPerMin));
+  check('the find time comes back with it', series[0].medianMs === 4000);
+  check('the whole ladder reads in one go',
+    Object.keys(finderHistory(logs)).length === RUNGS.length);
+  check('two runs is not three, so the rung is not cleared',
+    currentRung(finderHistory(logs)).id === rung);
+}
+
+console.log('\nNote names are measured, and only by the finder\n');
+{
+  const rung = RUNGS[0].id;
+  const blank = allStandings({}, '2026-08-05').find((s) => s.skill.id === 'theory.note-names');
+  check('the taxonomy now says the app can hear it',
+    blank.skill.measure.kind === 'measured', blank.skill.measure.kind);
+  check('and names the drill', blank.skill.measure.drill === 'note-finder');
+  check('the metric refuses to claim the string',
+    /string/i.test(blank.skill.measure.metric) && /cannot|not something/i.test(blank.skill.measure.metric),
+    blank.skill.measure.metric);
+  check('with nothing run it has a bar and no reading', blank.bar === FIND_BAR && blank.best === null);
+
+  // The defect this pins: without its own branch, a measured skill falls
+  // through to the chord-change reading, so a good minute of A to D would have
+  // reported the note names as solid.
+  const changesOnly = Object.fromEntries([
+    day('2026-08-01', { [pairKey('A', 'D')]: 60 }),
+    day('2026-08-02', { [pairKey('A', 'D')]: 60 }),
+    day('2026-08-03', { [pairKey('A', 'D')]: 60 }),
+  ]);
+  const fromChanges = allStandings(changesOnly, '2026-08-05')
+    .find((s) => s.skill.id === 'theory.note-names');
+  check('chord changes say nothing about note names', fromChanges.best === null, String(fromChanges.best));
+
+  const found = Object.fromEntries(
+    ['2026-08-01', '2026-08-02', '2026-08-03'].map((date) =>
+      day(date, { [withWindow(findKey(rung), 60)]: FIND_BAR + 4 })),
+  );
+  const solid = allStandings(found, '2026-08-05').find((s) => s.skill.id === 'theory.note-names');
+  check('three runs at the bar do', solid.state === 'solid', solid.evidence);
+  check('and it reads the finder', /note finder/i.test(solid.evidence), solid.evidence);
 }
 
 console.log(failures ? `\n${failures} FAILED\n` : '\nALL PASS\n');

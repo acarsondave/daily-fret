@@ -3,6 +3,7 @@ import { ALL_SKILLS, getSkill, prerequisitesOf, capabilitySummary, skillsForChor
 import { getLessonByCode, CURRICULUM }
   from '../src/data/curriculum.ts';
 import { getChordShape } from '../src/data/chordShapes.ts';
+import { DRILL_UNIT } from '../src/lib/drills.ts';
 
 let failures = 0;
 const check = (l, ok, d) => { if (!ok) failures++; console.log(`  ${ok?'ok  ':'FAIL'}  ${l}${d?' — '+d:''}`); };
@@ -39,7 +40,10 @@ for (const s of ALL_SKILLS) {
   if (!ok) check(`${s.id} measure is complete`, false, JSON.stringify(m));
 }
 check('every measure carries its required fields', true);
-const DRILLS = ['one-minute-changes','chord-trainer','song','chord-rotation','strum-timing','strum-pattern','tuner'];
+// Asked of the code rather than written out here. The hand-kept copy of this
+// list went stale the moment a drill was added and then failed on the next one,
+// which is a test reporting its own age as a defect in the taxonomy.
+const DRILLS = [...Object.keys(DRILL_UNIT), 'tuner'];
 const badDrill = ALL_SKILLS.filter(s => s.measure.kind==='measured' && !DRILLS.includes(s.measure.drill));
 check('every measured skill names a drill kind that exists', badDrill.length===0,
   badDrill.map(s=>`${s.id}:${s.measure.drill}`).join(' '));

@@ -11,7 +11,7 @@ import {
 } from '../icons';
 import { useStore, getTodayString, drillLogsOf, type CoachStepResult } from '../../store';
 import { pairKey } from '../../lib/pairs';
-import { chordKey, patternKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } from '../../lib/drillKeys';
+import { chordKey, findKey, patternKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } from '../../lib/drillKeys';
 import { deckOf, patternRuns } from '../../lib/patternDeck';
 import { buildSegments, isResumable, restIsSpoken, restSecondsAfter } from '../../lib/coached';
 import { keyDrillHistory } from '../../lib/drillStats';
@@ -32,6 +32,8 @@ import { ChordTrainer } from './ChordTrainer';
 import { ChordRotation } from './ChordRotation';
 import { StrumTiming } from './StrumTiming';
 import { StrumPatterns } from './StrumPatterns';
+import { NoteFinder } from './NoteFinder';
+import { finderHistory } from '../../lib/finderHistory';
 import { SongPlayer } from './SongPlayer';
 import { TimedSegment } from './TimedSegment';
 import { MicPermissionHint } from './MicPermissionHint';
@@ -104,6 +106,7 @@ export function CoachedSession({ routine, onClose }: Props) {
   const setLastPair = useStore((s) => s.setLastPair);
   const saveCoachProgress = useStore((s) => s.saveCoachProgress);
   const clearCoachProgress = useStore((s) => s.clearCoachProgress);
+  const recordNoteFinds = useStore((s) => s.recordNoteFinds);
 
   const songs = useSongs();
   const segments = useMemo(() => buildSegments(routine), [routine]);
@@ -118,7 +121,8 @@ export function CoachedSession({ routine, onClose }: Props) {
           s.kind === 'trainer' ||
           s.kind === 'rotation' ||
           s.kind === 'timing' ||
-          s.kind === 'patterns',
+          s.kind === 'patterns' ||
+          s.kind === 'finder',
       ),
     [segments],
   );
@@ -223,6 +227,23 @@ export function CoachedSession({ routine, onClose }: Props) {
     return Object.fromEntries(patternDeck.map((p) => [p, patternRuns(logs, p, at)]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, patternDeck]);
+  // The neck as it stands, and every run behind each rung. Snapshotted when the
+  // segment opens, before this run is recorded, so neither the ladder nor the
+  // wear on the neck can move under the player mid-block.
+  const noteMap = useMemo(() => {
+    if (seg?.kind !== 'finder') return {};
+    const state = useStore.getState();
+    return state.accounts[state.currentAccountId]?.noteMap ?? {};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
+  const finderRuns = useMemo(() => {
+    if (seg?.kind !== 'finder') return {};
+    const state = useStore.getState();
+    const acc = state.accounts[state.currentAccountId];
+    return finderHistory(acc ? drillLogsOf(acc) : {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
+
   const rotationBest = useMemo(() => {
     if (!ring) return 0;
     const state = useStore.getState();
@@ -270,6 +291,13 @@ export function CoachedSession({ routine, onClose }: Props) {
         seg.bpm,
         `Hold ${seg.bpm ?? DEFAULT_PRACTICE_BPM} in 4/4. The arm keeps moving through every slot.`,
       );
+    }
+    // The note finder has no tempo of its own and does not want one: a click
+    // running under a question about where C is would be metronome practice
+    // happening at the same time as note practice, and neither would get done.
+    // The panel is still loaded so the player can start one by hand.
+    if (seg.kind === 'finder') {
+      return fixedTempo(undefined, 'No click. This one is a question, not a pace.');
     }
     // Songs are played to the record, not to a click. The tempo is still loaded
     // so one tap gives the right click if the player wants it while learning.
@@ -478,7 +506,13 @@ export function CoachedSession({ routine, onClose }: Props) {
       seg.kind === 'timed' ||
       seg.kind === 'song' ||
       seg.kind === 'timing' ||
-      seg.kind === 'patterns'
+      seg.kind === 'patterns' ||
+      // The note finder is in this list for the reason timing is: it listens,
+      // but through its own monophonic pitch capture rather than a chromagram.
+      // Two input audio sessions at once is the thing Safari is least forgiving
+      // about, and a chord matcher would be running over a drill that never asks
+      // it anything.
+      seg.kind === 'finder'
     ) {
       void detector.stop();
     }
@@ -696,7 +730,9 @@ export function CoachedSession({ routine, onClose }: Props) {
               ? 'One down strum on every click'
               : seg.kind === 'patterns'
                 ? 'Patterns dealt against a click that never stops'
-                : blockLength(seg.seconds);
+                : seg.kind === 'finder'
+                  ? 'One named note at a time, found and played'
+                  : blockLength(seg.seconds);
 
   return createPortal(
     <motion.div
@@ -726,7 +762,7 @@ export function CoachedSession({ routine, onClose }: Props) {
             // Only while the drill is actually running: a click under the coach's
             // announcement or through a rest is noise, and over a recording it
             // fights the track.
-            autoPlay={phase === 'segment' && seg.kind !== 'song'}
+            autoPlay={phase === 'segment' && seg.kind !== 'song' && seg.kind !== 'finder'}
           />
           {/* The muted state changes the mark, not just its opacity: a dimmed
               icon is indistinguishable from a disabled one at practice distance. */}
@@ -982,6 +1018,44 @@ export function CoachedSession({ routine, onClose }: Props) {
               });
               void speak('done');
             }}
+            onNext={advance}
+            onAgain={runAgain}
+            onSkip={skipSegment}
+            onClose={exit}
+          />
+        )}
+
+        {phase === 'segment' && seg.kind === 'finder' && (
+          <NoteFinder
+            key={`seg-${index}-${take}`}
+            config={{ kind: 'note-finder', durationSec: seg.seconds, rungId: seg.rungId }}
+            map={noteMap}
+            history={finderRuns}
+            autoStart
+            autoAdvance
+            nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
+            onResult={(run) => {
+              // The count and the neck are written together and only when the
+              // run is committed: an Again that replaces this attempt must not
+              // leave the neck holding finds from the take it discarded.
+              propose({
+                commit: () => {
+                  recordMeasurements(today, seg.taskId, [
+                    {
+                      key: findKey(run.rungId),
+                      value: run.finds,
+                      durationSec: seg.seconds,
+                      findMs: run.findMs,
+                    },
+                  ]);
+                  recordNoteFinds(run.found);
+                },
+                row: { title: seg.title, value: run.finds, unit: 'finds', done: run.finds > 0 },
+                value: run.finds,
+              });
+              void speak('done');
+            }}
+            onTimedRun={(outcome) => propose(timedProposal(seg.taskId, seg.title, outcome))}
             onNext={advance}
             onAgain={runAgain}
             onSkip={skipSegment}

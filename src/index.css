@@ -61,6 +61,17 @@
   --ambient-lamp: 255 214 170;
   --ambient-air: 154 176 206;
 
+  /* Wear on a fretboard, which is how the app draws what the note finder has
+     asked about and heard back. Warm rather than accented on purpose: the accent
+     is reserved for the one thing that is live right now, and this is a record of
+     months. Two steps only, because there are only two things to say — this
+     position has been answered, and it is now answered quickly. A position
+     nothing has ever been asked about gets no token at all, because the honest
+     mark for it is none. */
+  --fret-found: rgb(255 214 170 / 0.13);
+  --fret-quick: rgb(255 214 170 / 0.3);
+  --fret-wood: rgb(44 34 27 / 0.62);
+
   /* Hairlines. Three steps is all this interface needs: a divider you barely
      see, a card edge, and an edge that is deliberately noticed. */
   --border-subtle: rgba(255, 255, 255, 0.06);
