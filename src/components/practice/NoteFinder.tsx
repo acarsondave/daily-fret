@@ -91,28 +91,18 @@ const stringLabel = (position: number): string => {
 };
 
 /**
- * The course lesson the taught rung is, in the course's own words.
- *
- * Taken from the skill's list of the lessons that cover note names rather than
- * from a table written here, so there is one record of which lesson covers what.
- * The last of them is the one that teaches where a note is rather than what
- * notes are, which is exactly what the first rung asks for.
+ * What the course calls a lesson.
  *
  * Fetched rather than imported. The curriculum is a quarter of a megabyte of
  * every lesson in the course, and no drill screen was pulling it in until this
  * line of text wanted one title off it; importing it here put that download in
  * front of opening any practice drill at all. It is loaded on the one rung that
- * names a lesson, while the setup screen is already on the screen, and the line
- * appears when it arrives.
+ * names a lesson, while the setup screen is already up, and the line appears
+ * when it arrives.
  */
-async function taughtLessonTitle(): Promise<string | null> {
-  const [{ getSkill }, { getLessonByCode }] = await Promise.all([
-    import('../../data/skills'),
-    import('../../data/curriculum'),
-  ]);
-  const lessons = getSkill('theory.note-names')?.lessons;
-  if (!lessons || lessons.length === 0) return null;
-  return getLessonByCode(lessons[lessons.length - 1])?.title ?? null;
+async function lessonTitle(code: string): Promise<string | null> {
+  const { getLessonByCode } = await import('../../data/curriculum');
+  return getLessonByCode(code)?.title ?? null;
 }
 
 type View = 'setup' | 'playing' | 'results';
@@ -863,17 +853,20 @@ function RungLadder({
   const at = rungNumber(current.id);
   const height = LADDER_TOP * 2 + (RUNGS.length - 1) * LADDER_STEP;
 
+  // The lesson's own name, on the one rung that is that lesson. Every rung above
+  // rests on it and goes far past it, and is left unattributed.
   const [lesson, setLesson] = useState<string | null>(null);
+  const names = current.isLesson === true ? current.taughtBy : null;
   useEffect(() => {
-    if (current.taught !== true) return;
+    if (names === null) return;
     let live = true;
-    void taughtLessonTitle().then((title) => {
+    void lessonTitle(names).then((title) => {
       if (live) setLesson(title);
     });
     return () => {
       live = false;
     };
-  }, [current.taught]);
+  }, [names]);
 
   return (
     <div className="nf-ladder">

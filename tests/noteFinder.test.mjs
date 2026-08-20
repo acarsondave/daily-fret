@@ -46,6 +46,8 @@ import {
 } from '../src/lib/noteFinder.ts';
 import { midiToName } from '../src/audio/tuning.ts';
 import { pitchClass } from '../src/lib/noteCircle.ts';
+import { getSkill } from '../src/data/skills.ts';
+import { getLessonByCode } from '../src/data/curriculum.ts';
 
 let failures = 0;
 const check = (label, ok, detail) => {
@@ -149,8 +151,28 @@ check('rung ids are unique', new Set(RUNGS.map((r) => r.id)).size === RUNGS.leng
 check('it starts on the open strings', RUNGS[0].notes === OPEN_STRING_NOTES);
 check('and that rung asks for nothing but them',
   rungPositions(RUNGS[0]).every((p) => p.fret === 0) && rungPositions(RUNGS[0]).length === 6);
-check('it is the one rung the course itself teaches',
-  RUNGS.filter((r) => r.taught === true).length === 1 && RUNGS[0].taught === true);
+check('it is the one rung that is a course lesson rather than resting on one',
+  RUNGS.filter((r) => r.isLesson === true).length === 1 && RUNGS[0].isLesson === true);
+
+// The gate the drill hands outwards, and the thing that makes the sequencing
+// failure structurally impossible rather than a convention. Checked against the
+// skill so this file cannot grow a second, private opinion about what teaches
+// what, and against the curriculum so it cannot name a lesson that is not there.
+const noteNames = getSkill('theory.note-names');
+check('every rung says which lesson has to have been reached first',
+  RUNGS.every((r) => typeof r.taughtBy === 'string' && r.taughtBy.length > 0));
+check('and it is one the skill already records as covering note names',
+  RUNGS.every((r) => noteNames.lessons.includes(r.taughtBy)),
+  RUNGS.map((r) => r.taughtBy).join(' '));
+check('and it is a lesson the course actually has',
+  RUNGS.every((r) => getLessonByCode(r.taughtBy) !== null));
+check('the rung that is the lesson is the one about where a note lives',
+  /open string/i.test(getLessonByCode(RUNGS[0].taughtBy).title),
+  getLessonByCode(RUNGS[0].taughtBy).title);
+// Not the lesson that says what notes are: that one teaches the system and not
+// one position on the neck, so nothing here may be asked off the back of it.
+check('and not the earlier one that only names the system',
+  RUNGS[0].taughtBy !== noteNames.lessons[0]);
 check('and the second rung is one string of naturals',
   RUNGS[1].strings.length === 1 && RUNGS[1].notes === NATURALS);
 check('and ends past them', RUNGS[RUNGS.length - 1].notes === ALL_NOTES);

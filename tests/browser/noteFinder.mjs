@@ -64,8 +64,12 @@ const CALLABLE = [...new Set(SPOTS.map((p) => p.midi))].sort((a, b) => a - b);
 // frets a player might reach for.
 const MIXED = getRung('low-naturals');
 const MIXED_SPOTS = rungPositions(MIXED);
-const NOTE_SEC = 1.7;
-const GAP_SEC = 0.6;
+// One cycle of every answer has to come round inside a rung's own budget, or the
+// drill lights the answer before the take reaches it and a recall the test is
+// waiting for arrives as a placement instead. Six answers at this length is
+// eight seconds against the shortest budget of nine.
+const NOTE_SEC = 1.0;
+const GAP_SEC = 0.35;
 
 function cycle(midis, seconds) {
   const parts = [silence(0.4)];
@@ -101,7 +105,7 @@ take('octave-away', MIXED_SPOTS.map((p) => p.midi + 12), 110);
 
 const RUN_SECONDS = 45;
 
-const account = ({ rungId, ...extra } = {}) => ({
+const account = ({ rungId, seconds = RUN_SECONDS, ...extra } = {}) => ({
   activeRoutineId: 'r1',
   currentLesson: 'b1-504',
   routines: [{
@@ -110,7 +114,7 @@ const account = ({ rungId, ...extra } = {}) => ({
       id: 't1',
       title: 'Note finder',
       duration: '2 mins',
-      drill: { kind: 'note-finder', durationSec: RUN_SECONDS, ...(rungId ? { rungId } : {}) },
+      drill: { kind: 'note-finder', durationSec: seconds, ...(rungId ? { rungId } : {}) },
     }],
   }],
   dailyLogs: {}, strumPatterns: [], songLinks: [], updatedAt: 1,
@@ -339,9 +343,12 @@ const start = async (page) => {
 
 {
   console.log('\nonce a position has been recalled it is asked with nothing drawn\n');
+  // Longer than the other blocks: this one waits for a third recall, and a run
+  // that ends before the count gets there says nothing either way.
+  const LONG = 75;
   const { browser, page, errors } = await open({
     wav: 'every-answer.wav',
-    seed: account({ noteMap: recalledNeck() }),
+    seed: account({ seconds: LONG, noteMap: recalledNeck() }),
   });
   await start(page);
   check('the answer is not on the neck while it is still being asked',
@@ -358,12 +365,12 @@ const start = async (page) => {
   await page.waitForFunction(
     () => Number(document.querySelector('.nf-read .om-count')?.textContent ?? 0) >= 3,
     null,
-    { timeout: 45000 },
+    { timeout: LONG * 1000 },
   );
   const counted = await recalled(page);
   check('and it keeps counting', counted >= 3, String(counted));
 
-  await page.waitForSelector('.nf-results', { timeout: RUN_SECONDS * 1000 + 20000 });
+  await page.waitForSelector('.nf-results', { timeout: LONG * 1000 + 20000 });
   const card = await page.locator('.nf-results .om-ring-value').innerText();
   check('the card reports what was recalled', Number(card) >= 3, card);
   check('and says what the microphone did not settle',

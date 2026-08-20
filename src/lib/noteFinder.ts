@@ -115,17 +115,38 @@ export interface FinderRung {
   /** A find inside this is what the rung is asking for. */
   budgetMs: number;
   /**
-   * True on the one rung a course lesson actually teaches.
+   * The course lesson this rung's question needs, and cannot be asked before.
    *
-   * Which lesson is deliberately not written here. src/data/skills.ts is where
-   * this app records which lessons cover a thing, and the drill reads it from
-   * there; a second copy of that fact would be a second thing to keep true.
-   * Every rung without this flag is this product's own ladder and is presented
-   * as such, because the app does not assert a fit with a course that has not
-   * asked for the thing yet.
+   * Every rung on this ladder needs the note names, so every rung rests on the
+   * lesson that delivers them, and none of them is askable until a player has
+   * reached it. That is the whole of the sequencing failure this drill shipped
+   * with, stated as data so a gate outside the drill can act on it rather than a
+   * convention nobody can enforce.
+   *
+   * Checked against src/data/skills.ts by a test: this must be one of the
+   * lessons that skill already records as covering note names, so the code here
+   * cannot drift into a second, private opinion about what teaches what.
    */
-  taught?: boolean;
+  taughtBy: string;
+  /**
+   * True where the rung asks for exactly what that lesson teaches and no more.
+   *
+   * The six open strings by name is what `open-string-note-names` teaches and
+   * all it teaches, so that rung may put the lesson's name to itself. Every rung
+   * above it rests on the same lesson and goes a long way past it, and says so
+   * by saying nothing: the app does not claim a fit with a course that has not
+   * asked for the thing.
+   */
+  isLesson?: boolean;
 }
+
+/**
+ * The lesson every rung rests on: where a note lives, rather than what notes are.
+ *
+ * The last of the lessons src/data/skills.ts records against note names, which
+ * is the one that first makes any of this askable.
+ */
+const NOTE_NAMES_LESSON = 'b1-605';
 
 /**
  * The ladder, lowest first.
@@ -164,7 +185,8 @@ export const RUNGS: readonly FinderRung[] = [
     minFret: 0,
     maxFret: 0,
     budgetMs: 10000,
-    taught: true,
+    taughtBy: NOTE_NAMES_LESSON,
+    isLesson: true,
   },
   {
     // One string, and the one whose notes a player uses first: the low E carries
@@ -179,6 +201,7 @@ export const RUNGS: readonly FinderRung[] = [
     minFret: 0,
     maxFret: 5,
     budgetMs: 9000,
+    taughtBy: NOTE_NAMES_LESSON,
   },
   {
     id: 'low-naturals',
@@ -189,6 +212,7 @@ export const RUNGS: readonly FinderRung[] = [
     minFret: 0,
     maxFret: 3,
     budgetMs: 9000,
+    taughtBy: NOTE_NAMES_LESSON,
   },
   {
     id: 'open-naturals',
@@ -199,6 +223,7 @@ export const RUNGS: readonly FinderRung[] = [
     minFret: 0,
     maxFret: 3,
     budgetMs: 8000,
+    taughtBy: NOTE_NAMES_LESSON,
   },
   {
     id: 'naturals-five',
@@ -209,6 +234,7 @@ export const RUNGS: readonly FinderRung[] = [
     minFret: 0,
     maxFret: 5,
     budgetMs: 7000,
+    taughtBy: NOTE_NAMES_LESSON,
   },
   {
     id: 'accidentals-five',
@@ -219,6 +245,7 @@ export const RUNGS: readonly FinderRung[] = [
     minFret: 0,
     maxFret: 5,
     budgetMs: 7000,
+    taughtBy: NOTE_NAMES_LESSON,
   },
   {
     id: 'naturals-high',
@@ -229,6 +256,7 @@ export const RUNGS: readonly FinderRung[] = [
     minFret: 5,
     maxFret: TOP_FRET,
     budgetMs: 6000,
+    taughtBy: NOTE_NAMES_LESSON,
   },
   {
     id: 'whole-neck',
@@ -239,6 +267,7 @@ export const RUNGS: readonly FinderRung[] = [
     minFret: 0,
     maxFret: TOP_FRET,
     budgetMs: 6000,
+    taughtBy: NOTE_NAMES_LESSON,
   },
   {
     id: 'any-string',
@@ -249,6 +278,7 @@ export const RUNGS: readonly FinderRung[] = [
     minFret: 0,
     maxFret: TOP_FRET,
     budgetMs: 5000,
+    taughtBy: NOTE_NAMES_LESSON,
   },
   {
     id: 'octaves',
@@ -259,6 +289,7 @@ export const RUNGS: readonly FinderRung[] = [
     minFret: 0,
     maxFret: TOP_FRET,
     budgetMs: 7000,
+    taughtBy: NOTE_NAMES_LESSON,
   },
 ];
 
