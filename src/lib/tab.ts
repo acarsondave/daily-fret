@@ -191,7 +191,6 @@ export interface TabScore {
   bars: TabBar[];
   beats: TabBeat[];
   /** Quarter notes the count row spans, or 0 when there is no count row. */
-  countQuarters: number;
 }
 
 const DIGITS = /\d/;
@@ -300,18 +299,18 @@ function readBars(lines: readonly TabLine[], columns: number): TabBar[] {
 // "12" rather than as five separate beats.
 const COUNT_TOKEN = /\d+|[+&eaEA.·]/g;
 
-function readBeats(timing: string | undefined): { beats: TabBeat[]; quarters: number } {
-  if (timing === undefined) return { beats: [], quarters: 0 };
+function readBeats(timing: string | undefined): TabBeat[] {
+  if (timing === undefined) return [];
 
   const raw = [...timing.matchAll(COUNT_TOKEN)].map((m) => ({ column: m.index, label: m[0] }));
-  if (!raw.length) return { beats: [], quarters: 0 };
+  if (!raw.length) return [];
 
   const primaries: number[] = [];
   raw.forEach((token, i) => {
     if (/^\d+$/.test(token.label)) primaries.push(i);
   });
   // A row of subdivisions with no numbered beat in it is not a count.
-  if (!primaries.length) return { beats: [], quarters: 0 };
+  if (!primaries.length) return [];
 
   const beats: TabBeat[] = raw.map((token, i) => {
     // The last numbered beat at or before this token, or a virtual one just off
@@ -331,7 +330,7 @@ function readBeats(timing: string | undefined): { beats: TabBeat[]; quarters: nu
     };
   });
 
-  return { beats, quarters: primaries.length };
+  return beats;
 }
 
 /**
@@ -344,7 +343,7 @@ function readBeats(timing: string | undefined): { beats: TabBeat[]; quarters: nu
 export function readScore(block: TabBlock): TabScore {
   const columns = block.lines.reduce((max, l) => Math.max(max, l.content.length), 0);
   const { notes, joins } = readNotes(block.lines);
-  const { beats, quarters } = readBeats(block.timing);
+  const beats = readBeats(block.timing);
   return {
     caption: block.caption,
     labels: block.lines.map((l) => l.label),
@@ -353,7 +352,6 @@ export function readScore(block: TabBlock): TabScore {
     joins,
     bars: readBars(block.lines, columns),
     beats,
-    countQuarters: quarters,
   };
 }
 
@@ -371,244 +369,6 @@ export function readScore(block: TabBlock): TabScore {
  * a riff with neither gets no timeline and no playhead at all, because a marker
  * sweeping to a rhythm nobody wrote is the app inventing music.
  */
-export type TabPrecision = 'beat' | 'bar';
-
-export interface TabBarSpan {
-  /** First and last-plus-one grid column of the bar's contents. */
-  from: number;
-  to: number;
-  fromQuarter: number;
-  toQuarter: number;
-}
-
-export interface TabTimeline {
-  precision: TabPrecision;
-  beatsPerBar: number;
-  /** Written length, in quarter notes. */
-  quarters: number;
-  /** Where a close repeat sends the player back to, in quarters. */
-  loopFrom: number;
-  /** The quarter a close repeat sits on, which is where the loop turns. */
-  loopTo: number;
-  bars: TabBarSpan[];
-  /** Ascending (quarter, column) pairs. Everything between them is linear. */
-  anchors: { quarter: number; column: number }[];
-}
-
-/**
- * Read the riff's own clock.
- *
- * Null when the riff never says where a beat is: no count row and no interior
- * barline. The caller draws a still staff in that case, which is the whole of
- * what the source supports.
- *
- * `fallbackBeatsPerBar` is used only when there are bars but no count row to
- * measure one against. It is the click's own cycle, so the marker and the sound
- * agree about how long a bar is.
- */
-export function readTimeline(score: TabScore, fallbackBeatsPerBar: number): TabTimeline | null {
-  const rules = score.bars;
-  const spans: { from: number; to: number }[] = [];
-  for (let i = 0; i + 1 < rules.length; i++) {
-    const from = rules[i].column + rules[i].width;
-    const to = rules[i + 1].column;
-    if (to > from) spans.push({ from, to });
-  }
-
-  const hasBeats = score.beats.length > 0;
-  if (!spans.length && !hasBeats) return null;
-
-  // A bar's length comes from the count written inside the first one. Only that
-  // bar can be measured directly; every later bar is the same length by
-  // definition, which is what a barline means.
-  const first = spans[0];
-  const inFirst = first
-    ? score.beats.filter((b) => b.primary && b.column >= first.from && b.column < first.to).length
-    : 0;
-  const beatsPerBar = inFirst > 0
-    ? inFirst
-    : spans.length
-      ? Math.max(1, Math.round(fallbackBeatsPerBar))
-      : Math.max(1, score.countQuarters);
-
-  const bars: TabBarSpan[] = spans.map((span, i) => ({
-    ...span,
-    fromQuarter: i * beatsPerBar,
-    toQuarter: (i + 1) * beatsPerBar,
-  }));
-
-  const quarters = bars.length ? bars.length * beatsPerBar : score.countQuarters;
-  if (!(quarters > 0)) return null;
-
-  // Every column the source pins to a moment in time. Bar edges are always
-  // known; count-row beats pin the columns inside a bar, wherever they were
-  // written. Anything not pinned is filled in linearly, which is how tab is
-  // spaced in the first place.
-  //
-  // Count beats go in first and the sort is stable, so where a beat and a
-  // barline claim the same moment the beat wins. It has to: a bar's left edge is
-  // the rule itself, and beat one sits a column or two past it where the first
-  // fret was actually written.
-  const anchors: { quarter: number; column: number }[] = [];
-  for (const beat of score.beats) {
-    if (beat.quarter < 0 || beat.quarter > quarters) continue;
-    anchors.push({ quarter: beat.quarter, column: beat.column });
-  }
-  if (bars.length) {
-    anchors.push({ quarter: 0, column: bars[0].from });
-    for (const bar of bars) anchors.push({ quarter: bar.toQuarter, column: bar.to });
-  }
-  anchors.sort((a, b) => a.quarter - b.quarter);
-
-  // Two anchors can disagree: a count character sitting a column left of the
-  // barline it belongs to would send the marker backwards. Keep the first of
-  // each quarter and drop anything that would not advance.
-  const clean: { quarter: number; column: number }[] = [];
-  for (const anchor of anchors) {
-    const last = clean[clean.length - 1];
-    if (!last) {
-      clean.push(anchor);
-      continue;
-    }
-    if (anchor.quarter === last.quarter) continue;
-    if (anchor.column < last.column) continue;
-    clean.push(anchor);
-  }
-  // The riff runs to its own right-hand edge even when the last thing pinned to
-  // a moment sits short of it, which is what a count row with no closing barline
-  // under it leaves behind.
-  const furthest = clean[clean.length - 1];
-  if (furthest && furthest.quarter < quarters && furthest.column < score.columns) {
-    clean.push({ quarter: quarters, column: score.columns });
-  }
-  if (clean.length < 2) {
-    clean.length = 0;
-    clean.push({ quarter: 0, column: 0 }, { quarter: quarters, column: score.columns });
-  }
-
-  // Where the repeat sends the player. `|:` opens the loop, `:|` turns it. With
-  // no repeat written, the whole riff is the loop, which is what practising one
-  // for two minutes means anyway.
-  //
-  // Read off the bars rather than off the column, so the turn lands exactly on a
-  // barline. Interpolating a rule's own column against the anchors puts it a
-  // fraction of a beat out, and a repeat that returns on the "and" of four is a
-  // repeat nobody can play to.
-  const closeIndex = rules.findIndex((r) => r.repeatEnd);
-  const openIndex = closeIndex >= 0 ? lastIndexBefore(rules, closeIndex, (r) => r.repeatStart) : -1;
-  const closingBar = closeIndex >= 0 ? bars.find((b) => b.to === rules[closeIndex].column) : undefined;
-  const openingBar = openIndex >= 0
-    ? bars.find((b) => b.from === rules[openIndex].column + rules[openIndex].width)
-    : undefined;
-  const loopTo = closingBar
-    ? closingBar.toQuarter
-    : closeIndex >= 0
-      ? quarterAtColumn(clean, rules[closeIndex].column, quarters)
-      : quarters;
-  const loopFrom = openingBar
-    ? openingBar.fromQuarter
-    : openIndex >= 0
-      ? quarterAtColumn(clean, rules[openIndex].column + rules[openIndex].width, quarters)
-      : 0;
-
-  return {
-    precision: hasBeats ? 'beat' : 'bar',
-    beatsPerBar,
-    quarters,
-    loopFrom: loopTo > loopFrom ? loopFrom : 0,
-    loopTo: loopTo > loopFrom ? loopTo : quarters,
-    bars,
-    anchors: clean,
-  };
-}
-
-function lastIndexBefore<T>(items: readonly T[], before: number, match: (item: T) => boolean): number {
-  for (let i = before - 1; i >= 0; i--) if (match(items[i])) return i;
-  return -1;
-}
-
-function quarterAtColumn(
-  anchors: readonly { quarter: number; column: number }[],
-  column: number,
-  quarters: number,
-): number {
-  if (column <= anchors[0].column) return anchors[0].quarter;
-  for (let i = 0; i + 1 < anchors.length; i++) {
-    const a = anchors[i];
-    const b = anchors[i + 1];
-    if (column > b.column) continue;
-    const span = b.column - a.column;
-    if (span <= 0) return b.quarter;
-    return a.quarter + ((column - a.column) / span) * (b.quarter - a.quarter);
-  }
-  return quarters;
-}
-
-/** Grid column the riff has reached at `quarter`. */
-export function columnAt(timeline: TabTimeline, quarter: number): number {
-  const anchors = timeline.anchors;
-  if (quarter <= anchors[0].quarter) return anchors[0].column;
-  for (let i = 0; i + 1 < anchors.length; i++) {
-    const a = anchors[i];
-    const b = anchors[i + 1];
-    if (quarter > b.quarter) continue;
-    const span = b.quarter - a.quarter;
-    if (span <= 0) return b.column;
-    return a.column + ((quarter - a.quarter) / span) * (b.column - a.column);
-  }
-  return anchors[anchors.length - 1].column;
-}
-
-/**
- * Where the riff is after `elapsed` quarter notes of click.
- *
- * The first pass runs from the top so a lead-in before the repeat is played
- * once, the way it is written; every pass after that turns at the close repeat.
- * That jump is the whole answer to "where does this send me back to", drawn
- * instead of explained.
- */
-export function positionAt(timeline: TabTimeline, elapsed: number): number {
-  if (elapsed <= 0) return 0;
-  if (elapsed < timeline.loopTo) return elapsed;
-  const loop = timeline.loopTo - timeline.loopFrom;
-  if (!(loop > 0)) return timeline.loopTo;
-  return timeline.loopFrom + ((elapsed - timeline.loopTo) % loop);
-}
-
-/** Which bar of the riff `quarter` falls in, or -1 when the riff has no bars. */
-export function barAt(timeline: TabTimeline, quarter: number): number {
-  for (let i = 0; i < timeline.bars.length; i++) {
-    if (quarter < timeline.bars[i].toQuarter) return i;
-  }
-  return timeline.bars.length - 1;
-}
-
-/**
- * The notes the riff expects at `quarter`, within half a subdivision either way.
- *
- * Nothing on this surface listens yet, and this is not a judgement about what
- * was played. It is the other half of one: the seam a note detector attaches to
- * when riffs stop being unheard, and the reason the drawn staff already knows
- * what it is asking for at every moment of the click.
- */
-export function notesAtQuarter(
-  score: TabScore,
-  timeline: TabTimeline,
-  quarter: number,
-  tolerance = 0.25,
-): TabNote[] {
-  const centre = columnAt(timeline, quarter);
-  const early = columnAt(timeline, Math.max(0, quarter - tolerance));
-  const late = columnAt(timeline, quarter + tolerance);
-  const from = Math.min(early, centre);
-  const to = Math.max(late, centre);
-  return score.notes.filter((n) => n.column + n.width > from && n.column <= to);
-}
-
-// ---------------------------------------------------------------------------
-// Strings: which line of the staff is which string on the instrument
-// ---------------------------------------------------------------------------
-
 export interface TabString {
   /** 1 is the thinnest string. It is what the line's drawn gauge comes from. */
   position: number;

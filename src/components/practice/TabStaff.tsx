@@ -9,36 +9,29 @@
 // does; a bar division is a division; a repeat is a repeat with the return drawn
 // as a return. Nothing on this surface is a character.
 //
-// STORY. The click is already running when a riff block opens. One bar of it is
-// the count-in, drawn as four pips that fill; on beat one the playhead enters the
-// staff and walks the riff at the tempo the click is holding. At the close repeat
-// it jumps visibly back to the open repeat, which is the answer to "where does
-// this send me?" given once and never asked again. A note in brackets is drawn as
-// a tie arriving from the note before it, which is the answer to the other
-// question the owner had to ask out loud.
+// STORY. The riff is read, not followed. A note in brackets is drawn as a tie
+// arriving from the note before it, and a repeat is drawn with the return
+// bracket that says where it sends you: the two questions the owner had to ask
+// out loud, answered in the drawing rather than in a caption.
 //
-// WHAT IS NOT HERE. Nothing listens. The playhead is the click's position, not
-// the player's, and the surface says so in the only four words it spends on the
-// subject. When note detection arrives, `notesAtQuarter` in lib/tab.ts is the
-// seam: it already answers "what is this riff asking for right now", and the
-// missing half is "what came through the microphone".
-//
-// PRECISION. A playhead may only move as precisely as the riff states its own
-// rhythm. With a count row it walks the beat; with barlines alone it can only
-// say which bar, so it lights the bar rather than drawing a line inside it; with
-// neither it does not exist. See `readTimeline` in lib/tab.ts.
+// WHAT IS NOT HERE. A playhead. This surface carried one for a day: a marker
+// walking the staff at the click's tempo, with a count-in of four pips. Two
+// things were wrong with it. It was broken, reading a bar-relative beat count as
+// though it were elapsed time, so it could never leave the first bar. And the
+// idea was wrong underneath the bug, which is why it is not being repaired. The
+// tempo it walked at was the block's own BPM or the default practice click,
+// a number with nothing to do with how the riff is actually played, so it asked
+// the player to sync to an arbitrary pace on a surface that hears nothing. A
+// screen that invites matching while measuring nothing is the same overclaim as
+// a number nobody earned. The click is still there for anyone who wants it; it
+// simply no longer pretends the sheet is following it.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { COUNT_IN_BEATS, metronome } from '../../audio/metronome';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-  barAt,
-  columnAt,
   parseTab,
-  positionAt,
   readScore,
   readStrings,
   readSystems,
-  readTimeline,
   type TabBar,
   type TabJoin,
   type TabJoinKind,
@@ -46,7 +39,6 @@ import {
   type TabScore,
   type TabString,
   type TabSystem,
-  type TabTimeline,
 } from '../../lib/tab';
 import './tab.css';
 
@@ -77,8 +69,6 @@ const PAD_B = 16;
 const COUNT_BAND = 20;
 /** The repeat's return arc, above everything. */
 const ARC_BAND = 16;
-/** The least headroom a paced riff needs, for the count-in pips. */
-const PIP_BAND = 12;
 
 /** Column pitch in px, used only before the first measurement lands. */
 const FALLBACK_COL_PX = 12;
@@ -104,96 +94,31 @@ const JUSTIFY_FLOOR = 0.62;
  */
 const SQUEEZE = 1.18;
 
-/** Beats of click spent before the riff starts. Musicians count in fours. */
-const COUNT_IN = COUNT_IN_BEATS;
-
 export function TabStaff({ source }: Props) {
   const riffs = useMemo(() => {
     return parseTab(source).map((block) => {
       const score = readScore(block);
-      return {
-        score,
-        strings: readStrings(score.labels),
-        // Four is the click's own cycle for a plain timed block (`fixedTempo` in
-        // lib/tempo.ts), so a riff that states no count of its own still divides
-        // its bars the way the thing the player is listening to divides them.
-        timeline: score.columns ? readTimeline(score, 4) : null,
-      };
+      return { score, strings: readStrings(score.labels) };
     });
   }, [source]);
-
-  // Several staves in one note are one piece played in order, not several
-  // playheads moving at once. Each holds the marker for its own written length.
-  const paced = riffs.filter((r) => r.timeline !== null).length;
-  const offsets = useMemo(() => {
-    const out: number[] = [];
-    let running = 0;
-    for (const riff of riffs) {
-      out.push(running);
-      running += riff.timeline?.quarters ?? 0;
-    }
-    return out;
-  }, [riffs]);
-  const totalQuarters = riffs.reduce((sum, riff) => sum + (riff.timeline?.quarters ?? 0), 0);
 
   if (!riffs.length) return null;
 
   return (
     <div className="tab-staff">
       {riffs.map((riff, i) => (
-        <Riff
-          key={i}
-          score={riff.score}
-          strings={riff.strings}
-          timeline={riff.timeline}
-          offsetQuarters={offsets[i]}
-          totalQuarters={totalQuarters}
-          // A single riff turns at its own repeat. Several in a row are a
-          // sequence, and a repeat inside one of them would be a jump the
-          // sequence has no honest way to draw.
-          honourRepeat={paced === 1}
-        />
+        <Riff key={i} score={riff.score} strings={riff.strings} />
       ))}
-      {totalQuarters > 0 && (
-        // The playhead is the click's position, not the player's. On a product
-        // whose whole promise is never claiming to have heard something, a
-        // marker sweeping over a riff has to say which of the two it is, once,
-        // where it can be read while playing.
-        <p className="tab-honesty">
-          <ClickMark />
-          Keeping time. Nothing heard.
-        </p>
-      )}
     </div>
-  );
-}
-
-/**
- * The click, as a mark rather than as a word.
- *
- * The metronome's own pen: the body and beam of MetronomeIcon, cut down to the
- * three strokes that survive at this size.
- */
-function ClickMark() {
-  return (
-    <svg className="tab-click-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M8 20 10 5a2 2 0 0 1 4 0l2 15Z" />
-      <path d="M6.4 20h11.2" />
-      <path d="M12 17.6 12 8.4" />
-    </svg>
   );
 }
 
 interface RiffProps {
   score: TabScore;
   strings: TabString[];
-  timeline: TabTimeline | null;
-  offsetQuarters: number;
-  totalQuarters: number;
-  honourRepeat: boolean;
 }
 
-function Riff({ score, strings, timeline, offsetQuarters, totalQuarters, honourRepeat }: RiffProps) {
+function Riff({ score, strings }: RiffProps) {
   const frameRef = useRef<HTMLDivElement>(null);
   // What one column is worth here, and how many of them fit. The pitch is a
   // design value and lives in the stylesheet; the count is arithmetic and lives
@@ -248,96 +173,14 @@ function Riff({ score, strings, timeline, offsetQuarters, totalQuarters, honourR
   const repeat = useMemo(() => readRepeatSpan(score), [score]);
   const hasCount = score.beats.length > 0;
   const band = (repeat ? ARC_BAND : 0) + (hasCount ? COUNT_BAND : 0);
-  const top = PAD_T + Math.max(band, timeline ? PIP_BAND : 0);
+  const top = PAD_T + band;
   const height = top + Math.max(0, score.labels.length - 1) * STRING_GAP + PAD_B;
-
-  // Where the playhead is, written straight onto the SVG on every frame.
-  //
-  // Not React state: the marker moves at the frame rate, and re-rendering a
-  // staff of several hundred drawn elements sixty times a second to move one of
-  // them is work the phone this runs on cannot spare. The staff is drawn once
-  // and the marker is moved.
-  const headsRef = useRef<(SVGGElement | null)[]>([]);
-  const litRef = useRef<(SVGRectElement | null)[]>([]);
-  const pipsRef = useRef<(SVGCircleElement | null)[]>([]);
-  const countInRef = useRef<SVGGElement | null>(null);
-
-  useEffect(() => {
-    if (!timeline) return;
-    let quiet = false;
-
-    let frame = requestAnimationFrame(function tick() {
-      frame = requestAnimationFrame(tick);
-      const phase = metronome.phase();
-
-      // No click, no playhead. A marker that keeps sweeping over a stopped
-      // metronome is the app claiming a beat nobody can hear.
-      if (!phase) {
-        if (quiet) return;
-        quiet = true;
-        for (const head of headsRef.current) if (head) head.style.opacity = '0';
-        for (const lit of litRef.current) if (lit) lit.style.opacity = '0';
-        if (countInRef.current) countInRef.current.style.opacity = '0';
-        return;
-      }
-      quiet = false;
-
-      const elapsed = phase.position + phase.sinceSeconds / phase.secondsPerBeat - COUNT_IN;
-
-      // The count-in: one bar of the click before the riff starts, filling one
-      // pip a beat, so coming in on time is watched rather than counted.
-      const counting = elapsed < 0;
-      const filled = counting ? Math.floor(elapsed + COUNT_IN) + 1 : 0;
-      if (countInRef.current) countInRef.current.style.opacity = counting ? '1' : '0';
-      if (counting) {
-        pipsRef.current.forEach((pip, i) => pip?.classList.toggle('is-lit', i < filled));
-      }
-
-      // During the count-in the marker parks at the top of the piece, which is
-      // the first stave's start and nowhere else. Parking every stave at its own
-      // start would put a playhead on each of them at once, and a riff written
-      // over two staves is still one riff.
-      const local = counting
-        ? offsetQuarters === 0
-          ? 0
-          : null
-        : honourRepeat
-          ? positionAt(timeline, elapsed)
-          : sequenced(elapsed, offsetQuarters, timeline.quarters, totalQuarters);
-      const column = local === null ? null : columnAt(timeline, local);
-      const bar = local === null ? -1 : barAt(timeline, local);
-
-      layout.forEach(({ system, col }, i) => {
-        const at = (c: number) => GUTTER + (c - system.from + 0.5) * col;
-        const head = headsRef.current[i];
-        const lit = litRef.current[i];
-        const here = column !== null && column >= system.from && column <= system.to;
-        if (head) {
-          head.style.opacity = here && timeline.precision === 'beat' ? '1' : '0';
-          if (here && column !== null) head.setAttribute('transform', `translate(${at(column).toFixed(2)} 0)`);
-        }
-        if (!lit) return;
-        const span = bar >= 0 ? timeline.bars[bar] : undefined;
-        const visible =
-          timeline.precision === 'bar' && span !== undefined && span.to > system.from && span.from < system.to;
-        lit.style.opacity = visible ? '1' : '0';
-        if (visible && span) {
-          const from = Math.max(span.from, system.from);
-          const to = Math.min(span.to, system.to);
-          lit.setAttribute('x', (at(from) - col / 2).toFixed(2));
-          lit.setAttribute('width', Math.max(0, (to - from) * col).toFixed(2));
-        }
-      });
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [timeline, layout, honourRepeat, offsetQuarters, totalQuarters]);
 
   if (!score.labels.length) {
     return score.caption ? <p className="tab-caption is-alone">{score.caption}</p> : null;
   }
 
-  const spoken = describe(score, strings, timeline);
+  const spoken = describe(score, strings);
 
   return (
     <figure className="tab-riff">
@@ -372,44 +215,7 @@ function Riff({ score, strings, timeline, offsetQuarters, totalQuarters, honourR
                 top={top}
                 hasCount={hasCount}
                 repeat={repeat}
-                countIn={i === 0 && timeline !== null && offsetQuarters === 0}
-                pipsRef={pipsRef}
-                countInRef={countInRef}
               />
-              {/* Which bar is being played, for a riff that states its bars and
-                  not its beats. Under the staff rather than over it: a wash
-                  across the music hides the frets it is meant to be pointing
-                  at, and the point of this marker is that it knows less than a
-                  playhead does, not that it is louder. */}
-              <rect
-                ref={(el) => {
-                  litRef.current[i] = el;
-                }}
-                className="tab-lit"
-                x={0}
-                y={top + Math.max(0, score.labels.length - 1) * STRING_GAP + STRING_GAP * 0.5}
-                width={0}
-                height={2.6}
-                rx={1.3}
-                style={{ opacity: 0 }}
-              />
-              <g
-                ref={(el) => {
-                  headsRef.current[i] = el;
-                }}
-                className="tab-head"
-                style={{ opacity: 0 }}
-              >
-                {/* Tall enough to clear the count row, so the marker never
-                    sits on the number it is arriving at. */}
-                <line
-                  x1={0}
-                  y1={top - (hasCount ? COUNT_BAND + 2 : STRING_GAP * 0.7)}
-                  x2={0}
-                  y2={top + Math.max(0, score.labels.length - 1) * STRING_GAP + STRING_GAP * 0.55}
-                />
-                <circle cx={0} cy={top - (hasCount ? COUNT_BAND + 2 : STRING_GAP * 0.7)} r={2.1} />
-              </g>
             </svg>
           );
         })}
@@ -417,19 +223,6 @@ function Riff({ score, strings, timeline, offsetQuarters, totalQuarters, honourR
       </div>
     </figure>
   );
-}
-
-/**
- * Where a run of several staves has got to, or null when it is elsewhere.
- *
- * A riff written across four staves is played as one piece: each stave holds the
- * marker for its own written length and then hands it on.
- */
-function sequenced(elapsed: number, offset: number, quarters: number, total: number): number | null {
-  if (!(total > 0)) return null;
-  const at = ((elapsed % total) + total) % total;
-  if (at < offset || at >= offset + quarters) return null;
-  return at - offset;
 }
 
 interface RepeatSpan {
@@ -461,13 +254,10 @@ interface SystemProps {
   top: number;
   hasCount: boolean;
   repeat: RepeatSpan | null;
-  countIn: boolean;
-  pipsRef: { current: (SVGCircleElement | null)[] };
-  countInRef: { current: SVGGElement | null };
 }
 
 /** One line of staff: strings, frets, bars, and the marks between them. */
-function System({ score, strings, system, col, top, hasCount, repeat, countIn, pipsRef, countInRef }: SystemProps) {
+function System({ score, strings, system, col, top, hasCount, repeat }: SystemProps) {
   const x = (column: number) => GUTTER + (column - system.from + 0.5) * col;
   const y = (line: number) => top + line * STRING_GAP;
   const notes = score.notes.filter((n) => n.column >= system.from && n.column < system.to);
@@ -538,29 +328,6 @@ function System({ score, strings, system, col, top, hasCount, repeat, countIn, p
 
       {repeat && <ReturnArc repeat={repeat} system={system} col={col} x={x} top={top} />}
 
-      {/* The count-in, filling one pip a beat in the corner the music does not
-          use. On "one" the last pip lands and the playhead enters the staff. */}
-      {countIn && (
-        <g
-          ref={(el) => {
-            countInRef.current = el;
-          }}
-          style={{ opacity: 0 }}
-        >
-          {Array.from({ length: COUNT_IN }, (_, i) => (
-            <circle
-              key={`p${i}`}
-              ref={(el) => {
-                pipsRef.current[i] = el;
-              }}
-              className="tab-pip"
-              cx={3.4 + i * 6}
-              cy={PAD_T + 2.4}
-              r={2.2}
-            />
-          ))}
-        </g>
-      )}
     </>
   );
 }
@@ -815,19 +582,25 @@ function Join({
  * Everything the drawing states is stated here too: the bar, the string, the
  * fret, the tie, and where the repeat turns.
  */
-function describe(score: TabScore, strings: TabString[], timeline: TabTimeline | null): string[] {
+function describe(score: TabScore, strings: TabString[]): string[] {
   if (!score.notes.length) return [];
   const lines: string[] = [];
   const columns = [...new Set(score.notes.map((n) => n.column))].sort((a, b) => a - b);
+  // Bar boundaries straight off the drawn rules. The spoken list is the sighted
+  // reading's equal, and a sighted reader can see where a bar starts.
+  const spans: { from: number; to: number }[] = [];
+  for (let i = 0; i + 1 < score.bars.length; i++) {
+    const from = score.bars[i].column + score.bars[i].width;
+    const to = score.bars[i + 1].column;
+    if (to > from) spans.push({ from, to });
+  }
   let bar = -1;
 
   for (const column of columns) {
-    if (timeline) {
-      const which = timeline.bars.findIndex((b) => column >= b.from && column < b.to);
-      if (which >= 0 && which !== bar) {
-        bar = which;
-        lines.push(`Bar ${which + 1}`);
-      }
+    const which = spans.findIndex((b) => column >= b.from && column < b.to);
+    if (which >= 0 && which !== bar) {
+      bar = which;
+      lines.push(`Bar ${which + 1}`);
     }
     const here = score.notes.filter((n) => n.column === column);
     lines.push(

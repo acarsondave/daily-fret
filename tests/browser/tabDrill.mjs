@@ -146,16 +146,6 @@ async function leave(page) {
 const sideways = (page) =>
   page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 
-/** Where the playhead is, in page pixels, or null when it is not being shown. */
-const headX = (page) =>
-  page.evaluate(() => {
-    for (const g of document.querySelectorAll('.tab-head')) {
-      if (g.style.opacity === '0') continue;
-      return g.getBoundingClientRect().x;
-    }
-    return null;
-  });
-
 // --- It fits, at every width it is read at ----------------------------------
 {
   console.log('\nThe riff fits the screen it is read on\n');
@@ -299,152 +289,52 @@ const headX = (page) =>
   await ctx.close();
 }
 
-// --- It moves ----------------------------------------------------------------
+// --- Nothing on the sheet moves ---------------------------------------------
+//
+// The riff carried a playhead for a day: a marker walking the staff at the
+// click's tempo behind four count-in pips. It was removed for two reasons, and
+// the weaker one was that it was broken. The stronger one is that a marker
+// inviting the player to match it, at a tempo taken from the block's BPM rather
+// than from the record, asks for sync on a surface that hears nothing. This
+// asserts the sheet is still, so it cannot come back by accident.
 {
-  console.log('\nThe playhead walks the riff\n');
+  console.log('\nThe sheet is read, not followed\n');
   const { ctx, page, errors } = await open({ width: 1280, height: 900 });
 
   await enter(page, 'Counted riff');
-
-  // Caught inside the count-in, which is the one second and a half of the block
-  // where the pips are the whole of what is happening.
-  await page.screenshot({ path: `${SHOT}countin.png` });
-
-  const bpm = await page.evaluate(() => window.dailyFretAudio?.());
-  check('the click is running and audible', bpm?.running === true && bpm?.audible === true,
-    JSON.stringify(bpm));
-  check('at the tempo the block states', bpm?.bpm === 80, bpm?.bpm);
-
-  // Eight quarters at 80 BPM is six seconds a lap, after a bar of count-in.
-  // Sampled well past one lap so both the walk and the turn are witnessed.
-  const samples = [];
-  const started = Date.now();
-  while (Date.now() - started < 13_000) {
-    samples.push({ t: Date.now() - started, x: await headX(page) });
-    await page.waitForTimeout(120);
-  }
-
-  const shown = samples.filter((s) => s.x !== null);
-  check('the playhead is on screen', shown.length > 30, `${shown.length} of ${samples.length}`);
-
-  // Distinct positions rather than a count of forward steps. Headless Chromium
-  // here serves animation frames at about three a second, so counting samples
-  // that caught the marker between two places measures the harness rather than
-  // the feature. What has to be true is that it occupied many different points
-  // in the riff, and that it only ever went backwards at the repeat.
-  const places = new Set(shown.map((s) => Math.round(s.x / 8))).size;
-  check('it advances through the riff', places > 12, `${places} distinct positions`);
-
-  const spread = Math.max(...shown.map((s) => s.x)) - Math.min(...shown.map((s) => s.x));
-  check('it crosses the width of the staff', spread > 200, `${spread.toFixed(0)}px`);
-
-  // The whole answer to "where does the repeat send me": it goes back, visibly,
-  // rather than the player being told to.
-  const back = shown.filter((s, i) => i > 0 && s.x < shown[i - 1].x - 2);
-  const jumps = shown.filter((s, i) => i > 0 && s.x < shown[i - 1].x - 100);
-  check('and jumps back at the repeat', jumps.length >= 1, `${jumps.length} returns`);
-  // Two laps of a six-second riff in thirteen seconds, so it may turn twice and
-  // no more. Any other backward step would be the marker drifting.
-  check('and never otherwise', back.length === jumps.length && back.length <= 3,
-    `${back.length} backward steps, ${jumps.length} of them returns`);
-
-  // The count-in has to have happened before any of that, or the riff starts
-  // under the player rather than being counted in.
-  check('it was parked for the count-in first',
-    shown.slice(0, 8).every((s) => s.x <= shown[10].x + 1), shown.slice(0, 12).map((s) => s.x.toFixed(0)).join(','));
-
-  await page.screenshot({ path: `${SHOT}playing.png` });
-
-  // Stopping the click has to stop the marker. A line that keeps sweeping over
-  // a stopped metronome is the app claiming a beat nobody can hear.
-  await page.locator('.metro-trigger').click();
-  await page.locator('.metro-play').click();
-  await page.waitForTimeout(600);
-  check('the click really stopped', (await page.evaluate(() => window.dailyFretAudio().running)) === false);
-  check('a stopped click hides the playhead', (await headX(page)) === null);
-  // The metronome panel takes the first Escape for itself; the overlay takes
-  // the second.
-  await page.keyboard.press('Escape');
-  await leave(page);
-  check('no console errors', errors.length === 0, errors.join(' | '));
-  await ctx.close();
-}
-
-// --- Several staves are one piece -------------------------------------------
-{
-  console.log('\nTwo staves, one playhead\n');
-  const { ctx, page, errors } = await open({ width: 1280, height: 900 });
-
-  await enter(page, 'Two staves');
-  // Which stave is holding the marker, sampled through more than one full pass.
-  // Two playheads moving at once would be two staves being played at the same
-  // time, which is not a thing a person can do.
-  const holders = [];
-  const started = Date.now();
-  while (Date.now() - started < 14_000) {
-    holders.push(
-      await page.evaluate(() =>
-        [...document.querySelectorAll('.tab-riff')].map((r) =>
-          [...r.querySelectorAll('.tab-head')].some((g) => g.style.opacity !== '0'))),
-    );
-    await page.waitForTimeout(150);
-  }
-  const live = holders.filter((h) => h.some(Boolean));
-  check('only ever one stave at a time', live.every((h) => h.filter(Boolean).length === 1),
-    `${live.filter((h) => h.filter(Boolean).length > 1).length} frames with two`);
-  check('the first stave holds it', live.some((h) => h[0]));
-  check('and then hands it to the second', live.some((h) => h[1]));
-  const order = live.map((h) => (h[0] ? 0 : 1));
-  check('in that order', order.indexOf(0) < order.indexOf(1), order.slice(0, 20).join(''));
-  await leave(page);
-
-  check('no console errors', errors.length === 0, errors.join(' | '));
-  await ctx.close();
-}
-
-// --- A riff that does not state its rhythm ----------------------------------
-{
-  console.log('\nOnly as precise as the riff itself\n');
-  const { ctx, page, errors } = await open({ width: 1280, height: 900 });
-
-  await enter(page, 'Uncounted riff');
-  await page.waitForTimeout(4500);
-  const state = await page.evaluate(() => ({
-    counts: document.querySelectorAll('.tab-count').length,
-    head: [...document.querySelectorAll('.tab-head')].map((g) => g.style.opacity),
-    lit: [...document.querySelectorAll('.tab-lit')].map((r) => ({
-      opacity: r.style.opacity,
-      width: Number(r.getAttribute('width')),
-    })),
+  await page.waitForSelector('.tab-system');
+  const gone = await page.evaluate(() => ({
+    head: document.querySelectorAll('.tab-head').length,
+    lit: document.querySelectorAll('.tab-lit').length,
+    pip: document.querySelectorAll('.tab-pip').length,
+    honesty: document.querySelectorAll('.tab-honesty').length,
   }));
-  check('there is no count row to draw', state.counts === 0, state.counts);
-  check('so no beat marker is claimed', state.head.every((o) => o === '0'), state.head.join(','));
-  check('the bar being played is lit instead',
-    state.lit.some((r) => r.opacity === '1' && r.width > 20), JSON.stringify(state.lit));
-  await page.screenshot({ path: `${SHOT}uncounted.png` });
+  check('no playhead is drawn', gone.head === 0, gone.head);
+  check('no bar marker either', gone.lit === 0, gone.lit);
+  check('and no count-in pips', gone.pip === 0, gone.pip);
+  // The disclaimer went with the thing it disclaimed. Nothing left on the
+  // surface makes a claim about listening, so nothing has to deny one.
+  check('nothing left to disclaim', gone.honesty === 0, gone.honesty);
+
+  // The real assertion: the drawing is identical several seconds apart, while
+  // the block's clock is running. Entrance animations settle first.
+  await page.waitForTimeout(1500);
+  const shot = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll('.tab-system')]
+        .map((svg) => {
+          const r = svg.getBoundingClientRect();
+          return `${r.x.toFixed(1)},${r.y.toFixed(1)},${r.width.toFixed(1)}`;
+        })
+        .join('|'),
+    );
+  const before = await shot();
+  await page.waitForTimeout(5000);
+  check('the staff has not moved five seconds later', (await shot()) === before, before);
+  await page.screenshot({ path: `${SHOT}still.png` });
   await leave(page);
 
   check('no console errors', errors.length === 0, errors.join(' | '));
-  await ctx.close();
-}
-
-// --- What it says it is ------------------------------------------------------
-{
-  console.log('\nWhat it says it is\n');
-  const { ctx, page } = await open({ width: 1280, height: 900 });
-  await enter(page, 'Counted riff');
-  const honesty = await page.evaluate(() => {
-    const el = document.querySelector('.tab-honesty');
-    if (!el) return null;
-    const style = getComputedStyle(el);
-    return { text: el.textContent.trim(), color: style.color, words: el.textContent.trim().split(/\s+/).length };
-  });
-  check('the surface says the marker is not listening', honesty !== null && /[Nn]othing/.test(honesty.text),
-    honesty?.text);
-  check('in four words', honesty !== null && honesty.words <= 5, honesty?.words);
-  check('and it is stated in a token colour, not a faded one',
-    honesty !== null && !/rgba\(.*0\.\d+\)/.test(honesty.color), honesty?.color);
-  await leave(page);
   await ctx.close();
 }
 

@@ -12,16 +12,11 @@
 // note on input it cannot read.
 
 import {
-  barAt,
-  columnAt,
   looksLikeTab,
-  notesAtQuarter,
   parseTab,
-  positionAt,
   readScore,
   readStrings,
   readSystems,
-  readTimeline,
 } from '../src/lib/tab.ts';
 
 let failures = 0;
@@ -96,7 +91,6 @@ console.log('\nA counted riff\n');
 
   check('eight counts', s.beats.length === 8, s.beats.length);
   check('four of them are numbered', s.beats.filter((b) => b.primary).length === 4);
-  check('the row spans four quarters', s.countQuarters === 4, s.countQuarters);
   check(
     'the ands land halfway between the beats',
     s.beats.map((b) => b.quarter).join(',') === '0,0.5,1,1.5,2,2.5,3,3.5',
@@ -107,43 +101,6 @@ console.log('\nA counted riff\n');
   const firstNote = s.notes.sort((a, b) => a.column - b.column)[0];
   check('beat one sits over the first fret played', s.beats[0].column === firstNote.column,
     `${s.beats[0].column} vs ${firstNote.column}`);
-
-  const t = readTimeline(s, 4);
-  check('the riff states its beats', t.precision === 'beat', t.precision);
-  check('a bar is four beats long', t.beatsPerBar === 4, t.beatsPerBar);
-  check('two bars', t.bars.length === 2, t.bars.length);
-  check('eight quarters in all', t.quarters === 8, t.quarters);
-
-  // The count row covers the first bar only; the second is filled in from the
-  // barlines. Both have to move the marker forward and neither may jump.
-  const walk = Array.from({ length: 33 }, (_, i) => columnAt(t, i / 4));
-  check('the marker only ever moves forward', walk.every((c, i) => i === 0 || c >= walk[i - 1]));
-  check('it starts inside the first bar', walk[0] >= t.bars[0].from && walk[0] < t.bars[0].to);
-  check('it reaches the closing rule', walk[32] >= t.bars[1].to - 1, walk[32]);
-  check('halfway through is the second bar', barAt(t, 4.5) === 1, barAt(t, 4.5));
-}
-
-console.log('\nWhere a repeat sends you\n');
-{
-  const s = score(COUNTED);
-  const t = readTimeline(s, 8);
-  check('the loop turns at the closing rule', t.loopTo === 8, t.loopTo);
-  check('and returns to the opening one', t.loopFrom === 0, t.loopFrom);
-  check('the first pass runs straight through', positionAt(t, 3) === 3);
-  check('past the end it is back at the top', positionAt(t, 8) === 0, positionAt(t, 8));
-  check('and keeps going round', positionAt(t, 9.5) === 1.5, positionAt(t, 9.5));
-  check('before the click starts it is at the top', positionAt(t, -2) === 0);
-
-  // A repeat that opens partway in: the lead-in is played once, then the loop
-  // turns inside the riff rather than at the top of it.
-  const lead = score([
-    'e|--0--0--|:--3--3--|--5--5--:|',
-    'B|--------|:--------|--------:|',
-  ].join('\n'));
-  const lt = readTimeline(lead, 4);
-  check('the lead-in is played once', positionAt(lt, 2) === 2, positionAt(lt, 2));
-  check('then the loop turns inside the riff', positionAt(lt, lt.loopTo) === lt.loopFrom, positionAt(lt, lt.loopTo));
-  check('and the loop starts after the opening repeat', lt.loopFrom > 0, lt.loopFrom);
 }
 
 console.log('\nA riff on two strings\n');
@@ -156,12 +113,6 @@ console.log('\nA riff on two strings\n');
   check('A is the fifth string', strings[0].position === 5, strings[0].position);
   check('E under it is the sixth', strings[1].position === 6, strings[1].position);
   check('and it is spoken as the low E', strings[1].spoken === 'low E', strings[1].spoken);
-
-  // No count row anywhere, so the app may not claim to know where a beat is.
-  const t = readTimeline(s, 4);
-  check('with no count it can only name the bar', t.precision === 'bar', t.precision);
-  check('one bar', t.bars.length === 1, t.bars.length);
-  check('taking the click’s own cycle', t.beatsPerBar === 4 && t.quarters === 4);
 }
 
 console.log('\nStrings, named and gauged\n');
@@ -242,25 +193,6 @@ console.log('\nSeveral staves\n');
     scores.map((s) => s.notes.map((n) => n.fret).join('')).join('|') === '023|320');
 }
 
-console.log('\nWhat the riff is asking for right now\n');
-{
-  // The seam a note detector attaches to. Nothing listens yet, so all this has
-  // to be is exactly right about the question.
-  const s = score(COUNTED);
-  const t = readTimeline(s, 4);
-  const onOne = notesAtQuarter(s, t, 0);
-  check('beat one asks for one fret', onOne.length === 1, onOne.length);
-  check('and it is the first one written', onOne[0].column === s.notes[0].column);
-  const later = notesAtQuarter(s, t, 2);
-  check('beat three asks for a different one', later.length === 1 && later[0].column > onOne[0].column);
-  // Three frets struck together are one thing to place, and the seam has to
-  // hand back all three rather than whichever the scan reached first.
-  const chord = score(['   1  +  2  +', 'e|-0--0--0--0-|', 'B|-1--1--1--1-|', 'G|-0--0--0--0-|'].join('\n'));
-  const ct = readTimeline(chord, 4);
-  check('a chord comes back whole', notesAtQuarter(chord, ct, 0).length === 3,
-    notesAtQuarter(chord, ct, 0).length);
-}
-
 console.log('\nProse is not a tab\n');
 {
   const prose = 'Play it slowly first | then take it up to speed.';
@@ -304,13 +236,6 @@ console.log('\nNothing throws, nothing is invented\n');
         const s = readScore(block);
         readStrings(s.labels);
         readSystems(s, 20);
-        const t = readTimeline(s, 4);
-        if (t) {
-          columnAt(t, 0);
-          positionAt(t, 3.7);
-          barAt(t, 3.7);
-          notesAtQuarter(s, t, 1);
-        }
         // A fret that was never written must never appear.
         for (const note of s.notes) {
           if (!block.lines[note.line].content.includes(note.fret)) invented = `${input} -> ${note.fret}`;
@@ -325,19 +250,13 @@ console.log('\nNothing throws, nothing is invented\n');
   check('and no fret appears that was not written', invented === null, invented);
 
   // Staff lines of different lengths put the closing rules at different columns,
-  // which is broken input rather than a shorter riff. It degrades to a staff
-  // with no bar it can trust, and therefore to no playhead, rather than to a
-  // marker sweeping to a rhythm that is not there.
+  // which is broken input rather than a shorter riff. It still draws every fret
+  // that was written; only the bar it cannot trust goes missing.
   const ragged = score(['e|--0--0--|', 'B|--1--1-|'].join('\n'));
   check('a ragged staff still draws its notes', ragged.notes.length === 4, ragged.notes.length);
   check('but claims no closing bar', ragged.bars.length === 1, ragged.bars.length);
-  check('and gets no timeline', readTimeline(ragged, 4) === null);
 
   check('an empty note is no blocks at all', parseTab('').length === 0);
-  check('a staff with no music has no timeline',
-    readTimeline(score(['e|-----|', 'B|-----|'].join('\n')), 4) !== null);
-  check('and a riff with neither count nor bar has none',
-    readTimeline(readScore({ lines: [{ label: 'e', content: '---' }, { label: 'B', content: '---' }] }), 4) === null);
 }
 
 console.log(failures ? `\n${failures} failed\n` : '\nall good\n');
