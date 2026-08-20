@@ -71,6 +71,15 @@ export const midiAt = (stringPosition: number, fret: number): number =>
 
 /** The seven letters, which is where every player starts. */
 export const NATURALS: readonly PitchClass[] = [9, 11, 0, 2, 4, 5, 7];
+/**
+ * The letters the open strings sound, which is where the ladder starts.
+ *
+ * Read off the tuning rather than written out, so a tuning with a different set
+ * of open notes asks about the notes it actually has.
+ */
+export const OPEN_STRING_NOTES: readonly PitchClass[] = [
+  ...new Set(STANDARD.strings.map((s) => pitchClass(s.midi))),
+];
 /** All twelve, in circle order from A. */
 export const ALL_NOTES: readonly PitchClass[] = Array.from({ length: 12 }, (_, i) => pitchClass(9 + i));
 
@@ -106,20 +115,72 @@ export interface FinderRung {
   maxFret: number;
   /** A find inside this is what the rung is asking for. */
   budgetMs: number;
+  /**
+   * True on the one rung a course lesson actually teaches.
+   *
+   * Which lesson is deliberately not written here. src/data/skills.ts is where
+   * this app records which lessons cover a thing, and the drill reads it from
+   * there; a second copy of that fact would be a second thing to keep true.
+   * Every rung without this flag is this product's own ladder and is presented
+   * as such, because the app does not assert a fit with a course that has not
+   * asked for the thing yet.
+   */
+  taught?: boolean;
 }
 
 /**
  * The ladder, lowest first.
  *
- * Ordered by what it costs a hand rather than by how much of the neck it covers:
- * the naturals below the fifth fret are the ones a beginner needs for chord
- * roots, the accidentals come next because they are the same map with the gaps
- * filled, and the whole neck only opens once first position is quick. The last
- * two rungs stop naming the string, which is where the exercise turns from
- * "where is C on the A string" into "where is C", the question barre chords,
- * CAGED and every scale shape actually ask.
+ * WHERE THE BOTTOM OF IT CAME FROM. This started at "naturals on the low two
+ * strings", and that was a sequencing mistake with a real cost: the first player
+ * to use it said, correctly, that he did not know where the notes were. The
+ * course teaches the system of note names in Grade 1 Module 5 and the six open
+ * strings by name in Module 6, and nothing about the rest of the neck until well
+ * after that. A drill whose first question is "where is C on the A string" is
+ * therefore ahead of the course, and the two rungs below that question are the
+ * fix: the open strings, which is exactly the Module 6 lesson, then the naturals
+ * on one string, then two strings, then the neck.
+ *
+ * Above that it is ordered by what it costs a hand rather than by how much of
+ * the neck it covers: the naturals below the fifth fret are the ones a beginner
+ * needs for chord roots, the accidentals come next because they are the same map
+ * with the gaps filled, and the whole neck only opens once first position is
+ * quick. The last two rungs stop naming the string, which is where the exercise
+ * turns from "where is C on the A string" into "where is C", the question barre
+ * chords, CAGED and every scale shape actually ask.
+ *
+ * Ids never change. Inserting rungs below an existing one moves where it sits on
+ * the ladder but not what its history is filed under, so nothing recorded before
+ * this is orphaned. A player who had cleared a rung and now finds two easier ones
+ * underneath is taken back down to them, which is the ladder's own rule working:
+ * it never runs above a pace already proven, and three quick runs clear a rung.
  */
 export const RUNGS: readonly FinderRung[] = [
+  {
+    id: 'open-strings',
+    label: 'The six open strings',
+    form: 'string',
+    notes: OPEN_STRING_NOTES,
+    strings: STRING_POSITIONS,
+    minFret: 0,
+    maxFret: 0,
+    budgetMs: 10000,
+    taught: true,
+  },
+  {
+    // One string, and the one whose notes a player uses first: the low E carries
+    // the root of every E-shape barre chord and half of what the first position
+    // is built from. Reaching the fifth fret rather than the third because four
+    // naturals on one string is a rung and three is a rota.
+    id: 'low-e-naturals',
+    label: 'Naturals on the low E',
+    form: 'string',
+    notes: NATURALS,
+    strings: [6],
+    minFret: 0,
+    maxFret: 5,
+    budgetMs: 9000,
+  },
   {
     id: 'low-naturals',
     label: 'Naturals, low two strings',
@@ -272,6 +333,9 @@ export function fretsForNote(
   return out;
 }
 
+/** Frets a drawn neck holds however narrow the question is. Fewer is not a neck. */
+const MIN_DRAWN_FRETS = 4;
+
 /**
  * The stretch of neck a rung's questions live on, plus a fret either side.
  *
@@ -279,12 +343,15 @@ export function fretsForNote(
  * rung's four-fret world was a quarter of a picture nobody could read from a
  * propped laptop. Drawing the window instead makes a fret a target the size of a
  * fingertip. The margin is there so the window still reads as part of a neck
- * rather than as a diagram of nothing in particular.
+ * rather than as a diagram of nothing in particular, and the floor under it is
+ * for the open-strings rung, whose questions all live at the nut and which drawn
+ * to its own width would be two enormous cells rather than a fretboard.
  */
 export function rungWindow(rung: FinderRung): { from: number; to: number } {
+  const from = Math.max(0, rung.minFret - 1);
   return {
-    from: Math.max(0, rung.minFret - 1),
-    to: Math.min(TOP_FRET, rung.maxFret + 1),
+    from,
+    to: Math.min(TOP_FRET, Math.max(rung.maxFret + 1, from + MIN_DRAWN_FRETS - 1)),
   };
 }
 

@@ -88,6 +88,31 @@ const stringLabel = (position: number): string => {
   return label;
 };
 
+/**
+ * The course lesson the taught rung is, in the course's own words.
+ *
+ * Taken from the skill's list of the lessons that cover note names rather than
+ * from a table written here, so there is one record of which lesson covers what.
+ * The last of them is the one that teaches where a note is rather than what
+ * notes are, which is exactly what the first rung asks for.
+ *
+ * Fetched rather than imported. The curriculum is a quarter of a megabyte of
+ * every lesson in the course, and no drill screen was pulling it in until this
+ * line of text wanted one title off it; importing it here put that download in
+ * front of opening any practice drill at all. It is loaded on the one rung that
+ * names a lesson, while the setup screen is already on the screen, and the line
+ * appears when it arrives.
+ */
+async function taughtLessonTitle(): Promise<string | null> {
+  const [{ getSkill }, { getLessonByCode }] = await Promise.all([
+    import('../../data/skills'),
+    import('../../data/curriculum'),
+  ]);
+  const lessons = getSkill('theory.note-names')?.lessons;
+  if (!lessons || lessons.length === 0) return null;
+  return getLessonByCode(lessons[lessons.length - 1])?.title ?? null;
+}
+
 type View = 'setup' | 'playing' | 'results';
 /**
  * Where one question has got to.
@@ -837,9 +862,24 @@ function RungLadder({
   const at = rungNumber(current.id);
   const height = LADDER_TOP * 2 + (RUNGS.length - 1) * LADDER_STEP;
 
+  const [lesson, setLesson] = useState<string | null>(null);
+  useEffect(() => {
+    if (current.taught !== true) return;
+    let live = true;
+    void taughtLessonTitle().then((title) => {
+      if (live) setLesson(title);
+    });
+    return () => {
+      live = false;
+    };
+  }, [current.taught]);
+
   return (
     <div className="nf-ladder">
-      <p className="sr-only">{`Rung ${at} of ${RUNGS.length}: ${current.label}.`}</p>
+      <p className="sr-only">
+        {`Rung ${at} of ${RUNGS.length}: ${current.label}.`}
+        {lesson ? ` The lesson ${lesson}.` : ''}
+      </p>
       <svg
         className="nf-rungs"
         viewBox={`0 0 ${LADDER_W} ${height}`}
@@ -875,6 +915,10 @@ function RungLadder({
         })}
       </svg>
       <span className="nf-rung-name" aria-hidden="true">{current.label}</span>
+      {/* Whose question this is. Only on the rung the course actually teaches;
+          above it the app says nothing, which is the honest thing to say about a
+          ladder it built itself. */}
+      {lesson && <span className="nf-rung-lesson">{lesson}</span>}
     </div>
   );
 }

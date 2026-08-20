@@ -25,6 +25,15 @@
   width: 100%;
 }
 
+/* The setup screen's letter is a demonstration of what the drill does, not a
+   question being read from across a desk while both hands are busy, so it does
+   not take the question's size. The ladder, the rung and the board have to fit
+   above the way in on a short frame, and the way in is the only thing here that
+   must never be below it. */
+.nf-setup .nf-letter-name {
+  font-size: clamp(3.5rem, 14vw, 5rem);
+}
+
 /* --- The ladder ---------------------------------------------------------- */
 
 /* Rails and rungs. The cleared ones solid, the one being run lit and reaching
@@ -76,6 +85,18 @@
   font-size: var(--text-md);
   color: var(--text-primary);
   letter-spacing: var(--tracking-tight);
+  text-align: center;
+}
+
+/* Whose question this is: the course lesson, in the course's own words and set
+   in the reading face so it reads as a citation rather than as a second name for
+   the rung. It appears on one rung and nowhere else, because the rest of the
+   ladder is this app's and claims nothing. */
+.nf-rung-lesson {
+  margin-top: calc(var(--space-2) * -1);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
   text-align: center;
 }
 
@@ -147,7 +168,7 @@
   /* A four-fret window fills the same canvas a whole neck does, so on a wide
      screen it would grow into a wall of fretboard. Held to the width a neck is
      actually read at. */
-  max-width: 560px;
+  max-width: 500px;
   margin-inline: auto;
 }
 
@@ -287,11 +308,19 @@
     width: min(460px, 94vw);
   }
   .nf-setup-map {
-    max-width: 340px;
+    max-width: 300px;
   }
-  /* The setup letter is a demonstration rather than a question being read from
-     across a desk, so it does not take the question's size. */
-  .nf-setup .nf-letter-name {
-    font-size: clamp(3rem, 6vw, 4.5rem);
+  /* The demonstrated letter goes on the short frame. It is already written on
+     the lit position it is pointing at, which is the half of it that carries the
+     idea, and the height it costs is height the Start button needs. */
+  .nf-setup .nf-letter {
+    display: none;
+  }
+  /* The ladder grows a rung every time the drill learns to ask an easier
+     question, and it is the one thing on this screen whose height is not a
+     choice. Drawn smaller here so the rungs it will gain do not push the Start
+     button off a short frame again. */
+  .nf-rungs {
+    width: 74px;
   }
 }

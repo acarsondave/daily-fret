@@ -1046,11 +1046,25 @@ export function CoachedSession({ routine, onClose }: Props) {
                       value: run.finds,
                       durationSec: seg.seconds,
                       findMs: run.findMs,
+                      // Answers played to an answer the drill had lit. Never
+                      // part of the count; they are how the day tells a run that
+                      // recalled nothing from a microphone that heard nothing.
+                      uncounted: run.shown,
                     },
                   ]);
                   recordNoteFinds(run.found);
                 },
-                row: { title: seg.title, value: run.finds, unit: 'finds', done: run.finds > 0 },
+                // Recalled, not found: a note played to an answer the drill had
+                // lit is a real thing that happened and is not one of these. It
+                // still counts as the block having done something, or a first
+                // session at a rung would be summarised as not counted while the
+                // player was playing all the way through it.
+                row: {
+                  title: seg.title,
+                  value: run.finds,
+                  unit: 'recalled',
+                  done: run.finds > 0 || run.shown > 0,
+                },
                 value: run.finds,
               });
               void speak('done');

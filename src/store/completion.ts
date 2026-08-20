@@ -100,6 +100,17 @@ export interface DrillMeasurement {
    * Absent on every drill that is not finding notes.
    */
   findMs?: number | null;
+  /**
+   * Answers the drill heard that are deliberately not the number it reports.
+   *
+   * The note finder is the reason this exists. It counts recalls, and a note
+   * played to an answer the app had just lit on the neck is not one, so a whole
+   * run of real playing can honestly report zero. Zero with nothing behind it is
+   * a dead microphone and the day says so; zero with this above it is a player
+   * who has not learnt that stretch of neck yet, and calling that "nothing
+   * heard" would be the app reporting a fault it does not have.
+   */
+  uncounted?: number;
 }
 
 /**
@@ -130,9 +141,13 @@ export function applyMeasurement(
   const previous = recordFor(log, taskId);
   const heard = Number.isFinite(result.value) && result.value > 0;
   if (!heard) {
+    // A run that heard playing it could not put a comparable number to is not a
+    // silent one. It files no number, because there is none, and the day still
+    // says the microphone worked.
+    const played = (result.uncounted ?? 0) > 0;
     return withRecord(log, taskId, {
       ...previous,
-      evidence: strongest(previous?.evidence, 'silent'),
+      evidence: strongest(previous?.evidence, played ? 'measured' : 'silent'),
       at,
     });
   }

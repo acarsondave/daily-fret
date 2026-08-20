@@ -91,7 +91,7 @@
 }
 
 .nm-mark.is-show .nm-mark-name {
-  fill: var(--bg-primary);
+  fill: var(--bg-color);
 }
 
 /* This run's placement against a lit answer, on the card at the end. It sits

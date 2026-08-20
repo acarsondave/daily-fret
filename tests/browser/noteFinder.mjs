@@ -33,7 +33,7 @@ import { register } from 'node:module';
 import { tone, silence, write, addRoom } from './tone.mjs';
 
 register(new URL('../_resolve.mjs', import.meta.url).href);
-const { RUNGS, rungPositions, midiAt, positionKey, rungWindow } =
+const { RUNGS, getRung, rungPositions, midiAt, positionKey, rungWindow } =
   await import('../../src/lib/noteFinder.ts');
 
 const BASE = process.env.PREVIEW_URL ?? 'http://localhost:4173/';
@@ -52,9 +52,20 @@ const handled = (text) => /Cloud sync unavailable/.test(text);
 const DIR = mkdtempSync(join(tmpdir(), 'daily-fret-finder-'));
 const hz = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
 
+// The rung a player with no history runs: the six open strings, which is what
+// the course teaches by name and the only thing it has taught about where a note
+// is by the time anyone meets this drill.
 const OPENING = RUNGS[0];
 const SPOTS = rungPositions(OPENING);
 const CALLABLE = [...new Set(SPOTS.map((p) => p.midi))].sort((a, b) => a - b);
+
+// A rung with fretted questions on it, pinned by id where a case needs one: the
+// octave rules only have two sides to prove where a rung has both kinds of
+// position in it.
+const MIXED = getRung('low-naturals');
+const MIXED_SPOTS = rungPositions(MIXED);
+const MIXED_OPEN = MIXED_SPOTS.filter((p) => p.fret === 0);
+const MIXED_FRETTED = MIXED_SPOTS.filter((p) => p.fret > 0);
 const NOTE_SEC = 1.7;
 const GAP_SEC = 0.6;
 
@@ -75,29 +86,27 @@ const take = (name, midis, seconds) =>
   write(`${DIR}/${name}.wav`, cycle(midis, seconds).map((p) => addRoom(p, 0.0012, 5)));
 
 take('every-answer', CALLABLE, 110);
-// A pitch the opening rung cannot possibly be asking for: the high E string
-// open, two octaves above the low E and nowhere in a rung that stops at the
-// third fret of the fifth string. It must be heard, shown, and not counted.
-take('wrong-note', [midiAt(1, 0)], 60);
+take('mixed-answer', [...new Set(MIXED_SPOTS.map((p) => p.midi))], 110);
+// F, which no open string sounds, so the opening rung cannot be asking for it
+// wherever the roll lands. It must be heard, shown, and not counted.
+take('wrong-note', [midiAt(6, 1) + 24], 60);
 // The octave above every answer. On an open string that is the twelfth fret,
-// which this rung is not asking about, so the note settles the position and a
+// which the rung is not asking about, so the note settles the position and a
 // mis-octaved reading is still an answer. On a fretted one it is off the end of
 // the string entirely, so it cannot be. The take mixes both so one run proves
 // both halves.
-const OPEN_SPOTS = SPOTS.filter((p) => p.fret === 0);
-const FRETTED = SPOTS.filter((p) => p.fret > 0);
 take(
   'octave-open',
-  [...OPEN_SPOTS.map((p) => p.midi + 12), ...FRETTED.map((p) => p.midi)],
+  [...MIXED_OPEN.map((p) => p.midi + 12), ...MIXED_FRETTED.map((p) => p.midi)],
   110,
 );
 // Nothing but the octave of one fretted answer, which is off the end of that
 // string and must never be waved through.
-take('octave-fretted', [FRETTED[0].midi + 12], 60);
+take('octave-fretted', [MIXED_FRETTED[0].midi + 12], 60);
 
 const RUN_SECONDS = 45;
 
-const account = (extra = {}) => ({
+const account = ({ rungId, ...extra } = {}) => ({
   activeRoutineId: 'r1',
   currentLesson: 'b1-504',
   routines: [{
@@ -106,7 +115,7 @@ const account = (extra = {}) => ({
       id: 't1',
       title: 'Note finder',
       duration: '2 mins',
-      drill: { kind: 'note-finder', durationSec: RUN_SECONDS },
+      drill: { kind: 'note-finder', durationSec: RUN_SECONDS, ...(rungId ? { rungId } : {}) },
     }],
   }],
   dailyLogs: {}, strumPatterns: [], songLinks: [], updatedAt: 1,
@@ -120,9 +129,9 @@ const account = (extra = {}) => ({
  * times as often as one that is quick, which is how a run reaches a particular
  * kind of position inside its minute without pinning the roll.
  */
-function recalledNeck(slow = []) {
+function recalledNeck(slow = [], spots = SPOTS) {
   const map = {};
-  for (const p of SPOTS) {
+  for (const p of spots) {
     const key = positionKey(p.stringPosition, p.fret);
     const isSlow = slow.some((s) => s.stringPosition === p.stringPosition && s.fret === p.fret);
     map[key] = isSlow
@@ -146,6 +155,7 @@ async function open({
   seed = account(),
   deny = false,
   openDrill = true,
+  settled = false,
 } = {}) {
   const browser = await chromium.launch({
     args: [
@@ -168,6 +178,13 @@ async function open({
     seed,
   );
   if (deny) await page.addInitScript(DENY);
+  // The note circle demonstrates its own gesture on a first look, and the
+  // demonstration walks the selected note. A block asserting what the string
+  // below is drawing has to open on a circle that has already been seen, or it
+  // is asserting against a moving anchor.
+  if (settled) {
+    await page.addInitScript(() => localStorage.setItem('daily-fret-note-circle-seen', 'yes'));
+  }
   await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 25000 });
   await page.waitForSelector('.task-container', { timeout: 25000 });
   if (openDrill) {
@@ -252,8 +269,30 @@ const start = async (page) => {
     (await page.locator('.nf-setup-map .nm-string').count()) === 6);
   check('and the ones this rung uses are the lit ones',
     (await page.locator('.nf-setup-map .nm-string.is-lit').count()) === OPENING.strings.length);
+
+  // Whose question this is. The first rung is a course lesson and says which;
+  // the ladder above it is the app's own and says nothing, which is the app
+  // declining to claim a fit it does not have.
+  await page.waitForSelector('.nf-rung-lesson', { timeout: 10000 });
+  const named = (await page.locator('.nf-rung-lesson').innerText()).trim();
+  check('the rung the course teaches names the lesson', named.length > 0, named);
+  check('and it is not just the rung name again',
+    named !== (await page.locator('.nf-rung-name').innerText()).trim(), named);
   check('no console errors', errors.length === 0, errors.join(' | '));
   await page.screenshot({ path: `${OUT}/finder-setup.png` });
+  await browser.close();
+}
+
+{
+  console.log('\nthe rungs the app built for itself claim no lesson\n');
+  const { browser, page, errors } = await open({ seed: account({ rungId: 'whole-neck' }) });
+  await page.waitForSelector('.nf-ladder', { timeout: 10000 });
+  await page.waitForTimeout(1500);
+  check('nothing on this rung is attributed to the course',
+    (await page.locator('.nf-rung-lesson').count()) === 0);
+  check('and the rung still says what it is',
+    (await page.locator('.nf-rung-name').innerText()).trim().length > 0);
+  check('no console errors', errors.length === 0, errors.join(' | '));
   await browser.close();
 }
 
@@ -365,10 +404,10 @@ const start = async (page) => {
   console.log('\nan octave away is an answer where the rung leaves one place it can be\n');
   // The open positions are the only ones this take answers an octave away, so
   // the deal is leaned towards them and away from the fretted ones.
-  const before = recalledNeck(OPEN_SPOTS);
+  const before = recalledNeck(MIXED_OPEN, MIXED_SPOTS);
   const { browser, page, errors } = await open({
     wav: 'octave-open.wav',
-    seed: account({ noteMap: before }),
+    seed: account({ rungId: MIXED.id, noteMap: before }),
   });
   await start(page);
   await page.waitForFunction(
@@ -381,7 +420,7 @@ const start = async (page) => {
   await page.waitForSelector('.nf-results', { timeout: RUN_SECONDS * 1000 + 20000 });
   await page.waitForTimeout(1200);
   const acc = await storedAccount(page);
-  const grew = OPEN_SPOTS.map((p) => positionKey(p.stringPosition, p.fret))
+  const grew = MIXED_OPEN.map((p) => positionKey(p.stringPosition, p.fret))
     .filter((k) => acc.noteMap[k].found > before[k].found);
   check('and it is at an open position, which the take only ever answered an octave up',
     grew.length >= 1, JSON.stringify(acc.noteMap));
@@ -393,7 +432,7 @@ const start = async (page) => {
   console.log('\nbut an octave that is off the end of the named string is not\n');
   const { browser, page, errors } = await open({
     wav: 'octave-fretted.wav',
-    seed: account({ noteMap: recalledNeck() }),
+    seed: account({ rungId: MIXED.id, noteMap: recalledNeck([], MIXED_SPOTS) }),
   });
   await start(page);
   // Heard: the drill has to show what arrived. This is what separates "not
@@ -561,6 +600,7 @@ const WORN = {
   console.log('\na drilled one draws what was found, and only that\n');
   const { browser, page, errors } = await open({
     openDrill: false,
+    settled: true,
     seed: account({ noteMap: WORN }),
   });
   await page.locator('.progress-launch', { hasText: /^Notes$/ }).click();
@@ -593,6 +633,50 @@ const WORN = {
     String(await page.locator('.nc-neck-wear').count()));
   check('no console errors', errors.length === 0, errors.join(' | '));
   await page.screenshot({ path: `${OUT}/circle-worn.png` });
+  await browser.close();
+}
+
+// --- The gesture, demonstrated once ---------------------------------------
+
+{
+  console.log('\nthe tap gesture shows itself once and then stops\n');
+  const { browser, page, errors } = await open({ openDrill: false });
+  await page.locator('.progress-launch', { hasText: /^Notes$/ }).click();
+  await page.waitForSelector('.note-circle', { timeout: 15000 });
+  const before = await page.locator('.nc-count-value').innerText();
+  await page.waitForSelector('.nc-demo', { timeout: 8000 });
+  check('the figure shows the tap rather than describing it', true);
+  await page.waitForFunction(
+    (was) => document.querySelector('.nc-count-value')?.textContent !== was,
+    before,
+    { timeout: 8000 },
+  );
+  check('and the walk really moves, so what is shown is the mechanic itself',
+    (await page.locator('.nc-count-value').innerText()) !== before);
+
+  // The mechanic itself, checked rather than assumed: the second demonstrated
+  // tap has to hand the near end the note the far end was on. A demonstration
+  // that showed the gesture with a stale near end would be teaching the wrong
+  // move, and it would look exactly like this one.
+  await page.waitForTimeout(4500);
+  const ends = await page.evaluate(() => ({
+    near: document.querySelector('.nc-note.is-from .nc-note-name')?.textContent ?? null,
+    far: document.querySelector('.nc-note.is-to .nc-note-name')?.textContent ?? null,
+  }));
+  check('the second tap takes its near end from where the first one left off',
+    ends.near === 'E' && ends.far === 'G', JSON.stringify(ends));
+  check('there is no explanatory copy on the surface',
+    (await page.locator('.note-circle p:not(.sr-only)').count()) === 0);
+
+  // Reopened, it stays quiet: a demonstration that replays after the behaviour
+  // is learned has become decoration.
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+  await page.locator('.progress-launch', { hasText: /^Notes$/ }).click();
+  await page.waitForSelector('.note-circle', { timeout: 15000 });
+  await page.waitForTimeout(3000);
+  check('it does not play again', (await page.locator('.nc-demo').count()) === 0);
+  check('no console errors', errors.length === 0, errors.join(' | '));
   await browser.close();
 }
 
@@ -629,6 +713,9 @@ for (const [label, viewport] of [
   ['390x844', { width: 390, height: 844 }],
   ['1366x680', { width: 1366, height: 680 }],
   ['1366x768', { width: 1366, height: 768 }],
+  // The tallest frame is the tightest one to run in: past 780 the stage stops
+  // splitting into two columns and everything takes its full size again.
+  ['1366x900', { width: 1366, height: 900 }],
 ]) {
   console.log(`\nthe drill at ${label}\n`);
   const { browser, page, errors } = await open({ viewport, wav: 'every-answer.wav' });
@@ -649,7 +736,9 @@ for (const [label, viewport] of [
   check('no console errors', errors.length === 0, errors.join(' | '));
   await browser.close();
 
-  const circle = await open({ viewport, openDrill: false, seed: account({ noteMap: WORN }) });
+  const circle = await open({
+    viewport, openDrill: false, settled: true, seed: account({ noteMap: WORN }),
+  });
   await circle.page.locator('.progress-launch', { hasText: /^Notes$/ }).click();
   await circle.page.waitForSelector('.note-circle', { timeout: 15000 });
   await circle.page.waitForTimeout(600);
