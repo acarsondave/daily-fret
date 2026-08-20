@@ -327,16 +327,26 @@ const headX = (page) =>
   const shown = samples.filter((s) => s.x !== null);
   check('the playhead is on screen', shown.length > 30, `${shown.length} of ${samples.length}`);
 
-  const advances = shown.filter((s, i) => i > 0 && s.x > shown[i - 1].x + 0.5).length;
-  check('it advances through the riff', advances > 20, `${advances} forward steps`);
+  // Distinct positions rather than a count of forward steps. Headless Chromium
+  // here serves animation frames at about three a second, so counting samples
+  // that caught the marker between two places measures the harness rather than
+  // the feature. What has to be true is that it occupied many different points
+  // in the riff, and that it only ever went backwards at the repeat.
+  const places = new Set(shown.map((s) => Math.round(s.x / 8))).size;
+  check('it advances through the riff', places > 12, `${places} distinct positions`);
 
   const spread = Math.max(...shown.map((s) => s.x)) - Math.min(...shown.map((s) => s.x));
   check('it crosses the width of the staff', spread > 200, `${spread.toFixed(0)}px`);
 
   // The whole answer to "where does the repeat send me": it goes back, visibly,
   // rather than the player being told to.
+  const back = shown.filter((s, i) => i > 0 && s.x < shown[i - 1].x - 2);
   const jumps = shown.filter((s, i) => i > 0 && s.x < shown[i - 1].x - 100);
   check('and jumps back at the repeat', jumps.length >= 1, `${jumps.length} returns`);
+  // Two laps of a six-second riff in thirteen seconds, so it may turn twice and
+  // no more. Any other backward step would be the marker drifting.
+  check('and never otherwise', back.length === jumps.length && back.length <= 3,
+    `${back.length} backward steps, ${jumps.length} of them returns`);
 
   // The count-in has to have happened before any of that, or the riff starts
   // under the player rather than being counted in.
