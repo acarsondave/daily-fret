@@ -11,190 +11,227 @@
 // the low strings filling first, first position going bright before the fifth
 // fret has been asked about at all, and the gaps that are still gaps.
 //
-// ONE DRAWING, TWO DENSITIES. The same figure draws all six strings, which is
-// the record, and one string at a time, which is the drill asking a question.
-// Row height and lettering follow the number of strings rather than being
-// authored twice, because a second copy of this would drift from the first the
-// day either changed.
+// THREE LEVELS, NOT TWO. A position the drill lit and the player simply played
+// is drawn, and drawn as the different thing it is: a hairline outline rather
+// than light in the wood. Seeing where a note lives is worth recording and is
+// not worth claiming as knowing where it lives, and the two must be tellable
+// apart at a glance or the record stops meaning anything.
+//
+// ONE DRAWING, ANY STRETCH OF NECK. The same figure draws all twelve frets,
+// which is the record, and four of them, which is a rung being drilled. The
+// cells fatten to fill the same canvas rather than the canvas shrinking
+// (./neckGeometry.ts), so both are the same drawing at two zooms rather than two
+// drawings that would drift apart the day either changed.
 //
 // WHAT IT IS NOT A CLAIM ABOUT. A microphone hears a pitch, and a pitch does not
 // carry the string it came off. Every mark here means the prompt named this
-// position and the pitch that position makes came back — never "your finger was
+// position and the note that position makes came back — never "your finger was
 // here". src/lib/noteFinder.ts holds that argument in full.
 
-import { useMemo } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import clsx from 'clsx';
 import {
   QUICK_MS,
-  STRING_POSITIONS,
   TOP_FRET,
   openMidiOf,
   positionKey,
   positionStanding,
+  timesShown,
   type NoteMap,
   type PositionStanding,
 } from '../../lib/noteFinder';
 import { inlayAt, noteAtFret, sharpName } from '../../lib/noteCircle';
 import { DEFAULT_TUNING_ID, getTuning } from '../../audio/tuning';
-import {
-  CELL,
-  LABEL_X,
-  NECK_VIEW_W,
-  NUT_X,
-  STRING_X,
-  fretCentre,
-  fretLeft,
-  fretWidth,
-} from './neckGeometry';
+import { LABEL_X, STRING_STACK, VIEW_W, neckLayout, neckWindow } from './neckGeometry';
 import './neckMap.css';
 
-// The engraving is fixed and written out rather than derived from a scale
-// factor, because a half pixel of drift shows on a figure this regular. It lives
-// in ./neckGeometry.ts so a caller can lay tap targets over the drawing without
-// importing a component to get at a number. Only the CSS ever picks a size.
-
-/** Fret numbers worth writing. The dots already say where the rest are. */
-const NUMBERED = [3, 5, 7, 9, 12];
+/** Fret numbers worth writing when the whole neck is on show. The dots say the rest. */
+const LANDMARKS = [3, 5, 7, 9, 12];
+/** A window this short can afford a number under every fret, and a beginner wants one. */
+const NUMBER_EVERY_UP_TO = 8;
 
 const STANDARD = getTuning(DEFAULT_TUNING_ID);
 const STRING_LABEL = new Map(STANDARD.strings.map((s) => [s.position, s.name]));
 
+/**
+ * What a mark on the board is saying.
+ *
+ * - `show` is an instruction: put a finger here, now. Filled, because it is the
+ *   one mark the player is meant to act on rather than read.
+ * - `found` is this run's recall, called out over the wear underneath.
+ * - `shown` is this run's placement against a lit answer, which is a quieter
+ *   claim and is drawn as one.
+ * - `miss` is what arrived instead, drawn where it actually is, so the distance
+ *   between the two is a distance rather than a sentence.
+ */
+export type NeckMarkKind = 'show' | 'found' | 'shown' | 'miss';
+
 export interface NeckMark {
   stringPosition: number;
   fret: number;
+  kind: NeckMarkKind;
+  /** Write the note's name on it. Per mark, because one drawing can hold both. */
+  name?: boolean;
 }
 
 interface Props {
   map: NoteMap;
-  /** Which strings to draw, thickest first. Absent draws the whole instrument. */
-  strings?: readonly number[];
-  /**
-   * Positions to call out over the wear: this run's finds, or the one just
-   * answered. Drawn as an outline rather than a fill, so the wear underneath
-   * still reads and the call-out is visibly a different kind of statement.
-   */
+  /** Lowest fret to draw. Zero, the nut, by default. */
+  from?: number;
+  /** Highest fret to draw. */
+  to?: number;
   marks?: readonly NeckMark[];
-  /** Write the note name on each marked position. Off while a drill is asking. */
-  nameMarks?: boolean;
-  /** Draw one string heavier than the rest: the one a prompt is asking about. */
-  litString?: number | null;
+  /** Strings to draw heavier than the rest: the ones a prompt or a rung is about. */
+  litStrings?: readonly number[];
   className?: string;
 }
 
-/** How many positions stand at each level, for the one line a screen reader gets. */
-function tally(map: NoteMap, strings: readonly number[]): { found: number; quick: number; total: number } {
-  let found = 0;
-  let quick = 0;
-  let total = 0;
-  for (const stringPosition of strings) {
-    for (let fret = 0; fret <= TOP_FRET; fret += 1) {
-      total += 1;
-      const standing = positionStanding(map[positionKey(stringPosition, fret)]);
-      if (standing === 'unasked') continue;
-      found += 1;
-      if (standing === 'quick') quick += 1;
+interface Tally {
+  found: number;
+  quick: number;
+  shown: number;
+  total: number;
+}
+
+function tally(map: NoteMap, frets: readonly number[]): Tally {
+  const counts: Tally = { found: 0, quick: 0, shown: 0, total: 0 };
+  for (const stringPosition of STRING_STACK) {
+    for (const fret of frets) {
+      counts.total += 1;
+      const find = map[positionKey(stringPosition, fret)];
+      const standing = positionStanding(find);
+      if (standing !== 'unasked') {
+        counts.found += 1;
+        if (standing === 'quick') counts.quick += 1;
+        continue;
+      }
+      if (timesShown(find) > 0) counts.shown += 1;
     }
   }
-  return { found, quick, total };
+  return counts;
+}
+
+function inWords(counts: Tally, seconds: number): string {
+  if (counts.found === 0 && counts.shown === 0) {
+    return 'Nothing has been asked for on this neck yet.';
+  }
+  const recalled = `${counts.found} of ${counts.total} positions found from memory, ${counts.quick} of them inside ${seconds} seconds.`;
+  if (counts.shown === 0) return recalled;
+  return `${recalled} ${counts.shown} more have been shown but not yet recalled.`;
 }
 
 export function NeckMap({
   map,
-  strings = STRING_POSITIONS,
+  from = 0,
+  to = TOP_FRET,
   marks,
-  nameMarks = false,
-  litString = null,
+  litStrings,
   className,
 }: Props) {
-  // Row height follows the number of strings: six rows is a record to scan, one
-  // row is a question being asked from across the room, and they cannot be the
-  // same size without one of them failing at its job.
-  const single = strings.length === 1;
-  const row = single ? 58 : 18;
-  const rowTop = single ? 36 : 24;
-  const boardTop = rowTop - row / 2;
-  const boardBottom = rowTop + (strings.length - 1) * row + row / 2;
-  const numberY = boardBottom + (single ? 22 : 17);
-  const viewH = numberY + (single ? 8 : 6);
-  const markH = single ? 34 : 13;
-  const markInset = single ? 4 : 3.5;
-  const rowY = (stringPosition: number) => rowTop + strings.indexOf(stringPosition) * row;
+  const window = useMemo(() => neckWindow(from, to), [from, to]);
+  const layout = useMemo(() => neckLayout(window, STRING_STACK.length), [window]);
+  const { boardTop, boardBottom, markH, type } = layout;
+  const rowY = (stringPosition: number) => layout.rowY(STRING_STACK.indexOf(stringPosition));
+  const inset = Math.max(3, window.cell * 0.09);
+  // A short window numbers every fret it draws, the open cell included: the one
+  // position that sits off the board is the one a beginner is least sure of, and
+  // a nought under it settles it without a word.
+  const numbered = useMemo(
+    () =>
+      window.frets.length <= NUMBER_EVERY_UP_TO
+        ? window.frets
+        : window.frets.filter((fret) => LANDMARKS.includes(fret)),
+    [window],
+  );
 
   const cells = useMemo(() => {
-    const out: Array<{ key: string; stringPosition: number; fret: number; standing: PositionStanding }> = [];
-    for (const stringPosition of strings) {
-      for (let fret = 0; fret <= TOP_FRET; fret += 1) {
+    const out: Array<{
+      key: string;
+      stringPosition: number;
+      fret: number;
+      standing: PositionStanding;
+    }> = [];
+    for (const stringPosition of STRING_STACK) {
+      for (const fret of window.frets) {
         const key = positionKey(stringPosition, fret);
-        const standing = positionStanding(map[key]);
-        if (standing === 'unasked') continue;
+        const find = map[key];
+        const standing = positionStanding(find);
+        if (standing === 'unasked' && timesShown(find) === 0) continue;
         out.push({ key, stringPosition, fret, standing });
       }
     }
     return out;
-  }, [map, strings]);
+  }, [map, window]);
 
-  const counts = useMemo(() => tally(map, strings), [map, strings]);
-  const seconds = Math.round(QUICK_MS / 1000);
-  const inlayGap = single ? 14 : 15;
+  const counts = useMemo(() => tally(map, window.frets), [map, window]);
+  const isLit = (stringPosition: number) => litStrings?.includes(stringPosition) === true;
 
   return (
-    <div className={clsx('neck-map', single && 'is-single', className)}>
+    <div
+      className={clsx('neck-map', className)}
+      style={{ '--nm-type': `${type}px` } as CSSProperties}
+    >
       {/* The figure in words. Silent about the frets nothing has been asked
           about, exactly as the drawing is. */}
-      <p className="sr-only">
-        {counts.found === 0
-          ? 'Nothing has been asked for on this neck yet.'
-          : `${counts.found} of ${counts.total} positions found, ${counts.quick} of them inside ${seconds} seconds.`}
-      </p>
+      <p className="sr-only">{inWords(counts, Math.round(QUICK_MS / 1000))}</p>
 
-      <svg viewBox={`0 0 ${NECK_VIEW_W} ${viewH}`} aria-hidden="true" focusable="false">
+      <svg viewBox={`0 0 ${VIEW_W} ${layout.viewH}`} aria-hidden="true" focusable="false">
         <rect
           className="nm-board"
-          x={NUT_X}
+          x={window.nutX ?? window.left(window.from)}
           y={boardTop}
-          width={NECK_VIEW_W - NUT_X - 3}
+          width={VIEW_W - (window.nutX ?? window.left(window.from)) - 3}
           height={boardBottom - boardTop}
           rx={2}
         />
 
-        {Array.from({ length: TOP_FRET }, (_, i) => (
+        {/* One wire on the far side of every cell. The open cell's far side is
+            the nut, which is drawn as a nut. */}
+        {window.frets
+          .filter((fret) => window.nutX === null || fret > 0)
+          .map((fret) => {
+            const x = window.left(fret) + window.width(fret);
+            return <line key={`w${fret}`} className="nm-wire" x1={x} y1={boardTop} x2={x} y2={boardBottom} />;
+          })}
+        {window.nutX !== null ? (
+          <line className="nm-nut" x1={window.nutX} y1={boardTop} x2={window.nutX} y2={boardBottom} />
+        ) : (
           <line
-            key={`w${i}`}
             className="nm-wire"
-            x1={NUT_X + (i + 1) * CELL}
+            x1={window.left(window.from)}
             y1={boardTop}
-            x2={NUT_X + (i + 1) * CELL}
+            x2={window.left(window.from)}
             y2={boardBottom}
           />
-        ))}
-        <line className="nm-nut" x1={NUT_X} y1={boardTop} x2={NUT_X} y2={boardBottom} />
+        )}
 
-        {Array.from({ length: TOP_FRET }, (_, i) => {
-          const fret = i + 1;
+        {window.frets.map((fret) => {
           const dots = inlayAt(fret);
           if (dots === 0) return null;
           const mid = (boardTop + boardBottom) / 2;
+          const gap = window.row * 0.85;
+          const r = Math.max(2.6, window.cell * 0.07);
           return dots === 2 ? (
             <g key={`i${fret}`} className="nm-inlay">
-              <circle cx={fretCentre(fret)} cy={mid - inlayGap} r={2.6} />
-              <circle cx={fretCentre(fret)} cy={mid + inlayGap} r={2.6} />
+              <circle cx={window.centre(fret)} cy={mid - gap} r={r} />
+              <circle cx={window.centre(fret)} cy={mid + gap} r={r} />
             </g>
           ) : (
-            <circle key={`i${fret}`} className="nm-inlay" cx={fretCentre(fret)} cy={mid} r={2.6} />
+            <circle key={`i${fret}`} className="nm-inlay" cx={window.centre(fret)} cy={mid} r={r} />
           );
         })}
 
         {/* Gauge, drawn at the real order: which string this is has a thickness
             before it has a name, which is how it is picked out on the guitar. */}
-        {strings.map((stringPosition) => (
+        {STRING_STACK.map((stringPosition) => (
           <line
             key={`s${stringPosition}`}
-            className={clsx('nm-string', stringPosition === litString && 'is-lit')}
-            x1={STRING_X}
+            className={clsx('nm-string', isLit(stringPosition) && 'is-lit')}
+            x1={window.left(window.from)}
             y1={rowY(stringPosition)}
-            x2={NECK_VIEW_W - 3}
+            x2={VIEW_W - 3}
             y2={rowY(stringPosition)}
-            style={{ strokeWidth: 0.8 + (stringPosition - 1) * (single ? 0.5 : 0.28) }}
+            style={{ strokeWidth: 0.8 + (stringPosition - 1) * 0.28 }}
           />
         ))}
 
@@ -203,29 +240,29 @@ export function NeckMap({
         {cells.map(({ key, stringPosition, fret, standing }) => (
           <rect
             key={key}
-            className={clsx('nm-wear', `is-${standing}`)}
-            x={fretLeft(fret) + markInset}
+            className={standing === 'unasked' ? 'nm-seen' : clsx('nm-wear', `is-${standing}`)}
+            x={window.left(fret) + inset}
             y={rowY(stringPosition) - markH / 2}
-            width={Math.max(4, fretWidth(fret) - markInset * 2)}
+            width={Math.max(4, window.width(fret) - inset * 2)}
             height={markH}
             rx={3}
           />
         ))}
 
-        {marks?.map(({ stringPosition, fret }) => (
-          <g key={`m${stringPosition}-${fret}`} className="nm-mark">
+        {marks?.map(({ stringPosition, fret, kind, name }) => (
+          <g key={`m${kind}-${stringPosition}-${fret}`} className={clsx('nm-mark', `is-${kind}`)}>
             <rect
-              x={fretLeft(fret) + markInset}
+              x={window.left(fret) + inset}
               y={rowY(stringPosition) - markH / 2}
-              width={Math.max(4, fretWidth(fret) - markInset * 2)}
+              width={Math.max(4, window.width(fret) - inset * 2)}
               height={markH}
               rx={3}
             />
-            {nameMarks && (
+            {name === true && (
               <text
                 className="nm-mark-name"
-                x={fretCentre(fret)}
-                y={rowY(stringPosition) + (single ? 7 : 4)}
+                x={window.centre(fret)}
+                y={rowY(stringPosition) + markH * 0.28}
                 textAnchor="middle"
               >
                 {sharpName(noteAtFret(openMidiOf(stringPosition), fret))}
@@ -234,20 +271,26 @@ export function NeckMap({
           </g>
         ))}
 
-        {NUMBERED.map((fret) => (
-          <text key={`n${fret}`} className="nm-number" x={fretCentre(fret)} y={numberY} textAnchor="middle">
+        {numbered.map((fret) => (
+          <text
+            key={`n${fret}`}
+            className="nm-number"
+            x={window.centre(fret)}
+            y={layout.numberY}
+            textAnchor="middle"
+          >
             {fret}
           </text>
         ))}
 
         {/* The open strings, named. The same thing the note circle does: the
             tuning states what it is rather than being described. */}
-        {strings.map((stringPosition) => (
+        {STRING_STACK.map((stringPosition) => (
           <text
             key={`l${stringPosition}`}
-            className={clsx('nm-open', stringPosition === litString && 'is-lit')}
+            className={clsx('nm-open', isLit(stringPosition) && 'is-lit')}
             x={LABEL_X}
-            y={rowY(stringPosition) + (single ? 6 : 4)}
+            y={rowY(stringPosition) + type * 0.34}
             textAnchor="middle"
           >
             {STRING_LABEL.get(stringPosition)}

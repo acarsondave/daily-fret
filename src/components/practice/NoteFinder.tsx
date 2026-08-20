@@ -7,20 +7,27 @@
 // piece of theory a hand actually has to do at speed. It is a playing action,
 // and a playing action has a pitch on the end of it, so the app can hear it.
 //
-// THE FIGURE. One neck, one letter. The letter is the question and the neck is
-// where the answer lives, and the whole drill is the letter arriving at its
-// fret: found, and it lands in the accent; not found in time, and it is shown
-// there instead, in a quieter hand, which is the difference between an answer
-// and a hint. Nothing is written down. The only sentence on the surface is the
-// one about what the microphone did and did not settle, and it earns its place
-// because it is the drill's own honesty.
+// SHOWN, THEN RECALLED. The first version of this drew a letter, a blank neck
+// and a clock, which is an exam for anyone who has not already learnt where the
+// naturals live, and it was one. So a position the player has never recalled is
+// lit on the board and simply played; only once it has come back from memory is
+// it asked with nothing drawn, and a recall that does not arrive lights it again
+// and waits for the note anyway. Every question ends with the note played, which
+// is the whole difference between a drill and a test. The two kinds of answer
+// are never counted together (src/lib/noteFinder.ts): one is what the player
+// knows and the other is what the app just told them.
 //
-// WHAT IS BEING CLAIMED. Exactly this: the prompt named a position, and the
-// pitch that position makes came back. Not "you played it there" — a frequency
-// does not carry the string it came off, and C at the third fret of the A string
-// and C at the eighth fret of the low E are the same 130.81 Hz forever. See
-// src/lib/noteFinder.ts, which holds the whole argument and the two prompt forms
-// that deliberately record nothing because the app was never told where to look.
+// THE FIGURE. One letter and one neck, and the neck is only as much neck as the
+// rung is asking about, so a fret is the size of a fingertip rather than four
+// millimetres of a propped laptop. Everything the drill has to say happens on
+// it: the answer lights there, a wrong note lands there beside it, and this
+// run's answers stay there as the board fills in.
+//
+// WHAT IS BEING CLAIMED. The prompt named a position, the note that position
+// makes came back, and inside the frets this rung asks about only that fret on
+// that string makes it. Not "you played it there" — a frequency does not carry
+// the string it came off, and C at the third fret of the A string and C at the
+// eighth fret of the low E are the same 130.81 Hz forever.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -28,11 +35,11 @@ import clsx from 'clsx';
 import { ArrowRightIcon, HourglassIcon, MicIcon, PlayIcon, TapFretIcon } from '../icons';
 import { MicGate, TimerRunEnded, UncountedNotice } from './MicGate';
 import { usePitchDetector } from '../../hooks/usePitchDetector';
-import { midiToName, readPitch } from '../../audio/tuning';
+import { DEFAULT_TUNING_ID, getTuning, midiToName, readPitch } from '../../audio/tuning';
 import { ProgressRing } from './ProgressRing';
 import { ringScale } from '../../lib/ringScale';
 import { NeckMap, type NeckMark } from './NeckMap';
-import { fretColumn } from './neckGeometry';
+import { STRING_STACK, neckLayout, neckWindow, positionBox } from './neckGeometry';
 import { CoachAdvance } from './CoachAdvance';
 import { sfx } from '../../audio/sfx';
 import { diag } from '../../audio/diagnostics';
@@ -40,15 +47,19 @@ import { flatName, sharpName } from '../../lib/noteCircle';
 import {
   RUNGS,
   currentRung,
+  fretOn,
   getRung,
+  isShown,
   judge,
   medianFindMs,
   midiAt,
   namesString,
   nextPrompt,
+  positionKey,
   rungNumber,
+  rungPositions,
   rungStanding,
-  TOP_FRET,
+  rungWindow,
   type FinderPrompt,
   type FinderRung,
   type FinderRunRecord,
@@ -60,34 +71,44 @@ import type { TimedOutcome } from '../../store/completion';
 import './noteFinder.css';
 
 const AUTO_ADVANCE_SECONDS = 5;
-/** How long the answer stays lit on the neck before the next question. */
+/** How long a recalled answer stays lit on the neck before the next question. */
 const CONFIRM_MS = 900;
-/** A reveal is a teaching moment, so it holds longer than a find does. */
-const REVEAL_MS = 1800;
-/**
- * How far past the rung's own budget a question waits before it gives the answer.
- *
- * Twice, because the budget is the pace the rung is asking for and not a
- * deadline: a player who takes eleven seconds over an eight-second budget has
- * found it, slowly, which is a true and useful thing to record. Past twice it,
- * they are not going to, and a question with no way out of it is the drill
- * spending a minute of practice on one fret.
- */
-const REVEAL_AT = 2;
+/** A placement holds a little longer: the point of it was to be looked at. */
+const PLACED_MS = 1300;
+/** How long one demonstrated position holds on the setup screen. */
+const DEMO_MS = 1600;
+
+const STRINGS = getTuning(DEFAULT_TUNING_ID).strings;
+/** What a person calls each string out loud. Two of them are E. */
+const STRING_LABEL = new Map(STRINGS.map((s) => [s.position, s.label]));
+
+const stringLabel = (position: number): string => {
+  const label = STRING_LABEL.get(position);
+  if (!label) throw new Error(`Standard tuning has no string at position ${position}.`);
+  return label;
+};
 
 type View = 'setup' | 'playing' | 'results';
-/** Where a single question has got to. */
-type Ask = 'asking' | 'confirmed' | 'revealed';
+/**
+ * Where one question has got to.
+ *
+ * `asking` draws nothing and is a recall. `showing` has the answer lit and is a
+ * placement. The two endings are kept apart all the way to the record, because
+ * they are different facts about the player.
+ */
+type Ask = 'asking' | 'showing' | 'recalled' | 'placed';
 /** How a question is being answered: by playing it, or by pointing at it. */
 type Channel = 'heard' | 'tapped';
 
 export interface NoteFinderResult {
   rungId: string;
-  /** Correct finds, not counting the ones the app had to show. */
+  /** Recalled with nothing on the board. The only number the ladder reads. */
   finds: number;
-  /** Median milliseconds a find took, or null when nothing was found. */
+  /** Played with the answer lit. Never a recall, and never counted as one. */
+  shown: number;
+  /** Median milliseconds a recall took, or null when nothing was recalled. */
   findMs: number | null;
-  /** Every correct find at a prompt that named a string, for the neck map. */
+  /** Every answer at a prompt that named a string, each saying which kind it was. */
   found: NoteFindReport[];
 }
 
@@ -142,14 +163,26 @@ export function NoteFinder({
   const [prompt, setPrompt] = useState<FinderPrompt | null>(null);
   const [ask, setAsk] = useState<Ask>('asking');
   const [finds, setFinds] = useState(0);
+  const [placed, setPlaced] = useState(0);
   const [timeLeft, setTimeLeft] = useState(duration);
   /**
-   * What arrived that was not the answer, so the screen can say which kind of
-   * wrong it was. Cleared by the next question and by a correct answer.
+   * What arrived that was not the answer, with where it sits on the string that
+   * was named when the string can make it at all. Cleared by the next question
+   * and by a correct answer.
    */
-  const [miss, setMiss] = useState<{ midi: number; kind: 'octave' | 'same' | 'other' } | null>(null);
+  const [miss, setMiss] = useState<{ midi: number; fret: number | null } | null>(null);
+  /**
+   * What this run has answered so far, for the board to draw.
+   *
+   * State rather than the ref the result is built from, because the drawing is
+   * the count: the player watches the stretch of neck they are working fill in
+   * while they work it, and a ref would not repaint when it did.
+   */
+  const [answers, setAnswers] = useState<readonly NeckMark[]>([]);
   const [result, setResult] = useState<NoteFinderResult | null>(null);
   const [advanceLeft, setAdvanceLeft] = useState(AUTO_ADVANCE_SECONDS);
+  /** Which position the setup screen is demonstrating, before anything is known. */
+  const [demoAt, setDemoAt] = useState(0);
 
   // Everything the run accumulates lives in refs: the timers and the pitch
   // handler run outside React's render and would otherwise close over whatever
@@ -158,14 +191,18 @@ export function NoteFinder({
   const askedAtRef = useRef(0);
   const askRef = useRef<Ask>('asking');
   const judgedRef = useRef<number | null>(null);
+  /** The note the microphone is reporting right now, or null in a quiet room. */
+  const soundingRef = useRef<number | null>(null);
   const timesRef = useRef<number[]>([]);
   const foundRef = useRef<NoteFindReport[]>([]);
   const findsRef = useRef(0);
+  const placedRef = useRef(0);
+  /** Positions recalled during this run, which stop being lit for the rest of it. */
+  const recalledRef = useRef<Set<string>>(new Set());
   const channelRef = useRef<Channel>('heard');
   const clockRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stepRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finishedRef = useRef(false);
-  const startedAtRef = useRef(0);
 
   const clearClock = () => {
     if (clockRef.current) clearInterval(clockRef.current);
@@ -181,6 +218,25 @@ export function NoteFinder({
     return runs.reduce((m, r) => Math.max(m, r.findsPerMin), 0);
   }, [history, rung.id]);
 
+  // As much neck as the rung asks about, and one fret either side of it. The
+  // drill and its tap targets read the same geometry, so a button can never sit
+  // anywhere but over the fret it names.
+  const neck = useMemo(() => {
+    const { from, to } = rungWindow(rung);
+    return neckWindow(from, to);
+  }, [rung]);
+  const layout = useMemo(() => neckLayout(neck, STRING_STACK.length), [neck]);
+
+  /** Whether this position is still one the drill lights before asking for it. */
+  const lightFor = useCallback(
+    (stringPosition: number, fret: number) => {
+      const key = positionKey(stringPosition, fret);
+      if (recalledRef.current.has(key)) return false;
+      return isShown(map[key]);
+    },
+    [map],
+  );
+
   /**
    * Ask the next question.
    *
@@ -194,54 +250,70 @@ export function NoteFinder({
     if (!next) return;
     promptRef.current = next;
     askedAtRef.current = Date.now();
-    askRef.current = 'asking';
-    judgedRef.current = null;
+    // Whatever is ringing now was struck for the question just answered. A
+    // plucked note reads confidently for about four seconds, which is longer
+    // than the gap between questions, so without this the previous answer
+    // arrives as this question's wrong note before the player has moved a
+    // finger. Measured, not guessed.
+    judgedRef.current = soundingRef.current;
+    const lit = namesString(next.form) && lightFor(next.stringPosition, next.fret);
+    askRef.current = lit ? 'showing' : 'asking';
     setPrompt(next);
-    setAsk('asking');
+    setAsk(lit ? 'showing' : 'asking');
     setMiss(null);
-  }, [rung, map]);
+  }, [rung, map, lightFor]);
 
-  /** Give the answer away. Nothing is counted for it; it is a lesson, not a find. */
-  const reveal = useCallback(() => {
+  /** The recall did not come. Light the answer and go on waiting for the note. */
+  const show = useCallback(() => {
     if (askRef.current !== 'asking') return;
-    askRef.current = 'revealed';
-    setAsk('revealed');
+    askRef.current = 'showing';
+    setAsk('showing');
     setMiss(null);
-    clearStep();
-    stepRef.current = setTimeout(askNext, REVEAL_MS);
-  }, [askNext]);
+  }, []);
 
   /** The right note arrived, or the right fret was pointed at. */
-  const land = useCallback(
-    () => {
-      const asked = promptRef.current;
-      if (!asked) return;
-      const ms = Date.now() - askedAtRef.current;
-      askRef.current = 'confirmed';
-      setAsk('confirmed');
-      setMiss(null);
-      if (channelRef.current === 'heard') {
+  const land = useCallback(() => {
+    const asked = promptRef.current;
+    if (!asked) return;
+    const wasLit = askRef.current === 'showing';
+    const ms = Date.now() - askedAtRef.current;
+    askRef.current = wasLit ? 'placed' : 'recalled';
+    setAsk(wasLit ? 'placed' : 'recalled');
+    setMiss(null);
+    if (channelRef.current === 'heard') {
+      if (wasLit) {
+        placedRef.current += 1;
+        setPlaced(placedRef.current);
+      } else {
         findsRef.current += 1;
         setFinds(findsRef.current);
         timesRef.current.push(ms);
-        // Only a prompt that named a string can be filed against a position.
-        // The other two forms never told the app where to look, so it has
-        // nothing true to write about a fret.
-        if (namesString(asked.form)) {
-          foundRef.current.push({
+        recalledRef.current.add(positionKey(asked.stringPosition, asked.fret));
+      }
+      // Only a prompt that named a string can be filed against a position. The
+      // other two forms never told the app where to look, so it has nothing
+      // true to write about a fret.
+      if (namesString(asked.form)) {
+        foundRef.current.push({
+          stringPosition: asked.stringPosition,
+          fret: asked.fret,
+          ms,
+          shown: wasLit,
+        });
+        setAnswers((was) => [
+          ...was,
+          {
             stringPosition: asked.stringPosition,
             fret: asked.fret,
-            ms,
-            shown: false,
-          });
-        }
-        sfx.tick();
+            kind: wasLit ? 'shown' : 'found',
+          },
+        ]);
       }
-      clearStep();
-      stepRef.current = setTimeout(askNext, CONFIRM_MS);
-    },
-    [askNext],
-  );
+      sfx.tick();
+    }
+    clearStep();
+    stepRef.current = setTimeout(askNext, wasLit ? PLACED_MS : CONFIRM_MS);
+  }, [askNext]);
 
   const finish = useCallback(() => {
     if (finishedRef.current) return;
@@ -261,10 +333,13 @@ export function NoteFinder({
     const run: NoteFinderResult = {
       rungId: rung.id,
       finds: findsRef.current,
+      shown: placedRef.current,
       findMs: medianFindMs(timesRef.current),
       found: foundRef.current,
     };
-    diag.mark(`note finder ${rung.id}: found ${run.finds}, median ${run.findMs ?? 'none'}ms`);
+    diag.mark(
+      `note finder ${rung.id}: recalled ${run.finds}, shown ${run.shown}, median ${run.findMs ?? 'none'}ms`,
+    );
     if (run.finds > best) sfx.best();
     else sfx.complete();
     setResult(run);
@@ -279,10 +354,15 @@ export function NoteFinder({
       channelRef.current = tapped ? 'tapped' : 'heard';
       setChannel(tapped ? 'tapped' : 'heard');
       findsRef.current = 0;
+      placedRef.current = 0;
       timesRef.current = [];
       foundRef.current = [];
+      recalledRef.current = new Set();
       promptRef.current = null;
+      soundingRef.current = null;
       setFinds(0);
+      setPlaced(0);
+      setAnswers([]);
       setTimeLeft(duration);
       setView('playing');
       onSessionStart?.();
@@ -293,7 +373,6 @@ export function NoteFinder({
         diag.mark(`note finder start ${rung.id} (${duration}s)`);
       }
 
-      startedAtRef.current = Date.now();
       askNext();
       clearClock();
       const deadline = Date.now() + duration * 1000;
@@ -314,32 +393,49 @@ export function NoteFinder({
   // the MIDI number this question has already had an answer from.
   useEffect(() => {
     if (view !== 'playing' || channel !== 'heard') return;
-    const asked = promptRef.current;
-    if (!asked || askRef.current !== 'asking') return;
-    if (!pitch || pitch.provisional || pitch.fading) return;
+    if (!pitch || pitch.provisional || pitch.fading) {
+      // The room has gone quiet. Nothing is being carried across from the last
+      // question any more, so the next note counts whatever it is.
+      soundingRef.current = null;
+      return;
+    }
     // Two strings ringing together is one periodic signal whose period belongs
     // to neither of them. The tuner learned this the hard way; nothing may be
     // judged on a reading that is the interval rather than a note.
     if (pitch.secondNoteAt !== null) return;
 
     const midi = readPitch(pitch.hz).midi;
+    soundingRef.current = midi;
+
+    const asked = promptRef.current;
+    if (!asked) return;
+    if (askRef.current !== 'asking' && askRef.current !== 'showing') return;
     if (judgedRef.current === midi) return;
     judgedRef.current = midi;
 
-    const outcome = judge(asked, midi);
-    if (outcome.kind === 'right') {
+    if (judge(asked, midi).kind === 'right') {
       land();
       return;
     }
-    setMiss({ midi, kind: outcome.kind });
+    setMiss({ midi, fret: fretOn(asked.stringPosition, midi) });
   }, [pitch, view, channel, land]);
 
-  // The clock on one question, which is a different clock from the run's.
+  // The clock on one question, which is a different clock from the run's. Past
+  // the rung's own budget the answer is lit and the question stays open: the
+  // note still has to be played, and the record says it was played to a light.
   useEffect(() => {
-    if (view !== 'playing' || ask !== 'asking' || !prompt) return;
-    const id = setTimeout(reveal, rung.budgetMs * REVEAL_AT);
-    return () => clearTimeout(id);
-  }, [view, ask, prompt, reveal, rung.budgetMs]);
+    if (view !== 'playing' || !prompt) return;
+    if (ask === 'asking') {
+      const id = setTimeout(show, rung.budgetMs);
+      return () => clearTimeout(id);
+    }
+    if (ask === 'showing') {
+      // Lit and still nothing played. Not every silence is a player thinking:
+      // move on rather than spending the rest of the minute on one fret.
+      const id = setTimeout(askNext, rung.budgetMs);
+      return () => clearTimeout(id);
+    }
+  }, [view, ask, prompt, show, askNext, rung.budgetMs]);
 
   // The microphone went away mid-run. The run ends where it stands and is filed
   // as the seconds actually played, with no number: a count taken through a dead
@@ -387,26 +483,63 @@ export function NoteFinder({
     return () => clearInterval(id);
   }, [view, autoAdvance, onNext]);
 
+  // What the drill is, played out on the setup screen's own neck: a note is
+  // named, it lights where it lives, you play it. It runs only while the board
+  // is blank, which is the only time anyone needs telling, and stops for good
+  // the moment there is a record to look at instead.
+  const demoSpots = useMemo(() => rungPositions(rung), [rung]);
+  const demonstrating = view === 'setup' && Object.keys(map).length === 0;
+  // Reduced motion keeps the demonstration and stops it walking: one position
+  // lit and named still says what the drill is, without anything moving.
+  useEffect(() => {
+    if (!demonstrating || reduceMotion) return;
+    const id = setInterval(() => setDemoAt((at) => at + 1), DEMO_MS);
+    return () => clearInterval(id);
+  }, [demonstrating, reduceMotion]);
+
   const onTapFret = (fret: number) => {
     const asked = promptRef.current;
-    if (!asked || askRef.current !== 'asking') return;
+    if (!asked) return;
+    if (askRef.current !== 'asking' && askRef.current !== 'showing') return;
     if (fret === asked.fret) {
       land();
       return;
     }
-    const midi = midiAt(asked.stringPosition, fret);
-    setMiss({ midi, kind: judge(asked, midi).kind === 'octave' ? 'octave' : 'other' });
+    setMiss({ midi: midiAt(asked.stringPosition, fret), fret });
   };
 
   // --- The ladder ----------------------------------------------------------
 
   if (view === 'setup') {
+    const spot = demonstrating && demoSpots.length ? demoSpots[demoAt % demoSpots.length] : null;
     return (
       <div className="om-setup nf-setup">
         <RungLadder history={history} current={rung} />
-        {/* The record, and the reason to come back: on the first run it is a
-            plain neck, which is what a plain neck honestly is. */}
-        <NeckMap map={map} className="nf-setup-map" />
+        <p className="sr-only">
+          A note is named and you play it. Every position you have not yet found
+          from memory is lit on the neck for you first.
+        </p>
+        {/* The rung's own ground: the strings it asks about, the frets it asks
+            about, and one position at a time lighting up on a board nothing is
+            known about yet. It runs only while there is no record to look at
+            instead, which is the only time anyone needs telling. */}
+        {spot && (
+          <div className="nf-letter is-showing" aria-hidden="true">
+            <span className="nf-letter-name">{sharpName(spot.pc)}</span>
+          </div>
+        )}
+        <NeckMap
+          map={map}
+          from={neck.from}
+          to={neck.to}
+          litStrings={rung.strings}
+          marks={
+            spot
+              ? [{ stringPosition: spot.stringPosition, fret: spot.fret, kind: 'show', name: true }]
+              : []
+          }
+          className="nf-setup-map"
+        />
         <button className="practice-btn primary" onClick={() => void startSession()}>
           <PlayIcon size={20} /> Start {duration}s
         </button>
@@ -438,18 +571,32 @@ export function NoteFinder({
     }
     if (!prompt) return null;
 
-    const answered = ask !== 'asking';
+    const answered = ask === 'recalled' || ask === 'placed';
     const told = namesString(prompt.form);
     // An `echo` shows a position instead of a letter, so the position is drawn
-    // from the first frame; every other form only ever shows it as the answer.
-    const showsPosition = answered || prompt.form === 'echo';
-    // One string when the prompt named one, the whole instrument otherwise: a
-    // question with no string in it cannot be drawn on a single string without
-    // answering half of itself.
-    const strings = told ? [prompt.stringPosition] : undefined;
-    const marks: NeckMark[] = showsPosition
-      ? [{ stringPosition: prompt.stringPosition, fret: prompt.fret }]
-      : [];
+    // from the first frame; every other form draws it when it is lit or answered.
+    const showsPosition = answered || ask === 'showing' || prompt.form === 'echo';
+
+    // This run's answers stay on the board, less whichever position is being
+    // asked about right now: one position carries one mark, and the live one
+    // wins.
+    const marks: NeckMark[] = answers.filter(
+      (a) => a.stringPosition !== prompt.stringPosition || a.fret !== prompt.fret,
+    );
+    // What arrived, drawn where it actually is, so the gap between it and the
+    // answer is a distance on the board rather than a sentence about one.
+    const missFret = miss?.fret ?? null;
+    if (missFret !== null && missFret >= neck.from && missFret <= neck.to) {
+      marks.push({ stringPosition: prompt.stringPosition, fret: missFret, kind: 'miss' });
+    }
+    if (showsPosition) {
+      marks.push({
+        stringPosition: prompt.stringPosition,
+        fret: prompt.fret,
+        kind: ask === 'recalled' ? 'found' : 'show',
+        name: true,
+      });
+    }
 
     return (
       <div className="drill-stage nf-stage">
@@ -470,14 +617,13 @@ export function NoteFinder({
             </div>
           )}
 
-          {/* What arrived instead, as the note it was. The same letter means the
-              right note in the wrong octave and a different letter means
-              somewhere else entirely, so the letter itself carries which kind of
-              wrong this is and nothing has to say it. */}
+          {/* What arrived instead, as the note it was. Every note the room makes
+              gets an answer on screen, which is how a player can tell a drill
+              that disagrees with them from one that is not listening. */}
           {miss && !answered && (
             <motion.p
-              className={clsx('nf-miss', miss.kind === 'other' ? 'is-other' : 'is-near')}
-              key={`${miss.midi}-${miss.kind}`}
+              className="nf-miss"
+              key={miss.midi}
               initial={reduceMotion ? false : { opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               aria-hidden="true"
@@ -489,23 +635,34 @@ export function NoteFinder({
           <div className="nf-neck">
             <NeckMap
               map={map}
-              strings={strings}
-              litString={told ? prompt.stringPosition : null}
+              from={neck.from}
+              to={neck.to}
+              litStrings={told ? [prompt.stringPosition] : undefined}
               marks={marks}
-              nameMarks={answered}
             />
             {/* Real buttons over the drawing, the way the note circle and the
                 headstock do it: a target has to be focusable, named and big
-                enough for a thumb, and an SVG rect is none of those. Only the
-                tapped channel puts them there; a played answer needs no target. */}
+                enough for a thumb, and an SVG rect is none of those. They sit on
+                the asked string's own row rather than spanning the board, so a
+                tap says a position and not just a fret. Only the tapped channel
+                puts them there; a played answer needs no target. */}
             {channel === 'tapped' && told && (
-              <div className="nf-fret-hits" role="group" aria-label="Frets">
-                {Array.from({ length: TOP_FRET + 1 }, (_, fret) => (
+              <div
+                className="nf-fret-hits"
+                role="group"
+                aria-label={`Frets on the ${stringLabel(prompt.stringPosition)} string`}
+              >
+                {neck.frets.map((fret) => (
                   <button
                     key={fret}
                     type="button"
                     className="nf-fret-hit"
-                    style={fretColumn(fret)}
+                    style={positionBox(
+                      neck,
+                      layout,
+                      fret,
+                      STRING_STACK.indexOf(prompt.stringPosition),
+                    )}
                     aria-label={`Fret ${fret}`}
                     onClick={() => onTapFret(fret)}
                   />
@@ -519,10 +676,17 @@ export function NoteFinder({
           {channel === 'tapped' ? (
             <UncountedNotice />
           ) : (
-            <ProgressRing {...ringScale(finds, best)} phase="live" className="om-ring om-ring-live">
-              <div className="om-count">{finds}</div>
-              <div className="om-caption">found</div>
-            </ProgressRing>
+            <>
+              <ProgressRing {...ringScale(finds, best)} phase="live" className="om-ring nf-ring">
+                <div className="om-count">{finds}</div>
+                <div className="om-caption">recalled</div>
+              </ProgressRing>
+              {placed > 0 && (
+                <p className="nf-shown-count" aria-hidden="true">
+                  <span className="nf-shown-value">{placed}</span> shown
+                </p>
+              )}
+            </>
           )}
           <div className="om-timer">
             <HourglassIcon size={26} /> {timeLeft}
@@ -550,7 +714,12 @@ export function NoteFinder({
 
   const run = result;
   const marks: NeckMark[] =
-    run?.found.map((f) => ({ stringPosition: f.stringPosition, fret: f.fret })) ?? [];
+    run?.found.map((f) => ({
+      stringPosition: f.stringPosition,
+      fret: f.fret,
+      kind: f.shown ? ('shown' as const) : ('found' as const),
+      name: !f.shown,
+    })) ?? [];
 
   return (
     <motion.div
@@ -560,21 +729,28 @@ export function NoteFinder({
     >
       <ProgressRing {...ringScale(run?.finds ?? 0, best)} className="om-ring">
         <div className="om-ring-value">{run?.finds ?? 0}</div>
-        <div className="om-caption">found</div>
+        <div className="om-caption">recalled</div>
       </ProgressRing>
+
+      {run && run.shown > 0 && (
+        <p className="nf-shown-count">
+          <span className="nf-shown-value">{run.shown}</span> shown, not recalled
+        </p>
+      )}
 
       {/* Where they landed, on the neck they landed on. The wear underneath is
           every run before this one, so the card is the record growing rather
           than a score standing beside it. */}
-      <NeckMap map={map} marks={marks} nameMarks className="nf-results-map" />
+      <NeckMap map={map} marks={marks} className="nf-results-map" />
 
-      {run && run.finds === 0 && <p className="om-context">Nothing found</p>}
+      {run && run.finds === 0 && run.shown === 0 && <p className="om-context">Nothing played</p>}
 
       {/* The one sentence on this surface, and it is the drill's own honesty:
           what the microphone settled, and what no microphone ever can. */}
       <p className="nf-limit">
-        The pitch is confirmed, note and octave. Which string it came off is the
-        one thing a microphone cannot tell.
+        The note came back, and inside these frets it has one home on the string
+        named. Which string it actually came off is the one thing a microphone
+        cannot tell.
       </p>
 
       {autoAdvance ? (
@@ -606,8 +782,8 @@ export function NoteFinder({
  * What arrived, as the note it was.
  *
  * The letter is the whole of the feedback. The same letter as the one asked for
- * means the hand is on the right note in the wrong octave; a different letter
- * means it is somewhere else entirely. Nothing has to say which of those it is,
+ * means the hand is on the right note somewhere else; a different letter means
+ * it is somewhere else entirely. Nothing has to say which of those it is,
  * because the two letters standing beside each other already do, and the octave
  * number is there for the one case where the letters match.
  */
@@ -620,12 +796,13 @@ function noteReading(midi: number): string {
 function askedInWords(prompt: FinderPrompt, ask: Ask): string {
   const name = sharpName(prompt.pc);
   const where = namesString(prompt.form)
-    ? `on string ${prompt.stringPosition}`
+    ? `on the ${stringLabel(prompt.stringPosition)} string`
     : 'anywhere on the neck';
-  if (ask === 'confirmed') return `${name}, found at fret ${prompt.fret} on string ${prompt.stringPosition}.`;
-  if (ask === 'revealed') return `${name} is at fret ${prompt.fret} on string ${prompt.stringPosition}.`;
+  if (ask === 'recalled') return `${name}, found at fret ${prompt.fret} ${where}.`;
+  if (ask === 'placed') return `${name}, played at fret ${prompt.fret} ${where}.`;
+  if (ask === 'showing') return `${name} is at fret ${prompt.fret} ${where}. Play it.`;
   if (prompt.form === 'echo') {
-    return `Fret ${prompt.fret} on string ${prompt.stringPosition}. Play that same note somewhere else.`;
+    return `Fret ${prompt.fret} ${where}. Play that same note somewhere else.`;
   }
   return `Find ${name} ${where}.`;
 }
@@ -701,4 +878,3 @@ function RungLadder({
     </div>
   );
 }
-

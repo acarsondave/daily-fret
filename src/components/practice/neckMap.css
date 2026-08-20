@@ -4,7 +4,11 @@
    warmer dark for the board because a board is wood. The one thing added is the
    wear, in the lamp's warm light rather than in the accent, because the accent
    on every drill surface means "this is happening now" and wear is a record of
-   months. */
+   months.
+
+   The lettering takes its size from the drawing (--nm-type), not from here: the
+   same figure holds twelve frets on a results card and four in a drill, and a
+   size fixed in this file would render at three sizes for one meaning. */
 
 .neck-map {
   width: 100%;
@@ -59,6 +63,17 @@
   fill: var(--fret-quick);
 }
 
+/* Shown, never yet recalled. An outline rather than light in the wood, because
+   the wood is worn by playing and this position has only been pointed at. The
+   difference has to survive a glance: what the player knows and what the app
+   once told them are not the same record. */
+.nm-seen {
+  fill: none;
+  stroke: rgb(236 222 205 / 0.24);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
 /* A call-out, not a fact about the neck: it says "this one, now", so it is the
    accent and it is an outline, leaving the wear underneath still readable. */
 .nm-mark rect {
@@ -67,62 +82,69 @@
   stroke-width: 1.6;
 }
 
+/* The answer, lit. The one mark on this figure that is an instruction rather
+   than a record, so it is the only one that is filled: a place to put a finger
+   reads as a thing, and an outline reads as a note about a thing. */
+.nm-mark.is-show rect {
+  fill: var(--accent-primary);
+  stroke: none;
+}
+
+.nm-mark.is-show .nm-mark-name {
+  fill: var(--bg-primary);
+}
+
+/* This run's placement against a lit answer, on the card at the end. It sits
+   between the wear and the accent for the same reason it does in the record. */
+.nm-mark.is-shown rect {
+  stroke: var(--text-secondary);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 3;
+}
+
+.nm-mark.is-shown .nm-mark-name {
+  fill: var(--text-secondary);
+}
+
+/* What arrived instead, drawn where it actually is. No letter on it: the letter
+   is already the biggest thing on the screen and the point of this mark is the
+   gap between here and there. */
+.nm-mark.is-miss rect {
+  stroke: var(--warning-color);
+  stroke-width: 1.4;
+}
+
 .nm-mark-name {
   font-family: var(--font-primary);
-  font-size: 11px;
+  font-size: calc(var(--nm-type) * 0.92);
   font-weight: 600;
   fill: var(--accent-primary);
 }
 
 .nm-number {
   font-family: var(--font-primary);
-  font-size: 12px;
+  font-size: var(--nm-type);
   fill: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
 .nm-open {
   font-family: var(--font-primary);
-  font-size: 12px;
+  font-size: var(--nm-type);
   font-weight: 500;
   fill: var(--text-secondary);
 }
 
-/* One string at a time is a question being read from across the room, so its
-   lettering is set larger in the drawing's own units to land at the same read
-   size the six-string record does at a third of the row height. */
-.neck-map.is-single .nm-number,
-.neck-map.is-single .nm-open {
-  font-size: 17px;
-}
-
-.neck-map.is-single .nm-mark-name {
-  font-size: 22px;
-}
-
-.neck-map.is-single .nm-mark rect {
-  stroke-width: 2.2;
-}
-
-/* A phone gives this figure a third of the width a laptop does, so its lettering
-   is set larger in the drawing's own units to land at the same read size. The
-   same trick the note circle's string uses, and for the same reason. */
+/* A phone gives this figure a fraction of the width a laptop does, so its
+   lettering is set larger in the drawing's own units to land at a readable size.
+   The same trick the note circle's string uses, and for the same reason. */
 @media (max-width: 899px) {
   .nm-number,
   .nm-open {
-    font-size: 15px;
+    font-size: calc(var(--nm-type) * 1.25);
   }
 
   .nm-mark-name {
-    font-size: 13px;
-  }
-
-  .neck-map.is-single .nm-number,
-  .neck-map.is-single .nm-open {
-    font-size: 21px;
-  }
-
-  .neck-map.is-single .nm-mark-name {
-    font-size: 26px;
+    font-size: calc(var(--nm-type) * 1.1);
   }
 }
