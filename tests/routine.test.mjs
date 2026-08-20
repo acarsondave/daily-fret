@@ -14,6 +14,7 @@ import { anchorsBetween, bestAnchoredPair } from '../src/lib/anchors.ts';
 import { songsOneShapeAway, songsPlayableWith } from '../src/lib/songCatalog.ts';
 import { SONGS } from '../src/data/songs.ts';
 import { buildSegments } from '../src/lib/coached.ts';
+import { DRILL_UNIT } from '../src/lib/drills.ts';
 import { BEGINNER_GRADES, BEGINNER_MODULES } from '../src/lib/beginnerCourse.ts';
 import { CURRICULUM } from '../src/data/curriculum.ts';
 import { ALL_SKILLS } from '../src/data/skills.ts';
@@ -23,12 +24,14 @@ import { hasChordShape } from '../src/data/chordShapes.ts';
 let failures = 0;
 const check = (l, ok, d) => { if (!ok) failures++; console.log(`  ${ok?'ok  ':'FAIL'}  ${l}${d?' — '+d:''}`); };
 
-const DRILL_KINDS = new Set([
-  'one-minute-changes', 'chord-trainer', 'song', 'chord-rotation', 'strum-timing', 'strum-pattern',
-]);
+// Asked of the code rather than written out here. A hand-kept copy of this list
+// goes stale the moment a drill is added, and then fails on the one after, which
+// is a test reporting its own age as a defect in the routine.
+const DRILL_KINDS = new Set(Object.keys(DRILL_UNIT));
 // Drills with nothing of their own to name: the click is the exercise for both
-// rhythm drills, and a song names a chart rather than a set of shapes.
-const NAMES_NO_CHORDS = new Set(['strum-timing', 'strum-pattern', 'song']);
+// rhythm drills, a song names a chart rather than a set of shapes, and the note
+// finder names notes, which are not chords and have no diagram to check.
+const NAMES_NO_CHORDS = new Set(['strum-timing', 'strum-pattern', 'song', 'note-finder']);
 const songOf = (task) => SONGS.find((s) => s.id === task.drill?.songId) ?? null;
 
 // Every number onboarding prints has to be a number the data still agrees with.
@@ -469,6 +472,7 @@ console.log('\nEvery block the builder makes survives being flattened for coache
           : kind === 'chord-trainer' ? 'trainer'
           : kind === 'one-minute-changes' ? 'changes'
           : kind === 'chord-rotation' ? 'rotation'
+          : kind === 'note-finder' ? 'finder'
           : 'timed';
         if (!mine.some((seg) => seg.kind === want)) {
           bad.push(`${label}: "${t.title}" (${kind ?? 'timed'}) became ${mine.map(s => s.kind).join('+')}`);
