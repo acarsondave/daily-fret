@@ -72,6 +72,13 @@ console.log('\nThe deck\n');
     deckOf(['DUDUDUDU', 'DUDUDUDU']).length === 1);
   check('an empty deck falls back rather than dealing nothing',
     deckOf([]).length === DEFAULT_DECK_SIZE);
+  // A saved pattern is only a string. One the matcher refuses used to reach the
+  // run loop, where it could never be dealt and the drill waited out the clock.
+  check('a card the matcher cannot read is not in the deck',
+    deckOf(['DUDUDUDU', 'DDUUDU']).join(' ') === 'DUDUDUDU',
+    deckOf(['DUDUDUDU', 'DDUUDU']).join(' '));
+  check('and a deck of nothing but those falls back to the ladder',
+    deckOf(['DDUUDU']).length === DEFAULT_DECK_SIZE);
 
   check('a deal is never shorter than the matcher will judge',
     barsPerDeal(1) === MIN_PATTERN_BARS, String(barsPerDeal(1)));

@@ -53,6 +53,11 @@ console.log('\nReading a pattern\n');
   check('six characters are refused, not padded', parsePattern('D-DUD-') === null);
   check('an up on a quarter is refused', parsePattern('DUDU') === null);
   check('rubbish is refused', parsePattern('DXDU-UD-') === null);
+  // The arm cannot be going up on a downbeat, so this is not a hard pattern, it
+  // is an impossible one. Taken as written it would draw a pick facing the wrong
+  // way and subtract the up strum's detection lag from a down stroke.
+  check('an up strum on a downbeat is refused', parsePattern('U-DU-UD-') === null);
+  check('a down strum on an offbeat is refused', parsePattern('D-DD-UD-') === null);
   check('the source string is carried through unchanged', parsePattern('D-DU-UD-')?.source === 'D-DU-UD-');
 }
 

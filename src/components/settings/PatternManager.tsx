@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { MusicNoteIcon, PlusIcon, TrashIcon } from '../icons';
 import { useStore } from '../../store';
 import { BUILTIN_PATTERNS, type StrumPattern } from '../../data/strumPatterns';
-import { StrumRow } from '../practice/StrumRow';
+import { parsePattern, SLOTS_PER_BAR } from '../../lib/strumPattern';
+import { describePattern } from '../../lib/patternDeck';
+import { PatternBar } from '../practice/PatternBar';
 
 // A selector must return a stable reference: building `?? []` inline hands React
 // a new array on every read, which reads as a change every render and spins the
@@ -10,8 +12,19 @@ import { StrumRow } from '../practice/StrumRow';
 // existed, which is the oldest data there is.
 const NO_PATTERNS: StrumPattern[] = [];
 
+/** The bar shown before anything is typed: what a finished entry looks like. */
+const EXAMPLE = 'D-DU-UDU';
+
 // Manage your own strum patterns. Built-ins are shown for reference; you add and
-// remove your own. Patterns are a string of D (down), U (up), - (rest).
+// remove your own.
+//
+// WHY THE FIELD REFUSES THINGS IT USED TO TAKE. A pattern is only ever a string,
+// and this screen used to accept any twelve characters of D, U and -. The drill
+// can score exactly one bar of eighth notes, so six characters, or nine, or an
+// up strum on a downbeat, produced a saved pattern that looked fine here, sat in
+// a deck, and then could not be dealt at all. The bar under the field is the
+// whole answer: what you typed is drawn the way the drill will draw it, and if
+// it cannot be drawn it cannot be added.
 export function PatternManager() {
   const custom = useStore((s) => s.accounts[s.currentAccountId]?.strumPatterns ?? NO_PATTERNS);
   const addStrumPattern = useStore((s) => s.addStrumPattern);
@@ -20,12 +33,14 @@ export function PatternManager() {
   const [name, setName] = useState('');
   const [pattern, setPattern] = useState('');
 
-  const clean = (raw: string) => raw.toUpperCase().replace(/[^DU-]/g, '').slice(0, 12);
+  const clean = (raw: string) => raw.toUpperCase().replace(/[^DU-]/g, '').slice(0, SLOTS_PER_BAR);
+  const typed = clean(pattern);
+  const parsed = parsePattern(typed);
+  const preview = parsed ?? parsePattern(EXAMPLE);
 
   const submit = () => {
-    const p = clean(pattern);
-    if (!name.trim() || !p) return;
-    addStrumPattern({ id: crypto.randomUUID(), name: name.trim(), pattern: p });
+    if (!name.trim() || !parsed) return;
+    addStrumPattern({ id: crypto.randomUUID(), name: name.trim(), pattern: typed });
     setName('');
     setPattern('');
   };
@@ -38,17 +53,27 @@ export function PatternManager() {
       </h3>
 
       <div className="pattern-list">
-        {[...BUILTIN_PATTERNS.map((p) => ({ ...p, builtin: true })), ...custom.map((p) => ({ ...p, builtin: false }))].map((p) => (
-          <div key={p.id} className="pattern-item">
-            <span className="pattern-item-name">{p.name}</span>
-            <StrumRow strum={p.pattern} size={12} />
-            {!p.builtin && (
-              <button className="pattern-item-remove" onClick={() => removeStrumPattern(p.id)} title="Remove" aria-label={`Remove pattern ${p.name}`}>
-                <TrashIcon size={14} />
-              </button>
-            )}
-          </div>
-        ))}
+        {[...BUILTIN_PATTERNS.map((p) => ({ ...p, builtin: true })), ...custom.map((p) => ({ ...p, builtin: false }))].map((p) => {
+          const bar = parsePattern(p.pattern);
+          return (
+            <div key={p.id} className="pattern-item">
+              <span className="pattern-item-name">{p.name}</span>
+              {bar && (
+                <PatternBar
+                  className="pattern-item-bar"
+                  pattern={bar}
+                  size="deck"
+                  label={`${p.name}. ${describePattern(bar)}`}
+                />
+              )}
+              {!p.builtin && (
+                <button className="pattern-item-remove" onClick={() => removeStrumPattern(p.id)} title="Remove" aria-label={`Remove pattern ${p.name}`}>
+                  <TrashIcon size={14} />
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <div className="pattern-add">
@@ -62,16 +87,29 @@ export function PatternManager() {
         />
         <input
           className="task-input pattern-add-code"
-          aria-label="Pattern, using D for down, U for up and - for rest"
-          placeholder="e.g. DDUUDU"
+          aria-label="Pattern, using D for down, U for up and - for a slot the arm travels through"
+          placeholder={EXAMPLE}
           value={pattern}
           onChange={(e) => setPattern(clean(e.target.value))}
         />
-        <button className="pattern-add-btn" onClick={submit} disabled={!name.trim() || !clean(pattern)} title="Add pattern">
+        <button className="pattern-add-btn" onClick={submit} disabled={!name.trim() || !parsed} title="Add pattern">
           <PlusIcon size={16} />
         </button>
       </div>
-      <p className="pattern-hint">D = down, U = up, - = rest</p>
+
+      {/* What the drill will make of it, drawn as the drill draws it. Until the
+          field holds a bar it can read, this is the example from the
+          placeholder, so the picture is of the finished thing rather than of
+          the mistake. */}
+      {preview && (
+        <PatternBar
+          className={parsed ? 'pattern-add-preview' : 'pattern-add-preview is-example'}
+          pattern={preview}
+          size="deck"
+          standing={parsed ? 'learning' : 'new'}
+          label={parsed ? describePattern(preview) : `Example. ${describePattern(preview)}`}
+        />
+      )}
     </div>
   );
 }

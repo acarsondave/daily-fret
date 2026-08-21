@@ -772,9 +772,9 @@ function StandingMark({ standing }: { standing: PatternStanding }) {
  * Only slots the arm has already crossed can be called missed. Judging a slot
  * the pendulum has not reached yet would dim the whole bar the moment it
  * started, which is the drill telling the player they have failed at something
- * they have not been asked to do yet. Half a slot of grace past the crossing,
- * because a strum is timed when its sound arrives and that is a little after the
- * pick moved.
+ * they have not been asked to do yet. A whole slot of grace past the crossing,
+ * because a strum is timed when its sound arrives and that is a little after
+ * the pick moved: a slot is only called missed once the arm is into the next.
  */
 function liveSlots(
   pattern: Pattern,

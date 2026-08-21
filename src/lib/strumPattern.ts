@@ -91,7 +91,10 @@ export function parsePattern(source: string): Pattern | null {
   const read = (chars: string): SlotStroke[] =>
     [...chars].map((c) => (c === 'D' ? 'D' : c === 'U' ? 'U' : null));
 
-  if (trimmed.length === SLOTS_PER_BAR) return { source, slots: read(trimmed) };
+  if (trimmed.length === SLOTS_PER_BAR) {
+    const slots = read(trimmed);
+    return travelsWithTheArm(slots) ? { source, slots } : null;
+  }
 
   if (trimmed.length === SLOTS_PER_BAR / 2) {
     // Quarters. An up strum on a quarter note is not a thing this expansion can
@@ -108,6 +111,21 @@ export function parsePattern(source: string): Pattern | null {
   }
 
   return null;
+}
+
+/**
+ * Whether every stroke faces the way the arm is already going at that slot.
+ *
+ * The arm is a pendulum: it is on its way down through every even slot and up
+ * through every odd one, whatever the pattern asks of it. So a `U` on a
+ * downbeat is not a hard pattern, it is an impossible one, and letting it
+ * through costs twice over. The bar would draw a pick pointing against the
+ * arm crossing it, and the matcher would take the up strum's detection lag off
+ * a stroke that was physically a down, moving the reported offset twenty
+ * milliseconds the wrong way inside a fifty millisecond budget.
+ */
+function travelsWithTheArm(slots: readonly SlotStroke[]): boolean {
+  return slots.every((stroke, slot) => !stroke || stroke === (slot % 2 === 0 ? 'D' : 'U'));
 }
 
 /** Slots the pattern actually strikes. A pattern of all ghosts is not a pattern. */

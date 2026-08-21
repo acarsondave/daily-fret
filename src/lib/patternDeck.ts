@@ -13,6 +13,7 @@ import { patternKey } from './drillKeys';
 import { BUILTIN_PATTERNS } from '../data/strumPatterns';
 import {
   MIN_PATTERN_BARS,
+  parsePattern,
   patternStanding,
   type Pattern,
   type PatternRunRecord,
@@ -31,9 +32,17 @@ import {
  */
 export const DEFAULT_DECK_SIZE = 4;
 
-/** The patterns a drill will deal, config first. */
+/**
+ * The patterns a drill will deal, config first.
+ *
+ * Anything the matcher cannot read is dropped here rather than downstream. A
+ * saved pattern is only a string, and a string the matcher refuses used to
+ * survive all the way into the run loop, where drawing it returned nothing and
+ * the drill sat waiting for a card that could never be dealt until the clock
+ * ran out. A deck of things that can be scored is the only deck worth having.
+ */
 export function deckOf(patterns: readonly string[] | undefined): string[] {
-  const chosen = patterns?.filter((p) => p.trim().length > 0) ?? [];
+  const chosen = patterns?.filter((p) => parsePattern(p) !== null) ?? [];
   if (chosen.length) return [...new Set(chosen)];
   return BUILTIN_PATTERNS.slice(0, DEFAULT_DECK_SIZE).map((p) => p.pattern);
 }

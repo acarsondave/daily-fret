@@ -18,6 +18,12 @@ for (const p of BUILTIN_PATTERNS) {
   check(`${p.name} parses`, parsed !== null, p.pattern);
   check(`${p.name} is one bar of 4/4`, p.pattern.length === SLOTS_PER_BAR, `${p.pattern.length} slots`);
   check(`${p.name} sounds something`, parsed ? soundedSlots(parsed) > 0 : false);
+  // The arm is on its way down through every even slot and up through every odd
+  // one. A rung that asked for the other thing would draw a pick facing against
+  // the arm crossing it and would have the wrong detection lag taken off every
+  // one of its strums.
+  check(`${p.name} faces the way the arm is going`,
+    !!parsed && parsed.slots.every((s, i) => !s || s === (i % 2 === 0 ? 'D' : 'U')), p.pattern);
 }
 
 console.log('\nThe ladder climbs\n');
