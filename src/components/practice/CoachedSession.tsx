@@ -213,11 +213,16 @@ export function CoachedSession({ routine, onClose }: Props) {
   // The deck this block will deal, and what the player's own history says about
   // each card in it. Snapshotted when the segment opens, before this run is
   // recorded, so a standing cannot move under the player mid-block.
-  const patternDeck = useMemo(
-    () => (seg?.kind === 'patterns' ? deckOf(seg.patterns) : []),
+  const patternDeck = useMemo(() => {
+    if (seg?.kind !== 'patterns') return [];
+    const state = useStore.getState();
+    const acc = state.accounts[state.currentAccountId];
+    return deckOf(seg.patterns, {
+      dailyLogs: acc ? drillLogsOf(acc) : {},
+      bpm: seg.bpm ?? DEFAULT_PRACTICE_BPM,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [index],
-  );
+  }, [index]);
   const patternHistory = useMemo(() => {
     if (seg?.kind !== 'patterns') return {};
     const state = useStore.getState();

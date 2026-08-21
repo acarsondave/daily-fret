@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { MusicNoteIcon, PlusIcon, TrashIcon } from '../icons';
 import { useStore } from '../../store';
 import { BUILTIN_PATTERNS, type StrumPattern } from '../../data/strumPatterns';
-import { parsePattern, SLOTS_PER_BAR } from '../../lib/strumPattern';
+import { MAX_PATTERN_BARS, parsePattern, SLOTS_PER_BAR } from '../../lib/strumPattern';
 import { describePattern } from '../../lib/patternDeck';
 import { PatternBar } from '../practice/PatternBar';
 
@@ -33,7 +33,8 @@ export function PatternManager() {
   const [name, setName] = useState('');
   const [pattern, setPattern] = useState('');
 
-  const clean = (raw: string) => raw.toUpperCase().replace(/[^DU-]/g, '').slice(0, SLOTS_PER_BAR);
+  const clean = (raw: string) =>
+    raw.toUpperCase().replace(/[^DU-]/g, '').slice(0, SLOTS_PER_BAR * MAX_PATTERN_BARS);
   const typed = clean(pattern);
   const parsed = parsePattern(typed);
   const preview = parsed ?? parsePattern(EXAMPLE);

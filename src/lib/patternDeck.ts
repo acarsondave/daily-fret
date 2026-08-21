@@ -33,6 +33,13 @@ import {
  */
 export const DEFAULT_DECK_SIZE = 4;
 
+/** Where a deck comes from when the task does not name one. */
+export interface DeckHistory {
+  dailyLogs: Record<string, DailyLog>;
+  /** The tempo the drill will run at. A standing is per tempo, so this decides it. */
+  bpm: number;
+}
+
 /**
  * The patterns a drill will deal, config first.
  *
@@ -41,11 +48,52 @@ export const DEFAULT_DECK_SIZE = 4;
  * survive all the way into the run loop, where drawing it returned nothing and
  * the drill sat waiting for a card that could never be dealt until the clock
  * ran out. A deck of things that can be scored is the only deck worth having.
+ *
+ * With no deck stated, the player's own history picks one; see {@link workingDeck}.
+ * Without history either, the opening rungs, which is where everyone starts.
  */
-export function deckOf(patterns: readonly string[] | undefined): string[] {
+export function deckOf(patterns: readonly string[] | undefined, history?: DeckHistory): string[] {
   const chosen = patterns?.filter((p) => parsePattern(p) !== null) ?? [];
   if (chosen.length) return [...new Set(chosen)];
+  if (history) return workingDeck(history.dailyLogs, history.bpm);
   return BUILTIN_PATTERNS.slice(0, DEFAULT_DECK_SIZE).map((p) => p.pattern);
+}
+
+/**
+ * The rungs the player is actually on, read off the ladder and their own runs.
+ *
+ * "Stick with a few patterns, and add more as you practise." A deck of the first
+ * four rungs is right on the first day and wrong by the time three of them are
+ * automatic, because a card already automatic is time not spent on one that is
+ * not, and because the ladder past those four would then never be reached at
+ * all. So the deck walks the ladder from the bottom and takes what is unfinished.
+ *
+ * One finished rung is kept, and it is the highest: the switch is the exercise,
+ * and a switch needs something solid to switch away from. `dealNext` weights the
+ * unfinished cards far above it, so it is a reference point rather than a share
+ * of the practice.
+ *
+ * Nothing here makes the drill easier. A rung arrives only once the rungs below
+ * it are automatic at this tempo, which is a standard the player has already met
+ * three times running with the pattern arriving whole on the first pass.
+ */
+export function workingDeck(dailyLogs: Record<string, DailyLog>, bpm: number): string[] {
+  const rungs = BUILTIN_PATTERNS.map((p) => ({
+    pattern: p.pattern,
+    standing: patternStanding(patternRuns(dailyLogs, p.pattern, bpm)),
+  }));
+  const unfinished = rungs.filter((r) => r.standing !== 'automatic');
+  // Every rung owned. The top of the ladder is the only honest place left.
+  if (!unfinished.length) return rungs.slice(-DEFAULT_DECK_SIZE).map((r) => r.pattern);
+
+  const finished = rungs.filter((r) => r.standing === 'automatic');
+  const anchor = finished.length ? [finished[finished.length - 1].pattern] : [];
+  const room = DEFAULT_DECK_SIZE - anchor.length;
+  const working = unfinished.slice(0, room).map((r) => r.pattern);
+  // Ladder order, so the deck on screen reads the way the ladder does.
+  return BUILTIN_PATTERNS.map((p) => p.pattern).filter(
+    (p) => anchor.includes(p) || working.includes(p),
+  );
 }
 
 /**

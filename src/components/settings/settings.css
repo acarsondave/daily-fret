@@ -581,7 +581,10 @@
 }
 
 .pattern-add .task-input { flex: 1; min-width: 0; padding: var(--space-2) var(--space-3); font-size: var(--text-sm); }
-.pattern-add-code { flex: 0 1 110px; text-transform: uppercase; letter-spacing: 0.08em; }
+/* Wide enough for a two-bar phrase, which is sixteen characters at this
+   tracking. A field that scrolls under the cursor while you are typing the
+   pattern hides the half you are checking against the bar below. */
+.pattern-add-code { flex: 0 1 170px; text-transform: uppercase; letter-spacing: 0.08em; }
 
 .pattern-add-btn {
   flex: 0 0 auto;

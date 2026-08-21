@@ -444,6 +444,71 @@ console.log('\nThe switch from one pattern to the next\n');
   await browser.close();
 }
 
+// --- a two-bar phrase --------------------------------------------------------
+//
+// Sixteen slots, and the app decides which bar of its own click the phrase
+// starts on, which a wav rendered before the page loaded cannot know. So the
+// take is straight eighths again: it sounds every slot whichever way the phrase
+// is rotated against it, so "every sounded slot was struck" and "the ghosts read
+// as added strums" are both true at any rotation. What this section is for is
+// the arithmetic that would otherwise fail silently: sixteen slots read as one
+// bar are sixteenth notes, which plays the phrase at double speed and scores a
+// good take as a total miss.
+
+if (run('phrase')) {
+console.log('\nA two-bar phrase\n');
+  const PHRASE = 'D-DU-UD-D-DU-UDU';
+  const KEY = `pattern:${PHRASE}~${BPM}`;
+  const { browser, page, errors } = await open({
+    wav: 'eighths.wav',
+    drill: drillFor([PHRASE], 26),
+  });
+  await page.waitForSelector('.sp-current:not(.is-waiting)', { timeout: 40000 });
+  const marks = await page.locator('.sp-current .pb-pick-mark').count();
+  check('the phrase is drawn as sixteen slots', marks === SLOTS_PER_BAR * 2, String(marks));
+  check('with one bar line through it',
+    (await page.locator('.sp-current .pb-barline').count()) === 1);
+  check('and the count marks both downbeats',
+    (await page.locator('.sp-current .pb-stem.is-one').count()) === 2,
+    String(await page.locator('.sp-current .pb-stem.is-one').count()));
+  // The arm crosses the bar line rather than restarting at it. Read off the
+  // element the drill actually writes to, because that is the only place the
+  // phase of a two-bar phrase is expressed.
+  check('the arm travels the whole phrase, both sides of the bar line',
+    await page.evaluate(async () => {
+      const arm = document.querySelector('.sp-current .pb-arm');
+      let before = false;
+      let after = false;
+      for (let i = 0; i < 200; i += 1) {
+        const at = parseFloat(arm.style.left);
+        if (Number.isFinite(at)) {
+          if (at < 45) before = true;
+          if (at > 55) after = true;
+        }
+        if (before && after) return true;
+        await new Promise((r) => setTimeout(r, 60));
+      }
+      return false;
+    }));
+  await page.screenshot({ path: `${OUT}/patterns-phrase-1366.png` });
+
+  await page.waitForSelector('.sp-row', { timeout: 90000 });
+  check('the result reports all sixteen slots',
+    (await page.locator('.sp-row .pb-pick-mark').count()) === SLOTS_PER_BAR * 2,
+    String(await page.locator('.sp-row .pb-pick-mark').count()));
+  check('and nothing in either bar is reported as never struck',
+    (await page.locator('.sp-row .pb-pick-mark.is-missed').count()) === 0,
+    String(await page.locator('.sp-row .pb-pick-mark.is-missed').count()));
+  const day = await stored(page);
+  check('the phrase is filed under its own key, sixteen characters and all',
+    Object.keys(day?.drillResults ?? {}).join(' ') === KEY,
+    Object.keys(day?.drillResults ?? {}).join(' '));
+  check('and it scored like a run that was on the click',
+    (day?.drillResults?.[KEY] ?? 0) >= 80, String(day?.drillResults?.[KEY]));
+  check('no page errors', errors.length === 0, errors.join(' | '));
+  await browser.close();
+}
+
 // --- the frames the owner actually practises on -----------------------------
 
 if (run('frames')) for (const [label, viewport] of [

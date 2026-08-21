@@ -203,24 +203,29 @@
 /* --- Small screens ---------------------------------------------------------- */
 
 @media (max-width: 600px) {
+  /* On a phone the card coming up goes under the one being played rather than
+     beside it. A bar is a measurement across its slots and a 390px frame has
+     one width to give: split it and the live row loses a third of its own,
+     while the preview lands on a strip too narrow to read. Eight slots need
+     about ninety pixels before the picks sit on each other and a two-bar
+     phrase needs twice that, which no side-by-side split on this frame has.
+     Vertically there is room to spare. */
   .sp-bars {
+    flex-direction: column;
+    align-items: stretch;
     gap: var(--space-3);
   }
-  /* On a phone the card coming up takes a fixed strip rather than a share of
-     the row. Eight slots need about ninety pixels before the picks start
-     sitting on each other, and a percentage of a 390px frame does not give
-     them that; below it the preview stops being readable at all, which is
-     worse than it being small. */
   .sp-next {
-    flex: 0 0 118px;
-    min-width: 108px;
-    max-width: 140px;
-    padding-left: var(--space-3);
+    flex: 0 0 auto;
+    max-width: none;
+    min-width: 0;
+    padding-left: 0;
+    padding-top: var(--space-3);
+    border-left: none;
+    border-top: 1px solid var(--border-subtle);
   }
   .sp-next .pattern-bar {
-    --pb-pick: 11px;
     --pb-lane: 56px;
-    --pb-stem: 7px;
   }
   .sp-card {
     gap: var(--space-3);

@@ -41,18 +41,18 @@
    says nothing at all. The lane keeps its height: the arm's travel is what the
    row is about and shortening it would flatten the zigzag into a line. */
 .pattern-bar.is-phrase {
-  --pb-pick: 20px;
-  --pb-stem: 13px;
+  --pb-pick: 26px;
+  --pb-stem: 15px;
 }
 
 .pattern-bar.is-phrase.is-card {
-  --pb-pick: 14px;
-  --pb-stem: 9px;
+  --pb-pick: 15px;
+  --pb-stem: 10px;
 }
 
 .pattern-bar.is-phrase.is-deck {
-  --pb-pick: 11px;
-  --pb-stem: 7px;
+  --pb-pick: 14px;
+  --pb-stem: 8px;
 }
 
 /* The glyph takes its size from the row, so a narrow phone shrinks it without
@@ -261,16 +261,16 @@
     --pb-lane: 54px;
   }
   .pattern-bar.is-phrase {
-    --pb-pick: 13px;
-    --pb-stem: 9px;
+    --pb-pick: 17px;
+    --pb-stem: 11px;
   }
   .pattern-bar.is-phrase.is-card {
-    --pb-pick: 10px;
-    --pb-stem: 7px;
+    --pb-pick: 14px;
+    --pb-stem: 9px;
   }
   .pattern-bar.is-phrase.is-deck {
-    --pb-pick: 8px;
-    --pb-stem: 5px;
+    --pb-pick: 10px;
+    --pb-stem: 6px;
   }
   .pb-arm {
     height: 24px;
@@ -283,6 +283,6 @@
     --pb-lane: 106px;
   }
   .pattern-bar.is-phrase {
-    --pb-pick: 12px;
+    --pb-pick: 15px;
   }
 }

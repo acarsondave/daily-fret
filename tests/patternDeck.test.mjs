@@ -21,6 +21,7 @@ import {
   deckOf,
   patternRuns,
   upStrumsUnheard,
+  workingDeck,
 } from '../src/lib/patternDeck.ts';
 import { MIN_PATTERN_PASSES, matchPattern, parsePattern, summarisePattern } from '../src/lib/strumPattern.ts';
 import { BUILTIN_PATTERNS } from '../src/data/strumPatterns.ts';
@@ -51,9 +52,9 @@ console.log('\nWhat a dealt pattern is filed under\n');
   check('it describes itself by the pattern a player would recognise',
     described.label === 'Old faithful · 80 BPM', described.label);
   check('with the unit its number carries', described.unit === '% in time', described.unit);
-  const own = describeDrillKey(patternKey('D-DUDU--', 90));
+  const own = describeDrillKey(patternKey('DUDU-UD-', 90));
   check('a pattern with no built-in name keeps its own string',
-    own.label === 'D-DUDU-- · 90 BPM', own.label);
+    own.label === 'DUDU-UD- · 90 BPM', own.label);
   check('rubbish after the prefix is refused, not guessed at',
     parsePatternKey('pattern:notapattern~80') === null);
   check('and a key with no tempo is refused too',
@@ -83,6 +84,60 @@ console.log('\nThe deck\n');
   check('a deal is never shorter than the matcher will judge',
     passesPerDeal(1) === MIN_PATTERN_PASSES, String(passesPerDeal(1)));
   check('and a task asking for longer gets it', passesPerDeal(8) === 8);
+}
+
+// --- the deck the ladder and the history pick together ----------------------
+//
+// The ladder is longer than a deck. Which four cards a player gets is therefore
+// a decision, and this is the one thing here that could quietly make the drill
+// easier or quietly strand the top of the ladder where nobody reaches it.
+console.log('\nThe deck a player has earned\n');
+{
+  const RUNGS = BUILTIN_PATTERNS.map((p) => p.pattern);
+  const owned = (patterns, bpm) => {
+    let day = { date: '2026-08-01', routineId: 'r1', completedTaskIds: [] };
+    // Three clean runs, each arriving whole on the first pass: the standard
+    // `patternStanding` calls automatic.
+    for (const pattern of patterns) {
+      for (let i = 0; i < 3; i += 1) {
+        day = applyMeasurements(day, 't1', [{ key: patternKey(pattern, bpm), value: 95, settledBar: 0 }], 1);
+      }
+    }
+    return { '2026-08-01': day };
+  };
+
+  check('a player with no history gets the opening rungs',
+    workingDeck({}, 80).join(' ') === RUNGS.slice(0, DEFAULT_DECK_SIZE).join(' '),
+    workingDeck({}, 80).join(' '));
+  check('and deckOf with no stated deck agrees with it',
+    deckOf(undefined, { dailyLogs: {}, bpm: 80 }).join(' ') === workingDeck({}, 80).join(' '));
+
+  const three = workingDeck(owned(RUNGS.slice(0, 3), 80), 80);
+  check('owning the first three rungs moves the deck up the ladder',
+    three.join(' ') === [RUNGS[2], RUNGS[3], RUNGS[4], RUNGS[5]].join(' '), three.join(' '));
+  check('the hardest rung owned is kept, because the switch is the exercise',
+    three[0] === RUNGS[2]);
+  check('and the deck never grows past its size', three.length === DEFAULT_DECK_SIZE);
+
+  check('a standing earned at one tempo does not move the deck at another',
+    workingDeck(owned(RUNGS.slice(0, 3), 80), 120).join(' ')
+      === RUNGS.slice(0, DEFAULT_DECK_SIZE).join(' '));
+
+  const all = workingDeck(owned(RUNGS, 80), 80);
+  check('a player who owns the whole ladder gets its top',
+    all.join(' ') === RUNGS.slice(-DEFAULT_DECK_SIZE).join(' '), all.join(' '));
+
+  // The two-bar rungs sit at the top of the ladder. If nothing reaches them the
+  // whole of the phrase work is unreachable, which is the failure this guards.
+  const phrases = RUNGS.filter((p) => p.length === 16);
+  check('the ladder has phrases at the top', phrases.length > 0);
+  check('and a player who owns everything below them is dealt them',
+    phrases.every((p) => all.includes(p)), all.join(' '));
+
+  // A task that names its own deck still wins. A routine that asks for one
+  // pattern must get that pattern, not a guess from the history.
+  check('a stated deck is never overridden by history',
+    deckOf(['DUDUDUDU'], { dailyLogs: owned(RUNGS, 80), bpm: 80 }).join(' ') === 'DUDUDUDU');
 }
 
 console.log('\nWhat the history says about each card\n');
