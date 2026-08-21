@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRightIcon, HourglassIcon, MicIcon, PlayIcon, RetryIcon } from '../icons';
 import { useStrumTiming } from '../../hooks/useStrumTiming';
@@ -574,6 +574,17 @@ export function StrumPatterns({
     [custom],
   );
 
+  // The deck minus whichever card is about to be dealt, for the wait before the
+  // click is found. Kept out of the render so the list is not rebuilt on every
+  // one of the twenty-five ticks a second the run loop causes.
+  const rest = useMemo(() => {
+    if (!waiting) return [];
+    return deck
+      .filter((source) => source !== waiting.source)
+      .map((source) => parsePattern(source))
+      .filter((p): p is Pattern => p !== null);
+  }, [deck, waiting]);
+
   // --- The deck ------------------------------------------------------------
 
   if (view === 'deck') {
@@ -655,16 +666,41 @@ export function StrumPatterns({
     return (
       <div className="sp-stage drill-stage">
         <div className="drill-cue sp-bars">
-          {/* What is about to be asked for, while the drill is still finding the
-              click. No sweep on it: the arm has nothing to follow yet, and a
+          {/* What is about to be asked for, while the drill is still finding
+              the click, and under it the rest of the deck.
+
+              No sweep on any of it: the arm has nothing to follow yet, and a
               marker moving to a beat the app cannot hear would be the drill
-              inventing the one thing it is here to measure. */}
+              inventing the one thing it is here to measure.
+
+              The rest of the deck is here because a coached session opens
+              straight into the run and never shows the deck screen at all, so
+              a card could arrive that the player had never seen drawn. This is
+              the only place to put it that costs nothing: the seconds spent
+              waiting for the click are already spent. It makes nothing easier
+              either. The switch is still cold, the warning before the next card
+              is still one bar, and reading your own deck before you play it is
+              what "pick a few patterns and focus on playing those well" means. */}
           {!current && waiting && (
-            <PatternBar
-              className="sp-current is-waiting"
-              pattern={waiting}
-              label={describePattern(waiting)}
-            />
+            <div className="sp-waiting">
+              <PatternBar
+                className="sp-current is-waiting"
+                pattern={waiting}
+                label={describePattern(waiting)}
+              />
+              {rest.length > 0 && (
+                <div className="sp-waiting-rest">
+                  {rest.map((card) => (
+                    <PatternBar
+                      key={card.source}
+                      pattern={card}
+                      size="deck"
+                      label={`Also in the deck. ${describePattern(card)}`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           )}
           {current && (
             <PatternBar
@@ -783,7 +819,7 @@ function StandingMark({ standing }: { standing: PatternStanding }) {
       role="img"
       aria-label={
         standing === 'automatic'
-          ? 'Automatic: three clean runs, each arriving on the first bar.'
+          ? 'Automatic: three clean runs, each arriving whole the first time round.'
           : standing === 'learning'
             ? 'Being learned.'
             : 'New.'

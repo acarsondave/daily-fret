@@ -19,6 +19,7 @@ import {
   passesPerDeal,
   deckCards,
   deckOf,
+  describePattern,
   patternRuns,
   upStrumsUnheard,
   workingDeck,
@@ -138,6 +139,25 @@ console.log('\nThe deck a player has earned\n');
   // pattern must get that pattern, not a guess from the history.
   check('a stated deck is never overridden by history',
     deckOf(['DUDUDUDU'], { dailyLogs: owned(RUNGS, 80), bpm: 80 }).join(' ') === 'DUDUDUDU');
+}
+
+// --- the row in words -------------------------------------------------------
+//
+// The visual UI and the spoken path are each meant to be complete, and a row of
+// picks is the one thing on this drill a screen reader cannot reach any other
+// way. A phrase counted 1 + 2 + 3 + 4 + twice over needs its bars named or the
+// same count means two different places.
+console.log('\nThe row in words\n');
+{
+  const bar = describePattern(parsePattern('D-DU-UD-'));
+  check('a bar names each strum by its count',
+    bar === 'down on 1, down on 2, up on and, up on and, down on 4. The arm travels through the rest.',
+    bar);
+  const phrase = describePattern(parsePattern('D-DU-UD-D-DU-UDU'));
+  check('a two-bar phrase says which bar each half is',
+    phrase.startsWith('Bar 1, down on 1') && phrase.includes('Bar 2, down on 1'), phrase);
+  check('and its last slot is the "and" of four in the second bar',
+    phrase.endsWith('up on and. The arm travels through the rest.'), phrase);
 }
 
 console.log('\nWhat the history says about each card\n');

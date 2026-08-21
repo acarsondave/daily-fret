@@ -401,8 +401,19 @@ console.log('\nThe switch from one pattern to the next\n');
     wav: 'switching.wav',
     drill: drillFor([DOWNS, EIGHTHS], 26),
   });
-  await page.waitForSelector('.sp-current', { timeout: 30000 });
+  // A coached session opens straight into the run and never shows the deck
+  // screen, so the seconds spent finding the click are the only place the whole
+  // deck can be read. It costs no practice time and shortens nothing: the card
+  // still switches on the bar, with one bar of warning.
+  await page.waitForSelector('.sp-current.is-waiting', { timeout: 30000 });
+  const onDeck = await page.locator('.sp-waiting .pattern-bar').count();
+  check('the whole deck is on screen while the click is being found',
+    onDeck === 2, String(onDeck));
   const first = await page.locator('.sp-current').getAttribute('aria-label');
+
+  await page.waitForSelector('.sp-current:not(.is-waiting)', { timeout: 40000 });
+  check('and it is gone the moment the run starts',
+    (await page.locator('.sp-waiting').count()) === 0);
 
   await page.waitForSelector('.sp-next', { timeout: 40000 });
   check('the next pattern comes up beside the one being played', true);

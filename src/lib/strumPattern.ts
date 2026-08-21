@@ -399,9 +399,9 @@ export function summarisePattern(outcomes: readonly SlotOutcome[], pattern: Patt
  * one, matching the rule the rest of the app already uses for a change pair, and
  * for the same reason: one good run is a good day.
  *
- * `automatic` deliberately requires settling on the first bar, not merely a high
- * score. A pattern you recover by bar three is one you are working out; a
- * pattern that arrives whole is one you have.
+ * `automatic` deliberately requires settling on the first pass, not merely a
+ * high score. A pattern you recover on the third go is one you are working out;
+ * a pattern that arrives whole is one you have.
  */
 export type PatternStanding = 'new' | 'learning' | 'automatic';
 
