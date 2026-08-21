@@ -50,3 +50,4 @@ curriculum/lessons/
 
 # The owner drops reference sheets here. Not shipped, not imported.
 *.pdf
+.scratch/
