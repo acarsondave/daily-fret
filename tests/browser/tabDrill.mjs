@@ -234,8 +234,25 @@ const sideways = (page) =>
   check('and the return is drawn as a return, with a head on it',
     drawn.returns >= 1 && drawn.arrow >= 1, `${drawn.returns} arcs, ${drawn.arrow} heads`);
   check('the frets are all there', drawn.frets.join('') === '0022002200220022', drawn.frets.join(''));
-  check('the count is numbers on the beats', drawn.counts.join('') === '1234', drawn.counts.join(''));
-  check('and dots on the offbeats', drawn.offbeats === 4, drawn.offbeats);
+  // Two bars, and the fixture counts only the first. The count is a ruler over
+  // equal-width bars, so it is carried across the second rather than stopping at
+  // the barline. Sunshine Of Your Love was authored exactly that way and drew a
+  // ruler over its opening with nothing over the rest of itself, which is what
+  // the owner saw and reported as an unfinished tab.
+  check('the count is numbers on the beats', drawn.counts.join('') === '12341234', drawn.counts.join(''));
+  check('and dots on the offbeats', drawn.offbeats === 8, drawn.offbeats);
+  // The assertion that matters, and the one that was missing: the ruler reaches
+  // the end of the music rather than stopping where the author stopped typing.
+  const reach = await page.evaluate(() => {
+    const counts = [...document.querySelectorAll('.tab-count')];
+    const frets = [...document.querySelectorAll('.tab-fret')];
+    if (!counts.length || !frets.length) return null;
+    const right = (els) => Math.max(...els.map((e) => e.getBoundingClientRect().right));
+    return { count: right(counts), fret: right(frets) };
+  });
+  check('and the count reaches the last note rather than the first barline',
+    reach !== null && reach.count >= reach.fret - 40,
+    reach && `count ends ${Math.round(reach.count)}, last fret ends ${Math.round(reach.fret)}`);
   check('the string carrying the notes is cut behind every one of them',
     drawn.gaps[0] > 3, drawn.gaps.join(','));
   check('and the empty string beside it runs unbroken',

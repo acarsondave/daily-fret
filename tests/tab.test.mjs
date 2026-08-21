@@ -89,12 +89,15 @@ console.log('\nA counted riff\n');
   check('the middle is a plain bar', !bars[1].repeatStart && !bars[1].repeatEnd);
   check('the last closes it', bars[2].repeatEnd && !bars[2].repeatStart);
 
-  check('eight counts', s.beats.length === 8, s.beats.length);
-  check('four of them are numbered', s.beats.filter((b) => b.primary).length === 4);
+  // Eight as written, in the bar they were written over. The rest of the staff
+  // is the same count carried across it, which is asserted on its own below.
+  const written = s.beats.filter((b) => b.quarter < 4);
+  check('eight counts in the counted bar', written.length === 8, written.length);
+  check('four of them are numbered', written.filter((b) => b.primary).length === 4);
   check(
     'the ands land halfway between the beats',
-    s.beats.map((b) => b.quarter).join(',') === '0,0.5,1,1.5,2,2.5,3,3.5',
-    s.beats.map((b) => b.quarter).join(','),
+    written.map((b) => b.quarter).join(',') === '0,0.5,1,1.5,2,2.5,3,3.5',
+    written.map((b) => b.quarter).join(','),
   );
 
   // The single fact the whole count row exists for.
@@ -191,6 +194,47 @@ console.log('\nSeveral staves\n');
   check('each stave carries its own notes', scores.every((s) => s.notes.length === 3));
   check('and reads in the order it was written',
     scores.map((s) => s.notes.map((n) => n.fret).join('')).join('|') === '023|320');
+}
+
+console.log('\nA count written once, carried across the bars\n');
+{
+  // Authors stop at the first barline, because the count is obviously the same
+  // in every bar. Sunshine Of Your Love was authored exactly this way and drew a
+  // ruler over its opening and nothing over the rest of itself.
+  const short = score([
+    '    1  +  2  +  3  +  4  +',
+    'D|------------------------|--------------3---------|',
+    'A|--5--5--3--5------------|-----------5--------5---|',
+    'E|-----------------5-----4|-----3------------------|',
+  ].join('\n'));
+  check('the second bar gets a count too', short.beats.length === 16, short.beats.length);
+  check('carried a whole bar to the right',
+    short.beats.filter((b) => b.column > 25).length === 8,
+    short.beats.filter((b) => b.column > 25).length);
+  check('and the carried beats keep counting up',
+    Math.max(...short.beats.map((b) => b.quarter)) === 7.5,
+    Math.max(...short.beats.map((b) => b.quarter)));
+
+  // Three ways this must refuse, because each would be the app overwriting
+  // something the author actually said.
+  const full = score([
+    '    1  +  2  +  3  +  4  +   1  +  2  +  3  +  4  +',
+    'D|------------------------|--------------3---------|',
+    'A|--5--5--3--5------------|-----------5--------5---|',
+  ].join('\n'));
+  check('a count that already reaches the end is untouched', full.beats.length === 16, full.beats.length);
+
+  const ragged = score([
+    '    1  +  2  +',
+    'D|--3--3--|--5-----------|',
+    'A|--------|--------------|',
+  ].join('\n'));
+  // Four written, four back. Nothing was added, because the app cannot tell
+  // what one bar is worth when the bars disagree about it.
+  check('bars of different widths carry nothing', ragged.beats.length === 4, ragged.beats.length);
+
+  const oneBar = score(['    1  +  2  +', 'D|--3--3--|', 'A|--------|'].join('\n'));
+  check('a single bar carries nothing', oneBar.beats.length === 4, oneBar.beats.length);
 }
 
 console.log('\nProse is not a tab\n');

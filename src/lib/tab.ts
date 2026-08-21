@@ -343,16 +343,73 @@ function readBeats(timing: string | undefined): TabBeat[] {
 export function readScore(block: TabBlock): TabScore {
   const columns = block.lines.reduce((max, l) => Math.max(max, l.content.length), 0);
   const { notes, joins } = readNotes(block.lines);
-  const beats = readBeats(block.timing);
+  const bars = readBars(block.lines, columns);
   return {
     caption: block.caption,
     labels: block.lines.map((l) => l.label),
     columns,
     notes,
     joins,
-    bars: readBars(block.lines, columns),
-    beats,
+    bars,
+    beats: carryCount(readBeats(block.timing), bars),
   };
+}
+
+/**
+ * A count row written over the first bar only, carried across the rest.
+ *
+ * Authors write the count once and stop at the first barline, which is what a
+ * person does when the count is obviously the same in every bar. The riff then
+ * draws with a ruler over its opening and nothing over the rest of itself, and
+ * that is exactly what it looks like: unfinished.
+ *
+ * Carrying it is not inventing a rhythm. A count row is a ruler, the bars it is
+ * being carried into are the same width as the one it was measured on, and the
+ * grid inside it is uniform. Under those three conditions the continuation is
+ * the only thing the row could have said, so the app writes down what the author
+ * already meant rather than drawing half a ruler.
+ *
+ * All three conditions are required, and each of them fails closed. A count
+ * already reaching the last bar is left alone. Ragged bars mean the app cannot
+ * tell where a bar ends, so nothing is carried. And an author who counts two
+ * bars differently has said so explicitly, which is a statement, not an
+ * omission.
+ */
+function carryCount(beats: TabBeat[], bars: TabBar[]): TabBeat[] {
+  if (!beats.length || bars.length < 3) return beats;
+
+  const spans: { from: number; to: number }[] = [];
+  for (let i = 0; i + 1 < bars.length; i++) {
+    const from = bars[i].column + bars[i].width;
+    const to = bars[i + 1].column;
+    if (to > from) spans.push({ from, to });
+  }
+  if (spans.length < 2) return beats;
+
+  // Same width everywhere, or the app does not know what one bar is worth.
+  const width = spans[0].to - spans[0].from;
+  if (!spans.every((s) => s.to - s.from === width)) return beats;
+
+  // Only the opening bar is counted. Anything reaching further is the author
+  // speaking about the later bars, and is left exactly as written.
+  const first = beats.filter((b) => b.column >= spans[0].from && b.column < spans[0].to);
+  if (first.length !== beats.length) return beats;
+
+  const quartersPerBar = Math.round(first.filter((b) => b.primary).length);
+  if (quartersPerBar < 1) return beats;
+
+  const carried = [...beats];
+  for (let bar = 1; bar < spans.length; bar++) {
+    const shift = spans[bar].from - spans[0].from;
+    for (const beat of first) {
+      carried.push({
+        ...beat,
+        column: beat.column + shift,
+        quarter: beat.quarter + bar * quartersPerBar,
+      });
+    }
+  }
+  return carried;
 }
 
 // ---------------------------------------------------------------------------
