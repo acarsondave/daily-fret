@@ -317,6 +317,9 @@ export function NoteFinder({
           ms,
           shown: wasLit,
         });
+        // One position carries one mark. A rung of six positions gets asked
+        // about the same fret several times in a minute, and a second mark on
+        // top of the first would be a second drawing of one fact.
         setAnswers((was) => [
           ...was,
           {
@@ -730,13 +733,9 @@ export function NoteFinder({
   }
 
   const run = result;
-  const marks: NeckMark[] =
-    run?.found.map((f) => ({
-      stringPosition: f.stringPosition,
-      fret: f.fret,
-      kind: f.shown ? ('shown' as const) : ('found' as const),
-      name: !f.shown,
-    })) ?? [];
+  // One mark per position, and a recall outranks a placement wherever a run did
+  // both at the same fret: the stronger thing really happened there.
+  const marks: NeckMark[] = run ? runMarks(run.found) : [];
 
   return (
     <motion.div
@@ -792,6 +791,33 @@ export function NoteFinder({
       )}
     </motion.div>
   );
+}
+
+/**
+ * A run's answers as marks on the board, one per position.
+ *
+ * A rung of six positions gets asked about the same fret several times in a
+ * minute, so a mark per answer would draw one fact repeatedly and hand React the
+ * same key twice. A recall outranks a placement at the same fret: the player did
+ * recall it, whatever else happened there.
+ */
+function runMarks(found: readonly NoteFindReport[]): NeckMark[] {
+  const byPosition = new Map<string, NeckMark>();
+  for (const f of found) {
+    const key = positionKey(f.stringPosition, f.fret);
+    // A recall outranks a placement, so a position answered from memory keeps
+    // that mark even if the same fret came round again with the answer lit.
+    // Overwriting blindly would let the later, weaker answer speak for the
+    // position, which is the one direction this must never round.
+    if (f.shown && byPosition.get(key)?.kind === 'found') continue;
+    byPosition.set(key, {
+      stringPosition: f.stringPosition,
+      fret: f.fret,
+      kind: f.shown ? 'shown' : 'found',
+      name: !f.shown,
+    });
+  }
+  return [...byPosition.values()];
 }
 
 /**

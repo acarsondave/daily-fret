@@ -170,6 +170,14 @@ async function open({
   page.on('pageerror', (e) => {
     if (!handled(e.message)) errors.push(e.message);
   });
+  // Console errors too, not only thrown ones. React reports a duplicate key
+  // through console.error and never throws, and this drill draws a mark per
+  // answer on a rung the same fret comes round on several times a minute: a
+  // check that only watched for exceptions would have shipped that.
+  page.on('console', (m) => {
+    if (m.type() !== 'error') return;
+    if (!handled(m.text())) errors.push(m.text());
+  });
   await page.addInitScript(
     (s) => localStorage.setItem('daily-fret-storage', JSON.stringify({
       state: { currentAccountId: 'anonymous', accounts: { anonymous: s } }, version: 0,
