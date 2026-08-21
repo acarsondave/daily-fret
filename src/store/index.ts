@@ -22,7 +22,7 @@ import type { Song } from '../data/songs';
 import type { StrumPattern } from '../data/strumPatterns';
 import type { CalibrationData, ChordCalibration } from '../audio/calibration';
 import type { ReminderSettings } from '../lib/reminders';
-import { mergeNoteMaps, recordFind, type NoteMap } from '../lib/noteFinder';
+import { mergeNoteMaps, recordFind, recordShown, type NoteMap } from '../lib/noteFinder';
 import {
   activeProfileOf,
   makeProfile,
@@ -181,9 +181,10 @@ export interface UserData {
    * was asked, and the note circle draws it as a record that grows over months.
    *
    * What it records is exactly what the app can stand behind: the prompt named
-   * this position and the pitch that position makes came back. A microphone
+   * this position and the note that position makes came back. A microphone
    * cannot see which string a pitch came off, so this is never a claim that the
-   * finger went here.
+   * finger went here. An answer played while the drill had it lit on the neck is
+   * counted separately again, under `shown`, and never moves the standing.
    */
   noteMap?: NoteMap;
   // What a task id used to mean, for the two drills that once filed their
@@ -215,12 +216,20 @@ const defaultUserData: UserData = {
   updatedAt: 0,
 };
 
-/** One correct find, as the drill reports it to the store. */
+/** One position the drill got an answer at, as it reports it to the store. */
 export interface NoteFindReport {
   stringPosition: number;
   fret: number;
   /** How long the find took, in milliseconds. */
   ms: number;
+  /**
+   * True when the answer was lit on the neck as it was played.
+   *
+   * A placement against a light and a recall from memory are different facts
+   * about a player, so they are filed apart and only the second of them ever
+   * moves what the neck claims the player knows.
+   */
+  shown: boolean;
 }
 
 interface AppState {
@@ -738,7 +747,9 @@ export const useStore = create<AppState>()(
             const at = now();
             let map = a.noteMap ?? {};
             for (const find of finds) {
-              map = recordFind(map, find.stringPosition, find.fret, find.ms, at);
+              map = find.shown
+                ? recordShown(map, find.stringPosition, find.fret, at)
+                : recordFind(map, find.stringPosition, find.fret, find.ms, at);
             }
             return { ...a, noteMap: map };
           });

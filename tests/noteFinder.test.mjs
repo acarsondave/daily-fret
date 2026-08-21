@@ -1,11 +1,12 @@
 // The arithmetic and the honesty of the note finder.
 //
-// Two things are settled here. The first is what a played pitch is allowed to
+// Three things are settled here. The first is what a played pitch is allowed to
 // prove: a prompt that named a string is answered only by the exact MIDI number
 // that position makes, and the same letter an octave away is reported as a
-// different position rather than waved through. The second is the ladder: which
-// rung a session runs at comes from that rung's own history, three clean runs
-// clear it, and one poor run takes it back.
+// different position rather than waved through. The second is that a position
+// played against a lit answer is never counted as one recalled from memory,
+// anywhere. The third is the ladder: which rung a session runs at comes from that
+// rung's own history, three clean runs clear it, one poor run takes it back.
 //
 // The drawing is checked in a browser; this is where the maths is settled.
 
@@ -14,13 +15,16 @@ import {
   CLEAR_FINDS_PER_MIN,
   CLEAR_RUNS,
   NATURALS,
+  OPEN_STRING_NOTES,
   QUICK_MS,
   QUICK_RUNS,
   RUNGS,
   STRING_POSITIONS,
   TOP_FRET,
   currentRung,
+  fretOn,
   getRung,
+  isShown,
   judge,
   medianFindMs,
   mergeNoteMaps,
@@ -33,12 +37,17 @@ import {
   positionsOf,
   reachable,
   recordFind,
+  recordShown,
   rungNumber,
   rungPositions,
   rungStanding,
+  rungWindow,
+  timesShown,
 } from '../src/lib/noteFinder.ts';
 import { midiToName } from '../src/audio/tuning.ts';
 import { pitchClass } from '../src/lib/noteCircle.ts';
+import { getSkill } from '../src/data/skills.ts';
+import { getLessonByCode } from '../src/data/curriculum.ts';
 
 let failures = 0;
 const check = (label, ok, detail) => {
@@ -77,14 +86,51 @@ check(
 
 console.log('\nWhat a pitch is allowed to prove\n');
 
-const asked = { form: 'string', pc: pcOf('C'), stringPosition: 5, fret: 3, midi: 48, rungId: 'x' };
+// C on the fifth string, as the low-naturals rung asks for it.
+//
+// An earlier pass loosened this to the pitch class wherever the rung's own frets
+// left one place the note could be, on the theory that the estimator mis-octaves
+// a low string. It does not: tests/pitch.test.mjs asserts zero octave errors
+// across the range on signals built to trip a naive detector, and measuring it
+// again over plucks with no fundamental, quiet plucks and inharmonic
+// reverberant ones produced none either. The loosening was taken back out. A
+// drill that cannot be failed measures nothing.
+const asked = { form: 'string', pc: pcOf('C'), stringPosition: 5, fret: 3, midi: 48, rungId: 'low-naturals' };
+const lowNaturals = getRung('low-naturals');
 
 check('the exact pitch is a find', judge(asked, 48).kind === 'right');
 check('the same letter an octave up is not', judge(asked, 60).kind === 'octave');
 check('the same letter an octave down is not', judge(asked, 36).kind === 'octave');
 check('a different letter is not', judge(asked, 47).kind === 'other');
+
+// The open string is the one place a string can make the same note twice below
+// the twelfth fret, and it is not waved through either.
+const openLow = { form: 'string', pc: pcOf('E'), stringPosition: 6, fret: 0, midi: 40, rungId: 'low-naturals' };
+check('the open string is a find', judge(openLow, 40).kind === 'right');
+check('the twelfth fret of the same string is not', judge(openLow, 52).kind === 'octave');
+check('and neither is an E off the bottom of the neck', judge(openLow, 28).kind === 'octave');
+
+const wholeNeck = getRung('whole-neck');
+
+// Not part of the judgement. It is how the drill draws a wrong note where it
+// actually sits, so the distance to the answer is a distance and not a sentence.
+check('a fret is read back off a string', fretOn(6, 43) === 3 && fretOn(6, 40) === 0);
+check('and a pitch that string cannot make reads back as none', fretOn(6, 39) === null);
+check('nor can it reach past the twelfth', fretOn(6, 53) === null);
+
 check('a prompt that names a string may be filed against a position', namesString('string'));
 check('one that names none may not', !namesString('free') && !namesString('echo'));
+
+check('a rung draws its own frets, with one either side',
+  JSON.stringify(rungWindow(lowNaturals)) === '{"from":0,"to":4}');
+// Every question on the opening rung is at the nut, and two cells is not a neck.
+check('a rung with nothing to either side still draws a fretboard',
+  JSON.stringify(rungWindow(RUNGS[0])) === '{"from":0,"to":3}',
+  JSON.stringify(rungWindow(RUNGS[0])));
+check(
+  'and never past the ends of the neck',
+  rungWindow(wholeNeck).from === 0 && rungWindow(wholeNeck).to === TOP_FRET,
+);
 
 const anywhere = { ...asked, form: 'free' };
 check('with no string named, any C on the neck answers', judge(anywhere, 60).kind === 'right');
@@ -99,7 +145,36 @@ console.log('\nThe rungs\n');
 
 check('the ladder has somewhere to go', RUNGS.length >= 6);
 check('rung ids are unique', new Set(RUNGS.map((r) => r.id)).size === RUNGS.length);
-check('it starts on the naturals', RUNGS[0].notes === NATURALS);
+// The course teaches the six open strings by name before it teaches anything
+// else about where a note is, so that is the bottom of the ladder. Starting
+// above it is what made the drill a test of something never taught.
+check('it starts on the open strings', RUNGS[0].notes === OPEN_STRING_NOTES);
+check('and that rung asks for nothing but them',
+  rungPositions(RUNGS[0]).every((p) => p.fret === 0) && rungPositions(RUNGS[0]).length === 6);
+check('it is the one rung that is a course lesson rather than resting on one',
+  RUNGS.filter((r) => r.isLesson === true).length === 1 && RUNGS[0].isLesson === true);
+
+// The gate the drill hands outwards, and the thing that makes the sequencing
+// failure structurally impossible rather than a convention. Checked against the
+// skill so this file cannot grow a second, private opinion about what teaches
+// what, and against the curriculum so it cannot name a lesson that is not there.
+const noteNames = getSkill('theory.note-names');
+check('every rung says which lesson has to have been reached first',
+  RUNGS.every((r) => typeof r.taughtBy === 'string' && r.taughtBy.length > 0));
+check('and it is one the skill already records as covering note names',
+  RUNGS.every((r) => noteNames.lessons.includes(r.taughtBy)),
+  RUNGS.map((r) => r.taughtBy).join(' '));
+check('and it is a lesson the course actually has',
+  RUNGS.every((r) => getLessonByCode(r.taughtBy) !== null));
+check('the rung that is the lesson is the one about where a note lives',
+  /open string/i.test(getLessonByCode(RUNGS[0].taughtBy).title),
+  getLessonByCode(RUNGS[0].taughtBy).title);
+// Not the lesson that says what notes are: that one teaches the system and not
+// one position on the neck, so nothing here may be asked off the back of it.
+check('and not the earlier one that only names the system',
+  RUNGS[0].taughtBy !== noteNames.lessons[0]);
+check('and the second rung is one string of naturals',
+  RUNGS[1].strings.length === 1 && RUNGS[1].notes === NATURALS);
 check('and ends past them', RUNGS[RUNGS.length - 1].notes === ALL_NOTES);
 // Within one form the questions only get faster. Across forms it can loosen,
 // and does: an echo asks the player to name a position and then find that note
@@ -109,23 +184,26 @@ check(
   'the budget never loosens while the question stays the same shape',
   named.every((r, i) => i === 0 || r.budgetMs <= named[i - 1].budgetMs),
 );
+// Four rather than six, because the one-string rung is four naturals on the low
+// E and that is the rung: a smaller pool is what makes it the easy one. The
+// previous prompt is never repeated, so four still leaves three to choose from.
 check(
   'every rung has something to ask',
-  RUNGS.every((r) => rungPositions(r).length >= 6),
+  RUNGS.every((r) => rungPositions(r).length >= 4),
   RUNGS.map((r) => `${r.id}:${rungPositions(r).length}`).join(' '),
 );
 check(
   'every rung only calls notes it says it calls',
   RUNGS.every((r) => rungPositions(r).every((p) => r.notes.includes(p.pc) && r.strings.includes(p.stringPosition))),
 );
-check('the first rung stays on the two lowest strings', RUNGS[0].strings.join() === '6,5');
+check('the naturals rung stays on the two lowest strings', lowNaturals.strings.join() === '6,5');
 check('getRung finds one', getRung(RUNGS[2].id) === RUNGS[2]);
 check('and returns null for one that is gone', getRung('no-such-rung') === null);
 check('rungNumber counts from one', rungNumber(RUNGS[0].id) === 1);
 
 console.log('\nWhat to ask next\n');
 
-const rung = RUNGS[0];
+const rung = lowNaturals;
 const roll0 = nextPrompt(rung, {}, null, 0);
 check('a prompt comes out of an empty history', roll0 !== null);
 check('and it is one the rung is allowed to call', rung.notes.includes(roll0.pc));
@@ -202,6 +280,55 @@ try {
   threw = true;
 }
 check('a find of no duration is refused rather than stored', threw);
+
+console.log('\nShown is not found\n');
+
+check('a position nothing is known about is shown before it is asked for', isShown(undefined));
+
+let lit = recordShown({}, 6, 1, 100);
+lit = recordShown(lit, 6, 1, 200);
+const litFind = lit[positionKey(6, 1)];
+check('playing a lit answer is counted', timesShown(litFind) === 2);
+check('but it is never counted as a recall', litFind.found === 0);
+check('so the neck still says nothing about it', positionStanding(litFind) === 'unasked');
+check('and the drill goes on lighting it', isShown(litFind));
+check('it carries no time, because a pointed-at fret is not a recall time',
+  litFind.recentMs.length === 0);
+
+lit = recordFind(lit, 6, 1, 3000, 300);
+check('one recall retires the light', !isShown(lit[positionKey(6, 1)]));
+check('and the position finally stands as found', positionStanding(lit[positionKey(6, 1)]) === 'found');
+check('the times it was shown are still there to be read',
+  timesShown(lit[positionKey(6, 1)]) === 2);
+check('and the recall sets the best rather than being beaten by a stored zero',
+  lit[positionKey(6, 1)].bestMs === 3000);
+
+// Three quick recalls at a position that was shown first. The light being there
+// once must not make the standing any easier or any harder to reach.
+let mixed = recordShown({}, 5, 2, 1);
+for (const ms of [1200, 1300, 1100]) mixed = recordFind(mixed, 5, 2, ms, 2);
+check('a position that was shown first still has to earn quick the same way',
+  positionStanding(mixed[positionKey(5, 2)]) === 'quick');
+
+// The weighting: a shown position is asked more than a recalled one and less
+// than one nothing at all is known about.
+const weighted = {};
+for (const p of rungPositions(lowNaturals)) {
+  weighted[positionKey(p.stringPosition, p.fret)] = {
+    found: 3, bestMs: 900, recentMs: [900, 900, 900], at: 1,
+  };
+}
+delete weighted[positionKey(6, 0)];
+weighted[positionKey(6, 1)] = { found: 0, bestMs: 0, recentMs: [], shown: 4, at: 1 };
+const deals = Array.from({ length: 300 }, (_, i) => nextPrompt(lowNaturals, weighted, null, i / 300));
+const onUnasked = deals.filter((p) => p.stringPosition === 6 && p.fret === 0).length;
+const onShown = deals.filter((p) => p.stringPosition === 6 && p.fret === 1).length;
+const onQuick = deals.length - onUnasked - onShown;
+check('a shown position is asked more often than a quick one',
+  onShown > onQuick / (rungPositions(lowNaturals).length - 2),
+  `${onShown} shown vs ${onQuick} over the rest`);
+check('and less often than one nothing is known about',
+  onUnasked > onShown, `${onUnasked} unasked vs ${onShown} shown`);
 
 const mine = { '6:0': { found: 1, bestMs: 3000, recentMs: [3000], at: 10 } };
 const theirs = {

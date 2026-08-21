@@ -520,6 +520,10 @@ export function PracticeOverlay({ task, onClose }: Props) {
                   value: run.finds,
                   durationSec: duration,
                   findMs: run.findMs,
+                  // Answers played to an answer the drill had lit. Never part of
+                  // the count; they are how the day tells a run that recalled
+                  // nothing from a microphone that heard nothing.
+                  uncounted: run.shown,
                 },
               ]);
               recordNoteFinds(run.found);

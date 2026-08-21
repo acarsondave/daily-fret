@@ -7,6 +7,16 @@
 // on the end of it. So the app calls a note, the player plays it, and the pitch
 // detector confirms it.
 //
+// SHOWN, THEN RECALLED. This started life as a test of knowledge the player did
+// not have. Rung one named a note, drew a blank neck and started a clock, which
+// is a wall rather than a drill for anyone who has not already learnt where the
+// naturals are. A position nobody has ever recalled is therefore lit on the neck
+// and simply played; only once it has come back from memory is it asked with
+// nothing drawn, and a failed recall lights it again. The two are different
+// facts about a player and are kept apart everywhere: `found` counts recalls and
+// nothing else, `shown` counts placements, and `positionStanding` reads only the
+// first of them.
+//
 // WHAT THE MICROPHONE CAN AND CANNOT SETTLE. A pitch is a frequency, and a
 // frequency does not carry the string it came off: C at the third fret of the A
 // string and C at the eighth fret of the low E are the same 130.81 Hz and no
@@ -22,12 +32,13 @@
 // and the two prompt forms where the app was never told where to look
 // (`free`, `echo`) deliberately write nothing to the map at all.
 //
-// THE LADDER. Open-position naturals is a week. This drill has to still be worth
-// opening in Grade 5, so the rungs run from the two lowest strings in first
-// position to the whole neck with accidentals, then to finding a note with no
-// string named at all, then to finding the same note somewhere other than where
-// it was shown. Which rung a session runs at comes from that rung's own history
-// and never from ambition: exactly the rule lib/tempo.ts applies to BPM.
+// THE LADDER. The six open strings by name is a week. This drill has to still be
+// worth opening in Grade 5, so the rungs run from the nut to the whole neck with
+// accidentals, then to finding a note with no string named at all, then to
+// finding the same note somewhere other than where it was shown. Which rung a
+// session runs at comes from that rung's own history and never from ambition:
+// exactly the rule lib/tempo.ts applies to BPM. `RUNGS` carries the argument for
+// where the bottom of it is, which is a place the course has actually reached.
 
 import { pitchClass, noteAtFret, fretOf, type PitchClass } from './noteCircle';
 import { DEFAULT_TUNING_ID, getTuning } from '../audio/tuning';
@@ -59,6 +70,15 @@ export const midiAt = (stringPosition: number, fret: number): number =>
 
 /** The seven letters, which is where every player starts. */
 export const NATURALS: readonly PitchClass[] = [9, 11, 0, 2, 4, 5, 7];
+/**
+ * The letters the open strings sound, which is where the ladder starts.
+ *
+ * Read off the tuning rather than written out, so a tuning with a different set
+ * of open notes asks about the notes it actually has.
+ */
+export const OPEN_STRING_NOTES: readonly PitchClass[] = [
+  ...new Set(STANDARD.strings.map((s) => pitchClass(s.midi))),
+];
 /** All twelve, in circle order from A. */
 export const ALL_NOTES: readonly PitchClass[] = Array.from({ length: 12 }, (_, i) => pitchClass(9 + i));
 
@@ -94,20 +114,95 @@ export interface FinderRung {
   maxFret: number;
   /** A find inside this is what the rung is asking for. */
   budgetMs: number;
+  /**
+   * The course lesson this rung's question needs, and cannot be asked before.
+   *
+   * Every rung on this ladder needs the note names, so every rung rests on the
+   * lesson that delivers them, and none of them is askable until a player has
+   * reached it. That is the whole of the sequencing failure this drill shipped
+   * with, stated as data so a gate outside the drill can act on it rather than a
+   * convention nobody can enforce.
+   *
+   * Checked against src/data/skills.ts by a test: this must be one of the
+   * lessons that skill already records as covering note names, so the code here
+   * cannot drift into a second, private opinion about what teaches what.
+   */
+  taughtBy: string;
+  /**
+   * True where the rung asks for exactly what that lesson teaches and no more.
+   *
+   * The six open strings by name is what `open-string-note-names` teaches and
+   * all it teaches, so that rung may put the lesson's name to itself. Every rung
+   * above it rests on the same lesson and goes a long way past it, and says so
+   * by saying nothing: the app does not claim a fit with a course that has not
+   * asked for the thing.
+   */
+  isLesson?: boolean;
 }
+
+/**
+ * The lesson every rung rests on: where a note lives, rather than what notes are.
+ *
+ * The last of the lessons src/data/skills.ts records against note names, which
+ * is the one that first makes any of this askable.
+ */
+const NOTE_NAMES_LESSON = 'b1-605';
 
 /**
  * The ladder, lowest first.
  *
- * Ordered by what it costs a hand rather than by how much of the neck it covers:
- * the naturals below the fifth fret are the ones a beginner needs for chord
- * roots, the accidentals come next because they are the same map with the gaps
- * filled, and the whole neck only opens once first position is quick. The last
- * two rungs stop naming the string, which is where the exercise turns from
- * "where is C on the A string" into "where is C", the question barre chords,
- * CAGED and every scale shape actually ask.
+ * WHERE THE BOTTOM OF IT CAME FROM. This started at "naturals on the low two
+ * strings", and that was a sequencing mistake with a real cost: the first player
+ * to use it said, correctly, that he did not know where the notes were. The
+ * course teaches the system of note names in Grade 1 Module 5 and the six open
+ * strings by name in Module 6, and nothing about the rest of the neck until well
+ * after that. A drill whose first question is "where is C on the A string" is
+ * therefore ahead of the course, and the two rungs below that question are the
+ * fix: the open strings, which is exactly the Module 6 lesson, then the naturals
+ * on one string, then two strings, then the neck.
+ *
+ * Above that it is ordered by what it costs a hand rather than by how much of
+ * the neck it covers: the naturals below the fifth fret are the ones a beginner
+ * needs for chord roots, the accidentals come next because they are the same map
+ * with the gaps filled, and the whole neck only opens once first position is
+ * quick. The last two rungs stop naming the string, which is where the exercise
+ * turns from "where is C on the A string" into "where is C", the question barre
+ * chords, CAGED and every scale shape actually ask.
+ *
+ * Ids never change. Inserting rungs below an existing one moves where it sits on
+ * the ladder but not what its history is filed under, so nothing recorded before
+ * this is orphaned. A player who had cleared a rung and now finds two easier ones
+ * underneath is taken back down to them, which is the ladder's own rule working:
+ * it never runs above a pace already proven, and three quick runs clear a rung.
  */
 export const RUNGS: readonly FinderRung[] = [
+  {
+    id: 'open-strings',
+    label: 'The six open strings',
+    form: 'string',
+    notes: OPEN_STRING_NOTES,
+    strings: STRING_POSITIONS,
+    minFret: 0,
+    maxFret: 0,
+    budgetMs: 10000,
+    taughtBy: NOTE_NAMES_LESSON,
+    isLesson: true,
+  },
+  {
+    // One string, and the one whose notes a player uses first: the low E carries
+    // the root of every E-shape barre chord and half of what the first position
+    // is built from. Reaching the fifth fret rather than the third because four
+    // naturals on one string is a rung and three is a rota.
+    id: 'low-e-naturals',
+    label: 'Naturals on the low E',
+    form: 'string',
+    notes: NATURALS,
+    strings: [6],
+    minFret: 0,
+    maxFret: 5,
+    budgetMs: 9000,
+    taughtBy: NOTE_NAMES_LESSON,
+  },
   {
     id: 'low-naturals',
     label: 'Naturals, low two strings',
@@ -117,6 +212,7 @@ export const RUNGS: readonly FinderRung[] = [
     minFret: 0,
     maxFret: 3,
     budgetMs: 9000,
+    taughtBy: NOTE_NAMES_LESSON,
   },
   {
     id: 'open-naturals',
@@ -127,6 +223,7 @@ export const RUNGS: readonly FinderRung[] = [
     minFret: 0,
     maxFret: 3,
     budgetMs: 8000,
+    taughtBy: NOTE_NAMES_LESSON,
   },
   {
     id: 'naturals-five',
@@ -137,6 +234,7 @@ export const RUNGS: readonly FinderRung[] = [
     minFret: 0,
     maxFret: 5,
     budgetMs: 7000,
+    taughtBy: NOTE_NAMES_LESSON,
   },
   {
     id: 'accidentals-five',
@@ -147,6 +245,7 @@ export const RUNGS: readonly FinderRung[] = [
     minFret: 0,
     maxFret: 5,
     budgetMs: 7000,
+    taughtBy: NOTE_NAMES_LESSON,
   },
   {
     id: 'naturals-high',
@@ -157,6 +256,7 @@ export const RUNGS: readonly FinderRung[] = [
     minFret: 5,
     maxFret: TOP_FRET,
     budgetMs: 6000,
+    taughtBy: NOTE_NAMES_LESSON,
   },
   {
     id: 'whole-neck',
@@ -167,6 +267,7 @@ export const RUNGS: readonly FinderRung[] = [
     minFret: 0,
     maxFret: TOP_FRET,
     budgetMs: 6000,
+    taughtBy: NOTE_NAMES_LESSON,
   },
   {
     id: 'any-string',
@@ -177,6 +278,7 @@ export const RUNGS: readonly FinderRung[] = [
     minFret: 0,
     maxFret: TOP_FRET,
     budgetMs: 5000,
+    taughtBy: NOTE_NAMES_LESSON,
   },
   {
     id: 'octaves',
@@ -187,6 +289,7 @@ export const RUNGS: readonly FinderRung[] = [
     minFret: 0,
     maxFret: TOP_FRET,
     budgetMs: 7000,
+    taughtBy: NOTE_NAMES_LESSON,
   },
 ];
 
@@ -240,15 +343,47 @@ export function reachable(midi: number): boolean {
   });
 }
 
+/** Which fret of one string makes this pitch, or null when none of it does. */
+export function fretOn(stringPosition: number, midi: number): number | null {
+  const fret = midi - openMidiOf(stringPosition);
+  return fret >= 0 && fret <= TOP_FRET ? fret : null;
+}
+
+/** Frets a drawn neck holds however narrow the question is. Fewer is not a neck. */
+const MIN_DRAWN_FRETS = 4;
+
+/**
+ * The stretch of neck a rung's questions live on, plus a fret either side.
+ *
+ * The drill used to draw all twelve frets whatever it was asking, so the first
+ * rung's four-fret world was a quarter of a picture nobody could read from a
+ * propped laptop. Drawing the window instead makes a fret a target the size of a
+ * fingertip. The margin is there so the window still reads as part of a neck
+ * rather than as a diagram of nothing in particular, and the floor under it is
+ * for the open-strings rung, whose questions all live at the nut and which drawn
+ * to its own width would be two enormous cells rather than a fretboard.
+ */
+export function rungWindow(rung: FinderRung): { from: number; to: number } {
+  const from = Math.max(0, rung.minFret - 1);
+  return {
+    from,
+    to: Math.min(TOP_FRET, Math.max(rung.maxFret + 1, from + MIN_DRAWN_FRETS - 1)),
+  };
+}
+
 // --- The neck map ---------------------------------------------------------
 //
 // One entry per position the drill has asked for and been answered at. This is
 // the thing that fills in over months, and the note circle draws it.
 
 export interface NoteFind {
-  /** Times the prompt named this position and the pitch it makes came back. */
+  /**
+   * Times this position was recalled: asked with nothing drawn on the neck, and
+   * the note it makes came back. A placement made against a lit answer is never
+   * counted here, which is the whole of what keeps the two apart.
+   */
   found: number;
-  /** Fastest of those, in milliseconds. */
+  /** Fastest of those, in milliseconds. Zero until something has been recalled. */
   bestMs: number;
   /**
    * The most recent times, oldest first, capped at what the standing reads.
@@ -258,8 +393,16 @@ export interface NoteFind {
    * a mean over months cannot move far enough to say so.
    */
   recentMs: number[];
-  /** Epoch ms of the most recent find here. */
+  /** Epoch ms of the most recent find here, of either kind. */
   at: number;
+  /**
+   * Times this position was played with its answer lit on the neck.
+   *
+   * Absent on everything recorded before the drill started showing answers, and
+   * absent is exactly zero rather than unknown: nothing was ever lit then, so
+   * every one of those finds was made from memory.
+   */
+  shown?: number;
 }
 
 export type NoteMap = Record<string, NoteFind>;
@@ -293,11 +436,16 @@ export const QUICK_RUNS = 3;
 export type PositionStanding = 'unasked' | 'found' | 'quick';
 
 /**
- * Where one position stands.
+ * Where one position stands, as a matter of recall.
+ *
+ * Reads `found` and nothing else, so a position played a dozen times against a
+ * lit answer still stands at `unasked`. That is not a technicality: the whole
+ * value of this record is that it says what the player can do from memory, and a
+ * mark earned by copying a light would make it say something else.
  *
  * `unasked` is not a failure and must never be drawn as one. It is the app
  * saying nothing, which is the only honest thing to say about a fret it has
- * never put a question to.
+ * never had a recall out of.
  */
 export function positionStanding(find: NoteFind | undefined): PositionStanding {
   if (!find || find.found === 0) return 'unasked';
@@ -306,12 +454,24 @@ export function positionStanding(find: NoteFind | undefined): PositionStanding {
   return recent.every((ms) => ms <= QUICK_MS) ? 'quick' : 'found';
 }
 
+/** Times this position has been played with its answer lit. */
+export const timesShown = (find: NoteFind | undefined): number => find?.shown ?? 0;
+
 /**
- * One correct find, folded into the map.
+ * Whether the drill lights this position before asking for it.
  *
- * Only ever called for a prompt that named a string. The other two forms leave
- * the map alone on purpose: the app was not told where to look, so it has
- * nothing true to write about a position.
+ * One recall retires the light for good; a failed recall brings it back for that
+ * question only. Which makes the moment the light stops appearing a real
+ * transition in what the player can do rather than an announcement about it.
+ */
+export const isShown = (find: NoteFind | undefined): boolean => !find || find.found === 0;
+
+/**
+ * One recall, folded into the map.
+ *
+ * Only ever called for a prompt that named a string and drew nothing. The other
+ * two forms leave the map alone on purpose: the app was not told where to look,
+ * so it has nothing true to write about a position.
  */
 export function recordFind(
   map: NoteMap,
@@ -326,12 +486,41 @@ export function recordFind(
   const key = positionKey(stringPosition, fret);
   const previous = map[key];
   const recentMs = [...(previous?.recentMs ?? []), Math.round(ms)].slice(-QUICK_RUNS);
+  const best = previous && previous.found > 0 ? previous.bestMs : Number.POSITIVE_INFINITY;
   return {
     ...map,
     [key]: {
+      ...previous,
       found: (previous?.found ?? 0) + 1,
-      bestMs: Math.min(previous?.bestMs ?? Number.POSITIVE_INFINITY, Math.round(ms)),
+      bestMs: Math.min(best, Math.round(ms)),
       recentMs,
+      at,
+    },
+  };
+}
+
+/**
+ * One position played while its answer was lit.
+ *
+ * Carries no time, because there is no time worth carrying: how fast a hand
+ * reaches a fret it is being pointed at says nothing about whether the player
+ * knows where that fret is. It touches nothing `positionStanding` reads.
+ */
+export function recordShown(
+  map: NoteMap,
+  stringPosition: number,
+  fret: number,
+  at: number,
+): NoteMap {
+  const key = positionKey(stringPosition, fret);
+  const previous = map[key];
+  return {
+    ...map,
+    [key]: {
+      found: previous?.found ?? 0,
+      bestMs: previous?.bestMs ?? 0,
+      recentMs: previous?.recentMs ?? [],
+      shown: timesShown(previous) + 1,
       at,
     },
   };
@@ -395,7 +584,21 @@ export const namesString = (form: PromptForm): boolean => form === 'string';
  * the worst three would never ask a quick position again, and a position that is
  * never asked cannot be shown to have gone cold.
  */
-const WEIGHT: Record<PositionStanding, number> = { unasked: 5, found: 3, quick: 1 };
+const WEIGHT: Record<PositionStanding, number> = { unasked: 6, found: 3, quick: 1 };
+/**
+ * A position that has been lit and played but never recalled.
+ *
+ * Between the two: seeing where a note lives is worth something and is worth
+ * asking about again soon, but it is not the recall the rung is after, so it
+ * still outweighs everything that has come back from memory.
+ */
+const WEIGHT_SHOWN = 4;
+
+const weightOf = (find: NoteFind | undefined): number => {
+  const standing = positionStanding(find);
+  if (standing === 'unasked' && timesShown(find) > 0) return WEIGHT_SHOWN;
+  return WEIGHT[standing];
+};
 
 /**
  * What to ask next, decided by the player's own history at this rung.
@@ -417,7 +620,7 @@ export function nextPrompt(
   );
   const pool = eligible.length ? eligible : all;
 
-  const weights = pool.map((p) => WEIGHT[positionStanding(map[positionKey(p.stringPosition, p.fret)])]);
+  const weights = pool.map((p) => weightOf(map[positionKey(p.stringPosition, p.fret)]));
   const total = weights.reduce((sum, w) => sum + w, 0);
   let cursor = Math.min(Math.max(roll, 0), 0.999999) * total;
   let chosen = pool[pool.length - 1];
@@ -445,6 +648,21 @@ export function nextPrompt(
  * `right` on a `string` prompt is an exact MIDI match and nothing looser, which
  * is the whole of the drill's honesty: the same letter an octave away is a
  * different position and is reported as one.
+ *
+ * THE LOOSENING THAT WAS CONSIDERED AND REJECTED. A rule accepting the pitch
+ * class wherever the rung's own frets left one place the note could be was built
+ * here and then taken out again. The case for it was that a monophonic estimator
+ * mis-octaves a low string, so refusing an octave-off reading would be the app
+ * blaming the player for its own hearing. This estimator does not mis-octave:
+ * tests/pitch.test.mjs asserts zero octave errors across the guitar range on
+ * signals built to trip a naive detector, and src/audio/pitch.ts engineered that
+ * out deliberately. Measured again while this was being written, over plucks
+ * with no fundamental at all, quiet plucks, and inharmonic reverberant ones: not
+ * one octave error in any of them.
+ *
+ * So the only thing the loosening would have bought is accepting the twelfth
+ * fret when the nut was asked for, which is a wrong placement and not a misread.
+ * A drill that cannot be failed measures nothing.
  */
 export type FindOutcome =
   | { kind: 'right' }

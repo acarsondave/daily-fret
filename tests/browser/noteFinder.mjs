@@ -9,17 +9,19 @@
 //   node tests/browser/noteFinder.mjs [outputDir]
 //
 // WHAT IS ACTUALLY ASSERTED. That a note played in the room reaches the screen
-// and is counted, and — the half that matters more — that a note the drill did
-// not ask for is heard, shown, and not counted. A suite that only proved the
-// component mounted would be worth nothing here: this product has already
-// shipped a feature where every test passed and the feature did not work,
-// because the tests confirmed the code ran rather than that the thing happened.
+// and is counted; that a note the drill did not ask for is heard, shown, and not
+// counted; that a position the player has never recalled is lit and that playing
+// a lit answer is never filed as a recall; and that the right letter an octave
+// from the answer is a different position and is reported as one, over a whole
+// run of them. A suite that only proved the component mounted
+// would be worth nothing here: this product has already shipped a feature where
+// every test passed and the feature did not work, because the tests confirmed
+// the code ran rather than that the thing happened.
 //
-// WHY THE FIXTURE CYCLES. Which position the drill asks for is drawn from the
+// WHY THE FIXTURES CYCLE. Which position the drill asks for is drawn from the
 // player's own history and a roll, so a test cannot pin the question. It pins
-// the answers instead: the take sounds every note the opening rung can possibly
-// call, in turn, over and over, so whatever is asked is answered within a few
-// seconds. The negative take sounds a pitch the rung cannot call at all.
+// the answers instead: a take sounds every note the rung in question can call,
+// in turn, over and over, so whatever is asked is answered within a few seconds.
 //
 // Set PREVIEW_URL for a build.
 
@@ -31,7 +33,8 @@ import { register } from 'node:module';
 import { tone, silence, write, addRoom } from './tone.mjs';
 
 register(new URL('../_resolve.mjs', import.meta.url).href);
-const { RUNGS, rungPositions, midiAt } = await import('../../src/lib/noteFinder.ts');
+const { RUNGS, getRung, rungPositions, midiAt, positionKey, rungWindow } =
+  await import('../../src/lib/noteFinder.ts');
 
 const BASE = process.env.PREVIEW_URL ?? 'http://localhost:4173/';
 const OUT = process.argv[2] ?? 'tests/browser/.shots';
@@ -49,13 +52,24 @@ const handled = (text) => /Cloud sync unavailable/.test(text);
 const DIR = mkdtempSync(join(tmpdir(), 'daily-fret-finder-'));
 const hz = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
 
-// Every pitch the opening rung can ask for, sounded in turn. Long enough for the
-// estimator's median window to settle on each, with silence between so the next
-// one is a new note rather than the same one continuing.
+// The rung a player with no history runs: the six open strings, which is what
+// the course teaches by name and the only thing it has taught about where a note
+// is by the time anyone meets this drill.
 const OPENING = RUNGS[0];
-const CALLABLE = [...new Set(rungPositions(OPENING).map((p) => p.midi))].sort((a, b) => a - b);
-const NOTE_SEC = 1.7;
-const GAP_SEC = 0.6;
+const SPOTS = rungPositions(OPENING);
+const CALLABLE = [...new Set(SPOTS.map((p) => p.midi))].sort((a, b) => a - b);
+
+// A rung with fretted questions on it, pinned by id where a case needs one: the
+// octave rule is only worth proving where the same note really does live at two
+// frets a player might reach for.
+const MIXED = getRung('low-naturals');
+const MIXED_SPOTS = rungPositions(MIXED);
+// One cycle of every answer has to come round inside a rung's own budget, or the
+// drill lights the answer before the take reaches it and a recall the test is
+// waiting for arrives as a placement instead. Six answers at this length is
+// eight seconds against the shortest budget of nine.
+const NOTE_SEC = 1.0;
+const GAP_SEC = 0.35;
 
 function cycle(midis, seconds) {
   const parts = [silence(0.4)];
@@ -70,15 +84,28 @@ function cycle(midis, seconds) {
   return parts;
 }
 
-write(`${DIR}/every-answer.wav`, cycle(CALLABLE, 80).map((p) => addRoom(p, 0.0012, 5)));
-// A pitch the opening rung cannot possibly be asking for: the high E string
-// open, two octaves above the low E and nowhere in a rung that stops at the
-// third fret of the fifth string. It must be heard, shown, and not counted.
-write(`${DIR}/wrong-note.wav`, cycle([midiAt(1, 0)], 40));
+const take = (name, midis, seconds) =>
+  write(`${DIR}/${name}.wav`, cycle(midis, seconds).map((p) => addRoom(p, 0.0012, 5)));
+
+take('every-answer', CALLABLE, 110);
+take('mixed-answer', [...new Set(MIXED_SPOTS.map((p) => p.midi))], 110);
+// F, which no open string sounds, so the opening rung cannot be asking for it
+// wherever the roll lands. It must be heard, shown, and not counted.
+take('wrong-note', [midiAt(6, 1) + 24], 60);
+// The same F, sounding without a break for the length of a run. A string that
+// has been struck once reads at full confidence for about four seconds
+// (measured), which is longer than the gap between two questions, so this is the
+// shape of what the microphone hears when the answer to the last question is
+// still ringing under the next one.
+write(`${DIR}/sustain.wav`, [addRoom(tone(hz(midiAt(6, 1) + 24), 70, 0.38), 0.0012, 5)]);
+// The octave above every answer the fretted rung can call, and nothing else.
+// None of these is any position's own pitch, so whatever is asked, what arrives
+// is the right letter in the wrong place and must be reported as one.
+take('octave-away', MIXED_SPOTS.map((p) => p.midi + 12), 110);
 
 const RUN_SECONDS = 45;
 
-const account = (extra = {}) => ({
+const account = ({ rungId, seconds = RUN_SECONDS, ...extra } = {}) => ({
   activeRoutineId: 'r1',
   currentLesson: 'b1-504',
   routines: [{
@@ -87,12 +114,31 @@ const account = (extra = {}) => ({
       id: 't1',
       title: 'Note finder',
       duration: '2 mins',
-      drill: { kind: 'note-finder', durationSec: RUN_SECONDS },
+      drill: { kind: 'note-finder', durationSec: seconds, ...(rungId ? { rungId } : {}) },
     }],
   }],
   dailyLogs: {}, strumPatterns: [], songLinks: [], updatedAt: 1,
   ...extra,
 });
+
+/**
+ * A neck where the opening rung has already been recalled, so nothing is lit.
+ *
+ * `slow` leans the deal: a position recalled once and slowly is asked three
+ * times as often as one that is quick, which is how a run reaches a particular
+ * kind of position inside its minute without pinning the roll.
+ */
+function recalledNeck(slow = [], spots = SPOTS) {
+  const map = {};
+  for (const p of spots) {
+    const key = positionKey(p.stringPosition, p.fret);
+    const isSlow = slow.some((s) => s.stringPosition === p.stringPosition && s.fret === p.fret);
+    map[key] = isSlow
+      ? { found: 1, bestMs: 4200, recentMs: [4200], at: 1 }
+      : { found: 6, bestMs: 900, recentMs: [900, 950, 1000], at: 1 };
+  }
+  return map;
+}
 
 /** Every way a microphone can refuse, as the tuner suite states them. */
 const DENY = () => {
@@ -108,6 +154,7 @@ async function open({
   seed = account(),
   deny = false,
   openDrill = true,
+  settled = false,
 } = {}) {
   const browser = await chromium.launch({
     args: [
@@ -123,6 +170,14 @@ async function open({
   page.on('pageerror', (e) => {
     if (!handled(e.message)) errors.push(e.message);
   });
+  // Console errors too, not only thrown ones. React reports a duplicate key
+  // through console.error and never throws, and this drill draws a mark per
+  // answer on a rung the same fret comes round on several times a minute: a
+  // check that only watched for exceptions would have shipped that.
+  page.on('console', (m) => {
+    if (m.type() !== 'error') return;
+    if (!handled(m.text())) errors.push(m.text());
+  });
   await page.addInitScript(
     (s) => localStorage.setItem('daily-fret-storage', JSON.stringify({
       state: { currentAccountId: 'anonymous', accounts: { anonymous: s } }, version: 0,
@@ -130,6 +185,13 @@ async function open({
     seed,
   );
   if (deny) await page.addInitScript(DENY);
+  // The note circle demonstrates its own gesture on a first look, and the
+  // demonstration walks the selected note. A block asserting what the string
+  // below is drawing has to open on a circle that has already been seen, or it
+  // is asserting against a moving anchor.
+  if (settled) {
+    await page.addInitScript(() => localStorage.setItem('daily-fret-note-circle-seen', 'yes'));
+  }
   await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 25000 });
   await page.waitForSelector('.task-container', { timeout: 25000 });
   if (openDrill) {
@@ -148,12 +210,35 @@ const storedAccount = (page) =>
 const sideways = (page) =>
   page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 
-const finds = (page) => page.locator('.nf-read .om-count').innerText().then(Number).catch(() => -1);
+/**
+ * How far past the bottom of the frame something sits, in pixels.
+ *
+ * The practice surface does not scroll, so anything below the fold is simply
+ * unreachable. This is how a Start button ended up three hundred pixels off the
+ * bottom of a laptop window while every other assertion in this file passed.
+ */
+const spills = (page, selector) =>
+  page.evaluate((sel) => {
+    const body = document.querySelector('.practice-body');
+    const el = document.querySelector(sel);
+    if (!body || !el) return NaN;
+    return Math.round(el.getBoundingClientRect().bottom - body.getBoundingClientRect().bottom);
+  }, selector);
 
-// --- The ladder is the setup screen ---------------------------------------
+const recalled = (page) =>
+  page.locator('.nf-read .om-count').innerText().then(Number).catch(() => -1);
+const shown = (page) =>
+  page.locator('.nf-read .nf-shown-value').innerText().then(Number).catch(() => 0);
+
+const start = async (page) => {
+  await page.locator('.practice-overlay').getByRole('button', { name: /^Start/ }).first().click();
+  await page.waitForSelector('.nf-stage', { timeout: 20000 });
+};
+
+// --- The ladder, and what the drill is, before a note is played ------------
 
 {
-  console.log('\nthe drill opens on the rung it will run\n');
+  console.log('\nthe drill opens on the rung it will run, and shows what it is\n');
   const { browser, page, errors } = await open();
   await page.waitForSelector('.nf-ladder', { timeout: 10000 });
   check('the ladder is drawn', (await page.locator('.nf-rung').count()) === RUNGS.length);
@@ -165,47 +250,137 @@ const finds = (page) => page.locator('.nf-read .om-count').innerText().then(Numb
   }));
   check('nothing on an empty neck is drawn as found',
     (await page.locator('.nf-setup-map .nm-wear').count()) === 0);
-  check('and the neck is still there to be filled',
-    (await page.locator('.nf-setup-map svg').count()) === 1);
+
+  // The drill is demonstrated rather than described: a note is named and lights
+  // where it lives. This is the whole answer to "I do not know where the notes
+  // are", so it is asserted rather than assumed.
+  await page.waitForSelector('.nf-setup-map .nm-mark.is-show', { timeout: 8000 });
+  check('a position is named and lit on the board', true);
+  check('and the letter it is called is on it',
+    (await page.locator('.nf-setup-map .nm-mark-name').count()) === 1);
+  // SVG text, so textContent rather than innerText.
+  const first = await page.locator('.nf-setup-map .nm-mark-name').evaluate((el) => el.textContent);
+  await page.waitForFunction(
+    (was) => document.querySelector('.nf-setup-map .nm-mark-name')?.textContent !== was,
+    first,
+    { timeout: 8000 },
+  );
+  check('and it walks, so what is shown is the drill itself rather than a picture', true);
+
+  // The board is the rung's own stretch of neck, not all twelve frets: the
+  // opening rung stops at the third, and drawing twelve was what made a fret
+  // unreadable.
+  const numbers = await page.locator('.nf-setup-map .nm-number').count();
+  check('the board is cropped to the frets this rung asks about', numbers <= 6, String(numbers));
+  check('all six strings are there, so a string can be found by where it sits',
+    (await page.locator('.nf-setup-map .nm-string').count()) === 6);
+  check('and the ones this rung uses are the lit ones',
+    (await page.locator('.nf-setup-map .nm-string.is-lit').count()) === OPENING.strings.length);
+
+  // Whose question this is. The first rung is a course lesson and says which;
+  // the ladder above it is the app's own and says nothing, which is the app
+  // declining to claim a fit it does not have.
+  await page.waitForSelector('.nf-rung-lesson', { timeout: 10000 });
+  const named = (await page.locator('.nf-rung-lesson').innerText()).trim();
+  check('the rung the course teaches names the lesson', named.length > 0, named);
+  check('and it is not just the rung name again',
+    named !== (await page.locator('.nf-rung-name').innerText()).trim(), named);
   check('no console errors', errors.length === 0, errors.join(' | '));
   await page.screenshot({ path: `${OUT}/finder-setup.png` });
   await browser.close();
 }
 
-// --- A played note reaches the screen and is counted -----------------------
-
-let foundPositions = [];
 {
-  console.log('\na note played in the room is counted\n');
+  console.log('\nthe rungs the app built for itself claim no lesson\n');
+  const { browser, page, errors } = await open({ seed: account({ rungId: 'whole-neck' }) });
+  await page.waitForSelector('.nf-ladder', { timeout: 10000 });
+  await page.waitForTimeout(1500);
+  check('nothing on this rung is attributed to the course',
+    (await page.locator('.nf-rung-lesson').count()) === 0);
+  check('and the rung still says what it is',
+    (await page.locator('.nf-rung-name').innerText()).trim().length > 0);
+  check('no console errors', errors.length === 0, errors.join(' | '));
+  await browser.close();
+}
+
+// --- A first run: nothing is known, so everything is shown -----------------
+
+{
+  console.log('\nnothing recalled yet, so the answers are lit and playing them is not a recall\n');
   const { browser, page, errors } = await open({ wav: 'every-answer.wav' });
-  await page.locator('.practice-overlay').getByRole('button', { name: /^Start/ }).first().click();
-  await page.waitForSelector('.nf-stage', { timeout: 20000 });
+  await start(page);
   check('a question is on screen', (await page.locator('.nf-letter-name').count()) === 1);
   check('and the string it is asking about is lit',
     (await page.locator('.nm-string.is-lit').count()) === 1);
-  check('the answer is not on the neck while it is still being asked',
-    (await page.locator('.nm-mark-name').count()) === 0);
+  check('the answer is lit too, because nothing here has ever been recalled',
+    (await page.locator('.nm-mark.is-show').count()) === 1);
 
-  // The outcome, not the mount: the count on screen has to climb.
+  // The outcome, not the mount: the shown tally on screen has to climb.
+  await page.waitForFunction(
+    () => Number(document.querySelector('.nf-read .nf-shown-value')?.textContent ?? 0) >= 2,
+    null,
+    { timeout: 40000 },
+  );
+  check('playing what is lit is counted', (await shown(page)) >= 2);
+  check('and never as a recall', (await recalled(page)) === 0, String(await recalled(page)));
+  await page.screenshot({ path: `${OUT}/finder-shown.png` });
+
+  await page.waitForSelector('.nf-results', { timeout: RUN_SECONDS * 1000 + 20000 });
+  check('the card reports the recall count, which is nothing',
+    (await page.locator('.nf-results .om-ring-value').innerText()) === '0');
+  check('and says how many were played to a lit answer',
+    (await page.locator('.nf-results .nf-shown-value').count()) === 1);
+  await page.screenshot({ path: `${OUT}/finder-results-shown.png` });
+
+  await page.waitForTimeout(1200);
+  const acc = await storedAccount(page);
+  const entries = Object.entries(acc.noteMap ?? {});
+  check('the neck map filled in', entries.length >= 2, JSON.stringify(acc.noteMap));
+  check('every entry says it was shown, not recalled',
+    entries.every(([, f]) => f.shown >= 1 && f.found === 0), JSON.stringify(acc.noteMap));
+  check('and only at positions the opening rung can ask about',
+    entries.every(([k]) => {
+      const [s, f] = k.split(':').map(Number);
+      return OPENING.strings.includes(s) && f >= OPENING.minFret && f <= OPENING.maxFret;
+    }), entries.map(([k]) => k).join(' '));
+  check('no console errors', errors.length === 0, errors.join(' | '));
+  await browser.close();
+}
+
+// --- A neck already recalled: nothing is lit, and finds are finds -----------
+
+{
+  console.log('\nonce a position has been recalled it is asked with nothing drawn\n');
+  // Longer than the other blocks: this one waits for a third recall, and a run
+  // that ends before the count gets there says nothing either way.
+  const LONG = 75;
+  const { browser, page, errors } = await open({
+    wav: 'every-answer.wav',
+    seed: account({ seconds: LONG, noteMap: recalledNeck() }),
+  });
+  await start(page);
+  check('the answer is not on the neck while it is still being asked',
+    (await page.locator('.nm-mark.is-show').count()) === 0);
+
   await page.waitForFunction(
     () => Number(document.querySelector('.nf-read .om-count')?.textContent ?? 0) >= 1,
     null,
     { timeout: 40000 },
   );
-  check('the first find lands', (await finds(page)) >= 1);
+  check('the first recall lands', (await recalled(page)) >= 1);
   await page.screenshot({ path: `${OUT}/finder-playing.png` });
 
   await page.waitForFunction(
     () => Number(document.querySelector('.nf-read .om-count')?.textContent ?? 0) >= 3,
     null,
-    { timeout: 45000 },
+    { timeout: LONG * 1000 },
   );
-  const counted = await finds(page);
+  const counted = await recalled(page);
   check('and it keeps counting', counted >= 3, String(counted));
 
-  await page.waitForSelector('.nf-results', { timeout: 40000 });
-  const shown = await page.locator('.nf-results .om-ring-value').innerText();
-  check('the card reports what was found', Number(shown) >= 3, shown);
+  await page.waitForSelector('.nf-results', { timeout: LONG * 1000 + 20000 });
+  const card = await page.locator('.nf-results .om-ring-value').innerText();
+  check('the card reports what was recalled', Number(card) >= 3, card);
   check('and says what the microphone did not settle',
     /string/i.test(await page.locator('.nf-limit').innerText()),
     await page.locator('.nf-limit').innerText());
@@ -213,63 +388,112 @@ let foundPositions = [];
     (await page.locator('.nf-results-map .nm-mark').count()) >= 3);
   await page.screenshot({ path: `${OUT}/finder-results.png` });
 
+  await page.waitForTimeout(1200);
   const acc = await storedAccount(page);
   const keys = Object.keys(acc.dailyLogs[Object.keys(acc.dailyLogs)[0]].drillResults ?? {});
   check('the day holds a result under a key naming the rung',
-    keys.some((k) => k.startsWith(`find:${RUNGS[0].id}@`)), keys.join(' '));
+    keys.some((k) => k.startsWith(`find:${OPENING.id}@`)), keys.join(' '));
   const runs = Object.values(acc.dailyLogs[Object.keys(acc.dailyLogs)[0]].drillRuns ?? {})[0] ?? [];
-  check('and the run carries how long a find took', typeof runs[0]?.findMs === 'number',
+  check('and the run carries how long a recall took', typeof runs[0]?.findMs === 'number',
     JSON.stringify(runs[0]));
-
-  foundPositions = Object.keys(acc.noteMap ?? {});
-  check('the neck map filled in', foundPositions.length >= 2, foundPositions.join(' '));
-  check('and only at positions the opening rung can ask about',
-    foundPositions.every((k) => {
-      const [s, f] = k.split(':').map(Number);
-      return OPENING.strings.includes(s) && f >= OPENING.minFret && f <= OPENING.maxFret;
-    }), foundPositions.join(' '));
+  const moved = Object.values(acc.noteMap).filter((f) => f.found > 6);
+  check('the recalls are filed as recalls', moved.length >= 3, JSON.stringify(acc.noteMap));
   check('no console errors', errors.length === 0, errors.join(' | '));
   await browser.close();
 }
 
-// --- A note it did not ask for is heard, shown, and not counted ------------
+// --- The octave is a different position and is reported as one -------------
+//
+// A pass on this drill loosened the judgement to the pitch class wherever a
+// rung's own frets left one place the note could be, on the theory that a
+// monophonic estimator mis-octaves a low string. This one does not
+// (tests/pitch.test.mjs asserts zero octave errors across the range on signals
+// built to trip a naive detector), so the loosening was buying nothing but the
+// twelfth fret being accepted when the nut was asked for. It came back out, and
+// this is what holds it out.
 
 {
-  console.log('\na note it did not ask for is not counted\n');
-  const { browser, page, errors } = await open({ wav: 'wrong-note.wav' });
-  await page.locator('.practice-overlay').getByRole('button', { name: /^Start/ }).first().click();
-  await page.waitForSelector('.nf-stage', { timeout: 20000 });
+  console.log('\nan octave away is a different position and is counted as one\n');
+  const before = recalledNeck([], MIXED_SPOTS);
+  const { browser, page, errors } = await open({
+    wav: 'octave-away.wav',
+    seed: account({ rungId: MIXED.id, noteMap: before }),
+  });
+  await start(page);
+  // Heard: the drill has to show what arrived. This is what separates "not
+  // counted" from "not listening".
+  await page.waitForSelector('.nf-miss', { timeout: 30000 });
+  check('what arrived is shown',
+    /^[A-G]#?\d$/.test((await page.locator('.nf-miss').innerText()).trim()),
+    await page.locator('.nf-miss').innerText());
 
-  // Heard: the drill has to show what arrived. This is the assertion that
-  // separates "not counted" from "not listening".
+  await page.waitForSelector('.nf-results', { timeout: RUN_SECONDS * 1000 + 20000 });
+  check('nothing was counted for a whole run of them',
+    (await page.locator('.nf-results .om-ring-value').innerText()) === '0');
+  await page.waitForTimeout(1200);
+  const acc = await storedAccount(page);
+  const moved = Object.entries(acc.noteMap ?? {})
+    .filter(([k, f]) => f.found > before[k].found || (f.shown ?? 0) > 0);
+  check('and the neck recorded nothing anywhere', moved.length === 0, JSON.stringify(moved));
+  check('no console errors', errors.length === 0, errors.join(' | '));
+  await browser.close();
+}
+
+// --- A note it did not ask for, and what happens when nothing comes --------
+
+{
+  console.log('\na note it did not ask for is not counted, and the answer arrives anyway\n');
+  const { browser, page, errors } = await open({
+    wav: 'wrong-note.wav',
+    seed: account({ noteMap: recalledNeck() }),
+  });
+  await start(page);
+
   await page.waitForSelector('.nf-miss', { timeout: 25000 });
   const miss = await page.locator('.nf-miss').innerText();
   check('what arrived is shown', /^[A-G]#?\d$/.test(miss.trim()), miss);
-  // Which treatment is right depends on what was asked: the high E is the same
-  // letter as the low E an octave down and a different letter from everything
-  // else the rung can call, so the drawing has to follow the letters rather than
-  // a fixed answer.
-  const asked = (await page.locator('.nf-letter-name').innerText()).trim();
-  const sameLetter = miss.trim().replace(/\d+$/, '') === asked;
-  check('a miss on the asked letter reads as the right note in the wrong place',
-    (await page.locator('.nf-miss.is-near').count()) === (sameLetter ? 1 : 0),
-    `${asked} vs ${miss}`);
-  check('and a miss on another letter reads as another note',
-    (await page.locator('.nf-miss.is-other').count()) === (sameLetter ? 0 : 1),
-    `${asked} vs ${miss}`);
-  check('nothing is counted for it', (await finds(page)) === 0, String(await finds(page)));
+  check('nothing is counted for it', (await recalled(page)) === 0, String(await recalled(page)));
 
-  await page.waitForTimeout(9000);
-  check('and still nothing after nine more seconds of it', (await finds(page)) === 0);
+  await page.waitForTimeout(6000);
+  check('and still nothing after six more seconds of it', (await recalled(page)) === 0);
   await page.screenshot({ path: `${OUT}/finder-wrong.png` });
 
-  // Past twice the rung's budget the app gives the answer away, which is a
-  // lesson and never a find.
-  await page.waitForSelector('.nf-letter.is-revealed', { timeout: 25000 });
-  check('the answer is given away rather than the question sticking', true);
-  check('the position it names is on the neck',
-    (await page.locator('.nm-mark-name').count()) === 1);
-  check('and a revealed answer is still not a find', (await finds(page)) === 0);
+  // Past the rung's own budget the app lights the answer rather than dropping
+  // the question, and a note played to a light is never a recall.
+  await page.waitForSelector('.nm-mark.is-show', { timeout: 25000 });
+  check('the answer is lit rather than the question sticking',
+    (await page.locator('.nm-mark-name').count()) >= 1);
+  check('and a lit answer is still not a recall', (await recalled(page)) === 0);
+  check('no console errors', errors.length === 0, errors.join(' | '));
+  await browser.close();
+}
+
+// --- The answer to the last question is not this question's wrong note -----
+
+{
+  console.log('\na note that was already sounding is not judged against the next question\n');
+  const { browser, page, errors } = await open({
+    wav: 'sustain.wav',
+    seed: account({ rungId: MIXED.id, noteMap: recalledNeck([], MIXED_SPOTS) }),
+  });
+  await start(page);
+
+  // Judged once, as the wrong note it is.
+  await page.waitForSelector('.nf-miss', { timeout: 30000 });
+  check('the note is heard and reported once', true);
+  // The recall does not come, so the answer is lit and the question stays open.
+  await page.waitForSelector('.nm-mark.is-show', { timeout: 25000 });
+  check('the answer is lit rather than the question being dropped', true);
+  // And then the next question. The note has not stopped: this is exactly the
+  // moment a real player's last answer is still ringing.
+  await page.waitForSelector('.nm-mark.is-show', { state: 'detached', timeout: 25000 });
+
+  check('the next question does not open on a wrong note nobody played',
+    (await page.locator('.nf-miss').count()) === 0);
+  await page.waitForTimeout(4000);
+  check('and it stays that way while the same note goes on sounding',
+    (await page.locator('.nf-miss').count()) === 0);
+  check('nothing was counted for any of it', (await recalled(page)) === 0);
   check('no console errors', errors.length === 0, errors.join(' | '));
   await browser.close();
 }
@@ -287,7 +511,10 @@ let foundPositions = [];
   await way.click();
 
   await page.waitForSelector('.nf-stage', { timeout: 15000 });
-  check('the neck has targets on it', (await page.locator('.nf-fret-hit').count()) === 13);
+  const drawn = rungWindow(OPENING);
+  const hits = await page.locator('.nf-fret-hit').count();
+  check('there is a target for every fret the rung draws',
+    hits === drawn.to - drawn.from + 1, String(hits));
   check('and the screen says nothing is being counted',
     (await page.locator('.drill-uncounted').count()) === 1);
   check('so there is no counter to read', (await page.locator('.nf-read .om-count').count()) === 0);
@@ -296,12 +523,12 @@ let foundPositions = [];
   // Which fret is the answer is drawn from the player's own history, so the test
   // works the way a player would: try them until one lands.
   let landed = false;
-  for (let fret = 0; fret <= 12 && !landed; fret += 1) {
+  for (let fret = 0; fret < hits && !landed; fret += 1) {
     await page.locator('.nf-fret-hit').nth(fret).click();
-    await page.waitForTimeout(120);
-    landed = (await page.locator('.nf-letter.is-confirmed').count()) === 1;
+    await page.waitForTimeout(140);
+    landed = (await page.locator('.nf-letter.is-recalled, .nf-letter.is-placed').count()) === 1;
   }
-  check('the right fret is accepted and named on the neck', landed);
+  check('the right fret is accepted', landed);
 
   await page.waitForTimeout(1500);
   const acc = await storedAccount(page);
@@ -331,8 +558,12 @@ let foundPositions = [];
         drillResults: { 'pair:A|D': 24 },
       },
     },
+    noteMap: recalledNeck(),
   });
-  seed.routines[0].tasks[0].drill = { kind: 'note-finder', durationSec: 16 };
+  // Long enough for the take to come round to whatever is asked. A run that
+  // recalls nothing files no number at all by design (store/completion.ts), so
+  // a segment too short to answer anything would be asserting the wrong thing.
+  seed.routines[0].tasks[0].drill = { kind: 'note-finder', durationSec: 30 };
   const { browser, page, errors } = await open({ wav: 'every-answer.wav', seed, openDrill: false });
   await page.getByRole('button', { name: /coached/i }).first().click();
   await page.waitForSelector('.practice-overlay', { timeout: 20000 });
@@ -344,7 +575,7 @@ let foundPositions = [];
   check('and no click was started under a question',
     (await page.locator('.metronome-chip.is-on, .metronome-chip.is-playing').count()) === 0);
 
-  await page.waitForSelector('.nf-results, .mic-gate', { timeout: 40000 });
+  await page.waitForSelector('.nf-results, .mic-gate', { timeout: 60000 });
   check('it ends on a card of its own', (await page.locator('.nf-results').count()) === 1);
   check('which hands on without a tap', (await page.locator('.coach-advance').count()) === 1);
 
@@ -353,8 +584,8 @@ let foundPositions = [];
   const today = Object.keys(acc.dailyLogs).sort().pop();
   const keys = Object.keys(acc.dailyLogs[today].drillResults ?? {});
   check('and the day holds what it found', keys.some((k) => k.startsWith('find:')), keys.join(' '));
-  check('the neck filled in from the coached run too',
-    Object.keys(acc.noteMap ?? {}).length >= 1, JSON.stringify(acc.noteMap));
+  check('the neck moved from the coached run too',
+    Object.values(acc.noteMap).some((f) => f.found > 6 || f.shown > 0), JSON.stringify(acc.noteMap));
   check('no console errors', errors.length === 0, errors.join(' | '));
   await browser.close();
 }
@@ -386,6 +617,7 @@ const WORN = {
   console.log('\na drilled one draws what was found, and only that\n');
   const { browser, page, errors } = await open({
     openDrill: false,
+    settled: true,
     seed: account({ noteMap: WORN }),
   });
   await page.locator('.progress-launch', { hasText: /^Notes$/ }).click();
@@ -465,28 +697,65 @@ const WORN = {
   await browser.close();
 }
 
+// --- Shown and recalled, told apart on the record --------------------------
+
+{
+  console.log('\nthe neck tells a position it has shown from one it has been given\n');
+  const { browser, page, errors } = await open({
+    openDrill: false,
+    seed: account({
+      noteMap: {
+        '6:0': { found: 3, bestMs: 1200, recentMs: [1200, 1400, 1300], at: 1 },
+        '6:1': { found: 0, bestMs: 0, recentMs: [], shown: 4, at: 2 },
+      },
+    }),
+  });
+  await page.locator('.task-row', { hasText: 'Note finder' }).click();
+  await page.waitForSelector('.nf-setup-map', { timeout: 15000 });
+  check('the recalled position is drawn as wear',
+    (await page.locator('.nf-setup-map .nm-wear').count()) === 1);
+  check('the shown one is drawn, and not as wear',
+    (await page.locator('.nf-setup-map .nm-seen').count()) === 1);
+  check('and nothing is being demonstrated over a board with a record on it',
+    (await page.locator('.nf-setup-map .nm-mark.is-show').count()) === 0);
+  check('no console errors', errors.length === 0, errors.join(' | '));
+  await page.screenshot({ path: `${OUT}/finder-record.png` });
+  await browser.close();
+}
+
 // --- The shape of it, on the screens the owner practises on ----------------
 
 for (const [label, viewport] of [
   ['360x780', { width: 360, height: 780 }],
   ['390x844', { width: 390, height: 844 }],
   ['1366x680', { width: 1366, height: 680 }],
+  ['1366x768', { width: 1366, height: 768 }],
+  // The tallest frame is the tightest one to run in: past 780 the stage stops
+  // splitting into two columns and everything takes its full size again.
+  ['1366x900', { width: 1366, height: 900 }],
 ]) {
   console.log(`\nthe drill at ${label}\n`);
   const { browser, page, errors } = await open({ viewport, wav: 'every-answer.wav' });
   await page.waitForSelector('.nf-ladder', { timeout: 15000 });
+  await page.waitForTimeout(700);
   check('the setup fits the screen', (await sideways(page)) <= 0, String(await sideways(page)));
+  const startSpill = await spills(page, '.nf-setup .practice-btn');
+  check('and the way into the drill is on it', startSpill <= 0, `${startSpill}px below the fold`);
   await page.screenshot({ path: `${OUT}/finder-setup-${label}.png` });
 
-  await page.locator('.practice-overlay').getByRole('button', { name: /^Start/ }).first().click();
-  await page.waitForSelector('.nf-stage', { timeout: 20000 });
+  await start(page);
   await page.waitForTimeout(1200);
   check('and so does the question', (await sideways(page)) <= 0, String(await sideways(page)));
+  const stageSpill = await spills(page, '.nf-stage');
+  check('with the clock and the count still on the screen', stageSpill <= 0,
+    `${stageSpill}px below the fold`);
   await page.screenshot({ path: `${OUT}/finder-playing-${label}.png` });
   check('no console errors', errors.length === 0, errors.join(' | '));
   await browser.close();
 
-  const circle = await open({ viewport, openDrill: false, seed: account({ noteMap: WORN }) });
+  const circle = await open({
+    viewport, openDrill: false, settled: true, seed: account({ noteMap: WORN }),
+  });
   await circle.page.locator('.progress-launch', { hasText: /^Notes$/ }).click();
   await circle.page.waitForSelector('.note-circle', { timeout: 15000 });
   await circle.page.waitForTimeout(600);
