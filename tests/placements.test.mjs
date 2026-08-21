@@ -201,7 +201,11 @@ const level = (chord, strum, rms = 0.2, rise = 4) => ({
   let t = 0;
   c.frame(level('Em', true, 0.4), t);
   for (let i = 1; i < 20; i++) c.frame(level('Em', false, 0.3), t + i * 23);
-  t += 20 * 23;
+  // A full rep later, so the refractory floor is long past and the only thing
+  // that can refuse this transient is the rule about what it sounds like. A mute
+  // landing sooner is refused by the floor instead, which is right but would
+  // leave this assertion proving nothing.
+  t += 40 * 23;
   // The hand mutes the strings: a transient louder than the strum, with nothing
   // behind it but the dying Em.
   c.frame(level('Em', true, 0.94, 3.3), t);
@@ -221,13 +225,62 @@ const level = (chord, strum, rms = 0.2, rise = 4) => ({
   // 1.2 bar — and the chord confirming it is the same one that was already
   // sounding, at a level close enough to the swell to look like its own.
   //
-  // This one is still counted, and the assertion says so on purpose. Every rule
-  // that separated it also threw away real reps: see the note in placement.ts.
-  // If a change makes this read 1, that is progress and this line should move.
+  // Nothing about the sound separates it from a rep, and every rule that tried
+  // threw away real ones: see the note in placement.ts. What separates it is
+  // when it arrives — 276ms after the placement it is swelling out of, which is
+  // not a rep in this drill. That is the refractory floor's job, and it does it.
   c.frame(level('Em', true, 0.29, 1.2), t);
   for (let i = 1; i < 20; i++) c.frame(level('Em', false, 0.22), t + i * 23);
-  check('KNOWN: a swell inside a ringing chord still counts as a placement',
+  check('a swell inside a ringing chord is not a second placement',
+    c.count === 1, `${c.count} counted`);
+}
+
+{
+  const c = new PlacementCounter();
+  c.begin('Em');
+  let t = 0;
+  c.frame(level('Em', true, 0.4), t);
+  for (let i = 1; i < 40; i++) c.frame(level('Em', false, 0.23), t + i * 23);
+  t += 40 * 23;
+  // The same swell arriving a second later instead. This is the over-count that
+  // is still here: past the floor there is nothing left to tell it from a rep,
+  // because the sound really is the same. Asserted on purpose, so a change that
+  // does separate the two shows up as this line moving.
+  c.frame(level('Em', true, 0.29, 1.2), t);
+  for (let i = 1; i < 20; i++) c.frame(level('Em', false, 0.22), t + i * 23);
+  check('KNOWN: a swell a full second later is still counted',
     c.count === 2, `${c.count} counted`);
+}
+
+// The report of 2026-08-21: "the chord perfect ... it's not working or moving
+// properly". The count was the healthy-looking half of that session — 45 Dm in
+// 75 seconds — but an eighth of it was this, replayed here frame for frame from
+// the export (session index 2, t=7254..7789) with its real levels: one placement
+// of Dm, then a second one 255ms later, which is four lift-and-replace cycles a
+// second and is not a thing a hand does.
+{
+  const c = new PlacementCounter();
+  c.begin('Dm');
+  // The strum that earned the real placement, and the chord settling behind it.
+  c.frame(level('Dm', true, 0.2638, 1.9), 7254);
+  for (const [at, rms] of [[7417, 0.3067], [7440, 0.2896], [7464, 0.3111], [7487, 0.3942]]) {
+    c.frame(level('Dm', false, rms), at);
+  }
+  check('the placement itself is counted', c.count === 1, `${c.count} counted`);
+  // The damp: 0.39 to 0.80 in one frame and back to 0.11 within seventy. The
+  // level plainly rose, so the detector arms it as a strum, and the frames after
+  // it carry no chord at all while the chromagram refills.
+  c.frame(level('Dm', true, 0.3942, 1.3), 7509);
+  for (const [at, rms] of [[7533, 0.4919], [7556, 0.2324], [7579, 0.114], [7603, 0.124], [7626, 0.1656], [7649, 0.1649]]) {
+    c.frame(level(null, false, rms), at);
+  }
+  // And then it reads the Dm that never stopped sounding. These are the frames
+  // that used to pay for a second placement out of one.
+  for (const [at, rms] of [[7673, 0.1587], [7696, 0.17], [7719, 0.149], [7742, 0.2273], [7765, 0.2796], [7789, 0.3688]]) {
+    c.frame(level('Dm', false, rms), at);
+  }
+  check('and the same chord ringing on 255ms later is not counted again',
+    c.count === 1, `${c.count} counted`);
 }
 
 {

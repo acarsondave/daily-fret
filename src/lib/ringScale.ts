@@ -52,3 +52,31 @@ export function ringScale(value: number, best: number, ceiling?: number): RingSc
   if (best <= 0) return { progress: value > 0 ? BEST_AT : 0, benchmark: null };
   return { progress: clamp01(value / (best / BEST_AT)), benchmark: BEST_AT };
 }
+
+/**
+ * The same scale, for a ring being watched while the count is still climbing.
+ *
+ * Separate from `ringScale` because the first-run case above is a statement
+ * about a run that has *finished*: it landed, and where it landed is the mark it
+ * sets. Read live, that same answer is a lie with a very specific shape — the
+ * arc jumps to the mark's place on the first thing counted and then sits there
+ * for the rest of the drill, whether the player goes on to place five more or
+ * fifty. A whole coached session was reported as "the progress bar is not
+ * working or moving properly" and this was why; it had never moved.
+ *
+ * So a live run with nothing to be a fraction of gets `null` rather than a
+ * number, and the drills draw the count with no ring around it. A ring is a
+ * target. Until there is something to aim at, there is no target to draw, and
+ * an arc that implies one is the app claiming to know something it does not.
+ */
+export function liveRingScale(
+  value: number,
+  best: number,
+  ceiling?: number,
+): RingScale | null {
+  // A ceiling is a real scale on its own, so a first run against one is fine to
+  // draw: the arc is the score out of the top, and only the mark is missing.
+  if (ceiling !== undefined && ceiling > 0) return ringScale(value, best, ceiling);
+  if (best <= 0) return null;
+  return ringScale(value, best);
+}

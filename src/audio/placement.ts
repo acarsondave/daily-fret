@@ -68,6 +68,12 @@
 // the one over-count left. It is a detector-level question — a swell is not an
 // attack — and the changes drills read the same arming and currently do not miss
 // anything, so it is not worth risking them for it from here.
+//
+// It is caught here instead, by the refractory floor, and the export of
+// 2026-08-21 is what showed where that floor belongs. See MIN_PLACEMENT_MS: the
+// swells do not arrive at random, they arrive in the half-second after a
+// placement while the shape it counted is still sounding, so a floor set from
+// the real spacing of reps removes them without any new test on the sound.
 
 import type { LevelEvent } from './detector';
 import { MIN_STRUM_RMS, STRUM_RMS_RATIO } from './detector';
@@ -83,9 +89,32 @@ const CONFIRM_FRAMES = 2;
 // the player fluffs the shape: no count is better than a wrong one.
 const CONFIRM_WINDOW_MS = 600;
 // Floor between counted placements. A player cannot lift clear and rebuild a
-// shape four times a second, so anything faster is the same strum being credited
+// shape this fast, so anything faster is the same placement being credited
 // twice, and this refuses it.
-const MIN_PLACEMENT_MS = 250;
+//
+// It was 250ms, which is a guess at the edge of what a hand can do rather than a
+// reading of what one does. Every chord-perfect block in the thirteen exports at
+// the repository root — 309 placements, 292 gaps between consecutive ones in the
+// same block — says the number is more than twice that. The gaps are bimodal:
+//
+//   250-549ms   34 gaps   a dense cluster sitting on the old floor
+//   550-1099ms  20 gaps   the trough, roughly a third of the density either side
+//   1100ms+    238 gaps   the drill, median 1672ms
+//
+// The cliff falls immediately after 549: nine gaps in the 500-549 bucket, two in
+// the 550-599 one. Past 600ms the removal curve flattens (550→600 takes another
+// 0.6% of placements, 600→700 takes 1.0%, 700→800 another 0.7%), which is the
+// floor starting to eat the trough rather than the cluster. So 600ms: inside the
+// trough rather than on its edge, and a hundred milliseconds clear of the
+// fastest rep any test here defends.
+//
+// What that cluster is, is not a guess either. Applying this floor to the real
+// blocks takes Em down 10%, Dm 14% and C 21%, and Am not at all — and Am is the
+// one shape in the set with no long open ring behind it. An over-count that
+// scales with how long a chord sustains is the swell described above, not a rep.
+// The number the player is shown drops about a tenth, and it stops being partly
+// a measurement of the room.
+const MIN_PLACEMENT_MS = 600;
 // How much of the strum's own attack the chord confirming it has to still carry.
 // Measured on the 2026-08-10 export: mutes confirm at 3-11% of their attack,
 // genuine placements at 41% and up, most of them above 90% or louder than the
