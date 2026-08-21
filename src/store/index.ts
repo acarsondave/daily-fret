@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { guardedStorage } from './persistence';
+import { mergeLessonJournals, withArrival, type LessonStand } from './lessonJournal';
 import type { Routine, DailyLog, Task } from '../types';
 import {
   applyMeasurements,
@@ -146,6 +147,20 @@ export interface UserData {
   // Where the learner says they are in their course, as a curriculum lesson
   // code. Set in onboarding, moved on by hand. Absent means never asked.
   currentLesson?: string;
+  /**
+   * Every lesson this account has stood on, in the order it reached them.
+   *
+   * `currentLesson` is one overwritten string, so on its own the app can say
+   * where you are and can never say how you got here: the day you left module 3
+   * is gone the moment you set module 4. That makes the long look back a
+   * snapshot rather than a path, and unlike everything else here the missing
+   * days cannot be recovered later. Hence a journal, appended to rather than
+   * replaced.
+   *
+   * One entry per arrival, never per set: moving back and forth between two
+   * lessons in an afternoon is one journey, not four.
+   */
+  lessonJournal?: LessonStand[];
   // Mirrors chord diagrams. A left-handed player reading a right-handed chord
   // box has to flip every shape in their head before their hand can use it.
   leftHanded?: boolean;
@@ -371,6 +386,11 @@ export const useStore = create<AppState>()(
             claimedSkills: data.claimedSkills ?? local?.claimedSkills ?? [],
             leftHanded: data.leftHanded ?? local?.leftHanded,
             currentLesson: data.currentLesson ?? local?.currentLesson,
+            // Unioned rather than picked, like the note map below and for the
+            // same reason: each device appends its own arrivals, so neither
+            // copy is a superset and taking one outright would drop days that
+            // no later write can reconstruct.
+            lessonJournal: mergeLessonJournals(local?.lessonJournal, data.lessonJournal),
             reminder: data.reminder ?? local?.reminder,
             // Unioned per position rather than picked, for the same reason the
             // aliases below are: each device asks its own questions, so neither
@@ -742,6 +762,14 @@ export const useStore = create<AppState>()(
             const next = { ...a };
             if (code) next.currentLesson = code;
             else delete next.currentLesson;
+            // The journal records arrivals, so nothing is written unless the
+            // lesson actually changed. Re-confirming today's lesson, which the
+            // Journey panel can do on any visit, is not an arrival.
+            if (code) {
+              next.lessonJournal = withArrival(
+                a.lessonJournal, a.currentLesson, code, getTodayString(),
+              );
+            }
             return next;
           }),
         ),
