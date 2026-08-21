@@ -12,8 +12,8 @@ import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { useCapoOffset } from '../../hooks/useCapo';
 import { usePassiveRefine } from '../../hooks/usePassiveRefine';
 import { PersonalBestSparkle } from './PersonalBestSparkle';
-import { ProgressRing } from './ProgressRing';
-import { ringScale } from '../../lib/ringScale';
+import { ProgressRing, RingFace } from './ProgressRing';
+import { liveRingScale, ringScale } from '../../lib/ringScale';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
 import { CoachAdvance, WITHHELD_ADVANCE_SECONDS } from './CoachAdvance';
@@ -432,6 +432,17 @@ export function ChordTrainer({
   // has already shown what it wants and the line is repetition.
   const showMotionHint = slot === 0 && poolBest === 0 && reps === 0;
 
+  // What the block has banked so far, across every shape it has been through.
+  // This and not `reps` is what the pool's best is a best of.
+  const placedSoFar = tally.reduce((a, b) => a + b, 0) + reps;
+  const liveScale = liveRingScale(placedSoFar, poolBest);
+  const liveReadout = (
+    <>
+      <span className="ct-score">{placedSoFar}</span>
+      <span className="om-caption">placed</span>
+    </>
+  );
+
   if (view === 'playing') {
     if (!onTimer && status === 'error') {
       return (
@@ -484,7 +495,11 @@ export function ChordTrainer({
                 className={i === slot ? 'ct-block is-now' : i < slot ? 'ct-block is-done' : 'ct-block'}
               >
                 {c}
-                {!onTimer && i < slot && <b>{tally[i]}</b>}
+                {/* The shape's own count, on the shape's own chip, including the
+                    one under way. It used to appear only once the block was
+                    over, which left the number for the shape being drilled the
+                    one number not on screen. */}
+                {!onTimer && i <= slot && <b>{i === slot ? reps : tally[i]}</b>}
               </span>
             ))}
           </div>
@@ -494,19 +509,29 @@ export function ChordTrainer({
           <div className="ct-stats">
             {/* Small, because the shape above it is the drill and this is the
                 score. The mark is still the best for this set of shapes, so the
-                gap to it is readable without leaving the exercise. */}
-            {!onTimer && (
+                gap to it is readable without leaving the exercise.
+
+                The number in it is the block's running total and not the count
+                for the shape on screen, because the mark it is being measured
+                against is the best for the whole pool. Those were different
+                things: the arc crawled to a fraction of the mark, snapped back
+                to nothing at every chord change, and could not have reached the
+                mark on a two-shape pool if the player had doubled their best.
+                The shape's own count sits on its chip above, next to the shape
+                it belongs to. */}
+            {!onTimer && (liveScale ? (
               <ProgressRing
-                {...ringScale(reps, poolBest)}
+                {...liveScale}
                 phase="live"
                 size={104}
                 stroke={7}
                 className="om-ring ct-ring-live"
               >
-                <span className="ct-score">{reps}</span>
-                <span className="om-caption">placed</span>
+                {liveReadout}
               </ProgressRing>
-            )}
+            ) : (
+              <RingFace className="ct-ring-live">{liveReadout}</RingFace>
+            ))}
             <span className="om-timer">
               <HourglassIcon size={22} /> {timeLeft}
             </span>

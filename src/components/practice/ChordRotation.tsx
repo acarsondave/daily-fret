@@ -10,8 +10,8 @@ import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDet
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { useCapoOffset } from '../../hooks/useCapo';
 import { PersonalBestSparkle } from './PersonalBestSparkle';
-import { ProgressRing } from './ProgressRing';
-import { ringScale } from '../../lib/ringScale';
+import { ProgressRing, RingFace } from './ProgressRing';
+import { liveRingScale, ringScale } from '../../lib/ringScale';
 import { SignalMeter } from './SignalMeter';
 import { CoachAdvance, WITHHELD_ADVANCE_SECONDS } from './CoachAdvance';
 import { ChordDiagram } from './ChordDiagram';
@@ -330,6 +330,16 @@ export function ChordRotation({
     );
   }
 
+  const liveScale = liveRingScale(changes, personalBest);
+  const liveReadout = (
+    <>
+      <div ref={countRef} className="om-count">
+        {changes}
+      </div>
+      <div className="om-caption">changes</div>
+    </>
+  );
+
   if (view === 'playing') {
     if (!onTimer && status === 'error') {
       return (
@@ -391,16 +401,15 @@ export function ChordRotation({
             /* The best for this path, on the ring, while the run is still going.
                Nothing is drawn on a timer: there is no measurement to compare, so
                there is no mark and no arc to imply one. */
-            <ProgressRing
-              {...ringScale(changes, personalBest)}
-              phase="live"
-              className="om-ring om-ring-live"
-            >
-              <div ref={countRef} className="om-count">
-                {changes}
-              </div>
-              <div className="om-caption">changes</div>
-            </ProgressRing>
+            liveScale ? (
+              <ProgressRing {...liveScale} phase="live" className="om-ring om-ring-live">
+                {liveReadout}
+              </ProgressRing>
+            ) : (
+              /* A first run on this path: no best and no ceiling, so there is
+                 nothing for an arc to be a fraction of. See liveRingScale. */
+              <RingFace className="om-ring-live">{liveReadout}</RingFace>
+            )
           )}
           <div className="om-timer">
             <HourglassIcon size={26} /> {timeLeft}

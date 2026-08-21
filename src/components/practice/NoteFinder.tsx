@@ -38,8 +38,8 @@ import { ArrowRightIcon, HourglassIcon, MicIcon, PlayIcon, TapFretIcon } from '.
 import { MicGate, TimerRunEnded, UncountedNotice } from './MicGate';
 import { usePitchDetector } from '../../hooks/usePitchDetector';
 import { DEFAULT_TUNING_ID, getTuning, midiToName, readPitch } from '../../audio/tuning';
-import { ProgressRing } from './ProgressRing';
-import { ringScale } from '../../lib/ringScale';
+import { ProgressRing, RingFace } from './ProgressRing';
+import { liveRingScale, ringScale } from '../../lib/ringScale';
 import { NeckMap, type NeckMark } from './NeckMap';
 import { STRING_STACK, neckLayout, neckWindow, positionBox } from './neckGeometry';
 import { CoachAdvance } from './CoachAdvance';
@@ -569,6 +569,14 @@ export function NoteFinder({
 
   // --- Playing -------------------------------------------------------------
 
+  const liveScale = liveRingScale(finds, best);
+  const liveReadout = (
+    <>
+      <div className="om-count">{finds}</div>
+      <div className="om-caption">recalled</div>
+    </>
+  );
+
   if (view === 'playing') {
     if (channel === 'heard' && status === 'error') {
       return (
@@ -697,10 +705,15 @@ export function NoteFinder({
             <UncountedNotice />
           ) : (
             <>
-              <ProgressRing {...ringScale(finds, best)} phase="live" className="om-ring nf-ring">
-                <div className="om-count">{finds}</div>
-                <div className="om-caption">recalled</div>
-              </ProgressRing>
+              {liveScale ? (
+                <ProgressRing {...liveScale} phase="live" className="om-ring nf-ring">
+                  {liveReadout}
+                </ProgressRing>
+              ) : (
+                /* A first run at this rung: no best and no ceiling, so there is
+                   nothing for an arc to be a fraction of. See liveRingScale. */
+                <RingFace className="nf-ring">{liveReadout}</RingFace>
+              )}
               {placed > 0 && (
                 <p className="nf-shown-count">
                   <span className="nf-shown-value">{placed}</span> shown

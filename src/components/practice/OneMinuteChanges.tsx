@@ -7,8 +7,8 @@ import { useChordDetector, type ChordDetectorApi } from '../../hooks/useChordDet
 import { useLearnedTemplates } from '../../hooks/useLearnedTemplates';
 import { useCapoOffset } from '../../hooks/useCapo';
 import { PersonalBestSparkle } from './PersonalBestSparkle';
-import { ProgressRing } from './ProgressRing';
-import { ringScale } from '../../lib/ringScale';
+import { ProgressRing, RingFace } from './ProgressRing';
+import { liveRingScale, ringScale } from '../../lib/ringScale';
 import { Sparkline } from './Sparkline';
 import { SignalMeter } from './SignalMeter';
 import { CoachAdvance, WITHHELD_ADVANCE_SECONDS } from './CoachAdvance';
@@ -360,6 +360,16 @@ export function OneMinuteChanges({
     );
   }
 
+  const liveScale = liveRingScale(transitions, pairBest);
+  const liveReadout = (
+    <>
+      <div ref={countRef} className="om-count">
+        {transitions}
+      </div>
+      <div className="om-caption">transitions</div>
+    </>
+  );
+
   if (view === 'playing') {
     if (!onTimer && status === 'error') {
       return (
@@ -408,16 +418,16 @@ export function OneMinuteChanges({
             /* The best for this pair, on the ring, while there is still time to
                do something about it. The dashed run from the count to the mark is
                what is left to beat it; past the mark it is gold and growing. */
-            <ProgressRing
-              {...ringScale(transitions, pairBest)}
-              phase="live"
-              className="om-ring om-ring-live"
-            >
-              <div ref={countRef} className="om-count">
-                {transitions}
-              </div>
-              <div className="om-caption">transitions</div>
-            </ProgressRing>
+            liveScale ? (
+              <ProgressRing {...liveScale} phase="live" className="om-ring om-ring-live">
+                {liveReadout}
+              </ProgressRing>
+            ) : (
+              /* A first run on this pair. There is no best to aim at and no
+                 ceiling, so there is nothing for an arc to be a fraction of and
+                 the count stands on its own. See liveRingScale. */
+              <RingFace className="om-ring-live">{liveReadout}</RingFace>
+            )
           )}
           <div className="om-timer">
             <HourglassIcon size={26} /> {timeLeft}

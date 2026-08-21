@@ -178,3 +178,17 @@ export function ProgressRing({
     </div>
   );
 }
+
+/**
+ * The ring's readout with no ring around it.
+ *
+ * For a live run that has nothing to aim at: no previous best and no ceiling of
+ * its own, which is every first run of a drill and every run of a stranger's
+ * first session. `liveRingScale` returns null for exactly that case, and this is
+ * what the drills draw instead. The count is the whole of what is known, so it
+ * stands on its own until there is a best, and then the ring arrives around it
+ * carrying the thing it was always for.
+ */
+export function RingFace({ className, children }: { className?: string; children?: ReactNode }) {
+  return <div className={clsx('ring-face-bare', className)}>{children}</div>;
+}

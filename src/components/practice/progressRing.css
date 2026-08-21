@@ -52,3 +52,15 @@
   justify-content: center;
   gap: 2px;
 }
+
+/* The same readout standing on its own, for a run with no best to aim at. See
+   RingFace: there is no track and no arc because there is no scale, so it takes
+   the room the number needs rather than the room a ring would have taken. */
+.ring-face-bare {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
