@@ -20,6 +20,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { DEFAULT_QUALITY } from './quality';
+import { DEFAULT_FILM_DAY, readFilmDay } from './cadence';
 import {
   DEFAULT_KEEP_BYTES,
   DEFAULT_KEEP_SESSIONS,
@@ -41,6 +42,7 @@ interface RecordingState {
 
   setEnabled: (enabled: boolean) => void;
   setCadence: (cadence: RecordingCadence) => void;
+  setFilmDay: (filmDay: number) => void;
   setQuality: (quality: RecordingQuality) => void;
   setKeepSessions: (keep: number) => void;
   setKeepBytes: (bytes: number) => void;
@@ -52,6 +54,7 @@ interface RecordingState {
 const DEFAULT_SETTINGS: RecordingSettings = {
   enabled: false,
   cadence: 'weekly',
+  filmDay: DEFAULT_FILM_DAY,
   quality: DEFAULT_QUALITY,
   keepSessions: DEFAULT_KEEP_SESSIONS,
   keepBytes: DEFAULT_KEEP_BYTES,
@@ -69,6 +72,7 @@ export const useRecordingStore = create<RecordingState>()(
 
       setEnabled: (enabled) => set((s) => ({ settings: { ...s.settings, enabled } })),
       setCadence: (cadence) => set((s) => ({ settings: { ...s.settings, cadence } })),
+      setFilmDay: (filmDay) => set((s) => ({ settings: { ...s.settings, filmDay: readFilmDay(filmDay) } })),
       setQuality: (quality) => set((s) => ({ settings: { ...s.settings, quality } })),
       setKeepSessions: (keep) =>
         set((s) => ({ settings: { ...s.settings, keepSessions: clampKeepSessions(keep) } })),
@@ -100,6 +104,9 @@ export const useRecordingStore = create<RecordingState>()(
             enabled: settings?.enabled === true,
             // An unreadable cadence falls to the cheapest one, never to the one
             // that fills the disk. Same reasoning as `enabled` above.
+            // Same scruple as the cadence below: a day that is not a day of
+            // the week falls back rather than filming on NaN, which is never.
+            filmDay: readFilmDay(settings?.filmDay),
             cadence: CADENCES.includes(settings?.cadence as RecordingCadence)
               ? (settings!.cadence as RecordingCadence)
               : 'weekly',

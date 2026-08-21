@@ -99,14 +99,19 @@ async function measure(quality, throttle = 1) {
     account,
   );
   await page.addInitScript(
-    (q) => localStorage.setItem('daily-fret-recordings', JSON.stringify({
+    ({ q, day }) => localStorage.setItem('daily-fret-recordings', JSON.stringify({
       state: {
-        settings: { enabled: q !== null, quality: q ?? 'standard', keepSessions: 8, cameraId: null },
+        settings: {
+          enabled: q !== null, quality: q ?? 'standard', keepSessions: 8, cameraId: null,
+          // Weekly films on a named day. This suite measures the cost of filming,
+          // so it has to be a day that films, whatever day it is run on.
+          cadence: 'weekly', filmDay: day,
+        },
         recordings: [], lastPrune: null,
       },
       version: 0,
     })),
-    quality,
+    { q: quality, day: new Date().getDay() },
   );
 
   const cdp = await ctx.newCDPSession(page);

@@ -1,90 +1,100 @@
-// When the camera should bother.
+// Which sessions the camera films.
 //
-// Filming every coached session was heavy enough that the owner asked for it to
-// stop, so the rule that replaced it decides whether footage happens at all.
-// Getting it wrong in either direction is expensive: too eager and the disk
-// fills with takes nobody opens, too shy and a month goes unfilmed and the
-// archive has a hole in it that cannot be filled afterwards.
+// The rule used to be "one take per rolling six days", measured from the last
+// clip. It rolled backwards through the week and it stopped after one take, so a
+// day holding two sessions filmed the warm-up rather than the run that went
+// well. The owner asked for both of those to change: name the day, and film
+// everything on it.
 
-import { WEEK_MS, nextFilmingDue, shouldFilmSession } from '../src/media/cadence.ts';
+import {
+  DEFAULT_FILM_DAY,
+  FILM_DAYS,
+  nextFilmingDue,
+  readFilmDay,
+  shouldFilmSession,
+} from '../src/media/cadence.ts';
 
 let failures = 0;
-const check = (l, ok, d) => { if (!ok) failures++; console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${l}${!ok && d ? ' · ' + d : ''}`); };
+const check = (label, ok, detail) => {
+  if (!ok) failures += 1;
+  console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${label}${detail !== undefined ? ` - ${detail}` : ''}`);
+};
 
-const NOW = 1_770_000_000_000;
-const DAY = 86_400_000;
+/** A local date, built the way the rule reads one. */
+const at = (y, m, d, h = 10) => new Date(y, m - 1, d, h).getTime();
+// 2026-08-22 is a Saturday, so 23 is a Sunday and 24 a Monday.
+const SATURDAY = at(2026, 8, 22);
+const SUNDAY = at(2026, 8, 23);
+const MONDAY = at(2026, 8, 24);
 
-const clip = (over = {}) => ({
-  id: Math.random().toString(36).slice(2),
-  sessionId: 's', kind: 'session', date: '2026-08-14',
-  taskId: 't1', routineId: 'r1', label: 'Spider walk',
-  startedAt: NOW, durationMs: 60_000, bytes: 1_000_000,
-  mimeType: 'video/webm', quality: 'standard', width: 1280, height: 720,
-  hasAudio: true, starred: false, endedBy: 'complete',
-  location: { backend: 'opfs', key: 'k' },
-  ...over,
-});
-
-console.log('\nWeekly, the default\n');
+console.log('\nThe named day, and only it\n');
 {
-  check('an empty library films straight away',
-    shouldFilmSession([], 'weekly', NOW) === true);
+  check('films on the day it was told', shouldFilmSession('weekly', 6, SATURDAY) === true);
+  check('and not on the day before', shouldFilmSession('weekly', 6, at(2026, 8, 21)) === false);
+  check('and not on the day after', shouldFilmSession('weekly', 6, SUNDAY) === false);
 
-  check('having just filmed, it does not film again',
-    shouldFilmSession([clip({ startedAt: NOW - DAY })], 'weekly', NOW) === false);
+  // The whole point of the change. The old rule filmed once and then refused for
+  // six days, so a second session on the same day went unfilmed.
+  check('every session on the day, not just the first',
+    [8, 11, 14, 20].every((h) => shouldFilmSession('weekly', 6, at(2026, 8, 22, h))));
 
-  check('nor three days later',
-    shouldFilmSession([clip({ startedAt: NOW - 3 * DAY })], 'weekly', NOW) === false);
-
-  check('six days later it is due again',
-    shouldFilmSession([clip({ startedAt: NOW - 6 * DAY })], 'weekly', NOW) === true);
-
-  check('and a fortnight later, certainly',
-    shouldFilmSession([clip({ startedAt: NOW - 14 * DAY })], 'weekly', NOW) === true);
-
-  // Six days rather than seven so a player who practises at the same hour every
-  // Sunday is not decided by a few minutes either way.
-  check('the window is six days, not seven', WEEK_MS === 6 * DAY, String(WEEK_MS / DAY));
+  // Seven days, and exactly one of them says yes.
+  const week = [22, 23, 24, 25, 26, 27, 28].map((d) => shouldFilmSession('weekly', 1, at(2026, 8, d)));
+  check('exactly one day a week', week.filter(Boolean).length === 1, week.join(','));
 }
 
-console.log('\nWhat counts as the last one\n');
+console.log('\nThe other cadences are untouched by the day\n');
 {
-  check('the newest session decides, not the first in the list',
-    shouldFilmSession(
-      [clip({ startedAt: NOW - 30 * DAY }), clip({ startedAt: NOW - DAY })],
-      'weekly', NOW,
-    ) === false);
-
-  // A technique check is asked for by hand and must never satisfy the weekly
-  // automatic session, or filming one would silently skip that week's session.
-  check('a technique check does not hold the week open',
-    shouldFilmSession(
-      [clip({ kind: 'technique-check', startedAt: NOW - DAY })],
-      'weekly', NOW,
-    ) === true);
-
-  check('deleting last week reopens it',
-    shouldFilmSession([], 'weekly', NOW) === true);
+  check('manual films nothing automatically',
+    FILM_DAYS.every(({ day }) => shouldFilmSession('manual', day, SATURDAY) === false));
+  check('every-session films whatever day it is',
+    FILM_DAYS.every(({ day }) => shouldFilmSession('every-session', day, SATURDAY) === true));
 }
 
-console.log('\nThe other two settings\n');
+console.log('\nWhen it comes round again\n');
 {
-  check('every-session always films',
-    shouldFilmSession([clip({ startedAt: NOW })], 'every-session', NOW) === true);
-  check('manual never films automatically',
-    shouldFilmSession([], 'manual', NOW) === false);
-  check('manual stays off even after months',
-    shouldFilmSession([clip({ startedAt: NOW - 90 * DAY })], 'manual', NOW) === false);
+  check('nothing is due on the day itself', nextFilmingDue('weekly', 6, SATURDAY) === null);
+
+  const due = nextFilmingDue('weekly', 6, SUNDAY);
+  check('the next Saturday is six days on', new Date(due).getDay() === 6, new Date(due).toDateString());
+  check('and it is the start of that day, not the same hour',
+    new Date(due).getHours() === 0 && new Date(due).getMinutes() === 0, new Date(due).toString());
+  check('which is never in the past', due > SUNDAY);
+
+  // A day away is a day away, not a week.
+  const tomorrow = nextFilmingDue('weekly', 1, SUNDAY);
+  check('tomorrow is tomorrow', new Date(tomorrow).getDate() === 24, new Date(tomorrow).toDateString());
+
+  check('the other cadences never name a date',
+    nextFilmingDue('manual', 6, MONDAY) === null && nextFilmingDue('every-session', 6, MONDAY) === null);
+
+  // Every day, from every day, lands on the right weekday and stays ahead.
+  let wrong = 0;
+  for (const { day } of FILM_DAYS) {
+    for (let d = 22; d <= 28; d++) {
+      const now = at(2026, 8, d);
+      const next = nextFilmingDue('weekly', day, now);
+      if (next === null) { if (new Date(now).getDay() !== day) wrong += 1; continue; }
+      if (new Date(next).getDay() !== day || next <= now) wrong += 1;
+    }
+  }
+  check('every day, from every day', wrong === 0, `${wrong} wrong`);
 }
 
-console.log('\nSaying when\n');
+console.log('\nA stored day that is not a day\n');
 {
-  check('nothing is due when it is due now', nextFilmingDue([], 'weekly', NOW) === null);
-  const due = nextFilmingDue([clip({ startedAt: NOW - DAY })], 'weekly', NOW);
-  check('otherwise it names the moment', due === NOW - DAY + WEEK_MS, String(due));
-  check('only weekly has a due date', nextFilmingDue([], 'every-session', NOW) === null);
-
+  // Settings come back off disk and out of the cloud. A day of NaN would mean
+  // never filming again, silently, which is the worst way for this to fail.
+  const bad = [undefined, null, -1, 7, 3.5, '6', NaN, {}];
+  check('all fall back to the default',
+    bad.every((v) => readFilmDay(v) === DEFAULT_FILM_DAY),
+    bad.map((v) => `${String(v)}->${readFilmDay(v)}`).join(' '));
+  check('and a real day is kept', FILM_DAYS.every(({ day }) => readFilmDay(day) === day));
+  check('a broken day still films exactly one day a week',
+    [22, 23, 24, 25, 26, 27, 28]
+      .map((d) => shouldFilmSession('weekly', NaN, at(2026, 8, d)))
+      .filter(Boolean).length === 1);
 }
 
-console.log(failures ? `\n${failures} FAILED\n` : '\nALL PASS\n');
+console.log(failures ? `\n${failures} failed\n` : '\nall good\n');
 process.exit(failures ? 1 : 0);

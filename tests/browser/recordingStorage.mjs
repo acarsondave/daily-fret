@@ -70,7 +70,12 @@ async function open({ quality = 'standard', keepSessions = 8, recordings = [], s
       localStorage.setItem('daily-fret-recordings', JSON.stringify({ state: s, version: 0 }));
     },
     {
-      settings: { enabled: true, quality, keepSessions, cameraId: null },
+      // Filming is weekly on a named day; say the day is today, or this suite
+      // would pass or fail according to the calendar.
+      settings: {
+        enabled: true, quality, keepSessions, cameraId: null,
+        cadence: 'weekly', filmDay: new Date().getDay(),
+      },
       recordings, lastPrune: null,
     },
   );

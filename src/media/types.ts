@@ -156,6 +156,13 @@ export interface RecordingSettings {
   /** Off until the user turns it on. There is no default-on path to this. */
   enabled: boolean;
   cadence: RecordingCadence;
+  /**
+   * Which day of the week the weekly cadence films on, Sunday 0 to Saturday 6.
+   *
+   * Named by the player rather than derived from the last clip. Every session on
+   * that day is filmed; the rest of the week is not.
+   */
+  filmDay: number;
   quality: RecordingQuality;
   /**
    * The budget, in bytes. The bound that actually matters, because a session is

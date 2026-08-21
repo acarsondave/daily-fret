@@ -100,9 +100,9 @@ export function useSessionRecording(clip: ActiveClip | null): SessionRecordingSt
     if (!request) return;
 
     if (dueRef.current === null) {
-      const { recordings, settings } = useRecordingStore.getState();
+      const { settings } = useRecordingStore.getState();
       dueRef.current = request.kind === 'technique-check'
-        || shouldFilmSession(recordings, settings.cadence, Date.now());
+        || shouldFilmSession(settings.cadence, settings.filmDay, Date.now());
     }
     if (!dueRef.current) return;
 

@@ -10,7 +10,7 @@ import {
   megabytesPerMinute,
   presetFor,
 } from '../../media/quality';
-import { nextFilmingDue } from '../../media/cadence';
+import { FILM_DAYS, nextFilmingDue } from '../../media/cadence';
 import type { RecordingCadence } from '../../media/types';
 
 import {
@@ -34,11 +34,6 @@ import {
 } from '../../media/recordingStore';
 import { storageRoom, type OrphanReport, type StorageRoom } from '../../media/storage';
 import type { Recording } from '../../media/types';
-
-/** When the most recent automatic session was filmed, or 0 if none ever was. */
-function lastFilmedAt(recordings: readonly Recording[]): number {
-  return recordings.reduce((latest, r) => (r.kind === 'session' ? Math.max(latest, r.startedAt) : latest), 0);
-}
 
 /**
  * How often to film, in the order a player should consider them.
@@ -92,6 +87,7 @@ export function RecordingSetting() {
   const setEnabled = useRecordingStore((s) => s.setEnabled);
   const setQuality = useRecordingStore((s) => s.setQuality);
   const setCadence = useRecordingStore((s) => s.setCadence);
+  const setFilmDay = useRecordingStore((s) => s.setFilmDay);
   const setKeepSessions = useRecordingStore((s) => s.setKeepSessions);
   const setKeepBytes = useRecordingStore((s) => s.setKeepBytes);
   const setCameraId = useRecordingStore((s) => s.setCameraId);
@@ -269,13 +265,17 @@ export function RecordingSetting() {
     }
   };
 
-  // Read off the last filmed session rather than the wall clock, so the pane
-  // states a date that stays true however long it sits open. A countdown would
-  // be wrong the moment midnight passed behind it.
-  const nextDue = useMemo(
-    () => nextFilmingDue(recordings, settings.cadence, lastFilmedAt(recordings)),
-    [recordings, settings.cadence],
-  );
+  // Which day comes next depends on what day it is, so this is a reading of the
+  // clock and belongs in an effect rather than in render. Re-read when the
+  // cadence or the day changes, and once an hour after that: a pane left open
+  // overnight would otherwise still be naming yesterday's answer.
+  const [nextDue, setNextDue] = useState<number | null>(null);
+  useEffect(() => {
+    const read = () => setNextDue(nextFilmingDue(settings.cadence, settings.filmDay, Date.now()));
+    read();
+    const id = setInterval(read, 3_600_000);
+    return () => clearInterval(id);
+  }, [settings.cadence, settings.filmDay]);
 
   const mbPerMinute = megabytesPerMinute(settings.quality);
   const named = camerasAreNamed(cameras);
@@ -379,13 +379,40 @@ export function RecordingSetting() {
                 </button>
               ))}
             </div>
+            {/* The week, drawn. One day is lit and the rest are not, which is
+                the whole rule, so the sentence underneath does not repeat it. */}
+            {settings.cadence === 'weekly' && (
+              <div
+                className="rec-week"
+                role="radiogroup"
+                aria-label="Day to film on"
+              >
+                {FILM_DAYS.map(({ day, name, short }) => {
+                  const on = settings.filmDay === day;
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      tabIndex={on ? 0 : -1}
+                      aria-label={name}
+                      className={clsx('rec-day', on && 'is-on')}
+                      onClick={() => setFilmDay(day)}
+                    >
+                      <span aria-hidden="true">{short}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             {/* Where the player actually stands, rather than leaving them to
                 work it out from the rule. */}
             <p className="rec-field-note">
               {settings.cadence === 'weekly'
                 ? nextDue === null
-                  ? 'The next practice session you run will be filmed.'
-                  : `Next one from ${new Date(nextDue).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}. Technique checks are never held back.`
+                  ? 'Filming today, every session you run. Technique checks are never held back.'
+                  : `Filming again from ${new Date(nextDue).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}. Technique checks are never held back.`
                 : settings.cadence === 'manual'
                   ? 'Only technique checks are filmed, when you ask for one.'
                   : 'Every coached session is filmed. This fills the disk quickly.'}

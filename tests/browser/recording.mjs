@@ -40,9 +40,17 @@ const account = {
   capoFret: 0,
 };
 
+// Weekly filming happens on a named day, so a suite that wants a session filmed
+// has to say the day is today. Left to the default this passes or fails
+// depending on which day of the week it is run, which is the worst kind of test.
+const TODAY = new Date().getDay();
+
 const recordingState = (over = {}, recordings = []) => ({
   state: {
-    settings: { enabled: true, quality: 'standard', keepSessions: 8, cameraId: null, ...over },
+    settings: {
+      enabled: true, quality: 'standard', keepSessions: 8, cameraId: null,
+      cadence: 'weekly', filmDay: TODAY, ...over,
+    },
     recordings,
     lastPrune: null,
   },

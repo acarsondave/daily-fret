@@ -43,6 +43,9 @@ const recordingState = (recordings = [], over = {}) => ({
   state: {
     settings: {
       enabled: true, cadence: 'weekly', quality: 'standard',
+      // Weekly films on a named day. Say the day is today, or every assertion
+      // below would pass or fail according to the calendar.
+      filmDay: new Date().getDay(),
       keepSessions: 8, cameraId: null, ...over,
     },
     recordings,
@@ -113,22 +116,41 @@ const openShelf = async (page) => {
 };
 
 // --- the weekly rule ---------------------------------------------------------
+//
+// The rule is a named day, and every session on it. It used to be one take per
+// rolling six days measured from the last clip, which walked the filming day
+// backwards through the week and stopped after the first session, so a day with
+// two sessions in it kept the warm-up and threw away the run that went well.
 {
   console.log('\nhow often it films\n');
   const { ctx, page } = await open();
 
   await film(page);
-  check('an empty library films the first session', (await library(page))?.recordings?.length === 1,
+  check('the day it was told to film, it films', (await library(page))?.recordings?.length === 1,
     String((await library(page))?.recordings?.length));
 
-  // Second session the same day. Under the old policy this filmed again; the
-  // whole point of the weekly rule is that it does not.
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('.task-container', { timeout: 25000 });
-  await page.waitForTimeout(600);
+  // The change the owner asked for. A second session on the filming day is a
+  // second take, not a duplicate.
+  //
+  // Deliberately without a reload between them. The seed is installed by
+  // addInitScript, which runs on every navigation, so reloading would put the
+  // empty library back and the count would read 1 whatever the rule did. The old
+  // assertion here expected 1 and so could never tell the two apart.
+  await film(page, 7);
+  check('and a second session that same day films too',
+    (await library(page))?.recordings?.length === 2,
+    String((await library(page))?.recordings?.length));
+  await ctx.close();
+}
+
+{
+  // Any other day, nothing. Told to film tomorrow, it does not film today.
+  const { ctx, page } = await open({
+    recording: recordingState([], { filmDay: (new Date().getDay() + 1) % 7 }),
+  });
   await film(page, 4);
-  check('a second session the same week is not filmed',
-    (await library(page))?.recordings?.length === 1,
+  check('a session on any other day is not filmed',
+    (await library(page))?.recordings?.length === 0,
     String((await library(page))?.recordings?.length));
   await ctx.close();
 }
@@ -138,7 +160,8 @@ const openShelf = async (page) => {
     recording: recordingState([orphan({ startedAt: Date.now() - 9 * DAY })]),
   });
   await film(page, 4);
-  check('a week later it films again', (await library(page))?.recordings?.length === 2,
+  check('an old clip in the library does not hold the day back',
+    (await library(page))?.recordings?.length === 2,
     String((await library(page))?.recordings?.length));
   await ctx.close();
 }
