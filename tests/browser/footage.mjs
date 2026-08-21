@@ -46,6 +46,9 @@ const recordingState = (recordings = [], over = {}) => ({
       // Weekly films on a named day. Say the day is today, or every assertion
       // below would pass or fail according to the calendar.
       filmDay: new Date().getDay(),
+      // Answered already, except where a block below is testing the notice
+      // itself and overrides it back to null.
+      filmNoticeOn: null, filmSkipOn: null,
       keepSessions: 8, cameraId: null, ...over,
     },
     recordings,
@@ -105,6 +108,13 @@ const library = (page) =>
 async function film(page, seconds = 7) {
   await page.locator('.task-row', { hasText: 'Spider walk' }).locator('.task-go').click();
   await page.waitForSelector('.practice-overlay', { timeout: 20000 });
+  // On a filming day the first session of the day is told before the camera
+  // opens, so running a session now includes answering that. It appears once a
+  // day, hence the count check rather than an unconditional click.
+  if ((await page.locator('.film-notice').count()) > 0) {
+    await page.locator('.film-notice-btn.is-primary').click();
+    await page.waitForTimeout(500);
+  }
   await page.waitForTimeout(seconds * 1000);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(2500);
@@ -114,6 +124,65 @@ const openShelf = async (page) => {
   await page.locator('.progress-launch', { hasText: /Footage/ }).click();
   await page.waitForSelector('.spine', { timeout: 15000 });
 };
+
+// --- the notice --------------------------------------------------------------
+//
+// A camera that opens without warning is the one thing this feature cannot do
+// and keep the player's trust. On the first session of a filming day the shot
+// arrives before the drill: proof the camera is on, the framing check, and the
+// wrong-webcam check, in one picture rather than a paragraph asking for all
+// three.
+{
+  console.log('\nsaying so before the camera opens\n');
+  const { ctx, page } = await open();
+
+  await page.locator('.task-row', { hasText: 'Spider walk' }).locator('.task-go').click();
+  await page.waitForSelector('.film-notice', { timeout: 20000 });
+  check('the notice arrives before the drill does',
+    (await page.locator('.drill-stage').count()) === 0);
+  // The camera is shown, not described. Nothing else on this surface can prove
+  // the camera is on the way a picture of the room can.
+  check('and it shows the shot rather than describing it',
+    (await page.locator('.film-notice-shot').count()) === 1);
+
+  await page.locator('.film-notice-btn.is-primary').click();
+  await page.waitForTimeout(700);
+  check('answering it starts the session', (await page.locator('.film-notice').count()) === 0);
+  const answered = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('daily-fret-recordings')).state.settings.filmNoticeOn);
+  check('and the day is written down', typeof answered === 'string' && answered.length === 10, String(answered));
+
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(2000);
+
+  // Once a day, never once a session. The second run has already been told.
+  await page.locator('.task-row', { hasText: 'Spider walk' }).locator('.task-go').click();
+  await page.waitForSelector('.drill-stage, .film-notice', { timeout: 20000 });
+  check('the second session of the day is not asked again',
+    (await page.locator('.film-notice').count()) === 0);
+  await page.keyboard.press('Escape');
+  await ctx.close();
+}
+
+{
+  // "Not today" is a decision about today, and it has to actually stop the
+  // camera. A notice that is dismissed but films anyway is worse than none.
+  console.log('\nturning it down\n');
+  const { ctx, page } = await open();
+  await page.locator('.task-row', { hasText: 'Spider walk' }).locator('.task-go').click();
+  await page.waitForSelector('.film-notice', { timeout: 20000 });
+  await page.locator('.film-notice-btn:not(.is-primary)').click();
+  await page.waitForTimeout(900);
+
+  check('the session runs', (await page.locator('.drill-stage').count()) > 0);
+  check('and no camera rolls', (await page.locator('.capture-pill').count()) === 0);
+  await page.waitForTimeout(6000);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(2500);
+  check('so nothing is filed', ((await library(page))?.recordings?.length ?? 0) === 0,
+    String((await library(page))?.recordings?.length));
+  await ctx.close();
+}
 
 // --- the weekly rule ---------------------------------------------------------
 //

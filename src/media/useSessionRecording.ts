@@ -10,11 +10,11 @@
 // Nothing here can fail a drill. Every rejection is caught and turned into a
 // `failure` the surface can show beside the practice, which carries on.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { RecordingError } from './failure';
 import { PracticeRecorder } from './recorder';
 import { fileRecording, fileRecordingNow, useRecordingStore } from './recordingStore';
-import { shouldFilmSession } from './cadence';
+import { filmNoticeDue, filmingDayKey, shouldFilmSession } from './cadence';
 import type { RecordingKind, TechniqueView } from './types';
 
 export interface ActiveClip {
@@ -40,6 +40,23 @@ export interface SessionRecordingState {
   dismissFailure: () => void;
   /** False when the user has recording turned off. Nothing opens a camera. */
   enabled: boolean;
+  /**
+   * Today would film, and the player has not been told yet.
+   *
+   * The surface renders the notice; nothing rolls until it is answered. Held as
+   * a reading rather than a command so the two practice surfaces can each decide
+   * where it belongs on screen.
+   */
+  noticeDue: boolean;
+}
+
+/** Today's filming key, read fresh. Stable between calls within a day. */
+const readToday = (): string => filmingDayKey(Date.now());
+
+/** Nudge React once an hour, so a session running past midnight notices. */
+function subscribeToDay(onChange: () => void): () => void {
+  const id = setInterval(onChange, 3_600_000);
+  return () => clearInterval(id);
 }
 
 const newSessionId = (): string =>
@@ -51,6 +68,23 @@ export function useSessionRecording(clip: ActiveClip | null): SessionRecordingSt
   const enabled = useRecordingStore((s) => s.settings.enabled);
   const quality = useRecordingStore((s) => s.settings.quality);
   const cameraId = useRecordingStore((s) => s.settings.cameraId);
+  const cadence = useRecordingStore((s) => s.settings.cadence);
+  const filmDay = useRecordingStore((s) => s.settings.filmDay);
+  const filmNoticeOn = useRecordingStore((s) => s.settings.filmNoticeOn);
+
+  // What day it is is a reading of something outside React, so it comes through
+  // the hook built for that rather than through a ref or a setState in an
+  // effect. Re-read hourly, because a session running across midnight would
+  // otherwise still be answering for yesterday. The snapshot is a date string,
+  // so an hour that changes nothing compares equal and costs no render.
+  const today = useSyncExternalStore(subscribeToDay, readToday, readToday);
+
+  // Derived from subscribed values rather than from getState, so answering the
+  // notice re-renders the surface that is showing it.
+  // Deliberately not conditioned on there being a clip yet. A clip only exists
+  // once a segment is under way, and by then the camera would already be the
+  // thing the notice was supposed to arrive before.
+  const noticeDue = filmNoticeDue({ enabled, cadence, filmDay, filmNoticeOn }, today);
 
   const recorderRef = useRef<PracticeRecorder | null>(null);
   // Every clip filmed by this surface belongs to one session, which is the unit
@@ -101,8 +135,21 @@ export function useSessionRecording(clip: ActiveClip | null): SessionRecordingSt
 
     if (dueRef.current === null) {
       const { settings } = useRecordingStore.getState();
-      dueRef.current = request.kind === 'technique-check'
-        || shouldFilmSession(settings.cadence, settings.filmDay, Date.now());
+      const now = Date.now();
+      if (request.kind === 'technique-check') {
+        // Asked for by hand. The notice is about the camera arriving unasked,
+        // and this one was asked for.
+        dueRef.current = true;
+      } else if (filmNoticeDue(settings, filmingDayKey(now))) {
+        // Unanswered. Leave the decision open rather than latching false, or a
+        // session would stay unfilmed for the rest of its life after the player
+        // said yes.
+        return;
+      } else {
+        dueRef.current =
+          settings.filmSkipOn !== filmingDayKey(now)
+          && shouldFilmSession(settings.cadence, settings.filmDay, now);
+      }
     }
     if (!dueRef.current) return;
 
@@ -160,7 +207,12 @@ export function useSessionRecording(clip: ActiveClip | null): SessionRecordingSt
         })
         .catch(() => {});
     };
-  }, [enabled, key]);
+    // `noticeDue` is in here on purpose. Until the notice is answered this
+    // effect returns without deciding, so it has to run again the moment the
+    // answer lands or the session would stay unfilmed for the rest of its life.
+    // It only ever goes true to false within a session, so this cannot restart
+    // a recording that is already rolling.
+  }, [enabled, key, noticeDue]);
 
   // Give the camera back when the surface goes, whatever route it took out.
   //
@@ -207,5 +259,5 @@ export function useSessionRecording(clip: ActiveClip | null): SessionRecordingSt
     return () => clearInterval(id);
   }, [rolling, startedAt]);
 
-  return { rolling, elapsedMs, failure, dismissFailure, enabled };
+  return { rolling, elapsedMs, failure, dismissFailure, enabled, noticeDue };
 }

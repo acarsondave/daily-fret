@@ -1,0 +1,152 @@
+/* The filming notice.
+   Sized around the shot, because the shot is the message. Everything else on
+   the surface is small enough to read at a glance and get out of the way. */
+
+.film-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  width: min(520px, 100%);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5);
+  text-align: center;
+}
+
+.film-notice-title {
+  margin: 0;
+  font-family: var(--font-primary);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.film-notice-title:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 4px;
+  border-radius: var(--radius-sm);
+}
+
+/* Mirrored: a preview of yourself that moves the wrong way cannot be used to
+   set a shot up. The recording itself is never flipped, only this. */
+.film-notice-shot {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  transform: scaleX(-1);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 12px 32px -12px rgb(0 0 0 / 0.55);
+}
+
+.film-notice-problem {
+  width: 100%;
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.film-notice-reason {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-secondary);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.film-notice-recovery {
+  margin: 0;
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.film-notice-cameras {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.film-notice-camera {
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+
+.film-notice-camera:hover:not(.is-on) {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.film-notice-camera.is-on {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.film-notice-camera:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.film-notice-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.film-notice-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  font-family: var(--font-secondary);
+  font-size: var(--text-base);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+
+.film-notice-btn:hover {
+  border-color: var(--border-strong);
+}
+
+.film-notice-btn.is-primary {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+  color: var(--bg-color);
+  font-weight: 600;
+}
+
+.film-notice-btn:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 3px;
+}
+
+.film-notice-where {
+  margin: 0;
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+@media (max-width: 480px) {
+  .film-notice {
+    padding: var(--space-4) var(--space-3);
+    gap: var(--space-3);
+  }
+  .film-notice-title { font-size: var(--text-xl); }
+  .film-notice-actions { width: 100%; }
+  .film-notice-btn { flex: 1 1 0; justify-content: center; padding: 0 var(--space-3); }
+}

@@ -75,6 +75,9 @@ async function open({ quality = 'standard', keepSessions = 8, recordings = [], s
       settings: {
         enabled: true, quality, keepSessions, cameraId: null,
         cadence: 'weekly', filmDay: new Date().getDay(),
+        // Already told, so this suite exercises filming rather than the notice.
+        filmNoticeOn: (() => { const d = new Date(); const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; })(), filmSkipOn: null,
       },
       recordings, lastPrune: null,
     },

@@ -44,6 +44,7 @@ import { ProgressRing } from './ProgressRing';
 import { CapoBadge } from './CapoBadge';
 import { RecordingIndicator } from './RecordingIndicator';
 import { useSessionRecording, type ActiveClip } from '../../media/useSessionRecording';
+import { FilmNotice } from './FilmNotice';
 import './practice.css';
 
 type Phase = 'resume' | 'intro' | 'rest' | 'segment' | 'summary';
@@ -734,6 +735,11 @@ export function CoachedSession({ routine, onClose }: Props) {
                   ? 'One named note at a time, found and played'
                   : blockLength(seg.seconds);
 
+  // The notice holds the whole session, not only the camera. Filming is already
+  // refused upstream until it is answered, but a drill running behind it would
+  // be spending the player's practice on a screen they have not read yet.
+  const view = recording.noticeDue ? 'notice' : phase;
+
   return createPortal(
     <motion.div
       className="practice-overlay"
@@ -791,7 +797,11 @@ export function CoachedSession({ routine, onClose }: Props) {
       </div>
 
       <div className="practice-body">
-        {phase === 'resume' && (
+        {/* Before anything rolls, on the first session of a filming day.
+            Answering writes the day to the store, which is subscribed here, so
+            this clears itself and the session picks up where it would have. */}
+        {view === 'notice' && <FilmNotice />}
+        {view === 'resume' && (
           <motion.div className="coach-intro" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <div className="coach-intro-title">{routine.name}</div>
             {/* Where the session stopped, on the same neck the topbar draws it
@@ -807,7 +817,7 @@ export function CoachedSession({ routine, onClose }: Props) {
           </motion.div>
         )}
 
-        {phase === 'intro' && (
+        {view === 'intro' && (
           <motion.div key={`intro-${index}`} className="coach-intro" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <div className="coach-intro-title">{seg.title}</div>
             {/* The shapes, not their names. This is the last quiet moment before
@@ -818,7 +828,7 @@ export function CoachedSession({ routine, onClose }: Props) {
           </motion.div>
         )}
 
-        {phase === 'rest' && (
+        {view === 'rest' && (
           <motion.div key={`rest-${index}`} className="coach-intro" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             {/* The rest, as the length it is, twice over. The arc is how much of
                 this break is left, and the ring's own diameter is how long the
@@ -847,7 +857,7 @@ export function CoachedSession({ routine, onClose }: Props) {
           </motion.div>
         )}
 
-        {phase === 'segment' && seg.kind === 'changes' && (
+        {view === 'segment' && seg.kind === 'changes' && (
           <OneMinuteChanges
             key={`seg-${index}-${take}`}
             config={{ kind: 'one-minute-changes', chordFrom: seg.from, chordTo: seg.to, durationSec: seg.seconds }}
@@ -884,7 +894,7 @@ export function CoachedSession({ routine, onClose }: Props) {
           />
         )}
 
-        {phase === 'segment' && seg.kind === 'trainer' && (
+        {view === 'segment' && seg.kind === 'trainer' && (
           <ChordTrainer
             key={`seg-${index}-${take}`}
             config={{ kind: 'chord-trainer', chords: seg.chords, durationSec: seg.seconds }}
@@ -928,7 +938,7 @@ export function CoachedSession({ routine, onClose }: Props) {
           />
         )}
 
-        {phase === 'segment' && seg.kind === 'rotation' && ring && (
+        {view === 'segment' && seg.kind === 'rotation' && ring && (
           <ChordRotation
             key={`seg-${index}-${take}`}
             config={{ kind: 'chord-rotation', chords: ring, durationSec: seg.seconds }}
@@ -963,7 +973,7 @@ export function CoachedSession({ routine, onClose }: Props) {
           />
         )}
 
-        {phase === 'segment' && seg.kind === 'timing' && (
+        {view === 'segment' && seg.kind === 'timing' && (
           <StrumTiming
             key={`seg-${index}-${take}`}
             config={{ kind: 'strum-timing', durationSec: seg.seconds, bpm: seg.bpm }}
@@ -988,7 +998,7 @@ export function CoachedSession({ routine, onClose }: Props) {
           />
         )}
 
-        {phase === 'segment' && seg.kind === 'patterns' && (
+        {view === 'segment' && seg.kind === 'patterns' && (
           <StrumPatterns
             key={`seg-${index}-${take}`}
             config={{ kind: 'strum-pattern', durationSec: seg.seconds, bpm: seg.bpm, bars: seg.bars }}
@@ -1025,7 +1035,7 @@ export function CoachedSession({ routine, onClose }: Props) {
           />
         )}
 
-        {phase === 'segment' && seg.kind === 'finder' && (
+        {view === 'segment' && seg.kind === 'finder' && (
           <NoteFinder
             key={`seg-${index}-${take}`}
             config={{ kind: 'note-finder', durationSec: seg.seconds, rungId: seg.rungId }}
@@ -1077,7 +1087,7 @@ export function CoachedSession({ routine, onClose }: Props) {
           />
         )}
 
-        {phase === 'segment' && seg.kind === 'song' && (
+        {view === 'segment' && seg.kind === 'song' && (
           <SongPlayer
             key={`seg-${index}`}
             songId={seg.songId}
@@ -1111,7 +1121,7 @@ export function CoachedSession({ routine, onClose }: Props) {
           />
         )}
 
-        {phase === 'segment' && seg.kind === 'timed' && (
+        {view === 'segment' && seg.kind === 'timed' && (
           <TimedSegment
             key={`seg-${index}-${take}`}
             title={seg.title}
@@ -1135,7 +1145,7 @@ export function CoachedSession({ routine, onClose }: Props) {
           />
         )}
 
-        {phase === 'summary' && (
+        {view === 'summary' && (
           <motion.div className="coach-summary" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <div className="coach-summary-head">
               {/* The neck, run through. It has been on screen for the whole

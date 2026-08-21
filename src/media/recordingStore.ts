@@ -43,6 +43,8 @@ interface RecordingState {
   setEnabled: (enabled: boolean) => void;
   setCadence: (cadence: RecordingCadence) => void;
   setFilmDay: (filmDay: number) => void;
+  /** Record that today's filming notice was answered, and how. */
+  answerFilmNotice: (film: boolean, today: string) => void;
   setQuality: (quality: RecordingQuality) => void;
   setKeepSessions: (keep: number) => void;
   setKeepBytes: (bytes: number) => void;
@@ -55,6 +57,8 @@ const DEFAULT_SETTINGS: RecordingSettings = {
   enabled: false,
   cadence: 'weekly',
   filmDay: DEFAULT_FILM_DAY,
+  filmNoticeOn: null,
+  filmSkipOn: null,
   quality: DEFAULT_QUALITY,
   keepSessions: DEFAULT_KEEP_SESSIONS,
   keepBytes: DEFAULT_KEEP_BYTES,
@@ -73,6 +77,12 @@ export const useRecordingStore = create<RecordingState>()(
       setEnabled: (enabled) => set((s) => ({ settings: { ...s.settings, enabled } })),
       setCadence: (cadence) => set((s) => ({ settings: { ...s.settings, cadence } })),
       setFilmDay: (filmDay) => set((s) => ({ settings: { ...s.settings, filmDay: readFilmDay(filmDay) } })),
+      // Both dates are written together so an answer can never leave the notice
+      // marked seen while the skip still says yesterday, which would film a day
+      // the player had just turned down.
+      answerFilmNotice: (film, today) => set((s) => ({
+        settings: { ...s.settings, filmNoticeOn: today, filmSkipOn: film ? null : today },
+      })),
       setQuality: (quality) => set((s) => ({ settings: { ...s.settings, quality } })),
       setKeepSessions: (keep) =>
         set((s) => ({ settings: { ...s.settings, keepSessions: clampKeepSessions(keep) } })),
@@ -107,6 +117,8 @@ export const useRecordingStore = create<RecordingState>()(
             // Same scruple as the cadence below: a day that is not a day of
             // the week falls back rather than filming on NaN, which is never.
             filmDay: readFilmDay(settings?.filmDay),
+            filmNoticeOn: typeof settings?.filmNoticeOn === 'string' ? settings.filmNoticeOn : null,
+            filmSkipOn: typeof settings?.filmSkipOn === 'string' ? settings.filmSkipOn : null,
             cadence: CADENCES.includes(settings?.cadence as RecordingCadence)
               ? (settings!.cadence as RecordingCadence)
               : 'weekly',

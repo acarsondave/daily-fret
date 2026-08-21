@@ -27,6 +27,7 @@ import { Metronome } from './Metronome';
 import { CapoBadge } from './CapoBadge';
 import { RecordingIndicator } from './RecordingIndicator';
 import { useSessionRecording, type ActiveClip } from '../../media/useSessionRecording';
+import { FilmNotice } from './FilmNotice';
 import './practice.css';
 
 interface Props {
@@ -353,7 +354,12 @@ export function PracticeOverlay({ task, onClose }: Props) {
       </div>
 
       <div className="practice-body">
-        {!drill && block && (
+        {/* Before anything rolls, on the first session of a filming day. The
+            drill below waits: filming is refused upstream until this is
+            answered, and running the drill behind it would spend the player's
+            practice on a screen they have not read. */}
+        {recording.noticeDue && <FilmNotice />}
+        {!recording.noticeDue && !drill && block && (
           <TimedSegment
             key={`block-${blockIdx}`}
             title={block.label}
@@ -366,7 +372,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
           />
         )}
 
-        {drill?.kind === 'one-minute-changes' && explicitPairs.length > 0 && (() => {
+        {!recording.noticeDue && drill?.kind === 'one-minute-changes' && explicitPairs.length > 0 && (() => {
           const idx = Math.min(pairIdx, explicitPairs.length - 1);
           const pair = explicitPairs[idx];
           const isLastPair = idx >= explicitPairs.length - 1;
@@ -401,7 +407,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
             />
           );
         })()}
-        {drill?.kind === 'one-minute-changes' && explicitPairs.length === 0 && (
+        {!recording.noticeDue && drill?.kind === 'one-minute-changes' && explicitPairs.length === 0 && (
           <OneMinuteChanges
             config={{ kind: 'one-minute-changes', durationSec: drill.durationSec }}
             chordPool={
@@ -431,7 +437,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
             onClose={leave}
           />
         )}
-        {drill?.kind === 'chord-rotation' && ring && (
+        {!recording.noticeDue && drill?.kind === 'chord-rotation' && ring && (
           <ChordRotation
             config={{ ...drill, chords: ring }}
             personalBest={rotationBest}
@@ -444,7 +450,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
             onClose={leave}
           />
         )}
-        {drill?.kind === 'chord-trainer' && (
+        {!recording.noticeDue && drill?.kind === 'chord-trainer' && (
           <ChordTrainer
             config={drill}
             onSessionStart={beginDrill}
@@ -462,7 +468,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
             onClose={leave}
           />
         )}
-        {drill?.kind === 'strum-timing' && (
+        {!recording.noticeDue && drill?.kind === 'strum-timing' && (
           <StrumTiming
             config={drill}
             bpm={tempoPlan?.bpm ?? DEFAULT_PRACTICE_BPM}
@@ -478,7 +484,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
             onClose={leave}
           />
         )}
-        {drill?.kind === 'strum-pattern' && (
+        {!recording.noticeDue && drill?.kind === 'strum-pattern' && (
           <StrumPatterns
             config={drill}
             bpm={tempoPlan?.bpm ?? DEFAULT_PRACTICE_BPM}
@@ -504,7 +510,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
             onClose={leave}
           />
         )}
-        {drill?.kind === 'note-finder' && (
+        {!recording.noticeDue && drill?.kind === 'note-finder' && (
           <NoteFinder
             config={drill}
             map={noteMap}
@@ -533,7 +539,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
             onClose={leave}
           />
         )}
-        {drill?.kind === 'song' && drill.songId && (
+        {!recording.noticeDue && drill?.kind === 'song' && drill.songId && (
           <SongPlayer
             songId={drill.songId}
             onFinish={(reachedEnd) => {

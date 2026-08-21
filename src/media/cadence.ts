@@ -20,7 +20,7 @@
 // library: it needs no scheduler, no stored cursor, and no clock to keep in
 // sync, and deleting a clip cannot change whether today is Saturday.
 
-import type { RecordingCadence } from './types';
+import type { RecordingCadence, RecordingSettings } from './types';
 
 /** Days of the week as `Date.getDay()` numbers them, Sunday first. */
 export const FILM_DAYS = [
@@ -60,6 +60,35 @@ export function shouldFilmSession(
   // sessions in it is a day with two takes, and the second one is usually the
   // better one; the old rule filmed the warm-up and stopped.
   return new Date(nowMs).getDay() === readFilmDay(filmDay);
+}
+
+/** Today, as the local YYYY-MM-DD the notice and the skip are filed under. */
+export function filmingDayKey(nowMs: number): string {
+  const d = new Date(nowMs);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/**
+ * Whether the player still owes an answer to the filming notice.
+ *
+ * True only on a day that would film, with the camera on, and only until it has
+ * been answered once. A day that is not a filming day never asks, and neither
+ * does a second session on a day already answered.
+ */
+export function filmNoticeDue(
+  settings: Pick<RecordingSettings, 'enabled' | 'cadence' | 'filmDay' | 'filmNoticeOn'>,
+  today: string,
+): boolean {
+  if (!settings.enabled) return false;
+  if (!shouldFilmSession(settings.cadence, settings.filmDay, dayStart(today))) return false;
+  return settings.filmNoticeOn !== today;
+}
+
+/** Midday on a YYYY-MM-DD, which is the safe hour to ask what day it is. */
+function dayStart(today: string): number {
+  const [y, m, d] = today.split('-').map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1, 12).getTime();
 }
 
 /**

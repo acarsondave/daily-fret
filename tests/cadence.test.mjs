@@ -9,6 +9,8 @@
 import {
   DEFAULT_FILM_DAY,
   FILM_DAYS,
+  filmNoticeDue,
+  filmingDayKey,
   nextFilmingDue,
   readFilmDay,
   shouldFilmSession,
@@ -94,6 +96,42 @@ console.log('\nA stored day that is not a day\n');
     [22, 23, 24, 25, 26, 27, 28]
       .map((d) => shouldFilmSession('weekly', NaN, at(2026, 8, d)))
       .filter(Boolean).length === 1);
+}
+
+console.log('\nTelling the player before the camera opens\n');
+{
+  // A camera that opens without warning is the one thing this feature cannot do
+  // and keep trust, so the first session of a filming day says so first.
+  const on = { enabled: true, cadence: 'weekly', filmDay: 6 };
+  const satKey = filmingDayKey(SATURDAY);
+  const sunKey = filmingDayKey(SUNDAY);
+
+  check('asks on the filming day', filmNoticeDue({ ...on, filmNoticeOn: null }, satKey) === true);
+  check('and not on any other day', filmNoticeDue({ ...on, filmNoticeOn: null }, sunKey) === false);
+
+  // Once a day, not once a session. The second run has already been told.
+  check('does not ask twice in a day',
+    filmNoticeDue({ ...on, filmNoticeOn: satKey }, satKey) === false);
+  // But yesterday's answer is not this week's answer.
+  check('asks again the following week',
+    filmNoticeDue({ ...on, filmNoticeOn: '2026-08-15' }, satKey) === true);
+
+  check('never asks with the camera off',
+    filmNoticeDue({ ...on, enabled: false, filmNoticeOn: null }, satKey) === false);
+  check('never asks when nothing is filmed automatically',
+    filmNoticeDue({ ...on, cadence: 'manual', filmNoticeOn: null }, satKey) === false);
+  // Filming every session still deserves the warning, once a day.
+  check('asks once a day when every session films',
+    filmNoticeDue({ ...on, cadence: 'every-session', filmNoticeOn: null }, sunKey) === true);
+
+  // The day key is the local date, not UTC, or a player east or west of the
+  // meridian would be told about the wrong day.
+  check('the day key is the local date',
+    filmingDayKey(new Date(2026, 7, 22, 23, 30).getTime()) === '2026-08-22',
+    filmingDayKey(new Date(2026, 7, 22, 23, 30).getTime()));
+  check('and pads a single digit month and day',
+    filmingDayKey(new Date(2026, 0, 5, 9).getTime()) === '2026-01-05',
+    filmingDayKey(new Date(2026, 0, 5, 9).getTime()));
 }
 
 console.log(failures ? `\n${failures} failed\n` : '\nall good\n');

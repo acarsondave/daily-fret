@@ -44,12 +44,17 @@ const account = {
 // has to say the day is today. Left to the default this passes or fails
 // depending on which day of the week it is run, which is the worst kind of test.
 const TODAY = new Date().getDay();
+const TODAY_KEY = (() => { const d = new Date(); const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; })();
 
 const recordingState = (over = {}, recordings = []) => ({
   state: {
     settings: {
       enabled: true, quality: 'standard', keepSessions: 8, cameraId: null,
-      cadence: 'weekly', filmDay: TODAY, ...over,
+      cadence: 'weekly', filmDay: TODAY,
+      // Already told, so these suites exercise filming rather than the notice.
+      filmNoticeOn: TODAY_KEY, filmSkipOn: null,
+      ...over,
     },
     recordings,
     lastPrune: null,

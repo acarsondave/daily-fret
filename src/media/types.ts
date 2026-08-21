@@ -163,6 +163,23 @@ export interface RecordingSettings {
    * that day is filmed; the rest of the week is not.
    */
   filmDay: number;
+  /**
+   * The day the filming notice was last answered, as YYYY-MM-DD, or null.
+   *
+   * A camera that opens without warning is the one thing this feature cannot do
+   * and keep the player's trust, so the first session of a filming day says so
+   * first. Once a day, not once a session: the second run of the same day has
+   * already been told.
+   */
+  filmNoticeOn: string | null;
+  /**
+   * The day filming was turned down, as YYYY-MM-DD, or null.
+   *
+   * Answering "not today" is a decision about today only. It expires by being a
+   * date rather than a flag, so nobody has to remember to switch filming back
+   * on, and next week's day films as it always would.
+   */
+  filmSkipOn: string | null;
   quality: RecordingQuality;
   /**
    * The budget, in bytes. The bound that actually matters, because a session is
