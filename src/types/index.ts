@@ -32,9 +32,11 @@ export interface DrillConfig {
   // is: deleting a saved pattern must never silently change what a task asks
   // for. Absent means the opening rungs of the built-in ladder.
   patterns?: string[];
-  // strum-pattern: bars each dealt pattern is played for before the next is
-  // dealt. Absent takes MIN_PATTERN_BARS, which is the shortest run the
-  // matcher will form an opinion about (src/lib/strumPattern.ts).
+  // strum-pattern: times each dealt pattern comes round before the next is
+  // dealt. Absent takes MIN_PATTERN_PASSES, which is the shortest run the
+  // matcher will form an opinion about (src/lib/strumPattern.ts). Still called
+  // `bars` because that is the key it is stored under in every saved routine,
+  // and it meant the same number when a pattern was always one bar long.
   bars?: number;
   // note-finder: the rung of the ladder to run, as a rung id from
   // src/lib/noteFinder.ts. Absent is the normal case and the better one: the

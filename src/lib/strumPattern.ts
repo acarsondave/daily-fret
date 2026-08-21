@@ -53,6 +53,29 @@ export interface Pattern {
 export const SLOTS_PER_BAR = 8;
 
 /**
+ * The longest phrase a pattern may be, in bars.
+ *
+ * Two, and the second bar is not decoration. "Exploring Strumming" asks for it
+ * in as many words: "generally, every four or eight bars, a slight rhythmic
+ * strumming variation should happen. Your strumming pattern should stay the
+ * same most of the time, but this change will make it pop." A phrase that holds
+ * for a bar and then varies is a different thing to hold than a bar that
+ * repeats, and it cannot be written in eight slots at all.
+ *
+ * Not four or eight. A pattern is something the player is asked to produce cold
+ * after switching off another one, and a four-bar phrase is a piece of music
+ * rather than a pattern. Two is also where the drill stays honest about time:
+ * a run has to hold a phrase MIN_PATTERN_GOES times before it is allowed an
+ * opinion, and that is already eight bars for a two-bar phrase.
+ */
+export const MAX_PATTERN_BARS = 2;
+
+/** Bars the phrase occupies. One for every pattern until two-bar phrases. */
+export function barsIn(pattern: Pattern): number {
+  return pattern.slots.length / SLOTS_PER_BAR;
+}
+
+/**
  * How much later than the moment of contact each direction is detected.
  *
  * Measured, not assumed. Synthesised takes of `D-DU-UD-`, `D-DUDUD-` and
@@ -73,11 +96,13 @@ export const UP_DETECTION_LAG_MS = 3;
 /**
  * Read a pattern string into eighth-note slots.
  *
- * Two lengths are accepted and they mean different things. Eight characters is
- * one bar at eighth resolution and is taken as written. Four characters is one
- * bar of quarter notes, the "four down strums" every beginner starts on, and is
- * expanded by putting a ghost after each: `DDDD` becomes `D-D-D-D-`, which is
- * the same instruction, because the arm still travels through the offbeats.
+ * Three lengths are accepted and they mean different things. Eight characters
+ * is one bar at eighth resolution and is taken as written. Sixteen is a two-bar
+ * phrase, read the same way straight through; see {@link MAX_PATTERN_BARS}.
+ * Four characters is one bar of quarter notes, the "four down strums" every
+ * beginner starts on, and is expanded by putting a ghost after each: `DDDD`
+ * becomes `D-D-D-D-`, which is the same instruction, because the arm still
+ * travels through the offbeats.
  *
  * Everything else returns null rather than being guessed at. Six characters in
  * particular describes three beats, which is not a bar of 4/4 at all, and a
@@ -91,7 +116,10 @@ export function parsePattern(source: string): Pattern | null {
   const read = (chars: string): SlotStroke[] =>
     [...chars].map((c) => (c === 'D' ? 'D' : c === 'U' ? 'U' : null));
 
-  if (trimmed.length === SLOTS_PER_BAR) return { source, slots: read(trimmed) };
+  if (trimmed.length % SLOTS_PER_BAR === 0 && trimmed.length <= SLOTS_PER_BAR * MAX_PATTERN_BARS) {
+    const slots = read(trimmed);
+    return travelsWithTheArm(slots) ? { source, slots } : null;
+  }
 
   if (trimmed.length === SLOTS_PER_BAR / 2) {
     // Quarters. An up strum on a quarter note is not a thing this expansion can
@@ -108,6 +136,21 @@ export function parsePattern(source: string): Pattern | null {
   }
 
   return null;
+}
+
+/**
+ * Whether every stroke faces the way the arm is already going at that slot.
+ *
+ * The arm is a pendulum: it is on its way down through every even slot and up
+ * through every odd one, whatever the pattern asks of it. So a `U` on a
+ * downbeat is not a hard pattern, it is an impossible one, and letting it
+ * through costs twice over. The bar would draw a pick pointing against the
+ * arm crossing it, and the matcher would take the up strum's detection lag off
+ * a stroke that was physically a down, moving the reported offset twenty
+ * milliseconds the wrong way inside a fifty millisecond budget.
+ */
+function travelsWithTheArm(slots: readonly SlotStroke[]): boolean {
+  return slots.every((stroke, slot) => !stroke || stroke === (slot % 2 === 0 ? 'D' : 'U'));
 }
 
 /** Slots the pattern actually strikes. A pattern of all ghosts is not a pattern. */
@@ -132,9 +175,15 @@ export type SlotOutcomeKind =
   | 'added';
 
 export interface SlotOutcome {
-  /** Bar within the run, from zero. */
-  bar: number;
-  /** Eighth-note slot within the bar, from zero. */
+  /**
+   * Which time round the pattern this was, from zero.
+   *
+   * Not a bar. A phrase may be two bars long ({@link MAX_PATTERN_BARS}), and
+   * what the drill and the summary both ask about is whether the pattern came
+   * out whole this time round, which is a question about the phrase.
+   */
+  pass: number;
+  /** Eighth-note slot within the pattern, from zero. */
   slot: number;
   expected: SlotStroke;
   kind: SlotOutcomeKind;
@@ -152,7 +201,7 @@ export interface PatternRun {
   grid: BeatGrid;
   pattern: Pattern;
   /**
-   * The grid beat that bar zero, slot zero sits on.
+   * The grid beat that the pattern's first slot sits on.
    *
    * The grid numbers beats from its own origin, which has nothing to do with
    * where the player was told to start, so the caller states it. Getting this
@@ -160,8 +209,8 @@ export interface PatternRun {
    * which is exactly the failure a caller would otherwise blame on the player.
    */
   originBeat: number;
-  /** Bars the run covers. */
-  bars: number;
+  /** Times round the pattern the run covers. */
+  passes: number;
 }
 
 /**
@@ -173,18 +222,20 @@ export interface PatternRun {
  * the slot before it and cascade the rest.
  */
 export function matchPattern(run: PatternRun): SlotOutcome[] {
-  const { onsets, grid, pattern, originBeat, bars } = run;
-  const slotsPerBar = pattern.slots.length;
-  const slotPeriod = (grid.period * 4) / slotsPerBar;
+  const { onsets, grid, pattern, originBeat, passes } = run;
+  const slots = pattern.slots.length;
+  // A slot is an eighth note whatever the phrase is: half a beat, always. The
+  // phrase's length says how many of them there are, never how wide one is.
+  const slotPeriod = grid.period / 2;
   const half = slotPeriod / 2;
 
   // Ideal time of every slot in the run, and the direction expected there.
-  const ideal: { bar: number; slot: number; at: number; expected: SlotStroke }[] = [];
-  for (let bar = 0; bar < bars; bar += 1) {
-    for (let slot = 0; slot < slotsPerBar; slot += 1) {
-      const beat = originBeat + bar * 4 + (slot * 4) / slotsPerBar;
+  const ideal: { pass: number; slot: number; at: number; expected: SlotStroke }[] = [];
+  for (let pass = 0; pass < passes; pass += 1) {
+    for (let slot = 0; slot < slots; slot += 1) {
+      const beat = originBeat + (pass * slots + slot) / 2;
       ideal.push({
-        bar,
+        pass,
         slot,
         at: grid.origin + beat * grid.period,
         expected: pattern.slots[slot],
@@ -216,15 +267,15 @@ export function matchPattern(run: PatternRun): SlotOutcome[] {
   return ideal.map((s, i) => {
     const struck = claimed.get(i);
     if (!struck) {
-      return { bar: s.bar, slot: s.slot, expected: s.expected, kind: s.expected ? 'missed' : 'ghost' };
+      return { pass: s.pass, slot: s.slot, expected: s.expected, kind: s.expected ? 'missed' : 'ghost' };
     }
     const lag = s.expected === 'U' ? UP_DETECTION_LAG_MS : DOWN_DETECTION_LAG_MS;
     const offsetMs = (struck.at - s.at) * 1000 - lag;
     if (!s.expected) {
-      return { bar: s.bar, slot: s.slot, expected: null, kind: 'added', offsetMs };
+      return { pass: s.pass, slot: s.slot, expected: null, kind: 'added', offsetMs };
     }
     return {
-      bar: s.bar,
+      pass: s.pass,
       slot: s.slot,
       expected: s.expected,
       kind: 'hit',
@@ -234,23 +285,23 @@ export function matchPattern(run: PatternRun): SlotOutcome[] {
   });
 }
 
-/** How one slot of the pattern went across every bar of the run. */
+/** How one slot of the pattern went across every pass of the run. */
 export interface SlotReliability {
   slot: number;
   expected: SlotStroke;
-  /** Bars in which this slot was struck at all. */
+  /** Passes in which this slot was struck at all. */
   struck: number;
-  /** Bars in which it was struck within {@link IN_TIME_MS}. */
+  /** Passes in which it was struck within {@link IN_TIME_MS}. */
   inTime: number;
-  bars: number;
-  /** Median offset across the bars it was struck in. Early is negative. */
+  passes: number;
+  /** Median offset across the passes it was struck in. Early is negative. */
   medianMs: number;
 }
 
 export interface PatternSummary {
   /** False when the run is too short to say anything. Nothing is recorded. */
   enough: boolean;
-  bars: number;
+  passes: number;
   /** One entry per slot in the pattern, in order. This is the diagnosis. */
   slots: SlotReliability[];
   /** Expected strums that landed in time, as a percentage of those expected. */
@@ -260,26 +311,33 @@ export interface PatternSummary {
   /** Strums in slots the pattern leaves silent. Never subtracts from the score. */
   added: number;
   /**
-   * The first bar in which every sounded slot landed in time, or null if none did.
+   * The first pass in which every sounded slot landed in time, or null if none
+   * did. Zero means the pattern arrived whole.
    *
    * The whole reason the drill deals patterns at random rather than repeating
    * one. Justin's own test of a pattern being automatic is that it survives
    * without attention, and the measurable form of that is recall under switch:
-   * after coming off a different pattern, does this one come out right on the
-   * first bar, or does it take two bars of fumbling to settle. Accuracy averaged
-   * over a long run hides exactly that.
+   * after coming off a different pattern, does this one come out right the first
+   * time round, or does it take two goes of fumbling to settle. Accuracy
+   * averaged over a long run hides exactly that.
+   *
+   * Still called `settledBar` because that is the name it is stored under in
+   * every daily log already written, and a field the app reads back from disk is
+   * not renamed for tidiness. Every pattern that existed when it was named was
+   * one bar long, so the two readings agreed.
    */
   settledBar: number | null;
 }
 
 /**
- * Bars a run needs before it is allowed an opinion.
+ * Times round the pattern a run needs before it is allowed an opinion.
  *
- * Four, because settling is the thing being measured and a two-bar run cannot
+ * Four, because settling is the thing being measured and two passes cannot
  * distinguish "came out right immediately" from "there was only time for one
- * attempt".
+ * attempt". For a two-bar phrase that is eight bars, which is the cost of asking
+ * the same question about a longer thing rather than a discount on it.
  */
-export const MIN_PATTERN_BARS = 4;
+export const MIN_PATTERN_PASSES = 4;
 
 const median = (values: readonly number[]): number => {
   if (!values.length) return 0;
@@ -289,11 +347,11 @@ const median = (values: readonly number[]): number => {
 };
 
 export function summarisePattern(outcomes: readonly SlotOutcome[], pattern: Pattern): PatternSummary {
-  const bars = outcomes.length ? Math.max(...outcomes.map((o) => o.bar)) + 1 : 0;
+  const passes = outcomes.length ? Math.max(...outcomes.map((o) => o.pass)) + 1 : 0;
   const empty: PatternSummary = {
-    enough: false, bars, slots: [], score: 0, expected: 0, played: 0, added: 0, settledBar: null,
+    enough: false, passes, slots: [], score: 0, expected: 0, played: 0, added: 0, settledBar: null,
   };
-  if (bars < MIN_PATTERN_BARS || !soundedSlots(pattern)) return empty;
+  if (passes < MIN_PATTERN_PASSES || !soundedSlots(pattern)) return empty;
 
   const slots: SlotReliability[] = pattern.slots.map((expected, slot) => {
     const mine = outcomes.filter((o) => o.slot === slot);
@@ -303,7 +361,7 @@ export function summarisePattern(outcomes: readonly SlotOutcome[], pattern: Patt
       expected,
       struck: mine.filter((o) => o.kind === 'hit' || o.kind === 'added').length,
       inTime: hits.filter((o) => o.inTime).length,
-      bars: mine.length,
+      passes: mine.length,
       medianMs: median(hits.map((o) => o.offsetMs ?? 0)),
     };
   });
@@ -313,17 +371,17 @@ export function summarisePattern(outcomes: readonly SlotOutcome[], pattern: Patt
   const inTime = outcomes.filter((o) => o.kind === 'hit' && o.inTime).length;
 
   let settledBar: number | null = null;
-  for (let bar = 0; bar < bars; bar += 1) {
-    const wanted = outcomes.filter((o) => o.bar === bar && o.expected !== null);
+  for (let pass = 0; pass < passes; pass += 1) {
+    const wanted = outcomes.filter((o) => o.pass === pass && o.expected !== null);
     if (wanted.length && wanted.every((o) => o.kind === 'hit' && o.inTime)) {
-      settledBar = bar;
+      settledBar = pass;
       break;
     }
   }
 
   return {
     enough: true,
-    bars,
+    passes,
     slots,
     score: expected ? Math.round((inTime / expected) * 100) : 0,
     expected,
@@ -341,9 +399,9 @@ export function summarisePattern(outcomes: readonly SlotOutcome[], pattern: Patt
  * one, matching the rule the rest of the app already uses for a change pair, and
  * for the same reason: one good run is a good day.
  *
- * `automatic` deliberately requires settling on the first bar, not merely a high
- * score. A pattern you recover by bar three is one you are working out; a
- * pattern that arrives whole is one you have.
+ * `automatic` deliberately requires settling on the first pass, not merely a
+ * high score. A pattern you recover on the third go is one you are working out;
+ * a pattern that arrives whole is one you have.
  */
 export type PatternStanding = 'new' | 'learning' | 'automatic';
 

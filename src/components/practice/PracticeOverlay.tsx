@@ -78,10 +78,15 @@ export function PracticeOverlay({ task, onClose }: Props) {
   // The deck this task deals from, and what the player's own history says about
   // each card in it. Snapshotted at mount, before this run is recorded, so a
   // standing on the deck cannot move under the player mid-session.
-  const patternDeck = useMemo(
-    () => (drill?.kind === 'strum-pattern' ? deckOf(drill.patterns) : []),
-    [drill],
-  );
+  const patternDeck = useMemo(() => {
+    if (drill?.kind !== 'strum-pattern') return [];
+    const state = useStore.getState();
+    const acc = state.accounts[state.currentAccountId];
+    return deckOf(drill.patterns, {
+      dailyLogs: acc ? drillLogsOf(acc) : {},
+      bpm: drill.bpm ?? DEFAULT_PRACTICE_BPM,
+    });
+  }, [drill]);
   const patternHistory = useMemo(() => {
     if (drill?.kind !== 'strum-pattern') return {};
     const state = useStore.getState();

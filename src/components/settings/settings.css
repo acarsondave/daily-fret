@@ -538,11 +538,24 @@
   color: var(--text-primary);
 }
 
-/* Beside a `flex: 1` name the strum was squeezed to one glyph wide and wrapped
-   into a vertical ladder. How a strum looks is StrumRow's own business now
-   (practice/strumRow.css); this is only about how it sits in this row. */
-.pattern-item .strum-row {
-  flex: 0 0 auto;
+/* The drill's own bar, at deck weight, so a pattern reads here exactly as it
+   will read when it is dealt. Fixed width beside a `flex: 1` name: a bar is a
+   measurement across eight slots and a share of the remaining row does not
+   give it one. How the bar itself looks is patternBar.css's business. */
+.pattern-item-bar {
+  flex: 0 0 132px;
+}
+
+/* What the field will make of what you typed. Full width, because this is the
+   thing being authored rather than a row in a list. */
+.pattern-add-preview {
+  margin-top: var(--space-1);
+}
+
+/* Nothing has been typed yet, so this is the placeholder drawn rather than
+   written. Quieter than a real entry, and never mistakable for one. */
+.pattern-add-preview.is-example {
+  opacity: 0.45;
 }
 
 .pattern-item-remove {
@@ -568,7 +581,10 @@
 }
 
 .pattern-add .task-input { flex: 1; min-width: 0; padding: var(--space-2) var(--space-3); font-size: var(--text-sm); }
-.pattern-add-code { flex: 0 1 110px; text-transform: uppercase; letter-spacing: 0.08em; }
+/* Wide enough for a two-bar phrase, which is sixteen characters at this
+   tracking. A field that scrolls under the cursor while you are typing the
+   pattern hides the half you are checking against the bar below. */
+.pattern-add-code { flex: 0 1 170px; text-transform: uppercase; letter-spacing: 0.08em; }
 
 .pattern-add-btn {
   flex: 0 0 auto;
@@ -587,13 +603,6 @@
 
 .pattern-add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .pattern-add-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-
-.pattern-hint {
-  font-family: var(--font-secondary);
-  font-size: var(--text-micro);
-  color: var(--text-secondary);
-  margin: 0;
-}
 
 /* Touch. On a coarse pointer every one of these is hit with a thumb while the
    other hand is holding a guitar, so they get the full 44px target. Sizes are

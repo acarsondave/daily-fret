@@ -12,7 +12,9 @@ import { runsFor } from '../store/completion';
 import { patternKey } from './drillKeys';
 import { BUILTIN_PATTERNS } from '../data/strumPatterns';
 import {
-  MIN_PATTERN_BARS,
+  MIN_PATTERN_PASSES,
+  SLOTS_PER_BAR,
+  parsePattern,
   patternStanding,
   type Pattern,
   type PatternRunRecord,
@@ -31,16 +33,78 @@ import {
  */
 export const DEFAULT_DECK_SIZE = 4;
 
-/** The patterns a drill will deal, config first. */
-export function deckOf(patterns: readonly string[] | undefined): string[] {
-  const chosen = patterns?.filter((p) => p.trim().length > 0) ?? [];
+/** Where a deck comes from when the task does not name one. */
+export interface DeckHistory {
+  dailyLogs: Record<string, DailyLog>;
+  /** The tempo the drill will run at. A standing is per tempo, so this decides it. */
+  bpm: number;
+}
+
+/**
+ * The patterns a drill will deal, config first.
+ *
+ * Anything the matcher cannot read is dropped here rather than downstream. A
+ * saved pattern is only a string, and a string the matcher refuses used to
+ * survive all the way into the run loop, where drawing it returned nothing and
+ * the drill sat waiting for a card that could never be dealt until the clock
+ * ran out. A deck of things that can be scored is the only deck worth having.
+ *
+ * With no deck stated, the player's own history picks one; see {@link workingDeck}.
+ * Without history either, the opening rungs, which is where everyone starts.
+ */
+export function deckOf(patterns: readonly string[] | undefined, history?: DeckHistory): string[] {
+  const chosen = patterns?.filter((p) => parsePattern(p) !== null) ?? [];
   if (chosen.length) return [...new Set(chosen)];
+  if (history) return workingDeck(history.dailyLogs, history.bpm);
   return BUILTIN_PATTERNS.slice(0, DEFAULT_DECK_SIZE).map((p) => p.pattern);
 }
 
-/** Bars each dealt pattern is played for. Never fewer than the matcher needs. */
-export function barsPerDeal(bars: number | undefined): number {
-  return Math.max(MIN_PATTERN_BARS, Math.round(bars ?? MIN_PATTERN_BARS));
+/**
+ * The rungs the player is actually on, read off the ladder and their own runs.
+ *
+ * "Stick with a few patterns, and add more as you practise." A deck of the first
+ * four rungs is right on the first day and wrong by the time three of them are
+ * automatic, because a card already automatic is time not spent on one that is
+ * not, and because the ladder past those four would then never be reached at
+ * all. So the deck walks the ladder from the bottom and takes what is unfinished.
+ *
+ * One finished rung is kept, and it is the highest: the switch is the exercise,
+ * and a switch needs something solid to switch away from. `dealNext` weights the
+ * unfinished cards far above it, so it is a reference point rather than a share
+ * of the practice.
+ *
+ * Nothing here makes the drill easier. A rung arrives only once the rungs below
+ * it are automatic at this tempo, which is a standard the player has already met
+ * three times running with the pattern arriving whole on the first pass.
+ */
+export function workingDeck(dailyLogs: Record<string, DailyLog>, bpm: number): string[] {
+  const rungs = BUILTIN_PATTERNS.map((p) => ({
+    pattern: p.pattern,
+    standing: patternStanding(patternRuns(dailyLogs, p.pattern, bpm)),
+  }));
+  const unfinished = rungs.filter((r) => r.standing !== 'automatic');
+  // Every rung owned. The top of the ladder is the only honest place left.
+  if (!unfinished.length) return rungs.slice(-DEFAULT_DECK_SIZE).map((r) => r.pattern);
+
+  const finished = rungs.filter((r) => r.standing === 'automatic');
+  const anchor = finished.length ? [finished[finished.length - 1].pattern] : [];
+  const room = DEFAULT_DECK_SIZE - anchor.length;
+  const working = unfinished.slice(0, room).map((r) => r.pattern);
+  // Ladder order, so the deck on screen reads the way the ladder does.
+  return BUILTIN_PATTERNS.map((p) => p.pattern).filter(
+    (p) => anchor.includes(p) || working.includes(p),
+  );
+}
+
+/**
+ * Times each dealt pattern comes round before the next is dealt.
+ *
+ * Never fewer than the matcher needs. A task states this as `bars`, which it was
+ * when every pattern was a bar; the number means the same thing it always did,
+ * which is how many goes the player gets at the card in front of them.
+ */
+export function passesPerDeal(bars: number | undefined): number {
+  return Math.max(MIN_PATTERN_PASSES, Math.round(bars ?? MIN_PATTERN_PASSES));
 }
 
 /**
@@ -87,10 +151,10 @@ export function deckCards(
 }
 
 /**
- * The share of bars a slot has to be struck in before the run counts as having
- * played it at all.
+ * The share of passes a slot has to be struck in before the run counts as
+ * having played it at all.
  *
- * A quarter, which is one bar in four: below that the slot is not one the
+ * A quarter, which is one pass in four: below that the slot is not one the
  * microphone caught intermittently, it is a slot nothing arrived in.
  */
 const HEARD_FRACTION = 0.25;
@@ -131,8 +195,8 @@ export function upStrumsUnheard(summary: PatternSummary): boolean {
   const ups = summary.slots.filter((s) => s.expected === 'U');
   const downs = summary.slots.filter((s) => s.expected === 'D');
   if (ups.length < MIN_UPS_FOR_LEVEL_CLAIM || downs.length === 0) return false;
-  const allUpsGone = ups.every((s) => s.bars > 0 && s.struck <= s.bars * HEARD_FRACTION);
-  const downsClean = downs.every((s) => s.bars > 0 && s.struck >= s.bars * CLEAN_FRACTION);
+  const allUpsGone = ups.every((s) => s.passes > 0 && s.struck <= s.passes * HEARD_FRACTION);
+  const downsClean = downs.every((s) => s.passes > 0 && s.struck >= s.passes * CLEAN_FRACTION);
   return allUpsGone && downsClean;
 }
 
@@ -144,12 +208,21 @@ export function upStrumsUnheard(summary: PatternSummary): boolean {
  * other way.
  */
 export function describePattern(pattern: Pattern): string {
-  const said = pattern.slots
-    .map((stroke, i) => {
-      if (!stroke) return null;
-      const count = i % 2 === 0 ? `${i / 2 + 1}` : 'and';
-      return `${stroke === 'D' ? 'down' : 'up'} on ${count}`;
-    })
-    .filter((s): s is string => s !== null);
-  return `${said.join(', ')}. The arm travels through the rest.`;
+  const bars: string[][] = [];
+  pattern.slots.forEach((stroke, i) => {
+    const bar = Math.floor(i / SLOTS_PER_BAR);
+    if (!bars[bar]) bars[bar] = [];
+    if (!stroke) return;
+    const within = i % SLOTS_PER_BAR;
+    const count = within % 2 === 0 ? `${within / 2 + 1}` : 'and';
+    bars[bar].push(`${stroke === 'D' ? 'down' : 'up'} on ${count}`);
+  });
+  // A two-bar phrase is counted 1 + 2 + 3 + 4 + twice over, so the count alone
+  // cannot say which of the two a strum is in. The bar is named only when there
+  // is more than one; a one-bar pattern reads exactly as it always did.
+  const said =
+    bars.length === 1
+      ? bars[0].join(', ')
+      : bars.map((strokes, i) => `Bar ${i + 1}, ${strokes.join(', ')}`).join('. ');
+  return `${said}. The arm travels through the rest.`;
 }

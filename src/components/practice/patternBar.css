@@ -36,6 +36,25 @@
   --pb-stem: 9px;
 }
 
+/* Sixteen slots across the same width. The glyph gives way, because sixteen of
+   them in a row is the notation and a bigger pick that sits on its neighbour
+   says nothing at all. The lane keeps its height: the arm's travel is what the
+   row is about and shortening it would flatten the zigzag into a line. */
+.pattern-bar.is-phrase {
+  --pb-pick: 26px;
+  --pb-stem: 15px;
+}
+
+.pattern-bar.is-phrase.is-card {
+  --pb-pick: 15px;
+  --pb-stem: 10px;
+}
+
+.pattern-bar.is-phrase.is-deck {
+  --pb-pick: 14px;
+  --pb-stem: 8px;
+}
+
 /* The glyph takes its size from the row, so a narrow phone shrinks it without
    the component knowing anything about viewports. */
 .pb-pick {
@@ -85,6 +104,18 @@
   top: 50%;
   left: 0;
   right: 0;
+}
+
+/* Where one bar hands over to the next, on a two-bar phrase. Taller than beat
+   one's stem and quieter than the picks either side of it: a landmark to find
+   your place against, not a mark to read. */
+.pb-barline {
+  position: absolute;
+  top: 50%;
+  width: 1px;
+  height: calc(var(--pb-stem) * 2.1);
+  transform: translate(-50%, -50%);
+  background: rgb(236 222 205 / 0.22);
 }
 
 /* `display: contents` so the marks position against the lane rather than
@@ -229,6 +260,18 @@
     --pb-pick: 15px;
     --pb-lane: 54px;
   }
+  .pattern-bar.is-phrase {
+    --pb-pick: 17px;
+    --pb-stem: 11px;
+  }
+  .pattern-bar.is-phrase.is-card {
+    --pb-pick: 14px;
+    --pb-stem: 9px;
+  }
+  .pattern-bar.is-phrase.is-deck {
+    --pb-pick: 10px;
+    --pb-stem: 6px;
+  }
   .pb-arm {
     height: 24px;
   }
@@ -238,5 +281,8 @@
   .pattern-bar {
     --pb-pick: 20px;
     --pb-lane: 106px;
+  }
+  .pattern-bar.is-phrase {
+    --pb-pick: 15px;
   }
 }

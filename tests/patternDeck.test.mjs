@@ -16,13 +16,15 @@ import {
 } from '../src/lib/drillKeys.ts';
 import {
   DEFAULT_DECK_SIZE,
-  barsPerDeal,
+  passesPerDeal,
   deckCards,
   deckOf,
+  describePattern,
   patternRuns,
   upStrumsUnheard,
+  workingDeck,
 } from '../src/lib/patternDeck.ts';
-import { MIN_PATTERN_BARS, matchPattern, parsePattern, summarisePattern } from '../src/lib/strumPattern.ts';
+import { MIN_PATTERN_PASSES, matchPattern, parsePattern, summarisePattern } from '../src/lib/strumPattern.ts';
 import { BUILTIN_PATTERNS } from '../src/data/strumPatterns.ts';
 import { applyMeasurements } from '../src/store/completion.ts';
 import { phaseAt } from '../src/audio/metronome.ts';
@@ -51,9 +53,9 @@ console.log('\nWhat a dealt pattern is filed under\n');
   check('it describes itself by the pattern a player would recognise',
     described.label === 'Old faithful · 80 BPM', described.label);
   check('with the unit its number carries', described.unit === '% in time', described.unit);
-  const own = describeDrillKey(patternKey('D-DUDU--', 90));
+  const own = describeDrillKey(patternKey('DUDU-UD-', 90));
   check('a pattern with no built-in name keeps its own string',
-    own.label === 'D-DUDU-- · 90 BPM', own.label);
+    own.label === 'DUDU-UD- · 90 BPM', own.label);
   check('rubbish after the prefix is refused, not guessed at',
     parsePatternKey('pattern:notapattern~80') === null);
   check('and a key with no tempo is refused too',
@@ -72,10 +74,90 @@ console.log('\nThe deck\n');
     deckOf(['DUDUDUDU', 'DUDUDUDU']).length === 1);
   check('an empty deck falls back rather than dealing nothing',
     deckOf([]).length === DEFAULT_DECK_SIZE);
+  // A saved pattern is only a string. One the matcher refuses used to reach the
+  // run loop, where it could never be dealt and the drill waited out the clock.
+  check('a card the matcher cannot read is not in the deck',
+    deckOf(['DUDUDUDU', 'DDUUDU']).join(' ') === 'DUDUDUDU',
+    deckOf(['DUDUDUDU', 'DDUUDU']).join(' '));
+  check('and a deck of nothing but those falls back to the ladder',
+    deckOf(['DDUUDU']).length === DEFAULT_DECK_SIZE);
 
   check('a deal is never shorter than the matcher will judge',
-    barsPerDeal(1) === MIN_PATTERN_BARS, String(barsPerDeal(1)));
-  check('and a task asking for longer gets it', barsPerDeal(8) === 8);
+    passesPerDeal(1) === MIN_PATTERN_PASSES, String(passesPerDeal(1)));
+  check('and a task asking for longer gets it', passesPerDeal(8) === 8);
+}
+
+// --- the deck the ladder and the history pick together ----------------------
+//
+// The ladder is longer than a deck. Which four cards a player gets is therefore
+// a decision, and this is the one thing here that could quietly make the drill
+// easier or quietly strand the top of the ladder where nobody reaches it.
+console.log('\nThe deck a player has earned\n');
+{
+  const RUNGS = BUILTIN_PATTERNS.map((p) => p.pattern);
+  const owned = (patterns, bpm) => {
+    let day = { date: '2026-08-01', routineId: 'r1', completedTaskIds: [] };
+    // Three clean runs, each arriving whole on the first pass: the standard
+    // `patternStanding` calls automatic.
+    for (const pattern of patterns) {
+      for (let i = 0; i < 3; i += 1) {
+        day = applyMeasurements(day, 't1', [{ key: patternKey(pattern, bpm), value: 95, settledBar: 0 }], 1);
+      }
+    }
+    return { '2026-08-01': day };
+  };
+
+  check('a player with no history gets the opening rungs',
+    workingDeck({}, 80).join(' ') === RUNGS.slice(0, DEFAULT_DECK_SIZE).join(' '),
+    workingDeck({}, 80).join(' '));
+  check('and deckOf with no stated deck agrees with it',
+    deckOf(undefined, { dailyLogs: {}, bpm: 80 }).join(' ') === workingDeck({}, 80).join(' '));
+
+  const three = workingDeck(owned(RUNGS.slice(0, 3), 80), 80);
+  check('owning the first three rungs moves the deck up the ladder',
+    three.join(' ') === [RUNGS[2], RUNGS[3], RUNGS[4], RUNGS[5]].join(' '), three.join(' '));
+  check('the hardest rung owned is kept, because the switch is the exercise',
+    three[0] === RUNGS[2]);
+  check('and the deck never grows past its size', three.length === DEFAULT_DECK_SIZE);
+
+  check('a standing earned at one tempo does not move the deck at another',
+    workingDeck(owned(RUNGS.slice(0, 3), 80), 120).join(' ')
+      === RUNGS.slice(0, DEFAULT_DECK_SIZE).join(' '));
+
+  const all = workingDeck(owned(RUNGS, 80), 80);
+  check('a player who owns the whole ladder gets its top',
+    all.join(' ') === RUNGS.slice(-DEFAULT_DECK_SIZE).join(' '), all.join(' '));
+
+  // The two-bar rungs sit at the top of the ladder. If nothing reaches them the
+  // whole of the phrase work is unreachable, which is the failure this guards.
+  const phrases = RUNGS.filter((p) => p.length === 16);
+  check('the ladder has phrases at the top', phrases.length > 0);
+  check('and a player who owns everything below them is dealt them',
+    phrases.every((p) => all.includes(p)), all.join(' '));
+
+  // A task that names its own deck still wins. A routine that asks for one
+  // pattern must get that pattern, not a guess from the history.
+  check('a stated deck is never overridden by history',
+    deckOf(['DUDUDUDU'], { dailyLogs: owned(RUNGS, 80), bpm: 80 }).join(' ') === 'DUDUDUDU');
+}
+
+// --- the row in words -------------------------------------------------------
+//
+// The visual UI and the spoken path are each meant to be complete, and a row of
+// picks is the one thing on this drill a screen reader cannot reach any other
+// way. A phrase counted 1 + 2 + 3 + 4 + twice over needs its bars named or the
+// same count means two different places.
+console.log('\nThe row in words\n');
+{
+  const bar = describePattern(parsePattern('D-DU-UD-'));
+  check('a bar names each strum by its count',
+    bar === 'down on 1, down on 2, up on and, up on and, down on 4. The arm travels through the rest.',
+    bar);
+  const phrase = describePattern(parsePattern('D-DU-UD-D-DU-UDU'));
+  check('a two-bar phrase says which bar each half is',
+    phrase.startsWith('Bar 1, down on 1') && phrase.includes('Bar 2, down on 1'), phrase);
+  check('and its last slot is the "and" of four in the second bar',
+    phrase.endsWith('up on and. The arm travels through the rest.'), phrase);
 }
 
 console.log('\nWhat the history says about each card\n');
@@ -132,19 +214,20 @@ console.log('\nUp strums too quiet to hear\n');
 const GRID = { origin: 1, period: 60 / 80, clicks: 40 };
 
 /** A run of `pattern` where `play(slot)` decides whether each slot sounded. */
-function summaryOf(patternText, bars, play) {
+function summaryOf(patternText, passes, play) {
   const pattern = parsePattern(patternText);
-  const slotPeriod = (GRID.period * 4) / pattern.slots.length;
+  const slotPeriod = GRID.period / 2;
+  const length = pattern.slots.length;
   const onsets = [];
-  for (let bar = 0; bar < bars; bar += 1) {
-    for (let slot = 0; slot < pattern.slots.length; slot += 1) {
-      if (!pattern.slots[slot] || !play(slot, bar)) continue;
+  for (let pass = 0; pass < passes; pass += 1) {
+    for (let slot = 0; slot < length; slot += 1) {
+      if (!pattern.slots[slot] || !play(slot, pass)) continue;
       const lag = (pattern.slots[slot] === 'U' ? 3 : 23) / 1000;
-      onsets.push(GRID.origin + bar * 4 * GRID.period + slot * slotPeriod + lag);
+      onsets.push(GRID.origin + (pass * length + slot) * slotPeriod + lag);
     }
   }
   return summarisePattern(
-    matchPattern({ onsets, grid: GRID, pattern, originBeat: 0, bars }),
+    matchPattern({ onsets, grid: GRID, pattern, originBeat: 0, passes }),
     pattern,
   );
 }
@@ -156,7 +239,7 @@ function summaryOf(patternText, bars, play) {
   const noUps = summaryOf('D-DU-UD-', 8, (slot) => slot !== 3 && slot !== 5);
   check('a run where the ups all went missing is', upStrumsUnheard(noUps));
   check('and the downs around them are reported clean',
-    noUps.slots.filter((s) => s.expected === 'D').every((s) => s.struck === s.bars));
+    noUps.slots.filter((s) => s.expected === 'D').every((s) => s.struck === s.passes));
 
   const oneUpGone = summaryOf('D-DU-UD-', 8, (slot) => slot !== 5);
   check('one up strum going missing is a dropped strum, not a level problem',

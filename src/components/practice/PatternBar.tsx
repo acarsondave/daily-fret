@@ -1,11 +1,16 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import clsx from 'clsx';
 import { ICON_STROKE } from '../icons/Icon';
 import { SLOTS_PER_BAR, type Pattern, type SlotStroke } from '../../lib/strumPattern';
 import './patternBar.css';
 
 /**
- * One bar of eight eighth-note slots, and the arm travelling through them.
+ * A phrase of eighth-note slots, and the arm travelling through them.
+ *
+ * One bar of eight, usually. A two-bar phrase is drawn as one continuous lane
+ * of sixteen with a rule where the bar changes, because that is what it is: the
+ * arm does not stop at the bar line and neither should the row. Nothing else
+ * about the notation changes with the length.
  *
  * This is the drill's whole notation, and every part of it stands in for a
  * sentence the screen would otherwise have to carry.
@@ -66,7 +71,7 @@ export type BarSize = 'live' | 'card' | 'deck';
 interface Props {
   pattern: Pattern;
   /**
-   * Where the arm is, in slots from the start of the bar, read once per frame.
+   * Where the arm is, in slots from the start of the phrase, read once a frame.
    *
    * A function rather than a number because the arm moves continuously and the
    * rest of the row does not: reading it here and writing the marker's style
@@ -123,10 +128,6 @@ function Pick({ up, filled }: { up: boolean; filled: boolean }) {
   );
 }
 
-/** The x of a slot's centre, as a percentage of the bar. */
-const centreOf = (slot: number, offset = 0): string =>
-  `${((slot + 0.5 + offset) / SLOTS_PER_BAR) * 100}%`;
-
 export function PatternBar({
   pattern,
   sweepAt,
@@ -137,6 +138,14 @@ export function PatternBar({
   label,
 }: Props) {
   const armRef = useRef<HTMLSpanElement | null>(null);
+  const length = pattern.slots.length;
+  const bars = length / SLOTS_PER_BAR;
+
+  /** The x of a slot's centre, as a percentage of the whole phrase. */
+  const centreOf = useCallback(
+    (slot: number, offset = 0): string => `${((slot + 0.5 + offset) / length) * 100}%`,
+    [length],
+  );
 
   // The arm, from one number, written straight to the element. Inside a slot it
   // travels from one extreme to the other and crosses the strings at the slot's
@@ -153,7 +162,7 @@ export function PatternBar({
         arm.style.opacity = '0';
         return;
       }
-      const phase = ((at % SLOTS_PER_BAR) + SLOTS_PER_BAR) % SLOTS_PER_BAR;
+      const phase = ((at % length) + length) % length;
       const inSlot = phase % 1;
       const descending = Math.floor(phase) % 2 === 0;
       const travel = descending ? inSlot * 2 - 1 : 1 - inSlot * 2;
@@ -162,23 +171,43 @@ export function PatternBar({
       arm.style.transform = `translate(-50%, calc(-50% + ${travel * 46}%))`;
     });
     return () => cancelAnimationFrame(frame);
-  }, [sweepAt]);
+  }, [sweepAt, length, centreOf]);
 
   return (
     <div
-      className={clsx('pattern-bar', `is-${size}`, standing && `is-${standing}`, className)}
+      className={clsx(
+        'pattern-bar',
+        `is-${size}`,
+        bars > 1 && 'is-phrase',
+        standing && `is-${standing}`,
+        className,
+      )}
       role="img"
       aria-label={label}
     >
       <div className="pb-lane">
-        {/* The count, drawn rather than written: a full stem on beat one, a
-            shorter one on the other beats, a short one on every "and". The row
+        {/* The count, drawn rather than written: a full stem on every beat one,
+            a shorter one on the other beats, a short one on every "and". The row
             reads as 1 + 2 + 3 + 4 + without any of it being text. */}
         {pattern.slots.map((_, slot) => (
           <span
             key={`stem-${slot}`}
-            className={clsx('pb-stem', slot === 0 ? 'is-one' : slot % 2 === 0 ? 'is-beat' : 'is-and')}
+            className={clsx(
+              'pb-stem',
+              slot % SLOTS_PER_BAR === 0 ? 'is-one' : slot % 2 === 0 ? 'is-beat' : 'is-and',
+            )}
             style={{ left: centreOf(slot) }}
+          />
+        ))}
+
+        {/* Where one bar ends and the next begins. Only ever drawn on a phrase:
+            on a single bar the row's own edges are the bar lines, and a rule
+            through the middle of it would say a division that is not there. */}
+        {Array.from({ length: bars - 1 }, (_, i) => (
+          <span
+            key={`barline-${i}`}
+            className="pb-barline"
+            style={{ left: `${((i + 1) / bars) * 100}%` }}
           />
         ))}
 

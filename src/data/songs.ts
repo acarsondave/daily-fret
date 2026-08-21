@@ -488,10 +488,42 @@ const getLucky: Song = {
   title: 'Get Lucky',
   artist: 'Daft Punk',
   level: 'Beginner',
-  // The sheet gives two patterns, both with muted strums the app's D/U/- alphabet
-  // cannot write. This is the closest bar it can hold, and it is the top rung of
-  // the built-in ladder, so it is one he is already climbing towards.
-  strum: 'D-DU-UDU',
+  // THE STRUM, AND HOW NINE STRUMS BECAME SIXTEEN SLOTS. The pattern played
+  // against this song is nine strums, written down as "D DDU UDDDU". Nine is not
+  // a bar of anything, so the question is what it is nine of.
+  //
+  // It is a direction sequence with the ghosts left out, which is the same
+  // shorthand every other `strum` in this file already uses: `DDUUDU` here is
+  // `D-DU-UDU` written without its rests, and expanding it is mechanical because
+  // the arm is a pendulum. A down can only land on an even slot and an up on an
+  // odd one, so each strum takes the next slot of its own direction and the
+  // ghosts fall out of the arithmetic rather than being chosen.
+  //
+  // Run that on D D D U U D D D U and it lands on sixteen slots exactly, with no
+  // slack at either end: `D-D-DU-U` then `D-D-DU--`. Two bars, differing by one
+  // strum on the last slot, which is "Exploring Strumming"'s own description of
+  // a phrase ("your strumming pattern should stay the same most of the time, but
+  // this change will make it pop"). The exactness is the argument: a wrong
+  // reading would not fill a whole number of bars.
+  //
+  // WHAT IS STILL UNCERTAIN. The record is sixteenth-note funk, and the same
+  // nine strums read as sixteenths would fill one bar rather than two, at double
+  // the speed. Sixteenths are not the Module 5 mechanic and not what the drill
+  // grades against, so the two-bar reading is the one taken, here and on the
+  // pattern ladder. If the video is counting in sixteenths the shape is
+  // identical and only the tempo it is held at changes.
+  //
+  // The sheet also gives two patterns with muted strums, which this alphabet
+  // cannot write; a muted strum still reaches the microphone as an onset, so
+  // nothing is lost in the grading, only in the notation.
+  //
+  // WHY THIS FIELD IS ONLY THE FIRST BAR OF IT. A song's `strum` is the default
+  // for one bar and this chart holds one chord to a bar, so the whole phrase
+  // written here would put both of its bars under every single chord. The full
+  // two-bar phrase is the `get-lucky` rung in src/data/strumPatterns.ts, where a
+  // pattern is allowed to be two bars long; this is its first bar, which the
+  // second differs from by one strum on the last slot.
+  strum: 'D-D-DU-U',
   capo: 2,
   bpm: 116,
   chords: ['Am', 'C', 'Em', 'D'],

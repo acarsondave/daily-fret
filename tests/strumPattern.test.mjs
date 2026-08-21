@@ -21,7 +21,7 @@ import {
   SLOTS_PER_BAR,
   DOWN_DETECTION_LAG_MS,
   UP_DETECTION_LAG_MS,
-  MIN_PATTERN_BARS,
+  MIN_PATTERN_PASSES,
 } from '../src/lib/strumPattern.ts';
 import { TimingAnalyser, TIMING_FRAME_SIZE } from '../src/audio/timing.ts';
 import { renderClick, VOICES, accentFor } from '../src/audio/metronome.ts';
@@ -53,7 +53,25 @@ console.log('\nReading a pattern\n');
   check('six characters are refused, not padded', parsePattern('D-DUD-') === null);
   check('an up on a quarter is refused', parsePattern('DUDU') === null);
   check('rubbish is refused', parsePattern('DXDU-UD-') === null);
+  // The arm cannot be going up on a downbeat, so this is not a hard pattern, it
+  // is an impossible one. Taken as written it would draw a pick facing the wrong
+  // way and subtract the up strum's detection lag from a down stroke.
+  check('an up strum on a downbeat is refused', parsePattern('U-DU-UD-') === null);
+  check('a down strum on an offbeat is refused', parsePattern('D-DD-UD-') === null);
   check('the source string is carried through unchanged', parsePattern('D-DU-UD-')?.source === 'D-DU-UD-');
+
+  // Every length the alphabet may be, at the edges. Four is a bar of quarters,
+  // eight is a bar, sixteen is the two-bar phrase "Exploring Strumming" asks
+  // for, and nothing between or beyond those is a phrase anybody counted.
+  const phrase = parsePattern('D-DU-UD-D-DU-UDU');
+  check('sixteen characters are two bars', phrase?.slots.length === SLOTS_PER_BAR * 2);
+  check('and the second bar is read as its own half',
+    phrase?.slots[15] === 'U' && phrase?.slots[7] === null);
+  check('twelve characters are refused', parsePattern('D-DU-UD-D-DU') === null);
+  check('twenty-four are refused too',
+    parsePattern('D-DU-UD-D-DU-UD-D-DU-UD-') === null);
+  check('and the parity rule holds across the bar line',
+    parsePattern('D-DU-UD-U-DU-UD-') === null);
 }
 
 // --- scoring, with the answers known ---------------------------------------
@@ -62,25 +80,27 @@ console.log('\nScoring a take whose answer is known\n');
 const GRID = { origin: 1, period: 60 / 80, clicks: 40 };
 
 /** Onsets for a run, with a per-slot decision about what the player did. */
-function play(pattern, bars, { offsetMs = () => 0, drop = () => false, add = () => false } = {}) {
+function play(pattern, passes, { offsetMs = () => 0, drop = () => false, add = () => false } = {}) {
   const onsets = [];
-  const slotPeriod = (GRID.period * 4) / pattern.slots.length;
-  for (let bar = 0; bar < bars; bar += 1) {
-    for (let slot = 0; slot < pattern.slots.length; slot += 1) {
+  // A slot is an eighth note whatever the phrase is: half a beat, always.
+  const slotPeriod = GRID.period / 2;
+  const length = pattern.slots.length;
+  for (let pass = 0; pass < passes; pass += 1) {
+    for (let slot = 0; slot < length; slot += 1) {
       const expected = pattern.slots[slot];
-      const at = GRID.origin + (bar * 4 * GRID.period) + slot * slotPeriod;
+      const at = GRID.origin + (pass * length + slot) * slotPeriod;
       // The player strikes; the analyser hears it a little later, by an amount
       // that depends on which way the hand was going.
       const lag = (expected === 'U' ? UP_DETECTION_LAG_MS : DOWN_DETECTION_LAG_MS) / 1000;
-      if (expected && !drop(bar, slot)) onsets.push(at + lag + offsetMs(bar, slot) / 1000);
-      if (!expected && add(bar, slot)) onsets.push(at + DOWN_DETECTION_LAG_MS / 1000);
+      if (expected && !drop(pass, slot)) onsets.push(at + lag + offsetMs(pass, slot) / 1000);
+      if (!expected && add(pass, slot)) onsets.push(at + DOWN_DETECTION_LAG_MS / 1000);
     }
   }
   return onsets;
 }
 
-const run = (pattern, onsets, bars) =>
-  summarisePattern(matchPattern({ onsets, grid: GRID, pattern, originBeat: 0, bars }), pattern);
+const run = (pattern, onsets, passes) =>
+  summarisePattern(matchPattern({ onsets, grid: GRID, pattern, originBeat: 0, passes }), pattern);
 
 {
   const oldFaithful = parsePattern('D-DU-UD-');
@@ -88,7 +108,7 @@ const run = (pattern, onsets, bars) =>
   check('a perfect Old Faithful scores 100', perfect.score === 100, String(perfect.score));
   check('the empty slots are not counted against it', perfect.expected === 5 * 8, String(perfect.expected));
   check('nothing is reported as added', perfect.added === 0, String(perfect.added));
-  check('it settles on the first bar', perfect.settledBar === 0, String(perfect.settledBar));
+  check('it settles the first time round', perfect.settledBar === 0, String(perfect.settledBar));
 
   const downs = parsePattern('DDDD');
   const allDowns = run(downs, play(downs, 8), 8);
@@ -108,7 +128,7 @@ const run = (pattern, onsets, bars) =>
   const p = parsePattern('D-DU-UD-');
   const LAST_UP = 5;
   check('the slot under test really is the last up strum', p.slots[LAST_UP] === 'U');
-  const summary = run(p, play(p, 8, { drop: (_bar, slot) => slot === LAST_UP }), 8);
+  const summary = run(p, play(p, 8, { drop: (_pass, slot) => slot === LAST_UP }), 8);
   check('dropping the last up costs exactly its share', summary.score === 80, String(summary.score));
   check('and the slot itself reports never being struck',
     summary.slots[LAST_UP].struck === 0, String(summary.slots[LAST_UP].struck));
@@ -118,12 +138,12 @@ const run = (pattern, onsets, bars) =>
 }
 
 {
-  // Two bars of fumbling, then it locks in. This is the difference between a
+  // Two goes of fumbling, then it locks in. This is the difference between a
   // pattern you are working out and one you have.
   const p = parsePattern('D-DU-UD-');
-  const onsets = play(p, 8, { offsetMs: (bar) => (bar < 2 ? 90 : 5) });
+  const onsets = play(p, 8, { offsetMs: (pass) => (pass < 2 ? 90 : 5) });
   const summary = run(p, onsets, 8);
-  check('a run that settles late says which bar it settled on', summary.settledBar === 2, String(summary.settledBar));
+  check('a run that settles late says which pass it settled on', summary.settledBar === 2, String(summary.settledBar));
   check('and does not score as if it were clean throughout', summary.score < 100, String(summary.score));
 }
 
@@ -131,7 +151,7 @@ const run = (pattern, onsets, bars) =>
   // "You can add in extra strums and leave others out." An added strum is a
   // variation, and must not cost anything.
   const p = parsePattern('D-DU-UD-');
-  const summary = run(p, play(p, 8, { add: (_bar, slot) => slot === 4 }), 8);
+  const summary = run(p, play(p, 8, { add: (_pass, slot) => slot === 4 }), 8);
   check('an added strum is counted', summary.added === 8, String(summary.added));
   check('and does not reduce the score', summary.score === 100, String(summary.score));
 }
@@ -139,8 +159,37 @@ const run = (pattern, onsets, bars) =>
 {
   const p = parsePattern('D-DU-UD-');
   const short = run(p, play(p, 2), 2);
-  check(`under ${MIN_PATTERN_BARS} bars nothing is claimed`, short.enough === false);
+  check(`under ${MIN_PATTERN_PASSES} goes nothing is claimed`, short.enough === false);
   check('and the score is not reported', short.score === 0, String(short.score));
+}
+
+{
+  // A two-bar phrase, scored end to end. The thing that would break silently is
+  // the slot period: read the sixteen slots as one bar and every one of them is
+  // a sixteenth note, which puts the whole phrase at double speed and scores a
+  // perfect take as a total miss.
+  const phrase = parsePattern('D-DU-UD-D-DU-UDU');
+  const perfect = run(phrase, play(phrase, 4), 4);
+  check('a perfect two-bar phrase scores 100', perfect.score === 100, String(perfect.score));
+  check('both bars are counted, not just the first',
+    perfect.expected === 11 * 4, String(perfect.expected));
+  check('it settles the first time round', perfect.settledBar === 0, String(perfect.settledBar));
+  check('nothing is invented in its ghost slots', perfect.added === 0, String(perfect.added));
+
+  // The last slot is the only thing that separates this phrase's two bars, so
+  // dropping it is the test that the second bar is really being read as its own.
+  const dropped = run(phrase, play(phrase, 4, { drop: (_pass, slot) => slot === 15 }), 4);
+  check('a strum missed in the second bar lands on the second bar',
+    dropped.slots[15].struck === 0 && dropped.slots[7].expected === null,
+    `${dropped.slots[15].struck}`);
+  check('and costs exactly its own share', dropped.score === Math.round((10 / 11) * 100),
+    String(dropped.score));
+
+  // Four goes at a two-bar phrase is eight bars of playing. Three is not enough,
+  // for the same reason three bars of a one-bar pattern was not.
+  const short = run(phrase, play(phrase, 3), 3);
+  check('three goes at a phrase is still not enough to claim anything',
+    short.enough === false);
 }
 
 {
@@ -163,7 +212,7 @@ const run = (pattern, onsets, bars) =>
       grid: GRID,
       pattern: { ...p, slots: p.slots.map((s) => (s === 'U' ? 'D' : s)) },
       originBeat: 0,
-      bars: 8,
+      passes: 8,
     }),
     p,
   );
@@ -222,31 +271,36 @@ function strike(audio, atSec, chord, { up, amp, period, seed }) {
   });
 }
 
-function takeOf(patternText, { bpm = 80, bars = 8, upAmp = 0.36, drop = () => false } = {}) {
+function takeOf(patternText, { bpm = 80, passes = 8, upAmp = 0.36, drop = () => false } = {}) {
   const pattern = parsePattern(patternText);
+  const length = pattern.slots.length;
   const beat = 60 / bpm;
   const eighth = beat / 2;
   const lead = 0.6;
-  const total = Math.ceil((lead + bars * 4 * beat + 1.5) * RATE);
+  const beats = (passes * length) / 2;
+  const total = Math.ceil((lead + beats * beat + 1.5) * RATE);
   const audio = new Float32Array(total);
   let seed = 4242;
   const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 0x100000000; };
-  for (let b = 0; b < bars * 4; b += 1) {
+  for (let b = 0; b < beats; b += 1) {
     const s = renderClick(VOICES[accentFor(b, 4)], RATE, random);
     const start = Math.round((lead + b * beat) * RATE);
     for (let i = 0; i < s.length && start + i < total; i += 1) audio[start + i] += s[i];
   }
-  for (let bar = 0; bar < bars; bar += 1) {
-    for (let slot = 0; slot < SLOTS_PER_BAR; slot += 1) {
+  for (let pass = 0; pass < passes; pass += 1) {
+    for (let slot = 0; slot < length; slot += 1) {
       const expected = pattern.slots[slot];
-      if (!expected || drop(bar, slot)) continue;
-      strike(audio, lead + bar * 4 * beat + slot * eighth, 'Am', {
-        up: expected === 'U', amp: expected === 'U' ? upAmp : 0.5, period: beat, seed: 7 + bar * 8 + slot,
+      if (!expected || drop(pass, slot)) continue;
+      strike(audio, lead + (pass * length + slot) * eighth, 'Am', {
+        up: expected === 'U',
+        amp: expected === 'U' ? upAmp : 0.5,
+        period: beat,
+        seed: 7 + pass * SLOTS_PER_BAR + slot,
       });
     }
   }
   addRoom(audio, 0.0015, 11);
-  return { audio, pattern, lead, beat, bars };
+  return { audio, pattern, lead, beat, passes };
 }
 
 function analyse(audio) {
@@ -264,9 +318,9 @@ function measure(patternText, opts = {}) {
   const { strums, clicks } = analyse(t.audio);
   const grid = fitBeatGrid(clicks, t.beat);
   if (!grid) return { grid: null };
-  // Bar zero starts on the first beat the run actually used.
+  // The pattern's first slot sits on the first beat the run actually used.
   const originBeat = Math.round((t.lead - grid.origin) / grid.period);
-  const outcomes = matchPattern({ onsets: strums, grid, pattern: t.pattern, originBeat, bars: t.bars });
+  const outcomes = matchPattern({ onsets: strums, grid, pattern: t.pattern, originBeat, passes: t.passes });
   return { grid, summary: summarisePattern(outcomes, t.pattern), strums: strums.length };
 }
 
@@ -274,13 +328,25 @@ function measure(patternText, opts = {}) {
   const of = measure('D-DU-UD-');
   check('the click is still found under a pattern', of.grid !== null);
   check('a well played Old Faithful scores at least 90', of.summary.score >= 90, String(of.summary.score));
-  check('every sounded slot is found in most bars',
-    of.summary.slots.filter((s) => s.expected).every((s) => s.struck >= s.bars - 1),
-    of.summary.slots.filter((s) => s.expected).map((s) => `${s.slot}:${s.struck}/${s.bars}`).join(' '));
+  check('every sounded slot is found in nearly every pass',
+    of.summary.slots.filter((s) => s.expected).every((s) => s.struck >= s.passes - 1),
+    of.summary.slots.filter((s) => s.expected).map((s) => `${s.slot}:${s.struck}/${s.passes}`).join(' '));
   check('and nothing is invented in the ghost slots', of.summary.added === 0, String(of.summary.added));
 
   const busy = measure('D-DUDUD-');
   check('a busier pattern also scores at least 90', busy.summary.score >= 90, String(busy.summary.score));
+
+  // A two-bar phrase through the real analyser, not only through hand-placed
+  // onsets. A phrase read at the wrong resolution still produces a number, and
+  // the number would be the drill blaming the player for the drill's arithmetic.
+  const phrase = measure('D-DU-UD-D-DU-UDU', { passes: 4 });
+  check('a two-bar phrase scores at least 90 on real audio',
+    phrase.summary.score >= 90, String(phrase.summary.score));
+  check('and every one of its sixteen slots is judged',
+    phrase.summary.slots.length === SLOTS_PER_BAR * 2, String(phrase.summary.slots.length));
+  check('with the second bar found as reliably as the first',
+    phrase.summary.slots.slice(8).filter((s) => s.expected).every((s) => s.struck >= s.passes - 1),
+    phrase.summary.slots.slice(8).filter((s) => s.expected).map((s) => `${s.slot}:${s.struck}/${s.passes}`).join(' '));
 
   // The one that matters most: the drill must notice a dropped final up strum
   // on real audio, not just on hand-placed onsets.
@@ -294,10 +360,10 @@ function measure(patternText, opts = {}) {
   // heard, and the drill must be able to tell that from a player who skipped them.
   const faint = measure('D-DU-UD-', { upAmp: 0.16 });
   const upSlots = faint.summary.slots.filter((s) => s.expected === 'U');
-  check('up strums played far too softly go missing', upSlots.some((s) => s.struck < s.bars),
-    upSlots.map((s) => `${s.slot}:${s.struck}/${s.bars}`).join(' '));
+  check('up strums played far too softly go missing', upSlots.some((s) => s.struck < s.passes),
+    upSlots.map((s) => `${s.slot}:${s.struck}/${s.passes}`).join(' '));
   check('while the downs around them stay clean',
-    faint.summary.slots.filter((s) => s.expected === 'D').every((s) => s.struck >= s.bars - 1));
+    faint.summary.slots.filter((s) => s.expected === 'D').every((s) => s.struck >= s.passes - 1));
 }
 
 console.log(failures ? `\n${failures} failed\n` : '\nall passed\n');
