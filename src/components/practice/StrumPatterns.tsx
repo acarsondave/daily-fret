@@ -7,8 +7,9 @@ import { diag, DIAG_CODE } from '../../audio/diagnostics';
 import { sfx } from '../../audio/sfx';
 import { fitBeatGrid, type BeatGrid } from '../../lib/strumTiming';
 import {
-  MIN_PATTERN_BARS,
+  MIN_PATTERN_PASSES,
   SLOTS_PER_BAR,
+  barsIn,
   dealNext,
   matchPattern,
   parsePattern,
@@ -20,7 +21,7 @@ import {
   type PatternSummary,
   type SlotOutcome,
 } from '../../lib/strumPattern';
-import { barsPerDeal, describePattern, upStrumsUnheard } from '../../lib/patternDeck';
+import { describePattern, passesPerDeal, upStrumsUnheard } from '../../lib/patternDeck';
 import { patternName } from '../../data/strumPatterns';
 import { useStore } from '../../store';
 import { PatternBar, type SlotView } from './PatternBar';
@@ -47,7 +48,7 @@ const TICK_MS = 40;
 
 type View = 'deck' | 'playing' | 'results';
 
-/** One pattern, dealt and played for its bars. */
+/** One pattern, dealt and played for its passes. */
 export interface PatternDeal {
   pattern: string;
   score: number;
@@ -110,9 +111,14 @@ interface PatternReport {
  * eighth-note pendulum from the elbow, and the pattern is only which of the
  * eight slots you let the pick touch the strings on. Everything on this surface
  * follows from that. The click runs through the whole drill, a pattern is dealt
- * for four bars, the next one appears a bar before the last one ends so the arm
- * never has to stop to read anything, and the marker crossing the strings keeps
- * going whether or not the slot it is crossing sounds.
+ * for four goes at it, the next one appears a bar before the last one ends so
+ * the arm never has to stop to read anything, and the marker crossing the
+ * strings keeps going whether or not the slot it is crossing sounds.
+ *
+ * A pattern is usually one bar and may be two ("Exploring Strumming" asks for a
+ * variation on the repeat). Nothing above changes when it is: a go at the card
+ * is one time round the phrase, so a two-bar phrase simply takes two bars to
+ * come round, and the warning before the switch stays one bar either way.
  *
  * Nothing here reports a percentage as the result. A single number cannot say
  * the thing the drill is for, which is which slot the arm is dropping and which
@@ -135,7 +141,7 @@ export function StrumPatterns({
 }: Props) {
   const { status, route, error, start, stop } = useStrumTiming();
   const duration = config?.durationSec ?? 60;
-  const bars = barsPerDeal(config?.bars);
+  const passes = passesPerDeal(config?.bars);
   const custom = useStore((s) => s.accounts[s.currentAccountId]?.strumPatterns ?? []);
 
   const [view, setView] = useState<View>(autoStart ? 'playing' : 'deck');
@@ -155,7 +161,8 @@ export function StrumPatterns({
   const [waiting, setWaiting] = useState<Pattern | null>(null);
   const [next, setNext] = useState<Pattern | null>(null);
   const [dealId, setDealId] = useState(0);
-  const [bar, setBar] = useState(0);
+  /** Which time round the pattern the deal is on, from zero. */
+  const [pass, setPass] = useState(0);
   const [outcomes, setOutcomes] = useState<SlotOutcome[]>([]);
   const [passedSlot, setPassedSlot] = useState(-1);
   const [deaf, setDeaf] = useState(false);
@@ -202,18 +209,26 @@ export function StrumPatterns({
   const slotMs = ((60 / tempo) * 1000 * BEATS_PER_BAR) / SLOTS_PER_BAR;
 
   /**
-   * Where the arm is, in slots, read on every frame by the bar itself.
+   * Where the arm is, in slots from the start of the phrase, read every frame.
    *
    * Off the metronome rather than off the microphone. The arm is what the click
    * is asking for, so it belongs to the click's own clock, and reading it there
    * costs no capture latency at all. What the microphone heard is a separate
    * question and is drawn separately.
+   *
+   * Counted from the bar the card was dealt on rather than from the click's own
+   * bar. For a one-bar pattern those are the same number; for a two-bar phrase
+   * only the first says which half of it the arm is in.
    */
   const sweepAt = useCallback((): number | null => {
     const phase = metronome.phase();
-    if (!phase) return null;
-    const beat = ((phase.position % BEATS_PER_BAR) + BEATS_PER_BAR) % BEATS_PER_BAR;
-    return (beat + phase.sinceSeconds / phase.secondsPerBeat) * (SLOTS_PER_BAR / BEATS_PER_BAR);
+    const deal = dealRef.current;
+    if (!phase || !deal) return null;
+    const beatsIn =
+      phase.position - deal.startBar * BEATS_PER_BAR + phase.sinceSeconds / phase.secondsPerBeat;
+    const length = deal.pattern.slots.length;
+    const at = beatsIn * (SLOTS_PER_BAR / BEATS_PER_BAR);
+    return ((at % length) + length) % length;
   }, []);
 
   const standingOf = useCallback(
@@ -262,7 +277,7 @@ export function StrumPatterns({
       grid,
       pattern: deal.pattern,
       originBeat: deal.originBeat,
-      bars,
+      passes,
     });
     diag.timing(DIAG_CODE.STRUM_TIMED, 0);
     setOutcomes(found);
@@ -277,7 +292,7 @@ export function StrumPatterns({
       grid,
       pattern: deal.pattern,
       originBeat: deal.originBeat,
-      bars,
+      passes,
     });
     const summary = summarisePattern(found, deal.pattern);
     const unheard = upStrumsUnheard(summary);
@@ -298,13 +313,13 @@ export function StrumPatterns({
         [deal.source]: [...held, { date: '', score, settledBar: summary.settledBar }],
       };
     }
-    // Bars are renumbered as they accumulate so a pattern dealt twice reads as
+    // Passes are renumbered as they accumulate so a pattern dealt twice reads as
     // one longer showing of it rather than as two runs written over each other.
     const kept = collectedRef.current.get(deal.source) ?? [];
-    const offset = kept.length ? Math.max(...kept.map((o) => o.bar)) + 1 : 0;
+    const offset = kept.length ? Math.max(...kept.map((o) => o.pass)) + 1 : 0;
     collectedRef.current.set(deal.source, [
       ...kept,
-      ...found.map((o) => ({ ...o, bar: o.bar + offset })),
+      ...found.map((o) => ({ ...o, pass: o.pass + offset })),
     ]);
   };
 
@@ -322,7 +337,7 @@ export function StrumPatterns({
     setNext(null);
     setOutcomes([]);
     setPassedSlot(-1);
-    setBar(0);
+    setPass(0);
     setDealId((n) => n + 1);
   };
 
@@ -423,12 +438,22 @@ export function StrumPatterns({
       'strum patterns',
     );
     if (!running) return; // denied or failed; the mic gate view takes over
-    diag.mark(`strum patterns start at ${opening} BPM (${duration}s, ${bars} bars a deal)`);
+    diag.mark(`strum patterns start at ${opening} BPM (${duration}s, ${passes} goes a deal)`);
 
     clearTimer();
     startedAtRef.current = Date.now();
     const deadline = startedAtRef.current + duration * 1000;
-    const hardStopMs = (bars * BEATS_PER_BAR * 60 * 1000) / opening + 3000;
+    // Long enough for the longest card in the deck to come round its full count
+    // of goes, so the backstop never fires on a deal that was simply two bars
+    // rather than one.
+    const longest = Math.max(
+      1,
+      ...deck
+        .map((p) => parsePattern(p))
+        .filter((p): p is Pattern => p !== null)
+        .map(barsIn),
+    );
+    const hardStopMs = (passes * longest * BEATS_PER_BAR * 60 * 1000) / opening + 3000;
     timerRef.current = setInterval(() => {
       const now = Date.now();
       setTimeLeft(Math.max(0, Math.ceil((deadline - now) / 1000)));
@@ -488,8 +513,11 @@ export function StrumPatterns({
         return;
       }
 
+      // Bars into the deal, and how far round the phrase that is. For a one-bar
+      // pattern the two are the same number.
       const into = atBar - deal.startBar;
-      if (into >= bars) {
+      const barsPerPass = barsIn(deal.pattern);
+      if (into >= passes * barsPerPass) {
         closeDeal(deal);
         if (now >= deadline) {
           finish();
@@ -500,11 +528,13 @@ export function StrumPatterns({
         return;
       }
 
-      setBar(into);
-      setPassedSlot(slot);
+      setPass(Math.floor(into / barsPerPass));
+      setPassedSlot((into % barsPerPass) * SLOTS_PER_BAR + slot);
       // One bar out, the next card comes up beside this one, so the player sees
-      // it coming and the arm never breaks between them.
-      if (into === bars - 1 && !nextRef.current) {
+      // it coming and the arm never breaks between them. One bar whatever the
+      // phrase length: a longer card is a longer thing to hold, not a longer
+      // look at the next one.
+      if (into === passes * barsPerPass - 1 && !nextRef.current) {
         const card = drawCard(deal.source);
         if (card) {
           nextRef.current = card;
@@ -642,7 +672,7 @@ export function StrumPatterns({
               className="sp-current"
               pattern={current}
               sweepAt={sweepAt}
-              slots={liveSlots(current, outcomes, bar, passedSlot, slotMs)}
+              slots={liveSlots(current, outcomes, pass, passedSlot, slotMs)}
               label={describePattern(current)}
             />
           )}
@@ -659,12 +689,12 @@ export function StrumPatterns({
         </div>
 
         <div className="drill-read sp-under">
-          {/* Which bar of the deal is under way, drawn as the bars themselves.
+          {/* How many goes at this card are left, drawn as the goes themselves.
               A number would be one more thing to read while both hands are on
               the guitar. */}
-          <span className="sp-bars-left" role="img" aria-label={`Bar ${bar + 1} of ${bars}`}>
-            {Array.from({ length: bars }, (_, i) => (
-              <span key={i} className={i <= bar ? 'sp-tick is-done' : 'sp-tick'} />
+          <span className="sp-bars-left" role="img" aria-label={`Pass ${pass + 1} of ${passes}`}>
+            {Array.from({ length: passes }, (_, i) => (
+              <span key={i} className={i <= pass ? 'sp-tick is-done' : 'sp-tick'} />
             ))}
           </span>
           <span className="om-timer">
@@ -691,7 +721,7 @@ export function StrumPatterns({
         <>
           <ClickPath state="broken" className="sp-diagram" />
           <p className="sp-call">
-            Nothing was measured. A pattern needs {MIN_PATTERN_BARS} bars the microphone can hear.
+            Nothing was measured. A pattern needs {MIN_PATTERN_PASSES} goes the microphone can hear.
           </p>
         </>
       ) : (
@@ -767,7 +797,7 @@ function StandingMark({ standing }: { standing: PatternStanding }) {
 }
 
 /**
- * The bar on screen, right now.
+ * The phrase on screen, right now.
  *
  * Only slots the arm has already crossed can be called missed. Judging a slot
  * the pendulum has not reached yet would dim the whole bar the moment it
@@ -779,12 +809,12 @@ function StandingMark({ standing }: { standing: PatternStanding }) {
 function liveSlots(
   pattern: Pattern,
   outcomes: readonly SlotOutcome[],
-  bar: number,
+  pass: number,
   passedSlot: number,
   slotMs: number,
 ): SlotView[] {
   return pattern.slots.map((expected, slot) => {
-    const outcome = outcomes.find((o) => o.bar === bar && o.slot === slot);
+    const outcome = outcomes.find((o) => o.pass === pass && o.slot === slot);
     if (outcome && (outcome.kind === 'hit' || outcome.kind === 'added')) {
       return {
         state: outcome.kind === 'added' ? 'added' : 'struck',
@@ -799,7 +829,7 @@ function liveSlots(
 /** A pattern's whole showing: how reliably each slot came out, and which way it leans. */
 function reportSlots(report: PatternReport, slotMs: number): SlotView[] {
   return report.summary.slots.map((slot) => {
-    const share = slot.bars ? slot.struck / slot.bars : 0;
+    const share = slot.passes ? slot.struck / slot.passes : 0;
     const at = slot.medianMs / slotMs;
     if (!slot.expected) {
       return share > 0 ? { state: 'added', at, share } : { state: 'idle' };

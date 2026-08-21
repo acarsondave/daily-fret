@@ -12,7 +12,8 @@ import { runsFor } from '../store/completion';
 import { patternKey } from './drillKeys';
 import { BUILTIN_PATTERNS } from '../data/strumPatterns';
 import {
-  MIN_PATTERN_BARS,
+  MIN_PATTERN_PASSES,
+  SLOTS_PER_BAR,
   parsePattern,
   patternStanding,
   type Pattern,
@@ -47,9 +48,15 @@ export function deckOf(patterns: readonly string[] | undefined): string[] {
   return BUILTIN_PATTERNS.slice(0, DEFAULT_DECK_SIZE).map((p) => p.pattern);
 }
 
-/** Bars each dealt pattern is played for. Never fewer than the matcher needs. */
-export function barsPerDeal(bars: number | undefined): number {
-  return Math.max(MIN_PATTERN_BARS, Math.round(bars ?? MIN_PATTERN_BARS));
+/**
+ * Times each dealt pattern comes round before the next is dealt.
+ *
+ * Never fewer than the matcher needs. A task states this as `bars`, which it was
+ * when every pattern was a bar; the number means the same thing it always did,
+ * which is how many goes the player gets at the card in front of them.
+ */
+export function passesPerDeal(bars: number | undefined): number {
+  return Math.max(MIN_PATTERN_PASSES, Math.round(bars ?? MIN_PATTERN_PASSES));
 }
 
 /**
@@ -96,10 +103,10 @@ export function deckCards(
 }
 
 /**
- * The share of bars a slot has to be struck in before the run counts as having
- * played it at all.
+ * The share of passes a slot has to be struck in before the run counts as
+ * having played it at all.
  *
- * A quarter, which is one bar in four: below that the slot is not one the
+ * A quarter, which is one pass in four: below that the slot is not one the
  * microphone caught intermittently, it is a slot nothing arrived in.
  */
 const HEARD_FRACTION = 0.25;
@@ -140,8 +147,8 @@ export function upStrumsUnheard(summary: PatternSummary): boolean {
   const ups = summary.slots.filter((s) => s.expected === 'U');
   const downs = summary.slots.filter((s) => s.expected === 'D');
   if (ups.length < MIN_UPS_FOR_LEVEL_CLAIM || downs.length === 0) return false;
-  const allUpsGone = ups.every((s) => s.bars > 0 && s.struck <= s.bars * HEARD_FRACTION);
-  const downsClean = downs.every((s) => s.bars > 0 && s.struck >= s.bars * CLEAN_FRACTION);
+  const allUpsGone = ups.every((s) => s.passes > 0 && s.struck <= s.passes * HEARD_FRACTION);
+  const downsClean = downs.every((s) => s.passes > 0 && s.struck >= s.passes * CLEAN_FRACTION);
   return allUpsGone && downsClean;
 }
 
@@ -153,12 +160,21 @@ export function upStrumsUnheard(summary: PatternSummary): boolean {
  * other way.
  */
 export function describePattern(pattern: Pattern): string {
-  const said = pattern.slots
-    .map((stroke, i) => {
-      if (!stroke) return null;
-      const count = i % 2 === 0 ? `${i / 2 + 1}` : 'and';
-      return `${stroke === 'D' ? 'down' : 'up'} on ${count}`;
-    })
-    .filter((s): s is string => s !== null);
-  return `${said.join(', ')}. The arm travels through the rest.`;
+  const bars: string[][] = [];
+  pattern.slots.forEach((stroke, i) => {
+    const bar = Math.floor(i / SLOTS_PER_BAR);
+    if (!bars[bar]) bars[bar] = [];
+    if (!stroke) return;
+    const within = i % SLOTS_PER_BAR;
+    const count = within % 2 === 0 ? `${within / 2 + 1}` : 'and';
+    bars[bar].push(`${stroke === 'D' ? 'down' : 'up'} on ${count}`);
+  });
+  // A two-bar phrase is counted 1 + 2 + 3 + 4 + twice over, so the count alone
+  // cannot say which of the two a strum is in. The bar is named only when there
+  // is more than one; a one-bar pattern reads exactly as it always did.
+  const said =
+    bars.length === 1
+      ? bars[0].join(', ')
+      : bars.map((strokes, i) => `Bar ${i + 1}, ${strokes.join(', ')}`).join('. ');
+  return `${said}. The arm travels through the rest.`;
 }

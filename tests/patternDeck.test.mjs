@@ -16,13 +16,13 @@ import {
 } from '../src/lib/drillKeys.ts';
 import {
   DEFAULT_DECK_SIZE,
-  barsPerDeal,
+  passesPerDeal,
   deckCards,
   deckOf,
   patternRuns,
   upStrumsUnheard,
 } from '../src/lib/patternDeck.ts';
-import { MIN_PATTERN_BARS, matchPattern, parsePattern, summarisePattern } from '../src/lib/strumPattern.ts';
+import { MIN_PATTERN_PASSES, matchPattern, parsePattern, summarisePattern } from '../src/lib/strumPattern.ts';
 import { BUILTIN_PATTERNS } from '../src/data/strumPatterns.ts';
 import { applyMeasurements } from '../src/store/completion.ts';
 import { phaseAt } from '../src/audio/metronome.ts';
@@ -81,8 +81,8 @@ console.log('\nThe deck\n');
     deckOf(['DDUUDU']).length === DEFAULT_DECK_SIZE);
 
   check('a deal is never shorter than the matcher will judge',
-    barsPerDeal(1) === MIN_PATTERN_BARS, String(barsPerDeal(1)));
-  check('and a task asking for longer gets it', barsPerDeal(8) === 8);
+    passesPerDeal(1) === MIN_PATTERN_PASSES, String(passesPerDeal(1)));
+  check('and a task asking for longer gets it', passesPerDeal(8) === 8);
 }
 
 console.log('\nWhat the history says about each card\n');
@@ -139,19 +139,20 @@ console.log('\nUp strums too quiet to hear\n');
 const GRID = { origin: 1, period: 60 / 80, clicks: 40 };
 
 /** A run of `pattern` where `play(slot)` decides whether each slot sounded. */
-function summaryOf(patternText, bars, play) {
+function summaryOf(patternText, passes, play) {
   const pattern = parsePattern(patternText);
-  const slotPeriod = (GRID.period * 4) / pattern.slots.length;
+  const slotPeriod = GRID.period / 2;
+  const length = pattern.slots.length;
   const onsets = [];
-  for (let bar = 0; bar < bars; bar += 1) {
-    for (let slot = 0; slot < pattern.slots.length; slot += 1) {
-      if (!pattern.slots[slot] || !play(slot, bar)) continue;
+  for (let pass = 0; pass < passes; pass += 1) {
+    for (let slot = 0; slot < length; slot += 1) {
+      if (!pattern.slots[slot] || !play(slot, pass)) continue;
       const lag = (pattern.slots[slot] === 'U' ? 3 : 23) / 1000;
-      onsets.push(GRID.origin + bar * 4 * GRID.period + slot * slotPeriod + lag);
+      onsets.push(GRID.origin + (pass * length + slot) * slotPeriod + lag);
     }
   }
   return summarisePattern(
-    matchPattern({ onsets, grid: GRID, pattern, originBeat: 0, bars }),
+    matchPattern({ onsets, grid: GRID, pattern, originBeat: 0, passes }),
     pattern,
   );
 }
@@ -163,7 +164,7 @@ function summaryOf(patternText, bars, play) {
   const noUps = summaryOf('D-DU-UD-', 8, (slot) => slot !== 3 && slot !== 5);
   check('a run where the ups all went missing is', upStrumsUnheard(noUps));
   check('and the downs around them are reported clean',
-    noUps.slots.filter((s) => s.expected === 'D').every((s) => s.struck === s.bars));
+    noUps.slots.filter((s) => s.expected === 'D').every((s) => s.struck === s.passes));
 
   const oneUpGone = summaryOf('D-DU-UD-', 8, (slot) => slot !== 5);
   check('one up strum going missing is a dropped strum, not a level problem',
