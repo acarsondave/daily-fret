@@ -562,11 +562,20 @@ const getLucky: Song = {
   // groove sawn in half at the wrong place.
   //
   // WHAT THAT COSTS THE DRILL, STATED PLAINLY. The pattern matcher's slot is an
-  // eighth note (src/lib/strumPattern.ts), so it will read this as two bars of
-  // eighths and grade it against a click at half the record's tempo. The arm
+  // eighth note (src/lib/strumPattern.ts), so it reads these sixteen slots as two
+  // bars of eighths and grades them against a click counting eighths. The arm
   // movement and every interval between strokes are identical, which is why a
-  // sixteenth groove is practised this way anyway, but the numbers are not
-  // interchangeable: this phrase held at 58 in the drill is the record at 116.
+  // sixteenth groove is practised this way anyway. What is not identical is the
+  // number on the click, and it goes the opposite way to the obvious guess: a
+  // drill slot has to be as short as a sixteenth of the record, so
+  //
+  //   drill click = twice the song tempo
+  //
+  // 232 on the drill is Get Lucky at 116. The default practice click of 80 is the
+  // same groove at 40, about a third of record speed. The metronome tops out at
+  // 240 (src/audio/metronome.ts), so the record's own tempo is reachable, but
+  // only just, and nothing on screen currently tells the player any of this.
+  // Written down here rather than guessed at twice.
   //
   // THE SLAP. `X` is the percussive slap Marty mentions, and it is its own
   // symbol rather than a `D`, because muting the strings and strumming them are
