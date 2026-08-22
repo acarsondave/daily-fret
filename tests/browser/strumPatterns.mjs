@@ -178,6 +178,44 @@ async function open({ wav, drill, viewport = { width: 1366, height: 900 }, start
     })),
     routine(drill),
   );
+  // A handle on the browser taking the speakers away mid-drill, which is what a
+  // camera opening does and what filming a session made routine. Modelled the
+  // way the real thing behaves and not the way the spec reads: the context is
+  // left suspended with NO statechange fired, and resume() neither succeeds nor
+  // rejects. Both are observed browser behaviour, and both are why an app that
+  // waits to be told never finds out.
+  await page.addInitScript(() => {
+    const Native = window.AudioContext;
+    const made = [];
+    window.AudioContext = function (...args) {
+      const ctx = new Native(...args);
+      made.push(ctx);
+      return ctx;
+    };
+    window.AudioContext.prototype = Native.prototype;
+    // The recoverable version: the route is taken and given back. This is the
+    // ordinary case when a camera opens, and the drill must ride it out.
+    window.__blipClick = (ms) => {
+      for (const ctx of made) {
+        ctx.resume = () => new Promise(() => {});
+        Native.prototype.suspend.call(ctx);
+      }
+      setTimeout(() => {
+        for (const ctx of made) {
+          delete ctx.resume;
+          Native.prototype.resume.call(ctx);
+        }
+      }, ms);
+      return made.length;
+    };
+    window.__freezeClick = () => {
+      for (const ctx of made) {
+        ctx.resume = () => new Promise(() => {});
+        Native.prototype.suspend.call(ctx);
+      }
+      return made.length;
+    };
+  });
   await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 25000 });
   await page.waitForSelector('.task-container', { timeout: 25000 });
   await page.locator('.task-row', { hasText: 'Strum patterns' }).click();
@@ -214,6 +252,67 @@ const wordsIn = (page, selector) =>
 /** ONLY=quiet runs one section. The whole suite takes several minutes. */
 const ONLY = process.env.ONLY ?? '';
 const run = (name) => !ONLY || name.includes(ONLY);
+
+// --- the click goes away ----------------------------------------------------
+
+if (run('silent')) {
+console.log('\nWhen the click stops playing mid-run\n');
+  // The drill deals against the metronome's own count, so a click that has gone
+  // silent leaves it with nothing to deal on. It used to say nothing at all: the
+  // run loop gave up on a missing count before it reached the line that reports
+  // one, so the screen written for exactly this — and the button that can free
+  // the audio, which needs a real tap and cannot come from anywhere else — could
+  // never be reached. The player got a card that never moved and a countdown
+  // that ran out.
+  const { browser, page, errors } = await open({ wav: 'eighths.wav', drill: drillFor([EIGHTHS], 60) });
+  await page.waitForSelector('.sp-current:not(.is-waiting)', { timeout: 40000 });
+  const frozen = await page.evaluate(() => window.__freezeClick());
+  check('the browser has taken the speakers', frozen > 0, `${frozen} contexts`);
+
+  await page.waitForSelector('.sp-deaf', { timeout: 20000 });
+  check('the drill says so rather than sitting there', true);
+  const title = await page.locator('.sp-deaf-title').innerText();
+  check('and says which of the two it is', /click is not playing/i.test(title), title);
+  const action = await page.locator('.sp-deaf .practice-btn').innerText();
+  check('offering the one thing that can fix it', /turn the click on/i.test(action), action);
+  check('drawn as the muted speaker, not as a sentence about one',
+    (await page.locator('.sp-deaf .sp-diagram').count()) === 1);
+  check('no page errors', errors.length === 0, errors.join(' | '));
+  await browser.close();
+}
+
+if (run('blip')) {
+console.log('\nWhen the click drops out and comes straight back\n');
+  // A camera opening takes the audio route for about a second and the app asks
+  // for it back once a second, so this is the common case, not the rare one. The
+  // drill has to ride it out: reporting a click that is already returning would
+  // throw away the deal in progress and put a wall in front of a player who
+  // heard nothing more than a hiccup.
+  const { browser, page, errors } = await open({ wav: 'eighths.wav', drill: drillFor([EIGHTHS], 60) });
+  await page.waitForSelector('.sp-current:not(.is-waiting)', { timeout: 40000 });
+  // Well past the grace, measured from the start of the run, before anything is
+  // taken away. That is the difference the assertion below turns on.
+  await page.waitForTimeout(9000);
+  // Held for three seconds, which is longer than a camera takes and well inside
+  // the grace. The old rule spent the grace on the run rather than on the
+  // silence, so by this point in a run it had already been used up and any gap
+  // at all was reported as a click that had gone.
+  await page.evaluate(() => window.__blipClick(3000));
+
+  // Sampled through the outage, not after it. The wall goes up while the audio
+  // is away and this is the only window it can be seen in.
+  let walled = false;
+  for (let i = 0; i < 6; i += 1) {
+    await page.waitForTimeout(400);
+    if (await page.locator('.sp-deaf').count()) walled = true;
+  }
+  check('the drill does not give up on it', walled === false);
+  await page.waitForTimeout(2000);
+  check('and the audio came back on its own', await page.evaluate(() => window.dailyFretAudio().audible));
+  check('the run is still going', (await page.locator('.sp-current:not(.is-waiting)').count()) === 1);
+  check('no page errors', errors.length === 0, errors.join(' | '));
+  await browser.close();
+}
 
 // --- the deck ---------------------------------------------------------------
 

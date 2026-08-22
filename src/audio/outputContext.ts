@@ -24,6 +24,11 @@ let retryTimer: ReturnType<typeof setInterval> | null = null;
 // The metronome, the coach and the cues were then silent for the rest of the
 // session with nothing left asking for them back.
 let wanted = false;
+// What the last look found. Kept because audibility can change with nothing
+// fired: Chrome hands the output route to a camera and leaves the context
+// suspended without a statechange, so comparing against this is the only way
+// anything learns the click has gone quiet.
+let lastReady = false;
 const listeners = new Set<(ready: boolean) => void>();
 
 function stopRetries(): void {
@@ -34,6 +39,7 @@ function stopRetries(): void {
 
 function notify(): void {
   const ready = isOutputAudioReady();
+  lastReady = ready;
   for (const fn of listeners) fn(ready);
 }
 
@@ -65,7 +71,9 @@ export function getOutputContext(): AudioContext | null {
       ctx.addEventListener('statechange', () => {
         if (isOutputAudioReady()) {
           detachUnlock?.();
-          stopRetries();
+          // The watch outlives the recovery. It is what notices the second
+          // interruption, which on some browsers arrives with no event at all.
+          if (!wanted) stopRetries();
         } else if (wanted) {
           // The route was taken away while something was still trying to be
           // heard. Opening a camera does exactly this, and so does a call or
@@ -145,32 +153,37 @@ export function armOutputAudioUnlock(): void {
 // replaced was resuming 40 times a second.
 export function requestOutputAudio(): void {
   wanted = true;
+  // Armed even when audio is already fine. Starting the watch only on a failure
+  // was the gap that silenced a real session: the click started audible, a
+  // camera took the route a few seconds later without firing anything, and
+  // there was nothing running to find out.
+  startRetries();
   if (isOutputAudioReady()) return;
   armOutputAudioUnlock(); // a tap is still the fastest route back
   resumeOutputAudio();
-  startRetries();
 }
 
+// One second-by-second look at whether the app can still be heard, running for
+// as long as anything wants to be. Two jobs, and the second is the one that was
+// missing: it asks for a suspended context back, and it *notices* a context that
+// stopped being audible with nothing fired to say so.
+//
+// It used to stop the moment audio came back, which made every recovery here
+// depend on a statechange arriving. Chrome does not fire one when a camera takes
+// the route, and since the app started filming every session on a chosen day
+// that stopped being rare. `wanted` is the honest bound: it is false the moment
+// the metronome stops, and a state read once a second costs nothing.
 function startRetries(): void {
   if (retryTimer) return;
+  lastReady = isOutputAudioReady();
   retryTimer = setInterval(() => {
-    if (isOutputAudioReady()) {
+    if (!wanted) {
       stopRetries();
-      // Announce it here too. WebKit does not always emit a statechange for a
-      // context that comes back on its own, and polling is what noticed.
-      notify();
       return;
     }
-    // Keep asking for as long as something wants to be heard, and no longer.
-    //
-    // This used to give up after a fixed number of tries, which was the whole
-    // bug: a suspended context never resumes itself, so once the asking stopped
-    // the click was gone for the rest of the session however long the camera
-    // held the route. `wanted` is the honest bound, because it is false the
-    // moment the metronome stops, and once a second is gentle enough that the
-    // media stack never notices.
-    if (wanted) resumeOutputAudio();
-    else stopRetries();
+    const ready = isOutputAudioReady();
+    if (ready !== lastReady) notify();
+    if (!ready) resumeOutputAudio();
   }, RETRY_MS);
 }
 
@@ -183,9 +196,10 @@ function startRetries(): void {
  * for the browsers that suspend a context without ever firing a statechange.
  */
 export function nudgeOutputAudio(): void {
-  if (!wanted || isOutputAudioReady()) return;
-  resumeOutputAudio(true);
+  if (!wanted) return;
   startRetries();
+  if (isOutputAudioReady()) return;
+  resumeOutputAudio(true);
 }
 
 // Nothing wants to be heard any more; stop asking.

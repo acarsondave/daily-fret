@@ -121,7 +121,40 @@ console.log('\nA camera holds it for the whole drill\n');
 
   check('it is picked up the moment the camera lets go', isOutputAudioReady() === true);
   check('and everything listening is told', heard === true, String(heard));
-  check('then it stops asking', timers.length === 0, `${timers.length} timers`);
+  // One timer stays: while something still wants to be heard, the watch has to
+  // outlive the recovery. A context can be taken a second time without ever
+  // firing a statechange, and nothing else in the app would notice.
+  resumeCalls = 0;
+  tick(10_000);
+  check('and stops asking while it is audible', resumeCalls === 0, `${resumeCalls} resume calls`);
+  off();
+}
+
+console.log('\nIt goes quiet without saying so\n');
+{
+  // The failure that reached a real practice session. Chrome hands the output
+  // route to a camera and leaves the context suspended with no statechange, so
+  // every recovery path in here that hangs off statechange never runs. Nothing
+  // in the app calls the nudge on the branch a coached drill takes, because the
+  // recorder borrows the microphone the drill already has open.
+  //
+  // So the watch cannot be armed by an event. It has to be running already, for
+  // as long as anything wants to be heard.
+  check('audible to begin with', isOutputAudioReady() === true);
+  let heard = null;
+  const off = onOutputAudioChange((ready) => { heard = ready; });
+
+  ctx.state = 'suspended'; // no statechange, on purpose
+  resumeCalls = 0;
+  tick(3000);
+
+  check('the silence is noticed anyway', heard === false, String(heard));
+  check('and something is asking for the route back', resumeCalls > 0, `${resumeCalls} resume calls`);
+
+  ctx.grantOnNextResume = true;
+  tick(2000);
+  check('and it comes back', isOutputAudioReady() === true);
+  check('with everything listening told', heard === true, String(heard));
   off();
 }
 

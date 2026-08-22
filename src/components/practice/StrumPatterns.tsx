@@ -194,6 +194,16 @@ export function StrumPatterns({
   // loop where the rendered state is a closure from whenever it last ran.
   const nextRef = useRef<Pattern | null>(null);
   const startedAtRef = useRef(0);
+  /**
+   * When the drill last had nothing to deal on, or null while it has.
+   *
+   * The grace is spent on the silence rather than on the run, so a click that
+   * drops out for a second and comes back is not reported as a click that has
+   * gone. The app asks the browser for the audio route back once a second, and
+   * a camera opening takes it for about that long, so a drill measuring from the
+   * start of the run would give up on a gap it was already recovering from.
+   */
+  const silentSinceRef = useRef<number | null>(null);
   // The same tempo the state carries, for the run loop and for `finish`, which
   // both read it outside a render and would otherwise close over a stale one.
   const tempoRef = useRef(bpm);
@@ -442,6 +452,7 @@ export function StrumPatterns({
 
     clearTimer();
     startedAtRef.current = Date.now();
+    silentSinceRef.current = null;
     const deadline = startedAtRef.current + duration * 1000;
     // Long enough for the longest card in the deck to come round its full count
     // of goes, so the backstop never fires on a deal that was simply two bars
@@ -481,6 +492,7 @@ export function StrumPatterns({
         clockRef.current = null;
         nextRef.current = null;
         startedAtRef.current = now;
+        silentSinceRef.current = null;
         setTempo(live);
         setCurrent(null);
         setNext(null);
@@ -489,13 +501,27 @@ export function StrumPatterns({
         return;
       }
 
+      // The two ways this drill can have nothing to deal on, and they are one
+      // branch because the answer to both is the same screen.
+      //
+      // A null phase is the click not sounding at all: stopped, or the browser
+      // holding the audio while a camera has the route. `!heard` is the click
+      // sounding and the microphone not finding it in the room. The screen below
+      // tells them apart and offers the right way out of each.
+      //
+      // A null phase used to return above this, which made that screen
+      // unreachable in the case it was written for. A silent click then showed a
+      // card that never moved, no explanation, and no way to free the audio —
+      // which needs a real tap and so can only come from a button the player can
+      // see.
       const phase = metronome.phase();
-      if (!phase) return;
       const heard = gridRef.current !== null && clockRef.current !== null;
-      if (!heard) {
-        if (now - startedAtRef.current > CLICK_GRACE_SECONDS * 1000) setDeaf(true);
+      if (!phase || !heard) {
+        if (silentSinceRef.current === null) silentSinceRef.current = now;
+        if (now - silentSinceRef.current > CLICK_GRACE_SECONDS * 1000) setDeaf(true);
         return;
       }
+      silentSinceRef.current = null;
 
       const atBar = Math.floor(phase.position / BEATS_PER_BAR);
       const beatInBar = phase.position - atBar * BEATS_PER_BAR;
@@ -654,6 +680,7 @@ export function StrumPatterns({
             onClick={() => {
               if (silent) metronome.unlockAndStart(bpm);
               startedAtRef.current = Date.now();
+              silentSinceRef.current = null;
               setDeaf(false);
             }}
           >

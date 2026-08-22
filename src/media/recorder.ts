@@ -194,6 +194,20 @@ export class PracticeRecorder {
     this.size = { width: settings.width ?? preset.width, height: settings.height ?? preset.height };
 
     await this.attachAudio();
+
+    // Opening a camera can take the playback route with it, which silences the
+    // click, the coach and the cues all at once because they share one context.
+    // Some browsers do that without ever firing a statechange, so the side that
+    // knows an input just opened has to say so.
+    //
+    // Here rather than inside attachAudio, because the branch that borrows a
+    // drill's already-open microphone returns before that point and never said
+    // anything — which is every coached drill, the one case where a click is
+    // playing and its silence costs the player the block.
+    //
+    // Nothing is claimed: it only revives asking that something was already
+    // doing.
+    nudgeOutputAudio();
     this.events.onLive?.(this.stream);
 
     // The file is opened before the recorder starts, so a disk that is already
@@ -282,12 +296,6 @@ export class PracticeRecorder {
         stream.addTrack(track);
         this.hasAudio = true;
       }
-      // Opening a microphone can take the playback route with it, which silences
-      // the click, the coach and the cues all at once because they share one
-      // context. Some browsers do that without ever firing a statechange, so the
-      // side that knows a camera just opened has to say so. Nothing is claimed
-      // here: it only revives asking that something was already doing.
-      nudgeOutputAudio();
     } catch {
       // Deliberate, and the only swallowed failure in this file. The camera is
       // already open and the drill is about to start; refusing to film because
