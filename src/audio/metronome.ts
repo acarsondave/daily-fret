@@ -344,11 +344,26 @@ export class Metronome {
       } else {
         // Interrupted mid-drill (a call, the session handed elsewhere). Go quiet
         // and start asking for it back rather than ticking into a void.
+        //
+        // Going quiet includes the clicks already handed to the audio thread. A
+        // suspended context does not throw those away, it holds them: its clock
+        // stops, and every one of them sounds the instant the route comes back,
+        // on a grid `rebase` has by then moved off. Stopping the metronome has
+        // always silenced the queue for exactly this reason; being interrupted
+        // did not, and a camera taking the audio for a second is the common way
+        // in.
         this.stopTimer();
+        this.silenceQueued();
         requestOutputAudio();
       }
       this.emitAudible();
     });
+  }
+
+  /** Everything already on the audio thread, taken back. */
+  private silenceQueued(): void {
+    for (const q of this.queued) q.node.stop();
+    this.queued.length = 0;
   }
 
   private rebase(): void {
@@ -476,8 +491,7 @@ export class Metronome {
     // Up to MAX_AHEAD_S of clicks can be queued when the page has been
     // throttled. Silence them, or stopping a backgrounded metronome keeps
     // clicking for two more seconds.
-    for (const q of this.queued) q.node.stop();
-    this.queued.length = 0;
+    this.silenceQueued();
     this.visuals.length = 0;
     if (!this.running) return;
     this.running = false;
