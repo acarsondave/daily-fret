@@ -65,5 +65,31 @@ console.log('\nA pattern with a slap in it\n');
     describeDrillKey(slap).label === 'Get Lucky \u00b7 70 BPM', describeDrillKey(slap).label);
 }
 
+
+// The same sixteen characters on two grids are two exercises.
+//
+// The grid mark has to survive into the key. Without it, `16.D--UX--U-U-UDUDU`
+// either fails to parse at all (and every run of it reads back as "a drill since
+// removed") or, worse, keys identically to the eighth-note reading of the same
+// characters and quietly averages two different practices at two different
+// tempos into one series.
+console.log('\nA pattern key carries the grid it was counted on\n');
+{
+  const sixteenths = patternKey('16.D--UX--U-U-UDUDU', 70);
+  const eighths = patternKey('D--UX--U-U-UDUDU', 70);
+  console.log(`  key: ${sixteenths}`);
+  check('the marked key round-trips with its mark intact',
+    parsePatternKey(sixteenths)?.pattern === '16.D--UX--U-U-UDUDU',
+    String(parsePatternKey(sixteenths)?.pattern));
+  check('it is a drill key', isDrillKey(sixteenths));
+  check('and it is named rather than retired',
+    describeDrillKey(sixteenths).kind === 'pattern', describeDrillKey(sixteenths).kind);
+  check('the two readings never share a series', sixteenths !== eighths,
+    `${sixteenths} vs ${eighths}`);
+  check('and the unmarked one is untouched by any of it',
+    parsePatternKey(eighths)?.pattern === 'D--UX--U-U-UDUDU',
+    String(parsePatternKey(eighths)?.pattern));
+}
+
 console.log(bad ? `\n${bad} FAILED\n` : '\nall good\n');
 process.exit(bad ? 1 : 0);

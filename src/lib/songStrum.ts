@@ -15,7 +15,13 @@
 // thing that changes is which patterns are in front of them.
 
 import type { Song } from '../data/songs';
-import { parsePattern } from './strumPattern';
+import {
+  EIGHTHS,
+  SIXTEENTHS,
+  parsePattern,
+  writePattern,
+  type SlotResolution,
+} from './strumPattern';
 
 /**
  * How long a song's strum block runs.
@@ -49,10 +55,67 @@ export const SONG_STRUM_SECONDS = 90;
 export function songStrumPatterns(song: Song | undefined): string[] {
   if (!song) return [];
   const written = (song.strumPatterns ?? [])
-    .map((s) => s.pattern)
+    // The grid travels with the string, because the string is the whole of what
+    // reaches the drill and the history key. See `writePattern`.
+    .map((s) => writePattern(s.pattern, s.slotsPerBeat ?? EIGHTHS))
     .filter((p) => parsePattern(p) !== null);
   if (written.length) return [...new Set(written)];
   return parsePattern(song.strum) !== null ? [song.strum] : [];
+}
+
+/**
+ * Whether every card in a deck is counted on the same grid.
+ *
+ * One click serves every card the drill deals, and a click is beats. A deck
+ * holding an eighth-note rung beside a sixteenth-note phrase would put four
+ * strokes in the beat on one card and two on the next without the tempo moving,
+ * which is not a switch between patterns, it is a switch between songs. The
+ * drill's own exercise is recall under switch, and that only means anything when
+ * the thing being switched is the pattern.
+ *
+ * A song's block is one card today, so this is an invariant rather than a
+ * problem being solved. It is stated and tested because the day someone builds a
+ * deck out of two sources is the day it stops being obviously true.
+ */
+export function deckIsOneGrid(deck: readonly string[]): boolean {
+  const grids = new Set(
+    deck.map((p) => parsePattern(p)?.slotsPerBeat).filter((g): g is SlotResolution => g !== undefined),
+  );
+  return grids.size <= 1;
+}
+
+/**
+ * The fastest click a sixteenth-note pattern is drilled at.
+ *
+ * Seventy-five, and the number comes from the scoring rather than from taste. A
+ * strum counts as in time within IN_TIME_MS (src/lib/strumTiming.ts), fifty
+ * milliseconds, and the
+ * matcher gives an onset to the nearest slot within half a slot. At sixteenths
+ * and 116 BPM, the record's own tempo, half a slot is 65 ms: over three quarters
+ * of the window that decides which slot a strum belongs to also counts as in
+ * time, so almost anything landing in roughly the right place scores perfectly
+ * and the drill stops telling the player anything. At 75 a sixteenth slot is
+ * 200 ms, half of it is 100 ms, and the fifty stays the meaningful half it is on
+ * an eighth-note pattern at ordinary tempos.
+ *
+ * So the drill deliberately never runs this phrase at the record's speed. That
+ * is the app's own position rather than a compromise: tempo is prescribed from
+ * what the player has actually held and never above it, the drill is where the
+ * shape is built, and the record is where the shape gets fast. A drill that has
+ * stopped discriminating is worse than a drill that is slow.
+ *
+ * `IN_TIME_MS` is deliberately not touched. Widening or narrowing the window
+ * changes what every stored score in the app ever meant.
+ */
+export const SIXTEENTH_MAX_BPM = 75;
+
+/** The tempo a deck may actually be held at, given how finely it is counted. */
+export function cappedTempo(deck: readonly string[], bpm: number): number {
+  const finest = deck.reduce(
+    (most, p) => Math.max(most, parsePattern(p)?.slotsPerBeat ?? EIGHTHS),
+    EIGHTHS as number,
+  );
+  return finest === SIXTEENTHS ? Math.min(bpm, SIXTEENTH_MAX_BPM) : bpm;
 }
 
 /**

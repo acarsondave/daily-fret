@@ -528,8 +528,10 @@ console.log('\nA song task brings its own strum block with it\n');
     segs.map((s) => s.kind).join('+'));
   check('the strum block comes first', segs[0]?.kind === 'patterns', segs[0]?.kind);
   check('and the play-along second', segs[1]?.kind === 'song', segs[1]?.kind);
-  check("the block deals the song's own phrase",
-    segs[0]?.patterns?.join(' ') === 'D--UX--U-U-UDUDU', segs[0]?.patterns?.join(' '));
+  // Marked as sixteenths, because the grid has to reach the drill on the string
+  // itself: the deck is string[] all the way from here to the history key.
+  check("the block deals the song's own phrase, on its own grid",
+    segs[0]?.patterns?.join(' ') === '16.D--UX--U-U-UDUDU', segs[0]?.patterns?.join(' '));
   check('it is titled after the song', segs[0]?.title === 'Get Lucky strum', segs[0]?.title);
   check('and stays on that task, so nothing new has to be added to the routine',
     segs[0]?.taskId === segs[1]?.taskId);
@@ -562,12 +564,11 @@ console.log('\nA song task brings its own strum block with it\n');
   check('the shipped catalogue gives that chart no strum block',
     unknown.length === 1 && unknown[0].kind === 'song', unknown.map((s) => s.kind).join('+'));
 
-  // A song task used to report no minutes at all, which was honest when the only
-  // thing in it was a record of unknown length.
-  check('a song task with a strum block reports its minutes',
-    taskMinutes(songTask('get-lucky')) === 2, String(taskMinutes(songTask('get-lucky'))));
-  check('and one without still reports none',
-    taskMinutes(songTask('wild-thing')) === 0, String(taskMinutes(songTask('wild-thing'))));
+  // A song task still reports no minutes. It runs until the record ends and the
+  // routine does not get to say how long that is; the strum block in front of it
+  // is a segment of the session rather than a claim about the song's length.
+  check('a song task still reports no minutes of its own',
+    taskMinutes(songTask('get-lucky')) === 0, String(taskMinutes(songTask('get-lucky'))));
 }
 
 console.log(failures===0?'\nALL PASS\n':`\n${failures} FAILURE(S)\n`);

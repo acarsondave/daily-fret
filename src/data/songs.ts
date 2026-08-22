@@ -28,6 +28,8 @@
  * which drew the one stroke in Get Lucky that carries the groove as a slot with
  * nothing in it.
  */
+import { SIXTEENTHS, type SlotResolution } from '../lib/strumPattern';
+
 export type StrumDir = 'D' | 'U' | 'X' | '-';
 
 export interface SongStepDef {
@@ -69,6 +71,18 @@ export interface SongSection {
 export interface SongStrum {
   /** D, U, X (a percussive slap) and `-` for a slot the arm passes through. */
   pattern: string;
+  /**
+   * How finely this phrase divides the beat: 2 for eighths, 4 for sixteenths.
+   * Absent is eighths, which is what almost every chart is.
+   *
+   * THIS LINE IS THE READING, AND IT IS MEANT TO BE EASY TO CHANGE. Which grid a
+   * song is counted on is a claim about the record, and the only real test of it
+   * is the player putting the pattern against the record and hearing whether it
+   * sits. Nothing downstream hardcodes an answer: the matcher, the drill, the
+   * drawn count and the history key all read the grid off the pattern itself, so
+   * changing this number here is the whole of changing the reading.
+   */
+  slotsPerBeat?: SlotResolution;
   /**
    * What to call it. The song's own title when it has one phrase, which is the
    * usual case; named individually where a song needs more than one, because a
@@ -590,7 +604,7 @@ const getLucky: Song = {
   // it was, the first half of the figure, which is what one bar of the chart has
   // room to say.
   strum: 'D--UX--U',
-  strumPatterns: [{ pattern: 'D--UX--U-U-UDUDU' }],
+  strumPatterns: [{ pattern: 'D--UX--U-U-UDUDU', slotsPerBeat: SIXTEENTHS }],
   capo: 2,
   bpm: 116,
   chords: ['Am', 'C', 'Em', 'D'],

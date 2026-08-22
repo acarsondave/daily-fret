@@ -13,8 +13,8 @@ import { patternKey } from './drillKeys';
 import { BUILTIN_PATTERNS } from '../data/strumPatterns';
 import {
   MIN_PATTERN_PASSES,
-  SLOTS_PER_BAR,
   parsePattern,
+  slotsPerBarOf,
   patternStanding,
   type Pattern,
   type PatternRunRecord,
@@ -207,14 +207,39 @@ export function upStrumsUnheard(summary: PatternSummary): boolean {
  * row of picks is the one thing on this drill a screen reader cannot reach any
  * other way.
  */
+/**
+ * What a slot is called out loud, on this pattern's own grid.
+ *
+ * Eighths are counted 1 + 2 + 3 + 4 +, which is the count Module 5 teaches.
+ * Sixteenths are counted 1 e + a, and saying "and" for a slot the record calls
+ * "e" is the whole defect a sixteenth grid exists to fix: the spoken path has to
+ * teach the same count the drawn one does, or the two are teaching different
+ * songs.
+ */
+function countName(within: number, slotsPerBeat: number): string {
+  const beat = Math.floor(within / slotsPerBeat) + 1;
+  const into = within % slotsPerBeat;
+  if (into === 0) return `${beat}`;
+  // Eighths keep the wording they have always had. There is one offbeat per beat
+  // and the player is saying "and" out loud, so naming its beat would be more
+  // words for nothing.
+  if (slotsPerBeat === 2) return 'and';
+  // Sixteenths cannot. Three of the four slots in every beat are offbeats, so
+  // "up on a" on its own turns up three times in one bar meaning three different
+  // moments. The beat has to come with it.
+  const name = into === 1 ? 'e' : into === 2 ? 'and' : 'a';
+  return `the ${name} of ${beat}`;
+}
+
 export function describePattern(pattern: Pattern): string {
+  const perBar = slotsPerBarOf(pattern);
   const bars: string[][] = [];
   pattern.slots.forEach((stroke, i) => {
-    const bar = Math.floor(i / SLOTS_PER_BAR);
+    const bar = Math.floor(i / perBar);
     if (!bars[bar]) bars[bar] = [];
     if (!stroke) return;
-    const within = i % SLOTS_PER_BAR;
-    const count = within % 2 === 0 ? `${within / 2 + 1}` : 'and';
+    const within = i % perBar;
+    const count = countName(within, pattern.slotsPerBeat);
     // A slap is named for what it is rather than for the direction it happens to
     // be played with. "Down on 2" and "slap on 2" are different instructions to
     // the fretting hand, and this line is the whole instruction for anyone who

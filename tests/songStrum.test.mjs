@@ -7,8 +7,15 @@
 // something the transcription does not actually imply, this fails.
 
 import { SONGS } from '../src/data/songs.ts';
-import { songStrumPatterns, songHasStrum, songPatternName, SONG_STRUM_SECONDS } from '../src/lib/songStrum.ts';
-import { parsePattern, soundedSlots, SLOTS_PER_BAR, MAX_PATTERN_BARS } from '../src/lib/strumPattern.ts';
+import {
+  songStrumPatterns, songHasStrum, songPatternName, SONG_STRUM_SECONDS,
+  deckIsOneGrid, cappedTempo, SIXTEENTH_MAX_BPM,
+} from '../src/lib/songStrum.ts';
+import {
+  parsePattern, soundedSlots, barsIn, slotsPerBarOf, writePattern,
+  SLOTS_PER_BAR, MAX_PATTERN_BARS, SIXTEENTHS, SIXTEENTH_MARK,
+} from '../src/lib/strumPattern.ts';
+import { describePattern } from '../src/lib/patternDeck.ts';
 
 let failures = 0;
 const check = (label, ok, detail) => {
@@ -81,13 +88,19 @@ check('Get Lucky is in the catalogue', Boolean(lucky));
 
 const deck = songStrumPatterns(lucky);
 check('it offers one phrase to practise', deck.length === 1, deck.join(' '));
-check('and the drill is handed the derived phrase', deck[0] === two[0], deck[0]);
+// The deck string carries the grid mark; the slots underneath are the derived
+// ones. Both halves matter, so both are asserted rather than one standing in for
+// the other.
+check('and the drill is handed the derived phrase',
+  parsePattern(deck[0])?.slots.length === two[0].length
+    && deck[0].endsWith(two[0]), deck[0]);
 
 const phrase = parsePattern(deck[0]);
 check('the matcher can read it', phrase !== null);
 check('it is whole bars the matcher accepts',
-  deck[0].length % SLOTS_PER_BAR === 0 && deck[0].length <= SLOTS_PER_BAR * MAX_PATTERN_BARS,
-  `${deck[0].length} slots`);
+  phrase.slots.length % slotsPerBarOf(phrase) === 0
+    && barsIn(phrase) <= MAX_PATTERN_BARS,
+  `${phrase.slots.length} slots, ${barsIn(phrase)} bar(s)`);
 check('ten of its sixteen slots sound', soundedSlots(phrase) === 10, String(soundedSlots(phrase)));
 check('the slap is a slap and not a down strum', phrase?.slots[4] === 'X', String(phrase?.slots[4]));
 // Under the sixteenth reading the slap is on beat two, which is the backbeat and
@@ -138,6 +151,76 @@ check('a ladder pattern is not claimed by any song',
     songPatternName('DUDUDUDU', twoPhrases) === 'Wild Thing');
   check('both reach the deck, in the order written',
     songStrumPatterns(twoPhrases[0]).join(' ') === 'D-DU-UD- DUDUDUDU');
+}
+
+
+// --- the grid ---------------------------------------------------------------
+//
+// The reading says Get Lucky is one bar of sixteenths. Everything below is about
+// that being carried as data rather than assumed anywhere, because the only real
+// test of the reading is the owner playing it against the record, and being
+// wrong has to cost one line in src/data/songs.ts.
+console.log('\nThe grid is carried, not assumed\n');
+{
+  const written = lucky.strumPatterns[0];
+  check('the song declares its own grid', written.slotsPerBeat === SIXTEENTHS,
+    String(written.slotsPerBeat));
+
+  const dealt = songStrumPatterns(lucky)[0];
+  check('and the deck string carries it to the drill', dealt.startsWith(SIXTEENTH_MARK), dealt);
+
+  const p = parsePattern(dealt);
+  check('the matcher reads it back off the string', p?.slotsPerBeat === SIXTEENTHS,
+    String(p?.slotsPerBeat));
+  check('sixteen sixteenths is ONE bar, not two', barsIn(p) === 1, String(barsIn(p)));
+  check('and a bar of it holds sixteen slots', slotsPerBarOf(p) === 16, String(slotsPerBarOf(p)));
+
+  // The defect the whole grid exists to fix. Read as eighths these same sixteen
+  // characters are two bars, which puts a bar line halfway through a phrase the
+  // record counts straight through and moves the slap off the backbeat.
+  const asEighths = parsePattern('D--UX--U-U-UDUDU');
+  check('the same characters read as eighths would be two bars',
+    barsIn(asEighths) === 2, String(barsIn(asEighths)));
+  check('so the two readings are genuinely different exercises',
+    barsIn(p) !== barsIn(asEighths));
+
+  // The count, which is the thing the owner said he most wants to close.
+  const said = describePattern(p);
+  check('the slap is called out on beat two', said.includes('slap on 2'), said);
+  check('and the offbeats are counted e and a, not all "and"',
+    said.includes('the a of 1') && said.includes('the e of 3'), said);
+  check('an eighth-note pattern still counts the way it always did',
+    describePattern(parsePattern('D-DU-UD-')) ===
+      'down on 1, down on 2, up on and, up on and, down on 4. The arm travels through the rest.',
+    describePattern(parsePattern('D-DU-UD-')));
+
+  // One bar only. Thirty-two slots of sixteenths is a piece of music.
+  check('two bars of sixteenths is refused',
+    parsePattern(writePattern('D--UX--U-U-UDUDU'.repeat(2), SIXTEENTHS)) === null);
+  check('and a marked pattern of the wrong length is refused',
+    parsePattern(writePattern('D-DU-UD-', SIXTEENTHS)) === null);
+}
+
+console.log('\nA deck is one grid, and a click cannot serve two\n');
+{
+  check("the song's own block is one grid", deckIsOneGrid(songStrumPatterns(lucky)));
+  check('a ladder deck is one grid', deckIsOneGrid(['D-D-D-D-', 'D-DU-UD-']));
+  check('mixing an eighth rung with a sixteenth phrase is not',
+    deckIsOneGrid(['D-DU-UD-', '16.D--UX--U-U-UDUDU']) === false);
+  check('an empty deck is trivially one grid', deckIsOneGrid([]));
+}
+
+console.log('\nA sixteenth deck is capped below where the scoring stops discriminating\n');
+{
+  const deck = songStrumPatterns(lucky);
+  check('a fast prescription is pulled back to the cap',
+    cappedTempo(deck, 120) === SIXTEENTH_MAX_BPM, String(cappedTempo(deck, 120)));
+  check('a slow one is left exactly alone', cappedTempo(deck, 60) === 60);
+  check('an eighth-note deck is never capped',
+    cappedTempo(['D-DU-UD-'], 120) === 120, String(cappedTempo(['D-DU-UD-'], 120)));
+  // The record is 116. The drill deliberately does not go there.
+  check('so the drill never runs it at the record tempo',
+    cappedTempo(deck, lucky.bpm) < lucky.bpm);
 }
 
 console.log('\nThe block\n');

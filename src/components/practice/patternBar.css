@@ -98,6 +98,16 @@
   color: rgb(236 222 205 / 0.18);
 }
 
+/* The "e" and the "a" of a sixteenth-note bar. Shorter and quieter than the
+   "and", so a row of sixteen reads 1 e + a 2 e + a rather than as sixteen
+   identical marks: the beat is tallest, the eighth-note pulse sits inside it,
+   and these two fill in between. Never drawn on an eighth-note pattern, which
+   has no slot this fine. */
+.pb-stem.is-sixteenth {
+  height: calc(var(--pb-stem) * 0.2);
+  color: rgb(236 222 205 / 0.13);
+}
+
 /* The strings. `.rail-wire` is the app's hairline; it only needs placing. */
 .pb-strings {
   position: absolute;
