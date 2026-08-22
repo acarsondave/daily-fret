@@ -45,6 +45,13 @@ const ringKey = (chords) => {
   }
   return `ring:${best}`;
 };
+// A sweep visits both directions anyway, so a path and its reverse are the same
+// sweep and the key takes whichever reads smaller. See lib/drillKeys.ts.
+const sweepKey = (chords) => {
+  const forward = chords.join('>');
+  const back = [...chords].reverse().join('>');
+  return `sweep:${back < forward ? back : forward}`;
+};
 
 // --- a microphone, as a file ------------------------------------------------
 
@@ -284,8 +291,13 @@ const stored = (page) =>
     JSON.stringify(results));
   check('and said which shape earned what',
     POOL.some((c) => typeof results[`chord:${c}`] === 'number' && results[`chord:${c}`] > 0));
-  check('the rotation filed its count under the ring it turned',
-    typeof results[ringKey(RING)] === 'number' && results[ringKey(RING)] > 0);
+  // The sweep key, not the ring key. The drill stopped looping and started
+  // sweeping back and forth, which is a different set of moves for the hand and
+  // has its own key and its own personal best; this fixture was still asserting
+  // the shape the drill had before that.
+  check('the rotation filed its count under the path it swept',
+    typeof results[sweepKey(RING)] === 'number' && results[sweepKey(RING)] > 0,
+    Object.keys(results).join(' '));
   check('nothing was written under a task id',
     !('t1' in results) && !('t2' in results), Object.keys(results).join(' '));
   check('every run is on the record beside the day\'s best',
@@ -343,6 +355,41 @@ const stored = (page) =>
   const progress = await numbers(page);
   check('Progress has the same runs under the rung they were run at',
     progress.includes('The six open strings'), progress.split('\n').join(' | '));
+
+  check('no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
+// --- 5. the rotation that was a loop before it was a sweep -------------------
+{
+  console.log('\nMonths of the old looping rotation, after it became a sweep\n');
+  // The rotation drill changed shape: it used to go round a ring and now sweeps
+  // back and forth, which is a different set of moves and rightly keeps its own
+  // key and its own best. What must not change is what already happened. Every
+  // turn of the old loop is still on disk under `ring:`, and a row that asked
+  // only for the new key showed nothing at all against a task the player has
+  // months of practice on. History that cannot be seen is history lost.
+  const ANCHOR = {
+    id: 't9', title: 'Anchor changes', duration: '1',
+    drill: { kind: 'chord-rotation', durationSec: 60, chords: RING },
+  };
+  const loopLogs = Object.fromEntries(
+    [19, 22, 26].map((changes, i) => {
+      const date = daysAgo(3 - i);
+      return [date, {
+        date, routineId: 'r1', completedTaskIds: ['t9'],
+        drillResults: { [ringKey(RING)]: changes },
+        taskRecords: { t9: { evidence: 'measured', at: 1 } },
+      }];
+    }),
+  );
+  const { ctx, page, errors } = await open(
+    seed({ routines: [routine([ANCHOR])], dailyLogs: loopLogs }),
+  );
+
+  const row = page.locator('.task-row', { hasText: 'Anchor changes' });
+  const text = (await row.innerText()).replace(/\n/g, ' | ');
+  check('the row still carries the best of the loops', text.includes('26 changes'), text);
 
   check('no console errors', errors.length === 0, errors.join(' | '));
   await ctx.close();

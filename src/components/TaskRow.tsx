@@ -17,7 +17,7 @@ import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
 import { chordPairs, pairKey } from '../lib/pairs';
-import { findKey, poolKey, rotationRing, sweepKey, trainerPool } from '../lib/drillKeys';
+import { findKey, poolKey, ringKey, rotationRing, sweepKey, trainerPool } from '../lib/drillKeys';
 import { bestAcrossDays, bestOnDay, runsOnDay } from '../lib/drillStats';
 import { finderHistory } from '../lib/finderHistory';
 import { currentRung } from '../lib/noteFinder';
@@ -150,7 +150,17 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
   const resultKeys = useMemo(() => {
     if (!drill) return [] as string[];
     if (drill.kind === 'chord-trainer') return [poolKey(trainerPool(drill.chords))];
-    if (drill.kind === 'chord-rotation') return [sweepKey(rotationRing(drill.chords))];
+    if (drill.kind === 'chord-rotation') {
+      // Both keys, because the drill changed shape and the practice did not.
+      // A rotation used to loop and now sweeps back and forth, which earns its
+      // own key and its own personal best (lib/drillKeys.ts) and is what a run
+      // writes today. But every turn of the old loop still happened, and this
+      // row asking only for the new key made months of them invisible on the
+      // one screen the player opens every day. lib/progression.ts already reads
+      // both prefixes for the anchor skill, and for the same reason.
+      const ring = rotationRing(drill.chords);
+      return [sweepKey(ring), ringKey(ring)];
+    }
     if (drill.kind === 'note-finder') {
       // Whatever rung the task pins, or the one its own history puts it on.
       // Read here rather than guessed, so the row's best is the best at the
