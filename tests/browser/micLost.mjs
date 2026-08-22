@@ -36,6 +36,8 @@ const account = {
     tasks: [
       { id: 't1', title: 'Chord Perfect', duration: '2 mins', drill: { kind: 'chord-trainer', durationSec: 60, chords: ['Am', 'Em'] } },
       { id: 't2', title: 'Strum timing', duration: '1 min', drill: { kind: 'strum-timing', durationSec: 120, bpm: 80 } },
+      { id: 't3', title: 'Note finder', duration: '1 min', drill: { kind: 'note-finder', durationSec: 120 } },
+      { id: 't4', title: 'A to D changes', duration: '1 min', drill: { kind: 'one-minute-changes', chords: ['A', 'D'], durationSec: 4 } },
     ],
   }],
   dailyLogs: {}, strumPatterns: [], songLinks: [], userSongs: [], updatedAt: 1,
@@ -44,7 +46,7 @@ const account = {
   capoFret: 0,
 };
 
-async function open({ busyDeviceId = null } = {}) {
+async function open({ busyDeviceId = null, hold = false } = {}) {
   const browser = await chromium.launch({
     args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
   });
@@ -56,12 +58,38 @@ async function open({ busyDeviceId = null } = {}) {
   // Hold on to every track handed out, so the test can kill the one the drill
   // is actually listening to. Optionally refuse an exact-device request the way
   // an input held by another app refuses one.
-  await page.addInitScript((busy) => {
+  await page.addInitScript((args) => {
+    const { busy, hold } = args;
     window.__micTracks = [];
     window.__exactRequests = 0;
+    // Every repeating timer the page starts, and whether it has been cleared.
+    // A drill's run clock is the one thing that must not outlive its drill.
+    const liveTimers = new Map();
+    const realSet = window.setInterval.bind(window);
+    const realClear = window.clearInterval.bind(window);
+    window.setInterval = (fn, ms, ...rest) => {
+      const id = realSet(fn, ms, ...rest);
+      liveTimers.set(id, ms);
+      return id;
+    };
+    window.clearInterval = (id) => {
+      liveTimers.delete(id);
+      return realClear(id);
+    };
+    window.__liveTimers = () => [...liveTimers.values()];
+    // A permission prompt, as the person in front of it experiences it: the
+    // call is made and nothing comes back until they answer. `__releaseMic`
+    // is them pressing Allow.
+    let allowed = null;
+    window.__released = false;
+    const held = hold
+      ? new Promise((resolve) => { allowed = resolve; })
+      : Promise.resolve();
+    window.__releaseMic = () => { window.__released = true; allowed?.(); };
     const media = navigator.mediaDevices;
     const original = media.getUserMedia.bind(media);
     media.getUserMedia = async (constraints) => {
+      await held;
       const exact = constraints?.audio?.deviceId?.exact;
       if (exact) {
         window.__exactRequests += 1;
@@ -82,7 +110,7 @@ async function open({ busyDeviceId = null } = {}) {
       track.dispatchEvent(new Event('ended'));
       return true;
     };
-  }, busyDeviceId);
+  }, { busy: busyDeviceId, hold });
 
   await page.addInitScript((args) => {
     localStorage.setItem(args.key, JSON.stringify({
@@ -218,6 +246,114 @@ const meterText = (page) => page.locator('.signal-meter .signal-label').first().
     /microphone stopped/i.test(await meterText(page).catch(() => '')),
     await meterText(page).catch(() => 'no meter'),
   );
+  check('nothing threw on the way', errors.length === 0, errors.join(' | '));
+
+  await browser.close();
+}
+
+// --- the drill whose microphone is a pitch estimator ------------------------
+//
+// The note finder opens its own MicStream through usePitchDetector, which did
+// not carry the route at all: it folded 'closed' into 'idle', and 'idle' is also
+// what a detector reads before it has ever been started. So the one status the
+// drill could see said "no microphone yet" for a microphone that had just been
+// taken away, its own microphone-lost path could not fire, and the worst of the
+// three ways to lose an input was the one left unhandled. The screen went back
+// to asking for a permission the player had already granted, the clock kept
+// running behind it, and at the end the run was filed as a measured one — a
+// count of how much the player recalled through a dead microphone.
+{
+  console.log('\nthe note finder notices it too\n');
+  const { browser, page, errors } = await open();
+  await page.locator('.task-row', { hasText: 'Note finder' }).click();
+  await page.waitForSelector('.practice-overlay', { timeout: 20000 });
+  await page.locator('.practice-overlay').getByRole('button', { name: /^Start/ }).first().click();
+  await page.waitForSelector('.nf-stage', { timeout: 20000 });
+  await page.waitForTimeout(1500);
+
+  const killed = await page.evaluate(() => window.__killMic());
+  check('the drill had a live track to lose', killed === true);
+  await page.waitForTimeout(2500);
+
+  const body = (await page.locator('.practice-overlay').innerText()).toLowerCase();
+  check(
+    'the run ends rather than asking again for a permission it already has',
+    !/allow microphone access/.test(body),
+    body.replace(/\n+/g, ' / ').slice(0, 110),
+  );
+  check('and it is filed as time played with no number', /time played|nothing counted/.test(body), body.slice(0, 90));
+  // The claim that matters, and the one the day carries afterwards. A run whose
+  // input died must never leave 'measured' behind it: that word is what the
+  // ladder, the readiness streak and the next prescription all read.
+  const record = await page.evaluate(() => {
+    const raw = localStorage.getItem('daily-fret-storage');
+    const acc = raw ? JSON.parse(raw).state.accounts.anonymous : null;
+    const key = Object.keys(acc?.dailyLogs ?? {}).sort().pop();
+    return acc?.dailyLogs?.[key]?.taskRecords?.t3 ?? null;
+  });
+  check(
+    'and the day records time played, never a measurement',
+    record?.evidence === 'timed',
+    JSON.stringify(record),
+  );
+  check('nothing threw on the way', errors.length === 0, errors.join(' | '));
+
+  await browser.close();
+}
+
+// --- a drill walked out of while the permission prompt is still up ----------
+//
+// Opening a microphone is several awaits long, and everything a drill does with
+// its clock happens after them. Nothing checked that the drill still wanted the
+// answer. Leaving while the prompt is up tore the capture down, and then the
+// open resolved anyway, reported success to a drill that no longer existed, and
+// that drill started its run clock. Nothing could ever clear it: the cleanup
+// that would have has already run. A minute later it "finished" behind a closed
+// overlay, played the completion cue, and filed its count — a zero, for a run
+// nobody played — over the record of the drill the player had walked out of.
+{
+  console.log('\na drill left while the microphone is still being asked for\n');
+  const { browser, page, errors } = await open({ hold: true });
+
+  await page.locator('.task-row', { hasText: 'A to D changes' }).click();
+  await page.waitForSelector('.practice-overlay', { timeout: 20000 });
+  await page.locator('.practice-overlay .practice-btn.primary').first().click();
+  // The drill is now waiting on an answer it will not get until we give it one.
+  await page.waitForTimeout(800);
+  check(
+    'the drill is waiting on the prompt',
+    (await page.locator('.practice-overlay .mic-gate').count()) === 1 &&
+      (await page.evaluate(() => window.__released)) === false,
+  );
+
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('.practice-overlay', { state: 'detached', timeout: 10000 });
+  check('and the player has left', (await page.locator('.practice-overlay').count()) === 0);
+
+  // Allow, after the fact. This is the moment the abandoned open resolves, and
+  // the moment the drill used to pick up where it left off.
+  await page.evaluate(() => window.__releaseMic());
+  await page.waitForTimeout(1500);
+
+  // Well inside the four seconds the run was going to take, so a clock that was
+  // started is still ticking rather than already spent. This is the defect
+  // itself and not a symptom of it: the cleanup that would have cleared this
+  // ran before it existed, so nothing can ever clear it.
+  const timers = await page.evaluate(() => window.__liveTimers());
+  check(
+    'no run clock is left ticking behind the closed overlay',
+    !timers.includes(200),
+    `live intervals: ${JSON.stringify(timers)}`,
+  );
+
+  // And nothing lands on the day afterwards. A zero from a run nobody played
+  // files as silence, which is indistinguishable from an honest silent run, so
+  // the clock above is what this has to be caught by; this is the consequence.
+  const before = await page.evaluate(() => localStorage.getItem('daily-fret-storage'));
+  await page.waitForTimeout(5000);
+  const after = await page.evaluate(() => localStorage.getItem('daily-fret-storage'));
+  check('and the day stops changing once the player has gone', before === after);
+
   check('nothing threw on the way', errors.length === 0, errors.join(' | '));
 
   await browser.close();

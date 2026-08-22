@@ -85,6 +85,12 @@ const STATUS_BY_ROUTE: Record<MicRouteState, PitchStatus> = {
   running: 'listening',
   asleep: 'asleep',
   muted: 'muted',
+  // A route that has gone reads as idle, because that is what the display has
+  // to do with it: there is nothing to show. It is not what a drill has to do
+  // with it, and the two cannot be told apart from this word — a detector that
+  // has not been started yet is 'idle' as well. Anything that has to know the
+  // difference reads `route`, which says 'closed' only when an input that was
+  // open has stopped being one.
   closed: 'idle',
 };
 
@@ -108,6 +114,17 @@ export function usePitchDetector() {
   const levelRef = useRef(0);
 
   const [status, setStatus] = useState<PitchStatus>('idle');
+  /**
+   * What the input is actually doing, as opposed to what the display should say.
+   *
+   * The chord path has carried this since a revoked microphone was found to go
+   * unnoticed mid-drill; this one collapsed it into `status`, where 'closed' and
+   * 'never opened' are the same word. The note finder is the drill that pays for
+   * that: its own microphone-lost path could not fire, so a run whose input died
+   * showed a permission prompt for a permission it already had, kept its clock,
+   * and filed the count as a measured run.
+   */
+  const [route, setRoute] = useState<MicRouteState | null>(null);
   const [failure, setFailure] = useState<MicFailureKind | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pitch, setPitch] = useState<StablePitch | null>(null);
@@ -179,6 +196,7 @@ export function usePitchDetector() {
     secondNoteRef.current = [];
     levelRef.current = 0;
     setStatus('idle');
+    setRoute(null);
     setFailure(null);
     setPitch(null);
     await mic?.stop();
@@ -187,6 +205,7 @@ export function usePitchDetector() {
   const start = useCallback(async (): Promise<boolean> => {
     if (micRef.current?.running) return true;
     setStatus('requesting');
+    setRoute(null);
     setFailure(null);
     setError(null);
 
@@ -202,12 +221,13 @@ export function usePitchDetector() {
           const result = detectorRef.current?.push(frame);
           if (result) onAnalysis(result);
         },
-        onRouteChange: (route) => {
+        onRouteChange: (next) => {
           // A stream that has already been replaced must not narrate over the
           // live one. Its own teardown is the last thing it gets to say.
           if (micRef.current !== mic) return;
-          setStatus(STATUS_BY_ROUTE[route]);
-          if (route === 'running') return;
+          setRoute(next);
+          setStatus(STATUS_BY_ROUTE[next]);
+          if (next === 'running') return;
           // No samples are arriving, so the fade timer that normally retires a
           // reading will never run. Leaving the last note on screen would be the
           // tuner reporting a string it can no longer hear.
@@ -221,6 +241,7 @@ export function usePitchDetector() {
       // Opening the mic is several awaits long, and the component can unmount or
       // restart inside them. Only the stream still in the ref may set state.
       if (micRef.current !== mic) return false;
+      setRoute(mic.routeState);
       setStatus(STATUS_BY_ROUTE[mic.routeState]);
       return true;
     } catch (err) {
@@ -228,6 +249,7 @@ export function usePitchDetector() {
       micRef.current = null;
       detectorRef.current = null;
       const micError = err instanceof MicError ? err : null;
+      setRoute(null);
       setStatus('error');
       setFailure(micError?.kind ?? 'failed');
       setError(
@@ -251,5 +273,5 @@ export function usePitchDetector() {
     };
   }, []);
 
-  return { status, failure, error, pitch, levelRef, start, stop, wake };
+  return { status, route, failure, error, pitch, levelRef, start, stop, wake };
 }

@@ -134,7 +134,16 @@ export function StrumTiming({
   const gridRef = useRef<BeatGrid | null>(null);
   const periodRef = useRef(60 / bpm);
   const markIdRef = useRef(0);
-  const startedAtRef = useRef(0);
+  /**
+   * When the drill last had nothing to measure against, or null while it has.
+   *
+   * The grace is spent on the silence rather than on the run. Measured from the
+   * start of the run it is already gone by the time anything can go wrong, so a
+   * click that drops out for a second thirty seconds in — which is what a camera
+   * opening does, and what filming a session made routine — put a wall in front
+   * of a measurement that was still perfectly recoverable.
+   */
+  const silentSinceRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevBestRef = useRef(0);
 
@@ -149,6 +158,7 @@ export function StrumTiming({
     clicksRef.current = [];
     gridRef.current = null;
     periodRef.current = 60 / nextBpm;
+    silentSinceRef.current = null;
     setMarks([]);
     setLive(null);
     setClicksHeard(0);
@@ -162,8 +172,11 @@ export function StrumTiming({
     diag.timing(DIAG_CODE.CLICK_HEARD, 0);
     const grid = fitBeatGrid(clicksRef.current, periodRef.current);
     if (grid) {
+      // Only the grid is written here. Whether the drill has anything to measure
+      // against is the run loop's answer and nobody else's: a click the
+      // microphone can hear is half of it, and this half used to clear the
+      // report on its own while the other half was still failing.
       gridRef.current = grid;
-      setDeaf(false);
     } else if (gridRef.current) {
       // The clicks stopped describing this tempo. Either the click was turned
       // off or the room changed; either way the old grid is no longer a claim
@@ -236,8 +249,8 @@ export function StrumTiming({
     diag.mark(`strum timing start at ${opening} BPM (${duration}s)`);
 
     clearTimer();
-    startedAtRef.current = Date.now();
-    const deadline = startedAtRef.current + duration * 1000;
+    silentSinceRef.current = null;
+    const deadline = Date.now() + duration * 1000;
     timerRef.current = setInterval(() => {
       const now = Date.now();
       setTimeLeft(Math.max(0, Math.ceil((deadline - now) / 1000)));
@@ -250,11 +263,31 @@ export function StrumTiming({
       if (Math.abs(60 / current - periodRef.current) > 1e-9) {
         resetMeasurement(current);
         setTempo(current);
-        startedAtRef.current = now;
         diag.mark(`strum timing tempo changed to ${current} BPM; measuring again`);
       }
 
-      if (!gridRef.current && now - startedAtRef.current > CLICK_GRACE_SECONDS * 1000) setDeaf(true);
+      // The two ways this drill can have nothing to measure against, and they
+      // are one branch because the answer to both is the same screen.
+      //
+      // A null phase is the click not sounding at all: stopped by hand, or the
+      // browser holding the audio while a camera has the route. A null grid is
+      // the click sounding and the microphone not finding it in the room. The
+      // screen below tells them apart and offers the right way out of each.
+      //
+      // Only the grid used to be asked about, and a grid outlives the click that
+      // built it: once one was fitted, the screen written for a click that is not
+      // playing — and the button that frees held audio, which needs a real tap
+      // and so can only come from a button the player can see — could not be
+      // reached at all. A run whose click stopped half way went on scoring
+      // against a beat grid nothing was refreshing, and reported the number.
+      const sounding = metronome.phase() !== null;
+      if (!sounding || !gridRef.current) {
+        if (silentSinceRef.current === null) silentSinceRef.current = now;
+        if (now - silentSinceRef.current > CLICK_GRACE_SECONDS * 1000) setDeaf(true);
+      } else {
+        silentSinceRef.current = null;
+        setDeaf(false);
+      }
       if (now >= deadline) finish();
     }, 200);
   };
@@ -344,7 +377,7 @@ export function StrumTiming({
             className="practice-btn primary"
             onClick={() => {
               if (silent) metronome.unlockAndStart(tempo);
-              startedAtRef.current = Date.now();
+              silentSinceRef.current = null;
               setDeaf(false);
             }}
           >

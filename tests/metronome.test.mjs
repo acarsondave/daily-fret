@@ -20,6 +20,7 @@ import {
   VOICES,
   MIN_BPM,
   MAX_BPM,
+  metronome,
 } from '../src/audio/metronome.ts';
 
 let failures = 0;
@@ -165,6 +166,82 @@ console.log('\nThe click itself\n');
     const c = centroid(voice);
     check(`${name}: sits above the guitar, at ${c.toFixed(0)} Hz`, c > 1900 && c < 5000);
   }
+}
+
+// --- the browser takes the speakers away ------------------------------------
+//
+// A camera opening hands the output route to the media stack and leaves the
+// context suspended, which the app now does on purpose in the middle of a drill
+// on filming day. A suspended context does not throw away the clicks already
+// handed to the audio thread: its clock stops and it holds them, so every one
+// of them sounds the instant the route comes back — on a grid the count has by
+// then re-based off. Stopping the metronome has always silenced the queue for
+// exactly this reason. Being interrupted did not, and being interrupted is the
+// case that happens without anybody asking for it.
+console.log('\nThe route is taken and given back\n');
+{
+  const started = [];
+  let currentTime = 0;
+  let intervals = [];
+
+  class FakeContext {
+    constructor() {
+      this.state = 'running';
+      this.sampleRate = 48000;
+      this.baseLatency = 0.01;
+      this.destination = {};
+      this.listeners = [];
+      // The app creates its own context lazily and never hands it out, so this
+      // is how the test gets at the one it actually made.
+      globalThis.__theContext = this;
+    }
+    get currentTime() { return currentTime; }
+    addEventListener(kind, fn) { if (kind === 'statechange') this.listeners.push(fn); }
+    resume() { return Promise.resolve(); }
+    createBuffer(channels, length) { return { duration: length / this.sampleRate, copyToChannel() {} }; }
+    createBufferSource() {
+      const node = { buffer: null, startedAt: null, stopped: false,
+        connect() {}, start(at) { node.startedAt = at; }, stop() { node.stopped = true; } };
+      started.push(node);
+      return node;
+    }
+    /** What the browser does to us, not what we do to it. */
+    set(state) {
+      this.state = state;
+      for (const fn of this.listeners) fn();
+    }
+  }
+
+  globalThis.window = globalThis;
+  globalThis.document = { addEventListener() {}, removeEventListener() {} };
+  globalThis.AudioContext = FakeContext;
+  globalThis.setInterval = (fn, ms) => {
+    const t = { fn, id: intervals.length + 1 };
+    intervals.push(t);
+    return t.id;
+  };
+  globalThis.clearInterval = (id) => { intervals = intervals.filter((t) => t.id !== id); };
+  globalThis.requestAnimationFrame = () => 0;
+  globalThis.cancelAnimationFrame = () => {};
+
+  const run = () => { for (const t of [...intervals]) t.fn(); };
+
+  metronome.start(96);
+  run(); // one scheduler wake: the window ahead of the clock is now on the audio thread
+  const queued = started.filter((n) => n.startedAt !== null);
+  check('the scheduler put clicks on the audio thread', queued.length > 0, `${queued.length}`);
+  check('none of them has been silenced yet', queued.every((n) => !n.stopped));
+
+  // The route goes away. A suspended context's clock stops, which is exactly why
+  // the queue survives it: not one of those clicks has come due.
+  currentTime = 0.02;
+  globalThis.__theContext.set('suspended');
+
+  check('the click reports itself silent', metronome.isAudible === false);
+  check('and every click already queued has been taken back',
+    queued.every((n) => n.stopped), `${queued.filter((n) => !n.stopped).length} still live`);
+
+  metronome.stop();
 }
 
 console.log(failures===0?'\nALL PASS\n':`\n${failures} FAILURE(S)\n`);

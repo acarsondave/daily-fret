@@ -164,7 +164,7 @@ export function NoteFinder({
   onSessionStart,
 }: Props) {
   const reduceMotion = useReducedMotion();
-  const { status, error, pitch, start, stop } = usePitchDetector();
+  const { status, route, error, pitch, start, stop } = usePitchDetector();
   const duration = config?.durationSec ?? 60;
 
   // The rung this run is on. A routine may pin one; otherwise it is the lowest
@@ -460,20 +460,29 @@ export function NoteFinder({
   // The microphone went away mid-run. The run ends where it stands and is filed
   // as the seconds actually played, with no number: a count taken through a dead
   // microphone is not a count.
+  //
+  // The route, not only the status. A track that ends — a permission revoked, an
+  // interface unplugged, another app taking the input — is the one way of losing
+  // a microphone that `status` cannot name: it reads 'idle', which is also what a
+  // detector that has never been started reads, so this could not act on it. That
+  // left the worst of the three unhandled. The screen went back to asking for a
+  // permission the player had already given, the clock ran on behind it, and the
+  // run was filed at the end as a measured one.
+  const lost = route === 'closed' ? 'lost' : status === 'muted' || status === 'asleep' ? status : null;
   useEffect(() => {
     if (view !== 'playing' || channel !== 'heard') return;
-    if (status !== 'muted' && status !== 'asleep') return;
+    if (!lost) return;
     if (finishedRef.current) return;
     finishedRef.current = true;
     clearClock();
     clearStep();
     const played = Math.max(0, duration - timeLeft);
-    diag.mark(`note finder ${rung.id}: microphone ${status} after ${played}s, filed as time played`);
+    diag.mark(`note finder ${rung.id}: microphone ${lost} after ${played}s, filed as time played`);
     channelRef.current = 'tapped';
     setChannel('tapped');
     onTimedRun?.({ elapsedSeconds: played, reachedEnd: false, done: true });
     setView('results');
-  }, [status, view, channel, duration, timeLeft, onTimedRun, rung.id]);
+  }, [lost, view, channel, duration, timeLeft, onTimedRun, rung.id]);
 
   useEffect(() => {
     // Deferred a tick so the auto-start runs after mount, which keeps setState
