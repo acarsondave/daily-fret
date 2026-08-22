@@ -169,7 +169,12 @@ async function open(state, viewport = { width: 1280, height: 1000 }) {
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(String(e)));
+  // Seeded only when the key is absent. An init script runs again on every
+  // navigation, and the case below rewrites the routine and reloads, so seeding
+  // unconditionally would put the old task ids straight back and leave that
+  // whole section asserting against its own fixture.
   await page.addInitScript((s) => {
+    if (localStorage.getItem('daily-fret-storage')) return;
     localStorage.setItem('daily-fret-storage', JSON.stringify({ state: s, version: 0 }));
   }, state);
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
@@ -240,6 +245,14 @@ const stored = (page) =>
   });
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(700);
+
+  // The premise, checked before anything is read off it. A re-seed on reload
+  // would put t1 and t2 back and quietly turn everything below into a second
+  // run of the section above.
+  const regenerated = await stored(page);
+  check('the reload really came back to the new task ids',
+    regenerated.routines[0].tasks.every((t) => t.id.startsWith('gen-')),
+    regenerated.routines[0].tasks.map((t) => t.id).join(','));
 
   const perfectRow = page.locator('.task-row', { hasText: 'Chord Perfect' });
   check('the best badge survives new task ids',
