@@ -5,6 +5,7 @@ import { parsePairKey } from './pairs';
 import { DRILL_UNIT } from './drills';
 import { describeDrillKey, ratePerMinute } from './drillKeys';
 import { baseKey } from './drillWindow';
+import { runsFor } from '../store/completion';
 import type { DailyLog } from '../types';
 
 export interface DrillHistory {
@@ -50,6 +51,63 @@ function ratesFor(log: DailyLog, key: string): number[] {
     out.push(ratePerMinute(stored, value));
   }
   return out;
+}
+
+/**
+ * The keys one day holds for any of these drills, windows and all.
+ *
+ * A stored key states the drill and, where the run said so, the seconds it was
+ * counted over (lib/drillWindow.ts). So nothing may look a drill key up
+ * directly: the note finder is the one drill that reports its own block length,
+ * every one of its results is filed under `find:<rung>@60`, and a reader asking
+ * for `find:<rung>` finds nothing at all.
+ */
+function storedKeysFor(log: DailyLog | undefined, drills: readonly string[]): string[] {
+  const results = log?.drillResults;
+  if (!results) return [];
+  return Object.keys(results).filter((stored) => drills.includes(baseKey(stored)));
+}
+
+/**
+ * The best of a day's results across several drills, as a rate.
+ *
+ * Several, because one task can fan out into several keys: a changes task is a
+ * key per pair, and the row above it wants one number. Rates rather than the
+ * counts they are stored as, for the reason every other reader holds rates: two
+ * block lengths are not two numbers to pick the larger of.
+ */
+export function bestOnDay(log: DailyLog | undefined, drills: readonly string[]): number | null {
+  const results = log?.drillResults;
+  if (!results) return null;
+  let best: number | null = null;
+  for (const stored of storedKeysFor(log, drills)) {
+    const value = results[stored];
+    if (typeof value !== 'number') continue;
+    const rate = ratePerMinute(stored, value);
+    if (best === null || rate > best) best = rate;
+  }
+  return best;
+}
+
+/** Runs a day recorded across several drills. A day that kept only its best counts as one. */
+export function runsOnDay(log: DailyLog | undefined, drills: readonly string[]): number {
+  if (!log) return 0;
+  let count = 0;
+  for (const stored of storedKeysFor(log, drills)) count += runsFor(log, stored).length;
+  return count;
+}
+
+/** The best across every day, for a row reporting a personal best. */
+export function bestAcrossDays(
+  dailyLogs: Record<string, DailyLog>,
+  drills: readonly string[],
+): number | null {
+  let best: number | null = null;
+  for (const log of Object.values(dailyLogs ?? {})) {
+    const day = bestOnDay(log, drills);
+    if (day !== null && (best === null || day > best)) best = day;
+  }
+  return best;
 }
 
 export interface SeriesPoint {

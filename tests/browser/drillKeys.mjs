@@ -303,6 +303,51 @@ const stored = (page) =>
   await ctx.close();
 }
 
+// --- 4. a count filed with the window it was counted over --------------------
+{
+  console.log('\nA drill whose key states the window it was measured over\n');
+  // The note finder is the one drill that reports how long its block ran, so
+  // every one of its results is filed under `find:<rung>@60` rather than under
+  // the bare rung. Every reader in the app folds that window back onto the rung
+  // before looking anything up; the row looked the bare key up directly, found
+  // nothing, and so the drill that fills in the neck was the one drill whose row
+  // could never say what it had heard.
+  const FINDER = { id: 't3', title: 'Note finder', drill: { kind: 'note-finder', durationSec: 60 } };
+  // Days only, with no per-run detail, which is what a day recorded before the
+  // drill kept find times looks like. It also keeps the ladder on its bottom
+  // rung, so the rung the row asks about is the rung these runs are filed under.
+  const finderLogs = Object.fromEntries(
+    [11, 12, 13, 9].map((finds, i) => {
+      const date = daysAgo(3 - i);
+      return [date, {
+        date, routineId: 'r1', completedTaskIds: ['t3'],
+        drillResults: { 'find:open-strings@60': finds },
+        taskRecords: { t3: { evidence: 'measured', at: 1 } },
+        // Answered, so the note sheet the finished day opens is not sitting over
+        // the screen this section is reading.
+        feedback: 'Getting quicker on the D string.',
+      }];
+    }),
+  );
+  const { ctx, page, errors } = await open(
+    seed({ routines: [routine([FINDER])], dailyLogs: finderLogs }),
+  );
+
+  const row = page.locator('.task-row', { hasText: 'Note finder' });
+  const text = (await row.innerText()).replace(/\n/g, ' | ');
+  check('the row reports what today\'s run counted', text.includes('9 finds today'), text);
+  check('and carries the best behind it', text.includes('13 finds'), text);
+
+  // The same numbers through a reader that already folded the window back on,
+  // so a failure above is the row rather than the history.
+  const progress = await numbers(page);
+  check('Progress has the same runs under the rung they were run at',
+    progress.includes('The six open strings'), progress.split('\n').join(' | '));
+
+  check('no console errors', errors.length === 0, errors.join(' | '));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failures ? `\n${failures} FAILED\n` : '\nALL PASS\n');
 process.exit(failures ? 1 : 0);

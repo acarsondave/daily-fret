@@ -6,11 +6,14 @@
 // the app flattering the player, which is the one thing it must never do.
 
 import {
+  bestAcrossDays,
+  bestOnDay,
   collectDrillStats,
   keyDrillHistory,
   pickFocus,
   recentTrend,
   recommendNext,
+  runsOnDay,
   trendLabel,
 } from '../src/lib/drillStats.ts';
 
@@ -155,6 +158,60 @@ console.log('\nOne pool, two block lengths\n');
   const legacy = Object.fromEntries([day('2026-07-01', { [POOL]: 45 })]);
   check('a stored score with no window is left exactly as it was recorded',
     keyDrillHistory(legacy, POOL).best === 45, String(keyDrillHistory(legacy, POOL).best));
+}
+
+console.log('\nWhat one task row can find of its own drill\n');
+{
+  // The defect this covers, exactly. The task row looked its drill keys up in
+  // the day's results by name, and the note finder is the one drill that reports
+  // how long its block ran, so every one of its numbers is stored under
+  // `find:<rung>@60`. The row asked for `find:<rung>`, found nothing, and said
+  // "Heard today" against a run whose count it was holding, with no best beside
+  // it. Every other reader in the app already folds the window back on.
+  const RUNG = 'find:open-strings';
+  const day = (date, results, runs) => [date, {
+    date, routineId: 'r1', completedTaskIds: [],
+    drillResults: results, ...(runs ? { drillRuns: runs } : {}),
+  }];
+  const logs = Object.fromEntries([
+    day('2026-07-01', { [`${RUNG}@60`]: 11 }),
+    day('2026-07-02', { [`${RUNG}@60`]: 13 }),
+    day('2026-07-03', { [`${RUNG}@60`]: 9 }),
+  ]);
+
+  check('a day states what the drill counted', bestOnDay(logs['2026-07-03'], [RUNG]) === 9,
+    String(bestOnDay(logs['2026-07-03'], [RUNG])));
+  check('and the history states the best of them', bestAcrossDays(logs, [RUNG]) === 13,
+    String(bestAcrossDays(logs, [RUNG])));
+  check('a day the drill was not run says nothing rather than nothing-heard',
+    bestOnDay(logs['2026-07-01'], ['find:whole-neck']) === null);
+  check('and so does a day that is not there at all',
+    bestOnDay(undefined, [RUNG]) === null && bestAcrossDays({}, [RUNG]) === null);
+
+  // A count stays comparable across block lengths, for the reason every other
+  // reader holds rates: a longer block is not a better run.
+  const lengths = Object.fromEntries([
+    day('2026-07-01', { [`${RUNG}@60`]: 10 }),
+    day('2026-07-02', { [`${RUNG}@120`]: 16 }),
+  ]);
+  check('sixteen finds in two minutes does not out-rank ten in one',
+    bestAcrossDays(lengths, [RUNG]) === 10, String(bestAcrossDays(lengths, [RUNG])));
+
+  // A changes task fans into a key per pair and the row wants one number.
+  const pairs = Object.fromEntries([day('2026-07-01', { 'pair:A|D': 24, 'pair:D|E': 31 })]);
+  check('several keys of one task come back as the best of them',
+    bestOnDay(pairs['2026-07-01'], ['pair:A|D', 'pair:D|E']) === 31,
+    String(bestOnDay(pairs['2026-07-01'], ['pair:A|D', 'pair:D|E'])));
+
+  // Runs are counted the same way, so the row can say "two runs" about a drill
+  // whose key carries a window.
+  const twice = Object.fromEntries([
+    day('2026-07-01', { [`${RUNG}@60`]: 12 }, { [`${RUNG}@60`]: [{ value: 8, at: 1 }, { value: 12, at: 2 }] }),
+  ]);
+  check('two runs under a windowed key count as two',
+    runsOnDay(twice['2026-07-01'], [RUNG]) === 2, String(runsOnDay(twice['2026-07-01'], [RUNG])));
+  check('and a day that only kept its best counts as one',
+    runsOnDay(logs['2026-07-01'], [RUNG]) === 1, String(runsOnDay(logs['2026-07-01'], [RUNG])));
 }
 
 console.log('\nNo em dashes in anything the panel says\n');

@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { useUndoStore } from '../store/undo';
 import { useStore, getTodayString, drillLogsOf, useDrillLogs } from '../store';
-import { runsFor } from '../store/completion';
 import {
   CheckIcon,
   CircleIcon,
@@ -19,6 +18,7 @@ import clsx from 'clsx';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
 import { chordPairs, pairKey } from '../lib/pairs';
 import { findKey, poolKey, rotationRing, sweepKey, trainerPool } from '../lib/drillKeys';
+import { bestAcrossDays, bestOnDay, runsOnDay } from '../lib/drillStats';
 import { finderHistory } from '../lib/finderHistory';
 import { currentRung } from '../lib/noteFinder';
 import { sanitizeMinutes, formatDuration } from '../lib/coached';
@@ -166,21 +166,17 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
     return chordPairs(chords).map((p) => pairKey(p.from, p.to));
   }, [drill, allLogs]);
 
+  // Read through lib/drillStats rather than by looking each key up in the day.
+  // A stored key states the window a count was taken over where the run knew it
+  // (lib/drillWindow.ts), so a direct lookup misses everything the note finder
+  // has ever recorded: it is the one drill that reports its own block length, so
+  // its numbers live under `find:<rung>@60` and the row asking for `find:<rung>`
+  // found none of them. That row then said "Heard today" against a run it had
+  // the count for, and never showed a best.
   const bestResult = useStore((s) => {
     if (resultKeys.length === 0) return null;
     const acc = s.accounts[s.currentAccountId];
-    const logs = acc ? drillLogsOf(acc) : null;
-    if (!logs) return null;
-    let best = -1;
-    for (const dayLog of Object.values(logs)) {
-      const dr = dayLog.drillResults;
-      if (!dr) continue;
-      for (const k of resultKeys) {
-        const v = dr[k];
-        if (typeof v === 'number' && v > best) best = v;
-      }
-    }
-    return best >= 0 ? best : null;
+    return acc ? bestAcrossDays(drillLogsOf(acc), resultKeys) : null;
   });
 
   // Today's number, which is what the row reports back. The chip beside it is
@@ -189,14 +185,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
   const todayResult = useStore((s) => {
     if (resultKeys.length === 0) return null;
     const acc = s.accounts[s.currentAccountId];
-    const dr = acc ? drillLogsOf(acc)[today]?.drillResults : undefined;
-    if (!dr) return null;
-    let best = -1;
-    for (const k of resultKeys) {
-      const v = dr[k];
-      if (typeof v === 'number' && v > best) best = v;
-    }
-    return best >= 0 ? best : null;
+    return acc ? bestOnDay(drillLogsOf(acc)[today], resultKeys) : null;
   });
 
   // The record is a stable object reference until this task's day changes, so
@@ -208,11 +197,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
   const todayRuns = useStore((s) => {
     if (resultKeys.length === 0) return 0;
     const acc = s.accounts[s.currentAccountId];
-    const log = acc ? drillLogsOf(acc)[today] : undefined;
-    if (!log) return 0;
-    let count = 0;
-    for (const k of resultKeys) count += runsFor(log, k).length;
-    return count;
+    return acc ? runsOnDay(drillLogsOf(acc)[today], resultKeys) : 0;
   });
 
   const line = evidenceLine(
