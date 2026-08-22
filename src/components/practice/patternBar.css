@@ -168,6 +168,49 @@
   color: var(--text-muted);
 }
 
+/* --- a percussive slap ------------------------------------------------------
+   A cross on the strings, at the slot the slap lands on. On the strings and not
+   on the pick, because that is where the difference is: the arm crosses exactly
+   as it does anywhere else and the fretting hand has killed what is underneath.
+   Bone, like the stems and the arm, because it is part of what is being asked
+   for rather than part of what the player did. */
+
+.pb-mute {
+  position: absolute;
+  top: 50%;
+  width: calc(var(--pb-pick) * 0.46);
+  height: calc(var(--pb-pick) * 0.46);
+  transform: translate(-50%, -50%);
+  color: var(--pb-bone);
+  transition: color var(--dur-base) ease;
+}
+
+.pb-mute::before,
+.pb-mute::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.pb-mute::before {
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.pb-mute::after {
+  transform: translateY(-50%) rotate(-45deg);
+}
+
+/* Asked for and nothing arrived. Dimmed with the pick above it, never
+   reddened: this drill does not mark a slot wrong. */
+.pb-mute.is-missed {
+  color: var(--text-muted);
+}
+
 /* --- a strum that was actually played -------------------------------------- */
 
 /* A stroke across the strings, at the position inside the slot it landed on.

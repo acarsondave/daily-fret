@@ -8,11 +8,15 @@ import { SyncedChart, ChartStandIn } from './SyncedChart';
 import { PlaybackControls } from './PlaybackControls';
 import { ChordDiagram } from './ChordDiagram';
 import { StrumRow } from './StrumRow';
+import { PatternBar } from './PatternBar';
 import { sfx } from '../../audio/sfx';
 import { useSong } from '../../hooks/useSongs';
 import { usePlayerClock } from '../../hooks/usePlayerClock';
 import { useCapoOffset } from '../../hooks/useCapo';
 import { buildTimeline, loopTarget, sectionIndexAt, type SongTimeline } from '../../lib/songTiming';
+import { parsePattern } from '../../lib/strumPattern';
+import { describePattern } from '../../lib/patternDeck';
+import { songStrumPatterns } from '../../lib/songStrum';
 import { seekPlayerTo, setPlayerRate, type YTPlayer } from '../../lib/youtube';
 
 const AUTO_ADVANCE_SECONDS = 5;
@@ -98,6 +102,9 @@ export function SongPlayer({
   // watching a different upload of the song, its anchors are for someone else's
   // video and would put the chart confidently in the wrong place.
   const timed = useMemo(() => (song ? buildTimeline(song) : null), [song]);
+  // The phrase the strum block drills, for the last look at it before the record
+  // starts. Null for a song whose strum is only chart shorthand.
+  const phrase = useMemo(() => parsePattern(songStrumPatterns(song)[0] ?? ''), [song]);
   const timeline = timed?.ok && !storedLink ? timed.timeline : null;
 
   // The frame callback runs sixty times a second and must never cause a render,
@@ -184,8 +191,22 @@ export function SongPlayer({
         {/* The hand, not the sentence. "Strum DDUUDU" is a code a beginner has to
             decode before it means anything; the arrows are the movement. The
             chords were three initials, and this screen is the last look at them
-            before a record starts and does not wait. */}
-        <StrumRow strum={song.strum} size={24} />
+            before a record starts and does not wait.
+
+            Where the song has a written phrase, it is drawn in the drill's own
+            notation rather than as a row of arrows, and drawn whole. Two reasons,
+            and neither is decoration. It is the same picture the strum block
+            before this one just spent ninety seconds on, so the screen is
+            reminding rather than introducing. And a row of arrows cannot say
+            where the bar line falls or which way the arm is travelling through
+            the slots that do not sound, both of which this phrase turns on.
+            Songs whose strum is chart shorthand — two downs held across a bar —
+            keep the arrows, because that is all their strum actually is. */}
+        {phrase ? (
+          <PatternBar pattern={phrase} size="card" label={describePattern(phrase)} />
+        ) : (
+          <StrumRow strum={song.strum} size={24} />
+        )}
         {/* The capo is drawn on every shape rather than written once beside
             them, because it is a fact about how each of these is fretted. Get
             Lucky is charted in A minor against a record in B minor: without the

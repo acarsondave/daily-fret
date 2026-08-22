@@ -117,12 +117,15 @@ export function parseChordLine(line: string): SongStepDef[] {
     .map((chord) => ({ chord }));
 }
 
-/** A strum is downs, ups and rests. Anything else is a typo, not a rhythm. */
+/**
+ * A strum is downs, ups, percussive slaps and rests. Anything else is a typo,
+ * not a rhythm.
+ */
 export function normaliseStrum(raw: string): string {
   return raw
     .toUpperCase()
     .split('')
-    .filter((c) => c === 'D' || c === 'U' || c === '-')
+    .filter((c) => c === 'D' || c === 'U' || c === 'X' || c === '-')
     .join('');
 }
 

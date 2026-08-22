@@ -110,7 +110,9 @@ export function CoachedSession({ routine, onClose }: Props) {
   const recordNoteFinds = useStore((s) => s.recordNoteFinds);
 
   const songs = useSongs();
-  const segments = useMemo(() => buildSegments(routine), [routine]);
+  // The real catalogue, not the built-in one: a song the player wrote carries
+  // its own strumming and has to get the same strum block a shipped chart does.
+  const segments = useMemo(() => buildSegments(routine, songs), [routine, songs]);
   // Only nudge about the mic if this routine actually listens. Songs used to be
   // in this list, but the play-along has had no mic since the learn pass was
   // retired, so a song-only routine was asking for a permission it never uses.

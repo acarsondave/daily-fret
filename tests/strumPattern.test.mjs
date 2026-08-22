@@ -52,7 +52,9 @@ console.log('\nReading a pattern\n');
 
   check('six characters are refused, not padded', parsePattern('D-DUD-') === null);
   check('an up on a quarter is refused', parsePattern('DUDU') === null);
-  check('rubbish is refused', parsePattern('DXDU-UD-') === null);
+  // This used to read `DXDU-UD-`, from before X meant anything. It means the
+  // percussive slap now, so the rubbish had to be rubbish that stayed rubbish.
+  check('rubbish is refused', parsePattern('DZDU-UD-') === null);
   // The arm cannot be going up on a downbeat, so this is not a hard pattern, it
   // is an impossible one. Taken as written it would draw a pick facing the wrong
   // way and subtract the up strum's detection lag from a down stroke.
@@ -91,7 +93,10 @@ function play(pattern, passes, { offsetMs = () => 0, drop = () => false, add = (
       const at = GRID.origin + (pass * length + slot) * slotPeriod;
       // The player strikes; the analyser hears it a little later, by an amount
       // that depends on which way the hand was going.
-      const lag = (expected === 'U' ? UP_DETECTION_LAG_MS : DOWN_DETECTION_LAG_MS) / 1000;
+      // A slap has no direction of its own, so it is heard with the lag of
+      // whichever way the arm is already going through that slot.
+      const facing = expected === 'D' || expected === 'U' ? expected : slot % 2 === 0 ? 'D' : 'U';
+      const lag = (facing === 'U' ? UP_DETECTION_LAG_MS : DOWN_DETECTION_LAG_MS) / 1000;
       if (expected && !drop(pass, slot)) onsets.push(at + lag + offsetMs(pass, slot) / 1000);
       if (!expected && add(pass, slot)) onsets.push(at + DOWN_DETECTION_LAG_MS / 1000);
     }

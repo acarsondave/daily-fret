@@ -34,8 +34,32 @@
 
 import { IN_TIME_MS, type BeatGrid } from './strumTiming';
 
-/** What a pattern does at one eighth-note slot. `null` is a ghost. */
-export type SlotStroke = 'D' | 'U' | null;
+/**
+ * What a pattern does at one eighth-note slot. `null` is a ghost.
+ *
+ * `X` IS THE PERCUSSIVE SLAP, AND IT IS A THIRD THING. The pick crosses the
+ * strings and the strings are dead: an onset with no chord in it. Writing it as
+ * `D` would teach the hand to strum where it should mute, and writing it as `-`
+ * would teach it to skip the stroke that carries the groove, so it is neither.
+ * It has no direction of its own; the arm's own direction at that slot is the
+ * direction it is played with, which is the same rule a ghost already follows.
+ *
+ * What the drill does NOT claim about it: nothing here verifies that the strings
+ * were actually muted. The analyser reports onsets, and an onset is all the
+ * evidence there is, so a slap is scored exactly as a strike in the right slot
+ * at the right time and no more than that. Saying "that was a proper slap" would
+ * be a verdict on a measurement nobody has taken.
+ */
+export type SlotStroke = 'D' | 'U' | 'X' | null;
+
+/**
+ * Which way the arm is travelling through a slot, whatever the pattern asks.
+ *
+ * The pendulum, stated once. The arm is on its way down through every even slot
+ * and up through every odd one, so a ghost and a slap both know their own
+ * direction without being told, and a `D` or `U` can only ever agree with it.
+ */
+export const armDirectionAt = (slot: number): 'D' | 'U' => (slot % 2 === 0 ? 'D' : 'U');
 
 export interface Pattern {
   /** The authored string, exactly as the task stores it. */
@@ -94,6 +118,25 @@ export const DOWN_DETECTION_LAG_MS = 23;
 export const UP_DETECTION_LAG_MS = 3;
 
 /**
+ * How late a stroke of the given kind is detected, at a slot.
+ *
+ * A slap takes the lag of the direction the arm is already going, and that is
+ * inherited rather than measured. The reason the two figures above differ is
+ * geometry — a down stroke's onset builds as the sweep crosses from the wound E,
+ * an up stroke's starts on the thin E and rises at once — and a muted stroke
+ * sweeps across the same strings in the same direction, so the same geometry
+ * applies to it. What is genuinely unmeasured is whether damping the strings
+ * sharpens the transient enough to move the figure; if it does, the error is at
+ * most the twenty milliseconds between the two, inside a fifty millisecond
+ * budget. Said out loud here because it is the one number in this file taken by
+ * argument instead of from a take.
+ */
+function detectionLagMs(expected: SlotStroke, slot: number): number {
+  const direction = expected === 'D' || expected === 'U' ? expected : armDirectionAt(slot);
+  return direction === 'U' ? UP_DETECTION_LAG_MS : DOWN_DETECTION_LAG_MS;
+}
+
+/**
  * Read a pattern string into eighth-note slots.
  *
  * Three lengths are accepted and they mean different things. Eight characters
@@ -111,10 +154,10 @@ export const UP_DETECTION_LAG_MS = 3;
  */
 export function parsePattern(source: string): Pattern | null {
   const trimmed = source.trim().toUpperCase();
-  if (!/^[DU-]+$/.test(trimmed)) return null;
+  if (!/^[DUX-]+$/.test(trimmed)) return null;
 
   const read = (chars: string): SlotStroke[] =>
-    [...chars].map((c) => (c === 'D' ? 'D' : c === 'U' ? 'U' : null));
+    [...chars].map((c) => (c === 'D' ? 'D' : c === 'U' ? 'U' : c === 'X' ? 'X' : null));
 
   if (trimmed.length % SLOTS_PER_BAR === 0 && trimmed.length <= SLOTS_PER_BAR * MAX_PATTERN_BARS) {
     const slots = read(trimmed);
@@ -129,7 +172,10 @@ export function parsePattern(source: string): Pattern | null {
     if (trimmed.includes('U')) return null;
     const slots: SlotStroke[] = [];
     for (const c of trimmed) {
-      slots.push(c === 'D' ? 'D' : null);
+      // A slap survives the expansion where an up strum cannot: it is played
+      // with whatever direction the arm already has, and on a quarter note that
+      // is always a down.
+      slots.push(c === 'D' ? 'D' : c === 'X' ? 'X' : null);
       slots.push(null);
     }
     return { source, slots };
@@ -150,7 +196,11 @@ export function parsePattern(source: string): Pattern | null {
  * milliseconds the wrong way inside a fifty millisecond budget.
  */
 function travelsWithTheArm(slots: readonly SlotStroke[]): boolean {
-  return slots.every((stroke, slot) => !stroke || stroke === (slot % 2 === 0 ? 'D' : 'U'));
+  return slots.every(
+    // A slap is exempt because it has no direction to disagree with: it is
+    // played with whichever way the arm is already going through that slot.
+    (stroke, slot) => !stroke || stroke === 'X' || stroke === armDirectionAt(slot),
+  );
 }
 
 /** Slots the pattern actually strikes. A pattern of all ghosts is not a pattern. */
@@ -250,7 +300,7 @@ export function matchPattern(run: PatternRun): SlotOutcome[] {
     for (let i = 0; i < ideal.length; i += 1) {
       // Compare against where a strum of the expected direction would be *heard*,
       // not where it would be played, so the comparison is like for like.
-      const lag = ideal[i].expected === 'U' ? UP_DETECTION_LAG_MS : DOWN_DETECTION_LAG_MS;
+      const lag = detectionLagMs(ideal[i].expected, ideal[i].slot);
       const distance = Math.abs(onset - (ideal[i].at + lag / 1000));
       if (distance < bestDistance) {
         bestDistance = distance;
@@ -269,7 +319,7 @@ export function matchPattern(run: PatternRun): SlotOutcome[] {
     if (!struck) {
       return { pass: s.pass, slot: s.slot, expected: s.expected, kind: s.expected ? 'missed' : 'ghost' };
     }
-    const lag = s.expected === 'U' ? UP_DETECTION_LAG_MS : DOWN_DETECTION_LAG_MS;
+    const lag = detectionLagMs(s.expected, s.slot);
     const offsetMs = (struck.at - s.at) * 1000 - lag;
     if (!s.expected) {
       return { pass: s.pass, slot: s.slot, expected: null, kind: 'added', offsetMs };

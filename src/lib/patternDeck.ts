@@ -215,7 +215,12 @@ export function describePattern(pattern: Pattern): string {
     if (!stroke) return;
     const within = i % SLOTS_PER_BAR;
     const count = within % 2 === 0 ? `${within / 2 + 1}` : 'and';
-    bars[bar].push(`${stroke === 'D' ? 'down' : 'up'} on ${count}`);
+    // A slap is named for what it is rather than for the direction it happens to
+    // be played with. "Down on 2" and "slap on 2" are different instructions to
+    // the fretting hand, and this line is the whole instruction for anyone who
+    // cannot see the row.
+    const said = stroke === 'X' ? 'slap' : stroke === 'D' ? 'down' : 'up';
+    bars[bar].push(`${said} on ${count}`);
   });
   // A two-bar phrase is counted 1 + 2 + 3 + 4 + twice over, so the count alone
   // cannot say which of the two a strum is in. The bar is named only when there

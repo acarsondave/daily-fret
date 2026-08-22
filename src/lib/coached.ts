@@ -1,5 +1,8 @@
 import type { Routine, Task, TimedBlock } from '../types';
+import { SONGS, type Song } from '../data/songs';
 import { chordPairs, routineChords } from './pairs';
+import { findSong } from './songCatalog';
+import { SONG_STRUM_SECONDS, songStrumPatterns } from './songStrum';
 
 // A coached session flattens a routine into an ordered list of runnable
 // segments: chord-change tasks expand across the routine's pairs, the chord
@@ -95,7 +98,19 @@ export function timedBlocks(task: Task): TimedBlock[] {
   ];
 }
 
-export function buildSegments(routine: Routine | undefined): CoachSegment[] {
+/**
+ * The runnable segments of a routine, in the order the session plays them.
+ *
+ * `songs` is the catalogue to look song tasks up in, which is the built-in
+ * charts plus whatever the player has written (hooks/useSongs.ts). It has a
+ * default so the pure tests and any caller with no account in hand still get the
+ * shipped charts, but a caller that has the real catalogue must pass it, or a
+ * chart the player wrote themselves would quietly lose its strum block.
+ */
+export function buildSegments(
+  routine: Routine | undefined,
+  songs: readonly Song[] = SONGS,
+): CoachSegment[] {
   if (!routine) return [];
   const learned = routineChords(routine);
   const segments: CoachSegment[] = [];
@@ -179,6 +194,39 @@ export function buildSegments(routine: Routine | undefined): CoachSegment[] {
         rungId: task.drill?.rungId,
       });
     } else if (kind === 'song' && task.drill?.songId) {
+      // The song's own strumming, drilled immediately before the song.
+      //
+      // THIS IS THE WHOLE POINT OF IT. Learning a song by owning its strum first
+      // is the route the player already trusts, and up to now the app could only
+      // support it by having a pattern string copied into a task by hand. A song
+      // task already names a song and a song already knows its strumming, so the
+      // block needs no configuration at all and arrives in routines that were
+      // saved long before this existed.
+      //
+      // A segment of the song's own task rather than a task of its own,
+      // deliberately: a task is a row the player has to have added, and this has
+      // to reach a routine already sitting on disk. It is the same shape a timed
+      // task with several blocks has always had — one row, several segments.
+      //
+      // Nothing here grades the song. The play-along below is untouched and
+      // still records only that it was played; what gets a score is the strum
+      // block, under its own title and under the pattern it dealt.
+      const song = findSong(songs, task.drill.songId);
+      const patterns = songStrumPatterns(song);
+      if (song && patterns.length) {
+        segments.push({
+          kind: 'patterns',
+          taskId: task.id,
+          title: `${song.title} strum`,
+          seconds: SONG_STRUM_SECONDS,
+          patterns,
+          // No tempo stated on purpose. The song's own BPM is the record's, and
+          // the click a drill runs at is prescribed from the player's measured
+          // history and never above a pace they have proven. Pinning the record's
+          // tempo here would be ambition setting the number, which is the one
+          // thing this app's tempo rule exists to prevent.
+        });
+      }
       // Play-along: no fixed length, it ends when the record does.
       segments.push({
         kind: 'song',

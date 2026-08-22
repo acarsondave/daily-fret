@@ -39,7 +39,8 @@ import { SONGS, type Song } from '../data/songs';
 import { bestAnchoredPair, describeAnchors, type Anchor } from './anchors';
 import { BEGINNER_MODULES, findModule, gradeOfModule } from './beginnerCourse';
 import { chordPairs } from './pairs';
-import { songsPlayableWith } from './songCatalog';
+import { findSong, songsPlayableWith } from './songCatalog';
+import { SONG_STRUM_SECONDS, songHasStrum } from './songStrum';
 
 const CHORD_PERFECT_SECONDS = 90;
 const CHANGES_SECONDS = 60;
@@ -629,6 +630,10 @@ function buildPlayingTasks(basis: RoutineBasis, module: number | null): Task[] {
  * A song play-along comes back as 0. It runs until the record ends and the
  * routine does not get to say how long that is; the block it replaced claimed
  * five minutes, which was a number nobody had measured.
+ *
+ * Unless the song has a strum block in front of it, which does have a length the
+ * routine set. The answer is then that block and not the record: this many
+ * minutes of the song's strumming, and then the song.
  */
 export function taskMinutes(task: Task): number {
   if (task.duration) return Math.max(1, Math.round(Number(task.duration)));
@@ -638,7 +643,14 @@ export function taskMinutes(task: Task): number {
   }
   const drill = task.drill;
   if (!drill) return 0;
-  if (drill.kind === 'song') return 0;
+  if (drill.kind === 'song') {
+    // The built-in catalogue only. A song the player wrote is not reachable from
+    // here, and reporting its strum block's minutes on some screens and not
+    // others would be worse than the undercount this already was.
+    return songHasStrum(findSong(SONGS, drill.songId))
+      ? Math.max(1, Math.round(SONG_STRUM_SECONDS / 60))
+      : 0;
+  }
   const seconds =
     drill.kind === 'one-minute-changes'
       ? (drill.pairs?.length ?? 1) * (drill.durationSec ?? CHANGES_SECONDS)

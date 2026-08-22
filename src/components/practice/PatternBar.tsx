@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import clsx from 'clsx';
 import { ICON_STROKE } from '../icons/Icon';
-import { SLOTS_PER_BAR, type Pattern, type SlotStroke } from '../../lib/strumPattern';
+import { SLOTS_PER_BAR, armDirectionAt, type Pattern, type SlotStroke } from '../../lib/strumPattern';
 import './patternBar.css';
 
 /**
@@ -15,12 +15,17 @@ import './patternBar.css';
  * This is the drill's whole notation, and every part of it stands in for a
  * sentence the screen would otherwise have to carry.
  *
- * THREE MARKS, THREE MEANINGS.
+ * FOUR MARKS, FOUR MEANINGS.
  *
  *  - A plectrum sits at each slot, above the strings where the stroke comes
  *    down and below them where it comes up. Filled where the pattern sounds,
  *    an outline where it does not: "lift the pick off the strings and keep the
  *    arm moving through them" is a fill.
+ *  - A cross on the strings themselves marks a percussive slap. It is drawn
+ *    there rather than on the pick because that is where the difference actually
+ *    is: the arm and the pick do exactly what they do on any other stroke, and
+ *    what changes is that the fretting hand has killed the strings underneath.
+ *    A slap keeps its filled pick for the same reason — it strikes.
  *  - A bone marker travels the strings in a zigzag, crossing them once a slot,
  *    down then up then down, whether or not anything sounds. That is the arm
  *    the player is supposed to have, and it is the reason the drill exists.
@@ -99,7 +104,9 @@ interface Props {
  * pattern asks of it, so a ghost knows its own direction.
  */
 function directionAt(slot: number, expected: SlotStroke): 'D' | 'U' {
-  return expected ?? (slot % 2 === 0 ? 'D' : 'U');
+  // A slap goes through this branch with the ghosts: it is played with whichever
+  // way the arm is already travelling, and has no direction to state.
+  return expected === 'D' || expected === 'U' ? expected : armDirectionAt(slot);
 }
 
 /**
@@ -236,6 +243,12 @@ export function PatternBar({
               >
                 <Pick up={up} filled={!!expected && state !== 'unheard'} />
               </span>
+              {expected === 'X' && (
+                <span
+                  className={clsx('pb-mute', state === 'missed' && 'is-missed')}
+                  style={{ left: centreOf(slot) }}
+                />
+              )}
               {landed && (
                 <span
                   className={clsx('pb-stroke', state === 'added' ? 'is-added' : 'is-struck')}

@@ -39,6 +39,8 @@ import { DRILL_UNIT } from './drills';
 import { PAIR_PREFIX, parsePairKey } from './pairs';
 import { ASSUMED_WINDOW_SEC, WINDOW_SEP, baseKey, keyWindow, perMinute } from './drillWindow';
 import { patternName } from '../data/strumPatterns';
+import { SONGS } from '../data/songs';
+import { songPatternName } from './songStrum';
 import { getRung } from './noteFinder';
 
 export const CHORD_PREFIX = 'chord:';
@@ -209,7 +211,11 @@ export function parsePatternKey(key: string): { pattern: string; bpm: number } |
   if (at <= 0) return null;
   const pattern = body.slice(0, at);
   const bpm = Number(body.slice(at + 1));
-  if (!/^[DU-]+$/.test(pattern)) return null;
+  // D, U, the percussive slap X, and the slots the arm passes through. A key
+  // whose pattern this refuses is read as a task id from before drill keys
+  // existed, so an alphabet narrower than the matcher's would quietly retire
+  // every run of a pattern that used the wider one.
+  if (!/^[DUX-]+$/.test(pattern)) return null;
   return Number.isFinite(bpm) && bpm > 0 ? { pattern, bpm } : null;
 }
 
@@ -310,7 +316,12 @@ export function describeDrillKey(key: string): DrillKeyDescription {
     // does not, because a player who wrote `D-DUDU--` recognises that and would
     // not recognise anything the app made up for it. The tempo rides along for
     // the reason the key carries it: two tempos are two exercises.
-    const named = patternName(dealt.pattern, []);
+    //
+    // The ladder first, then the songs. A phrase that came off a song has no
+    // rung to be named by (src/data/strumPatterns.ts says why), and without the
+    // second lookup every run of Get Lucky's strum would appear in Progress as
+    // the raw string, which is the pattern and is not its name.
+    const named = patternName(dealt.pattern, []) ?? songPatternName(dealt.pattern, SONGS);
     return {
       kind: 'pattern',
       label: `${named ?? dealt.pattern} \u00b7 ${dealt.bpm} BPM`,

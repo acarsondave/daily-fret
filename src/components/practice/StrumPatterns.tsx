@@ -23,6 +23,8 @@ import {
 } from '../../lib/strumPattern';
 import { describePattern, passesPerDeal, upStrumsUnheard } from '../../lib/patternDeck';
 import { patternName } from '../../data/strumPatterns';
+import { songPatternName } from '../../lib/songStrum';
+import { useSongs } from '../../hooks/useSongs';
 import { useStore } from '../../store';
 import { PatternBar, type SlotView } from './PatternBar';
 import { ClickPath } from './ClickPath';
@@ -143,6 +145,7 @@ export function StrumPatterns({
   const duration = config?.durationSec ?? 60;
   const passes = passesPerDeal(config?.bars);
   const custom = useStore((s) => s.accounts[s.currentAccountId]?.strumPatterns ?? []);
+  const songs = useSongs();
 
   const [view, setView] = useState<View>(autoStart ? 'playing' : 'deck');
   // Whatever the click is actually set to, which is not always the prescription:
@@ -595,9 +598,12 @@ export function StrumPatterns({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, autoAdvance]);
 
+  // The ladder and the player's own patterns first, then the song catalogue: a
+  // phrase dealt from a song's strum block has no rung to be named by, and a card
+  // reading `D--UX--U-U-UDUDU` is the pattern rather than its name.
   const nameOf = useCallback(
-    (source: string) => patternName(source, custom) ?? source,
-    [custom],
+    (source: string) => patternName(source, custom) ?? songPatternName(source, songs) ?? source,
+    [custom, songs],
   );
 
   // The deck minus whichever card is about to be dealt, for the wait before the
