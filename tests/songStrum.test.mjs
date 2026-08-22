@@ -58,8 +58,13 @@ check('and no single added rest rescues them', fitsAt(1).length === 0, fitsAt(1)
 const two = fitsAt(2);
 check('exactly one arrangement of two added rests works', two.length === 1, two.join(' '));
 check('and it is sixteen slots', two[0]?.length === 16, String(two[0]?.length));
-check('which is the pattern the catalogue ships',
-  two[0] === 'D--UX--U-U-UDUDU', `derived ${two[0]}`);
+// Against the catalogue itself, not against a literal repeated in this file.
+// The first draft of this line compared the derivation to a hardcoded string,
+// which meant songs.ts could drift to any other reading and only the checks
+// further down would notice.
+const SHIPPED = SONGS.find((s) => s.id === 'get-lucky')?.strumPatterns?.[0]?.pattern;
+check('which is the pattern the catalogue ships', two[0] === SHIPPED,
+  `derived ${two[0]}, shipped ${SHIPPED}`);
 
 // The two rests are forced rather than chosen, and this says why in a way a
 // comment cannot: take either one back out and the arrangement stops working.
@@ -76,7 +81,7 @@ check('Get Lucky is in the catalogue', Boolean(lucky));
 
 const deck = songStrumPatterns(lucky);
 check('it offers one phrase to practise', deck.length === 1, deck.join(' '));
-check('and it is the derived one', deck[0] === 'D--UX--U-U-UDUDU', deck[0]);
+check('and the drill is handed the derived phrase', deck[0] === two[0], deck[0]);
 
 const phrase = parsePattern(deck[0]);
 check('the matcher can read it', phrase !== null);

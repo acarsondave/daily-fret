@@ -44,8 +44,12 @@ console.log('\nStrum normalising\n');
 {
   check('lowercase is accepted', normaliseStrum('ddu') === 'DDU');
   check('rests survive', normaliseStrum('D-U-') === 'D-U-');
-  check('anything else is dropped', normaliseStrum('D x U 9') === 'DU');
-  check('a fully invalid strum comes back empty', normaliseStrum('xyz') === '');
+  // The percussive slap is a stroke, not a typo. These three lines used to use
+  // `x` as the example of rubbish, which stopped being rubbish the day the
+  // matcher learned to score a muted stroke.
+  check('a slap survives', normaliseStrum('d x u') === 'DXU');
+  check('anything else is dropped', normaliseStrum('D q U 9') === 'DU');
+  check('a fully invalid strum comes back empty', normaliseStrum('qwerty') === '');
 }
 
 console.log('\nChords are derived, never typed\n');
@@ -73,7 +77,7 @@ console.log('\nWhat blocks a save\n');
   check('a song with no bars is blocked',
     draftProblems(draft({ sections: [{ label: 'V', steps: [] }] })).some(p => p.field === 'sections'));
   check('an unreadable strum is blocked',
-    draftProblems(draft({ strum: 'xyz' })).some(p => p.field === 'strum'));
+    draftProblems(draft({ strum: 'qwerty' })).some(p => p.field === 'strum'));
   check('an empty strum is fine — the song default fills in',
     !draftProblems(draft({ strum: '' })).some(p => p.field === 'strum'));
   // Every problem names a field so the editor can point at it. A save that just
