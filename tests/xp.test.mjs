@@ -206,6 +206,28 @@ console.log('\nWhat the app cannot hear\n');
       <= (mixed.source.heard + mixed.source.bests) * UNHEARD_SHARE + 1,
     `${mixed.source.timed + mixed.source.stated} vs ${mixed.source.heard + mixed.source.bests}`);
 
+  // The line above carries UNHEARD_SHARE in its own bound, so raising the share
+  // raises the bar it is checked against and the invariant goes untested. The
+  // invariant, stated without it: a history that is mostly timers and claims
+  // over one heard run a day may match what the app heard and never beat it.
+  const mostlyUnheard = computeXp(logs(...Array.from({ length: 20 }, (_, i) =>
+    day(iso(i), { a: 20 }, { t1: timed(30), t2: timed(30), t3: stated(), t4: stated() }))));
+  const heardPart = (x) => x.source.heard + x.source.reps + x.source.bests;
+  const unheardPart = (x) => x.source.timed + x.source.stated;
+  // The slack is not a fudge: the clamp is applied before each figure is
+  // rounded, and both unheard figures round up on a day this shape, so the
+  // delivered breakdown runs one point a day over the guarantee. That is a real
+  // gap and it is written down here rather than rounded away. What must not
+  // happen is the share itself moving: at UNHEARD_SHARE 3 this day pays 12
+  // unheard against 4 heard.
+  const DAYS = 20;
+  check('a history built on timers and claims cannot outweigh what was heard',
+    unheardPart(mostlyUnheard) <= heardPart(mostlyUnheard) + DAYS,
+    `${unheardPart(mostlyUnheard)} unheard against ${heardPart(mostlyUnheard)} heard`);
+  check('and the overshoot is rounding, not a share of its own',
+    unheardPart(mostlyUnheard) - heardPart(mostlyUnheard) <= DAYS,
+    `${unheardPart(mostlyUnheard) - heardPart(mostlyUnheard)} over ${DAYS} days`);
+
   const oneMinute = computeXp(logs(day('2026-06-01', { a: 20, b: 20, c: 20 }, { t: timed(1) })));
   check('a minute on the clock is worth a point', oneMinute.source.timed === 1,
     String(oneMinute.source.timed));
@@ -213,6 +235,11 @@ console.log('\nWhat the app cannot hear\n');
     Object.fromEntries(Array.from({length:20}, (_,i) => [`d${i}`, 20])), { t: timed(600) })));
   check('a timer left running all day is capped', runaway.source.timed <= TIMED_TASK_CAP,
     String(runaway.source.timed));
+  // The line above restates the Math.min it is testing: raise the cap and it
+  // widens with it. This one says what the cap is for. Ten hours on a clock the
+  // app never heard a note through is worth ten minutes, which is a warm-up.
+  check('and ten hours of it is worth ten minutes',
+    runaway.source.timed <= 10, String(runaway.source.timed));
   const halfDone = computeXp(logs(day('2026-06-01', { a: 20, b: 20, c: 20 },
     { t: { evidence: 'timed', seconds: 180, at: 1 } })));
   check('a block left half-finished still pays the minutes it ran',
@@ -223,6 +250,11 @@ console.log('\nWhat the app cannot hear\n');
     Object.fromEntries(Array.from({length:10}, (_,i) => [`t${i}`, stated()])))));
   check('claims are capped by the day', manyClaims.source.stated <= STATED_DAY_CAP,
     String(manyClaims.source.stated));
+  // Same shape, same fix. Ten tasks ticked off by hand may not out-earn the
+  // three counted runs sitting beside them, or the honest path is the expensive
+  // one.
+  check('and ten of them are worth less than three counted runs',
+    manyClaims.source.stated < RUN_POINTS * 3, String(manyClaims.source.stated));
   const oneClaim = computeXp(logs(day('2026-06-01', { a: 20, b: 20, c: 20 }, { t: stated() })));
   check('one claim is worth its rate', oneClaim.source.stated === STATED_POINTS,
     String(oneClaim.source.stated));
@@ -318,6 +350,18 @@ console.log('\nLevels, unbounded\n');
   })());
   check('the bands are ordered and start at level one',
     BANDS[0].from === 1 && BANDS.every((b, i) => i === 0 || b.from > BANDS[i-1].from));
+  // Nothing here read a band at the level it begins on, so the whole ladder
+  // could be shifted a level late and every assertion above still held. The
+  // level a band names is the level it starts on, and the one below it belongs
+  // to the band before.
+  const bandAt = (level) => levelFor(pointsForLevel(level)).band.title;
+  const wrongStart = BANDS.filter((b) => bandAt(b.from) !== b.title);
+  check('a band begins on the level it names', wrongStart.length === 0,
+    wrongStart.map((b) => `L${b.from} read as "${bandAt(b.from)}" not "${b.title}"`).join(' | '));
+  const wrongBefore = BANDS.slice(1).filter((b, i) => bandAt(b.from - 1) !== BANDS[i].title);
+  check('and the level below it still belongs to the band before',
+    wrongBefore.length === 0,
+    wrongBefore.map((b) => `L${b.from - 1} read as "${bandAt(b.from - 1)}"`).join(' | '));
   check('every band has a title that says something',
     BANDS.every(b => b.title.length > 4 && !/level/i.test(b.title)));
   check('the last band never ends', levelFor(pointsForLevel(9_999)).nextBand === null);

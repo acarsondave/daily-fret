@@ -14,8 +14,10 @@ import {
   CHANGES_BAR,
   CHORD_BAR,
   ROTATION_BAR,
+  FIND_BAR,
 } from '../src/lib/readiness.ts';
 import { RUST_DAYS } from '../src/lib/tempo.ts';
+import { CLEAR_FINDS_PER_MIN } from '../src/lib/noteFinder.ts';
 
 let failures = 0;
 const check = (l, ok, d) => { if (!ok) failures++; console.log(`  ${ok?'ok  ':'FAIL'}  ${l}${d?' — '+d:''}`); };
@@ -261,6 +263,29 @@ console.log('\nWhether it was ever held, which is a different question\n');
   check('a lapsed drill is not held now but was held once',
     readiness(cold, CHANGES_BAR, dayBefore(TODAY, -(STALE_DAYS + 1))).state === 'lapsed' &&
       everHeld(cold, CHANGES_BAR));
+}
+
+console.log('\nThe note finder\'s bar is above the rate that merely clears a rung\n');
+{
+  // FIND_BAR had no assertion anywhere that did not derive its fixture from
+  // FIND_BAR itself, so it could be halved and every suite stayed green. It is
+  // the number that decides whether the app says the player knows the neck, and
+  // it is the app's own invention rather than the course's, so it is stated
+  // here in finds a minute.
+  //
+  // The claim it has to keep: clearing a rung is permission to be asked harder
+  // questions, and being solid is a different and larger claim. A player running
+  // at exactly the rung-clearing rate is progressing, not finished.
+  check('the bar sits above the rate a run needs to clear a rung',
+    FIND_BAR > CLEAR_FINDS_PER_MIN, `${FIND_BAR} against ${CLEAR_FINDS_PER_MIN}`);
+  const clearing = readiness(runs(CLEAR_FINDS_PER_MIN, CLEAR_FINDS_PER_MIN, CLEAR_FINDS_PER_MIN),
+    FIND_BAR, TODAY);
+  check('so three runs at that rate are not solid', clearing.state !== 'held', clearing.state);
+  check('and eight finds a minute is still not knowing the neck',
+    readiness(runs(8, 8, 8), FIND_BAR, TODAY).state !== 'held');
+  check('while ten a minute, three running, is',
+    readiness(runs(10, 10, 10), FIND_BAR, TODAY).state === 'held',
+    readiness(runs(10, 10, 10), FIND_BAR, TODAY).state);
 }
 
 console.log(failures===0?'\nALL PASS\n':`\n${failures} FAILURE(S)\n`);
