@@ -34,6 +34,13 @@ const TIMED_TASK = {
   blocks: [{ id: 'b1', label: 'Spider walk', durationSec: 300 }],
 };
 
+/** The local YYYY-MM-DD the app files a day under, which is the key the notice is answered for. */
+const TODAY = (() => {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+})();
+
 const account = {
   activeRoutineId: 'r1',
   routines: [{ id: 'r1', name: 'Orphans', description: '', isDefault: true, tasks: [TIMED_TASK] }],
@@ -74,7 +81,14 @@ await page.addInitScript((r) => {
   localStorage.setItem('daily-fret-recordings', JSON.stringify(r));
 }, {
   state: {
-    settings: { enabled: true, cadence: 'every-session', quality: 'light', keepSessions: 8, cameraId: null },
+    settings: {
+      enabled: true, cadence: 'every-session', quality: 'light', keepSessions: 8, cameraId: null,
+      // Today's filming notice already answered. Without it the surface opens on
+      // the notice, the block behind it never starts and no camera is ever asked
+      // for, so the reload below interrupts a take that was never running: this
+      // whole file went dark the day the notice landed.
+      filmNoticeOn: TODAY, filmSkipOn: null,
+    },
     recordings: [], lastPrune: null,
   },
   version: 0,
