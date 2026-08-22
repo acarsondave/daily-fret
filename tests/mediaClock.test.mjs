@@ -54,6 +54,15 @@ console.log('\nAgreeing with the player again, without a jump\n');
   check('it has agreed by the time the correction allows',
     near(clock.read(1000 + closeBy * 1000).seconds, 11.1 + closeBy, 1e-3));
 
+  // The line above reads the rate out of the source, so it tracks whatever the
+  // constant happens to be and cannot pin it. These two say what the rate is
+  // for. Too fast and the correction is the visible jump it exists to avoid;
+  // too slow and the chart is still arguing with the player a second later.
+  check('a tenth of a second is not closed inside a fifth of one',
+    clock.read(1200).seconds < 11.3 - 1e-9, `${clock.read(1200).seconds}`);
+  check('and is closed within a second of it opening',
+    near(clock.read(2000).seconds, 12.1), `${clock.read(2000).seconds}`);
+
   const monotonic = [];
   let last = -Infinity;
   for (let wall = 1000; wall <= 3000; wall += 16) {
@@ -104,6 +113,21 @@ console.log('\nWhen there is nothing to ease towards\n');
   playing(under, 10, 0);
   playing(under, 11 + SNAP_SECONDS - 0.01, 1000);
   check('and just under it is not', under.read(1000).snapped === false);
+
+  // Both edge cases above are measured from the constant itself, so they hold
+  // whatever it is set to: SNAP_SECONDS could be raised fourteen-fold and this
+  // suite would not notice. These two say where the line has to be in seconds a
+  // player would feel. A second out is a lag visible against the chart and has
+  // to be thrown away; a tenth is ordinary poll jitter and has to be eased.
+  const wide = new MediaClock();
+  playing(wide, 10, 0);
+  playing(wide, 12, 1000);
+  check('a whole second out is a seek, not drift', wide.read(1000).snapped === true);
+  const narrow = new MediaClock();
+  playing(narrow, 10, 0);
+  playing(narrow, 11.1, 1000);
+  check('and a tenth of a second out is drift, not a seek',
+    narrow.read(1000).snapped === false);
 }
 
 console.log('\nSpeed\n');
