@@ -186,7 +186,8 @@ export class PracticeRecorder {
       this.ownsVideo = true;
     }
 
-    const videoTrack = this.stream.getVideoTracks()[0];
+    const stream = this.stream;
+    const videoTrack = stream.getVideoTracks()[0];
     if (!videoTrack) {
       throw new RecordingError('no-camera', 'The camera opened but produced no picture.');
     }
@@ -194,6 +195,18 @@ export class PracticeRecorder {
     this.size = { width: settings.width ?? preset.width, height: settings.height ?? preset.height };
 
     await this.attachAudio();
+
+    // Whether this open still owns the camera it started with.
+    //
+    // The microphone handover above is the longest await in here, and a surface
+    // can be dismissed part-way through it: the technique check calls cancel()
+    // straight from its unmount rather than queueing it, so teardown runs while
+    // this is still going and `this.stream` is already null. Carrying on from
+    // there opens a file that nothing will ever close and hands MediaRecorder a
+    // stream that no longer exists.
+    if (this.stream !== stream) {
+      throw new RecordingError('failed', 'The recording was stopped before the camera finished opening.');
+    }
 
     // Opening a camera can take the playback route with it, which silences the
     // click, the coach and the cues all at once because they share one context.
@@ -283,6 +296,12 @@ export class PracticeRecorder {
     // and what drops the drill's own capture on iOS. Costs nothing when no
     // microphone is opening, which is every timed block and every song.
     const live = await awaitLiveMicTrack(MIC_HANDOVER_MS);
+    // Checked after every await in here, and it is not defensive tidying: a
+    // track added to a stream this recorder has already given up is a track
+    // nothing will ever stop, so the microphone stays open with its light on
+    // for the life of the page. Exiting the technique check while the handover
+    // is in flight does exactly that.
+    if (this.stream !== stream) return;
     if (live) {
       stream.addTrack(live.clone());
       this.hasAudio = true;
@@ -291,6 +310,10 @@ export class PracticeRecorder {
 
     try {
       const audio = await navigator.mediaDevices.getUserMedia({ audio: RECORDER_AUDIO });
+      if (this.stream !== stream) {
+        for (const track of audio.getTracks()) track.stop();
+        return;
+      }
       const track = audio.getAudioTracks()[0];
       if (track) {
         stream.addTrack(track);
@@ -430,6 +453,11 @@ export class PracticeRecorder {
 
     if (failure) {
       this.report(failure);
+      // And the file with it. close() seals the sink before it throws, so the
+      // abort() above finds it already sealed and leaves the file where it is.
+      // There is nothing in it worth keeping either way: close() only throws
+      // when no bytes were ever committed.
+      if (store) await deleteRecording({ backend: this.backend, key: this.key }).catch(() => {});
       return null;
     }
     // Nothing worth keeping, so nothing is left behind either. Leaving a drill
@@ -587,5 +615,19 @@ export class PracticeRecorder {
         track.stop();
       }
     }
+
+    // The file, if one is still open here.
+    //
+    // stop() and cancel() both take the sink off this object before they get
+    // this far, so a sink still held at this point belongs to a start() that
+    // threw between opening the file and rolling — MediaRecorder refusing the
+    // stream, or start() throwing. Left alone it is the worst kind of leak this
+    // feature has: the writable stream stays open, the file sits on the disk,
+    // and `markWriting` still names the key, which is exactly what makes
+    // findOrphans() skip it. The one mechanism built to reclaim lost footage
+    // could never see it, so nothing would ever come back for it.
+    const sink = this.sink;
+    this.sink = null;
+    if (sink) await sink.abort().catch(() => {});
   }
 }
