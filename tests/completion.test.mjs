@@ -97,6 +97,28 @@ console.log('\nEvery run, not just the best one\n');
   check('at the value it recorded', reconstructed[0].value === 30);
   check('and admits it does not know when', reconstructed[0].at === undefined);
   check('a day with nothing recorded has no runs', runsFor(fresh(), 't1').length === 0);
+
+  // The same silence rule on the legacy path. Months of history hold only the
+  // day's best, and a best of zero is a session the microphone never heard, not
+  // a session where nothing was played. Reconstructing a run from it would put
+  // a failure into a streak that was never failed.
+  const silentOldDay = { date: '2026-01-05', routineId: 'r1', completedTaskIds: [],
+    drillResults: { t1: 0 } };
+  check('an old day whose only number is a zero reconstructs no run',
+    runsFor(silentOldDay, 't1').length === 0,
+    JSON.stringify(runsFor(silentOldDay, 't1')));
+
+  // The guard against a loop writing thousands. It keeps the most recent, and
+  // it must be high enough that a real day of practice never reaches it.
+  let many = fresh();
+  for (let i = 0; i < 60; i += 1) {
+    many = applyMeasurement(many, 't1', { key: POOL, value: 10 + i }, AT + i * 1000);
+  }
+  const kept = runsFor(many, POOL);
+  check('a runaway day is bounded', kept.length === 50, String(kept.length));
+  check('and it is the most recent runs that survive',
+    kept[kept.length - 1].value === 69 && kept[0].value === 20,
+    `${kept[0].value}..${kept[kept.length - 1].value}`);
 }
 
 console.log('\nA task the microphone will never hear\n');
@@ -128,6 +150,17 @@ console.log('\nWalking straight back out\n');
 
   const enough = applyTime(fresh(), 't2', ran(MIN_RECORDED_SECONDS, false), AT);
   check('long enough to mean something is', recordFor(enough, 't2').seconds === MIN_RECORDED_SECONDS);
+
+  // Both fixtures above are measured off the constant, so the threshold could be
+  // raised to half a minute and they would still hold. Said in seconds: four is
+  // changing your mind, five is the shortest thing worth filing, and twenty is
+  // unarguably practice that must never be thrown away.
+  check('four seconds is changing your mind',
+    recordFor(applyTime(fresh(), 't2', ran(4, false), AT), 't2') === undefined);
+  check('five seconds is a record',
+    recordFor(applyTime(fresh(), 't2', ran(5, false), AT), 't2')?.seconds === 5);
+  check('and twenty seconds is never thrown away',
+    recordFor(applyTime(fresh(), 't2', ran(20, false), AT), 't2')?.seconds === 20);
 }
 
 console.log('\nTime adding up across runs\n');
@@ -136,6 +169,17 @@ console.log('\nTime adding up across runs\n');
   log = applyTime(log, 't2', ran(180, true), AT + 1000);
   check('the seconds sum', recordFor(log, 't2').seconds === 300);
   check('and one run reaching the end is enough', recordFor(log, 't2').ranToEnd === true);
+
+  // The case above has the runs in the order that makes the last write true on
+  // its own, so it held with the memory of the earlier run deleted. This is the
+  // order that needs it: finish the block, then dip back in for ten seconds and
+  // walk out. The completion earned by finishing it must not be taken away.
+  let back = applyTime(fresh(), 't2', ran(180, true), AT);
+  back = applyTime(back, 't2', ran(10, false), AT + 1000);
+  check('a short return visit does not un-finish a block already finished',
+    recordFor(back, 't2').ranToEnd === true, JSON.stringify(recordFor(back, 't2')));
+  check('and the visit is still counted as time', recordFor(back, 't2').seconds === 190,
+    String(recordFor(back, 't2').seconds));
 }
 
 console.log('\nMeasured beats timed\n');
