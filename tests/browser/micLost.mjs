@@ -36,6 +36,7 @@ const account = {
     tasks: [
       { id: 't1', title: 'Chord Perfect', duration: '2 mins', drill: { kind: 'chord-trainer', durationSec: 60, chords: ['Am', 'Em'] } },
       { id: 't2', title: 'Strum timing', duration: '1 min', drill: { kind: 'strum-timing', durationSec: 120, bpm: 80 } },
+      { id: 't3', title: 'Note finder', duration: '1 min', drill: { kind: 'note-finder', durationSec: 120 } },
     ],
   }],
   dailyLogs: {}, strumPatterns: [], songLinks: [], userSongs: [], updatedAt: 1,
@@ -217,6 +218,56 @@ const meterText = (page) => page.locator('.signal-meter .signal-label').first().
     'and names what happened rather than blaming the playing',
     /microphone stopped/i.test(await meterText(page).catch(() => '')),
     await meterText(page).catch(() => 'no meter'),
+  );
+  check('nothing threw on the way', errors.length === 0, errors.join(' | '));
+
+  await browser.close();
+}
+
+// --- the drill whose microphone is a pitch estimator ------------------------
+//
+// The note finder opens its own MicStream through usePitchDetector, which did
+// not carry the route at all: it folded 'closed' into 'idle', and 'idle' is also
+// what a detector reads before it has ever been started. So the one status the
+// drill could see said "no microphone yet" for a microphone that had just been
+// taken away, its own microphone-lost path could not fire, and the worst of the
+// three ways to lose an input was the one left unhandled. The screen went back
+// to asking for a permission the player had already granted, the clock kept
+// running behind it, and at the end the run was filed as a measured one — a
+// count of how much the player recalled through a dead microphone.
+{
+  console.log('\nthe note finder notices it too\n');
+  const { browser, page, errors } = await open();
+  await page.locator('.task-row', { hasText: 'Note finder' }).click();
+  await page.waitForSelector('.practice-overlay', { timeout: 20000 });
+  await page.locator('.practice-overlay').getByRole('button', { name: /^Start/ }).first().click();
+  await page.waitForSelector('.nf-stage', { timeout: 20000 });
+  await page.waitForTimeout(1500);
+
+  const killed = await page.evaluate(() => window.__killMic());
+  check('the drill had a live track to lose', killed === true);
+  await page.waitForTimeout(2500);
+
+  const body = (await page.locator('.practice-overlay').innerText()).toLowerCase();
+  check(
+    'the run ends rather than asking again for a permission it already has',
+    !/allow microphone access/.test(body),
+    body.replace(/\n+/g, ' / ').slice(0, 110),
+  );
+  check('and it is filed as time played with no number', /time played|nothing counted/.test(body), body.slice(0, 90));
+  // The claim that matters, and the one the day carries afterwards. A run whose
+  // input died must never leave 'measured' behind it: that word is what the
+  // ladder, the readiness streak and the next prescription all read.
+  const record = await page.evaluate(() => {
+    const raw = localStorage.getItem('daily-fret-storage');
+    const acc = raw ? JSON.parse(raw).state.accounts.anonymous : null;
+    const key = Object.keys(acc?.dailyLogs ?? {}).sort().pop();
+    return acc?.dailyLogs?.[key]?.taskRecords?.t3 ?? null;
+  });
+  check(
+    'and the day records time played, never a measurement',
+    record?.evidence === 'timed',
+    JSON.stringify(record),
   );
   check('nothing threw on the way', errors.length === 0, errors.join(' | '));
 

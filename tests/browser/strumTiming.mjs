@@ -127,7 +127,7 @@ const routine = (drill) => ({
 
 const DRILL = { kind: 'strum-timing', durationSec: 20, bpm: BPM };
 
-async function openWithAudio(wav, viewport = { width: 1280, height: 1000 }) {
+async function openWithAudio(wav, viewport = { width: 1280, height: 1000 }, drill = DRILL) {
   const browser = await chromium.launch({
     args: [
       '--use-fake-ui-for-media-stream',
@@ -146,8 +146,32 @@ async function openWithAudio(wav, viewport = { width: 1280, height: 1000 }) {
     (s) => localStorage.setItem('daily-fret-storage', JSON.stringify({
       state: { currentAccountId: 'anonymous', accounts: { anonymous: s } }, version: 0,
     })),
-    routine(DRILL),
+    routine(drill),
   );
+  // A handle on the browser taking the speakers away mid-run, which is what a
+  // camera opening does and what filming a session made routine. Modelled the
+  // way the real thing behaves rather than the way the spec reads: the context
+  // is left suspended with NO statechange fired, and resume() neither succeeds
+  // nor rejects. The fake capture device keeps feeding the fixture's clicks
+  // throughout, so the microphone side of the drill stays perfectly healthy and
+  // only the click itself has gone — which is the case under test.
+  await page.addInitScript(() => {
+    const Native = window.AudioContext;
+    const made = [];
+    window.AudioContext = function (...args) {
+      const ctx = new Native(...args);
+      made.push(ctx);
+      return ctx;
+    };
+    window.AudioContext.prototype = Native.prototype;
+    window.__freezeClick = () => {
+      for (const ctx of made) {
+        ctx.resume = () => new Promise(() => {});
+        Native.prototype.suspend.call(ctx);
+      }
+      return made.length;
+    };
+  });
   await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 25000 });
   await page.waitForSelector('.task-container', { timeout: 25000 });
   await page.locator('.task-row', { hasText: 'Strum timing' }).click();
@@ -269,6 +293,45 @@ console.log('\nOn headphones it refuses rather than inventing a beat\n');
     JSON.stringify(stored?.drillResults));
   check('but the day records that the drill ran and heard nothing',
     stored?.taskRecords?.t1?.evidence === 'silent', JSON.stringify(stored?.taskRecords));
+  check('no page errors', errors.length === 0, errors.join(' | '));
+  await browser.close();
+}
+
+console.log('\nWhen the click stops playing part-way through a run\n');
+{
+  // The click and the beat grid are two different things, and a grid outlives
+  // the click that built it. This drill only ever asked about the grid, so once
+  // one was fitted the screen written for a click that has gone silent could not
+  // be reached at all: the run went on measuring against a beat grid nothing was
+  // refreshing and reported the number as a result. The player heard nothing and
+  // was told nothing.
+  //
+  // The audio is taken away the way a camera takes it: the context is left
+  // suspended with no statechange fired. The fixture's own clicks keep arriving
+  // at the microphone the whole time, so the grid stays fitted and the only
+  // thing that has changed is that the app cannot be heard.
+  const { browser, page, errors } = await openWithAudio(
+    'on-beat.wav',
+    { width: 1280, height: 1000 },
+    { kind: 'strum-timing', durationSec: 45, bpm: BPM },
+  );
+  await page.waitForSelector('.groove-band', { timeout: 30000 });
+  check('the drill found the beat and is measuring', true);
+
+  const frozen = await page.evaluate(() => window.__freezeClick());
+  check('the browser has taken the speakers', frozen > 0, `${frozen} contexts`);
+  await page.waitForTimeout(1200);
+  check('and the click really is silent',
+    (await page.evaluate(() => window.dailyFretAudio().audible)) === false);
+
+  await page.waitForSelector('.st-deaf', { timeout: 20000 });
+  check('the drill says so rather than measuring against a grid nothing is refreshing', true);
+  const title = await page.locator('.st-deaf-title').innerText();
+  check('and says which of the two it is', /click is not playing/i.test(title), title);
+  const action = await page.locator('.st-deaf .practice-btn').innerText();
+  check('offering the one thing that can free held audio', /turn the click on/i.test(action), action);
+  check('drawn as the muted speaker, not written as a sentence about one',
+    (await page.locator('.st-deaf .click-path.is-silent').count()) === 1);
   check('no page errors', errors.length === 0, errors.join(' | '));
   await browser.close();
 }
