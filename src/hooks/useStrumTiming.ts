@@ -47,9 +47,14 @@ export function useStrumTiming() {
         onLevel: (level) => handlersRef.current.onLevel?.(level),
         onRouteChange: setRoute,
       });
+      // See useChordDetector: only the capture still in the ref may report, and
+      // an open that has been abandoned has to answer `false` so the drill that
+      // asked for it does not start a clock behind an overlay that has closed.
+      if (captureRef.current !== capture) return false;
       setStatus('running');
       return true;
     } catch (err) {
+      if (captureRef.current !== capture) return false;
       captureRef.current = null;
       setRoute(null);
       setStatus('error');

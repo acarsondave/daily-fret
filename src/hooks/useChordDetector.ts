@@ -57,9 +57,17 @@ export function useChordDetector() {
         onLevel: (e) => handlersRef.current.onLevel?.(e),
         onRouteChange: setRoute,
       });
+      // Opening a microphone is several awaits long, and the drill can be left,
+      // or restarted on another device, inside them. Only the capture still in
+      // the ref may report, and it must report `false` when it is not: a drill
+      // that hears `true` from an open it has already abandoned goes on to start
+      // a run clock nothing will ever clear, and files that run's count when it
+      // runs out.
+      if (captureRef.current !== capture) return false;
       setStatus('running');
       return true;
     } catch (err) {
+      if (captureRef.current !== capture) return false;
       captureRef.current = null;
       setRoute(null);
       setStatus('error');
