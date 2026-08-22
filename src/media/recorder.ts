@@ -267,11 +267,9 @@ export class PracticeRecorder {
     this.limitTimer = window.setTimeout(() => {
       this.limitTimer = null;
       // Reaching a length the caller asked for is a complete take. Reaching the
-      // hard cap is not, and the clip says which.
+      // hard cap is not, and the clip says which. finishBecause stops the
+      // recorder and hands the camera back; the file stays open for stop().
       this.finishBecause(asked !== undefined && asked <= MAX_CLIP_MS ? 'complete' : 'time-limit');
-      // Flushes the final chunk. The caller's own stop() then finds an inactive
-      // recorder and only has to close the file.
-      if (recorder.state !== 'inactive') recorder.stop();
     }, limit);
   }
 
@@ -367,29 +365,71 @@ export class PracticeRecorder {
   /**
    * A write failed, so there is no point filming any more of this.
    *
-   * Stops the MediaRecorder as well as marking the clip, which is the half that
-   * matters: chunks that arrive after the sink has failed are dropped, so a
-   * recorder left running is a camera, an encoder and a battery spent producing
+   * Chunks that arrive after the sink has failed are dropped, so a recorder
+   * left running here is a camera, an encoder and a battery spent producing
    * nothing.
    */
   private failStorage(): void {
-    if (this.phase !== 'recording') return;
     this.finishBecause('storage-full');
+  }
+
+  /**
+   * Stop filming and give the camera back, keeping the file open.
+   *
+   * Split out of teardown() because it runs at a different moment: this happens
+   * while a clip is still going to be filed, so everything the recording was
+   * holding on the device is released and nothing stop() needs to write the row
+   * is touched. Idempotent, because both endings arrive here.
+   */
+  private releaseCamera(): void {
+    if (this.limitTimer !== null) {
+      clearTimeout(this.limitTimer);
+      this.limitTimer = null;
+    }
+    this.detach?.();
     const recorder = this.recorder;
     if (recorder && recorder.state !== 'inactive') {
       try {
+        // Flushes the final chunk, so a caller's own stop() finds an inactive
+        // recorder and only has to close the file.
         recorder.stop();
       } catch {
-        // Already stopped by the browser. The clip is marked either way.
+        // Already stopped by the browser. What landed is still ours.
+      }
+    }
+    // Only what this recorder opened. A preview the technique check is still
+    // showing belongs to the technique check, and stopping it here would blank
+    // the screen between two of the three angles.
+    const stream = this.stream;
+    this.stream = null;
+    if (stream) {
+      for (const track of stream.getTracks()) {
+        if (track.kind === 'video' && !this.ownsVideo) continue;
+        track.stop();
       }
     }
   }
 
-  // A running recording ending on its own. Stop() does the rest; this only
-  // records why, so the clip can say so.
+  /**
+   * A running recording ending on its own. Stop() still files the clip; this
+   * records why, and gives the camera back.
+   *
+   * The camera goes back here rather than at the next stop(), and that is the
+   * whole point of this change. `onEnded` below is what takes the "Recording"
+   * pill off the screen, so leaving the tracks live meant the mark disappeared
+   * while the light stayed on for the rest of the block: a phone that locked, a
+   * disk that filled, a clip that reached its length. The one promise this
+   * feature makes is that nobody is ever filmed without knowing it, and an
+   * indicator that can disagree with the camera is the only way that breaks.
+   * They are one fact now.
+   *
+   * The file is deliberately left open. Everything filmed up to this point is
+   * still going to be kept, and stop() is what closes it and writes the row.
+   */
   private finishBecause(reason: RecordingEnd): void {
     if (this.phase !== 'recording') return;
     this.endedBy = reason;
+    this.releaseCamera();
     if (reason === 'hidden') {
       this.report(new RecordingError('device-lost', 'The camera stopped when the screen or the tab went away.'));
     } else if (reason === 'storage-full') {
@@ -594,26 +634,11 @@ export class PracticeRecorder {
   }
 
   private async teardown(): Promise<void> {
-    if (this.limitTimer !== null) {
-      clearTimeout(this.limitTimer);
-      this.limitTimer = null;
-    }
-    this.detach?.();
+    this.releaseCamera();
     if (this.recorder) {
       this.recorder.ondataavailable = null;
       this.recorder.onerror = null;
       this.recorder = null;
-    }
-    // Only what this recorder opened. A preview the technique check is still
-    // showing belongs to the technique check, and stopping it here would blank
-    // the screen between two of the three angles.
-    const stream = this.stream;
-    this.stream = null;
-    if (stream) {
-      for (const track of stream.getTracks()) {
-        if (track.kind === 'video' && !this.ownsVideo) continue;
-        track.stop();
-      }
     }
 
     // The file, if one is still open here.

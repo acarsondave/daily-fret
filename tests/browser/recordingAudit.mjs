@@ -605,6 +605,19 @@ async function breakMidRecording(label, { stub, breakIt, expect }) {
   if (breakIt) await breakIt(page);
   await page.waitForTimeout(4000);
 
+  // The camera and the mark on screen are one fact, and this is where they used
+  // to disagree. A recording that ends itself takes the "Recording" pill off the
+  // screen the moment it ends, and the camera used to stay live until the drill
+  // was left — so the light was on with nothing saying so, for the rest of a
+  // block, on the three endings most likely to happen in a long real session.
+  const filming = await page.evaluate(() =>
+    window.__streams.flatMap((s) => s.getVideoTracks()).some((t) => t.readyState === 'live'));
+  const claims = (await page.locator('.capture-pill').count()) > 0;
+  check(`${label}: the camera is handed back the moment the recording ends`,
+    filming === false, filming ? 'still live' : '');
+  check(`${label}: so the mark on screen and the camera cannot disagree`,
+    filming === claims, `camera ${filming}, pill ${claims}`);
+
   await page.keyboard.press('Escape');
   await page.waitForTimeout(3000);
 
