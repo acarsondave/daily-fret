@@ -46,10 +46,28 @@ const CHANGES_TASK_2 = {
   drill: { kind: 'one-minute-changes', durationSec: 20, chordFrom: 'Em', chordTo: 'Am' },
 };
 
+/** The local YYYY-MM-DD the app files a day under, and the day the notice is answered for. */
+const dayKey = (offsetDays = 0) => {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
+
+// One measured run, a week back. The Coached button on the main screen renders
+// only once something has ever been measured, so without this the coached run
+// below cannot be started at all — which is how this whole suite went dark.
+const YESTERYEAR = dayKey(-7);
+
 const account = (tasks) => ({
   activeRoutineId: 'r1',
   routines: [{ id: 'r1', name: 'Audit', description: '', isDefault: true, tasks }],
-  dailyLogs: {}, strumPatterns: [], songLinks: [], userSongs: [], updatedAt: 1, capoFret: 0,
+  dailyLogs: {
+    [YESTERYEAR]: {
+      date: YESTERYEAR, routineId: 'r1', completedTaskIds: [], drillResults: { 'pair:Am|Em': 24 },
+    },
+  },
+  strumPatterns: [], songLinks: [], userSongs: [], updatedAt: 1, capoFret: 0,
 });
 
 /**
@@ -110,7 +128,15 @@ async function open({
   await page.addInitScript(
     (s) => localStorage.setItem('daily-fret-recordings', JSON.stringify({ state: s, version: 0 })),
     {
-      settings: { enabled, quality, keepSessions: 8, cameraId: null },
+      // Every session films, whatever day this is run on, and today's notice is
+      // already answered. Without both of those the surface opens on the filming
+      // notice, the drill behind it never starts and no camera is ever asked for:
+      // every check below then waits for a `.capture-pill` that cannot appear.
+      settings: {
+        enabled, quality, keepSessions: 8, cameraId: null,
+        cadence: 'every-session', filmDay: new Date().getDay(),
+        filmNoticeOn: dayKey(), filmSkipOn: null,
+      },
       recordings, lastPrune: null,
     },
   );
@@ -227,8 +253,10 @@ console.log('\nthe microphone the recorder borrows\n');
   // The rest between segments is long and its length is not this file's
   // business, so the second segment is waited for rather than slept past: the
   // counter leaves the DOM during the rest and comes back with the next drill.
+  // Generous, because the rest after a changes drill is a minute on its own and
+  // the announcement and count-in of the next one sit on top of it.
   await page.waitForSelector('.om-count', { state: 'detached', timeout: 40_000 });
-  await page.waitForSelector('.om-count', { timeout: 60_000 });
+  await page.waitForSelector('.om-count', { timeout: 150_000 });
   await page.waitForTimeout(16_000);
   const secondCount = Number(
     /(\d+)/.exec(await page.locator('.om-count, .om-ring-value').first().innerText())?.[1] ?? -1,
@@ -367,11 +395,10 @@ async function expectSurvivesFailure(label, options, expectations = {}) {
   await page.waitForTimeout(6500);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(1500);
-  const logged = await page.evaluate(() => {
+  const logged = await page.evaluate((today) => {
     const acc = JSON.parse(localStorage.getItem('daily-fret-storage')).state.accounts.anonymous;
-    const day = Object.values(acc.dailyLogs)[0];
-    return !!day?.taskRecords?.t1;
-  });
+    return !!acc.dailyLogs?.[today]?.taskRecords?.t1;
+  }, dayKey());
   check(`${label}: the practice was still recorded in the log`, logged);
   check(`${label}: no uncaught page errors`,
     errors.filter((e) => e.startsWith('PAGEERROR')).length === 0,
@@ -440,6 +467,125 @@ await expectSurvivesFailure('storage that is already full', {
 });
 
 // ============================================================================
+// The window between the file being opened and the camera rolling
+// ============================================================================
+console.log('\nwhat is left behind when it breaks between the file and the roll\n');
+//
+// The file is deliberately created before MediaRecorder is, so a disk that is
+// already full is reported before any footage exists to lose. That ordering
+// opens a window: anything that throws after the file is open and before the
+// recording is running leaves a file on the disk with its writable stream still
+// open — and, because the in-flight registry still names the key, one that
+// findOrphans() will skip for ever. The single mechanism built to reclaim lost
+// footage cannot see it, so nothing ever comes back for it.
+
+{
+  // MediaRecorder refusing the stream it is handed. `isTypeSupported` is not a
+  // promise about a particular stream, and start() is documented to throw.
+  const { browser, page, errors } = await open({
+    stub: () => {
+      window.MediaRecorder.prototype.start = () => {
+        throw new DOMException('Cannot encode this stream', 'NotSupportedError');
+      };
+    },
+  });
+  await startTask(page, 'Spider walk');
+  await page.waitForSelector('.capture-notice', { timeout: 20000 });
+  await page.waitForTimeout(2500);
+
+  const files = await filesOnDisk(page);
+  const kept = files.filter((f) => f.name.endsWith('.webm'));
+  check('a recorder that refuses the stream leaves no file on the disk',
+    kept.length === 0, JSON.stringify(files));
+  check('and the drill is still running', (await page.locator('.practice-overlay').count()) === 1);
+  check('and nothing claims to be recording', (await page.locator('.capture-pill').count()) === 0);
+  const lib = await library(page);
+  check('and nothing is filed for it', (lib?.recordings?.length ?? 0) === 0,
+    `${lib?.recordings?.length} rows`);
+  check('no uncaught page errors',
+    errors.filter((e) => e.startsWith('PAGEERROR')).length === 0, errors.join(' | '));
+  await browser.close();
+}
+
+{
+  // Every write refused, so the take never commits a byte and close() throws
+  // rather than returning a short clip. close() seals the sink before it throws,
+  // which is what made the abort() behind it a no-op and left the file standing.
+  const { browser, page, errors } = await open({
+    stub: () => {
+      const real = FileSystemFileHandle.prototype.createWritable;
+      FileSystemFileHandle.prototype.createWritable = async function (...args) {
+        const stream = await real.apply(this, args);
+        stream.write = () => Promise.reject(new DOMException('Full', 'QuotaExceededError'));
+        return stream;
+      };
+    },
+  });
+  await startTask(page, 'Spider walk');
+  await page.waitForSelector('.capture-notice', { timeout: 20000 });
+  await page.waitForTimeout(4000);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(3000);
+
+  const files = await filesOnDisk(page);
+  const kept = files.filter((f) => f.name.endsWith('.webm'));
+  check('a take that never landed a byte leaves no file on the disk',
+    kept.length === 0, JSON.stringify(files));
+  const lib = await library(page);
+  check('and no row claiming one', (lib?.recordings?.length ?? 0) === 0,
+    `${lib?.recordings?.length} rows`);
+  check('no uncaught page errors',
+    errors.filter((e) => e.startsWith('PAGEERROR')).length === 0, errors.join(' | '));
+  await browser.close();
+}
+
+{
+  // Leaving the technique check while the recorder is still asking for a
+  // microphone. That surface gives the camera back straight from its unmount
+  // rather than through the queue the practice surfaces use, so the
+  // getUserMedia below resolves into a recorder that has already been torn
+  // down. A track handed to a stream nobody holds any more is a microphone left
+  // open, with its light on, for the life of the page.
+  const { browser, page, errors } = await open({
+    stub: () => {
+      const real = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      navigator.mediaDevices.getUserMedia = async (c) => {
+        // Only the recorder's own microphone is slowed. The camera preview has
+        // to open at its usual speed or there is nothing to leave in the middle
+        // of.
+        if (c?.audio && !c?.video) await new Promise((r) => setTimeout(r, 4000));
+        return real(c);
+      };
+    },
+  });
+
+  await page.locator('.progress-launch', { hasText: /Technique/ }).click();
+  await page.locator('.tc-start').click();
+  await page.waitForSelector('.tc-shot', { timeout: 20000 });
+  await page.locator('.tc-btn.is-primary', { hasText: /Film/ }).click();
+  // Inside the handover, and well before it resolves.
+  await page.waitForTimeout(800);
+  await page.keyboard.press('Escape');
+  // Past the point the microphone request comes back.
+  await page.waitForTimeout(6500);
+
+  const live = await page.evaluate(() =>
+    window.__streams
+      .flatMap((s) => s.getTracks())
+      .filter((t) => t.readyState === 'live')
+      .map((t) => t.kind));
+  check('leaving mid-handover leaves nothing holding the microphone',
+    live.length === 0, JSON.stringify(live));
+  const files = await filesOnDisk(page);
+  const kept = files.filter((f) => f.name.endsWith('.webm'));
+  check('and no file opened for a take that was already abandoned',
+    kept.length === 0, JSON.stringify(files));
+  check('no uncaught page errors',
+    errors.filter((e) => e.startsWith('PAGEERROR')).length === 0, errors.join(' | '));
+  await browser.close();
+}
+
+// ============================================================================
 // Item 7, second half: failures that arrive part-way through a recording
 // ============================================================================
 console.log('\nwhen it breaks with footage already on the disk\n');
@@ -458,6 +604,19 @@ async function breakMidRecording(label, { stub, breakIt, expect }) {
 
   if (breakIt) await breakIt(page);
   await page.waitForTimeout(4000);
+
+  // The camera and the mark on screen are one fact, and this is where they used
+  // to disagree. A recording that ends itself takes the "Recording" pill off the
+  // screen the moment it ends, and the camera used to stay live until the drill
+  // was left — so the light was on with nothing saying so, for the rest of a
+  // block, on the three endings most likely to happen in a long real session.
+  const filming = await page.evaluate(() =>
+    window.__streams.flatMap((s) => s.getVideoTracks()).some((t) => t.readyState === 'live'));
+  const claims = (await page.locator('.capture-pill').count()) > 0;
+  check(`${label}: the camera is handed back the moment the recording ends`,
+    filming === false, filming ? 'still live' : '');
+  check(`${label}: so the mark on screen and the camera cannot disagree`,
+    filming === claims, `camera ${filming}, pill ${claims}`);
 
   await page.keyboard.press('Escape');
   await page.waitForTimeout(3000);

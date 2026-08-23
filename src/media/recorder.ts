@@ -186,7 +186,8 @@ export class PracticeRecorder {
       this.ownsVideo = true;
     }
 
-    const videoTrack = this.stream.getVideoTracks()[0];
+    const stream = this.stream;
+    const videoTrack = stream.getVideoTracks()[0];
     if (!videoTrack) {
       throw new RecordingError('no-camera', 'The camera opened but produced no picture.');
     }
@@ -194,6 +195,18 @@ export class PracticeRecorder {
     this.size = { width: settings.width ?? preset.width, height: settings.height ?? preset.height };
 
     await this.attachAudio();
+
+    // Whether this open still owns the camera it started with.
+    //
+    // The microphone handover above is the longest await in here, and a surface
+    // can be dismissed part-way through it: the technique check calls cancel()
+    // straight from its unmount rather than queueing it, so teardown runs while
+    // this is still going and `this.stream` is already null. Carrying on from
+    // there opens a file that nothing will ever close and hands MediaRecorder a
+    // stream that no longer exists.
+    if (this.stream !== stream) {
+      throw new RecordingError('failed', 'The recording was stopped before the camera finished opening.');
+    }
 
     // Opening a camera can take the playback route with it, which silences the
     // click, the coach and the cues all at once because they share one context.
@@ -254,11 +267,9 @@ export class PracticeRecorder {
     this.limitTimer = window.setTimeout(() => {
       this.limitTimer = null;
       // Reaching a length the caller asked for is a complete take. Reaching the
-      // hard cap is not, and the clip says which.
+      // hard cap is not, and the clip says which. finishBecause stops the
+      // recorder and hands the camera back; the file stays open for stop().
       this.finishBecause(asked !== undefined && asked <= MAX_CLIP_MS ? 'complete' : 'time-limit');
-      // Flushes the final chunk. The caller's own stop() then finds an inactive
-      // recorder and only has to close the file.
-      if (recorder.state !== 'inactive') recorder.stop();
     }, limit);
   }
 
@@ -283,6 +294,12 @@ export class PracticeRecorder {
     // and what drops the drill's own capture on iOS. Costs nothing when no
     // microphone is opening, which is every timed block and every song.
     const live = await awaitLiveMicTrack(MIC_HANDOVER_MS);
+    // Checked after every await in here, and it is not defensive tidying: a
+    // track added to a stream this recorder has already given up is a track
+    // nothing will ever stop, so the microphone stays open with its light on
+    // for the life of the page. Exiting the technique check while the handover
+    // is in flight does exactly that.
+    if (this.stream !== stream) return;
     if (live) {
       stream.addTrack(live.clone());
       this.hasAudio = true;
@@ -291,6 +308,10 @@ export class PracticeRecorder {
 
     try {
       const audio = await navigator.mediaDevices.getUserMedia({ audio: RECORDER_AUDIO });
+      if (this.stream !== stream) {
+        for (const track of audio.getTracks()) track.stop();
+        return;
+      }
       const track = audio.getAudioTracks()[0];
       if (track) {
         stream.addTrack(track);
@@ -344,29 +365,71 @@ export class PracticeRecorder {
   /**
    * A write failed, so there is no point filming any more of this.
    *
-   * Stops the MediaRecorder as well as marking the clip, which is the half that
-   * matters: chunks that arrive after the sink has failed are dropped, so a
-   * recorder left running is a camera, an encoder and a battery spent producing
+   * Chunks that arrive after the sink has failed are dropped, so a recorder
+   * left running here is a camera, an encoder and a battery spent producing
    * nothing.
    */
   private failStorage(): void {
-    if (this.phase !== 'recording') return;
     this.finishBecause('storage-full');
+  }
+
+  /**
+   * Stop filming and give the camera back, keeping the file open.
+   *
+   * Split out of teardown() because it runs at a different moment: this happens
+   * while a clip is still going to be filed, so everything the recording was
+   * holding on the device is released and nothing stop() needs to write the row
+   * is touched. Idempotent, because both endings arrive here.
+   */
+  private releaseCamera(): void {
+    if (this.limitTimer !== null) {
+      clearTimeout(this.limitTimer);
+      this.limitTimer = null;
+    }
+    this.detach?.();
     const recorder = this.recorder;
     if (recorder && recorder.state !== 'inactive') {
       try {
+        // Flushes the final chunk, so a caller's own stop() finds an inactive
+        // recorder and only has to close the file.
         recorder.stop();
       } catch {
-        // Already stopped by the browser. The clip is marked either way.
+        // Already stopped by the browser. What landed is still ours.
+      }
+    }
+    // Only what this recorder opened. A preview the technique check is still
+    // showing belongs to the technique check, and stopping it here would blank
+    // the screen between two of the three angles.
+    const stream = this.stream;
+    this.stream = null;
+    if (stream) {
+      for (const track of stream.getTracks()) {
+        if (track.kind === 'video' && !this.ownsVideo) continue;
+        track.stop();
       }
     }
   }
 
-  // A running recording ending on its own. Stop() does the rest; this only
-  // records why, so the clip can say so.
+  /**
+   * A running recording ending on its own. Stop() still files the clip; this
+   * records why, and gives the camera back.
+   *
+   * The camera goes back here rather than at the next stop(), and that is the
+   * whole point of this change. `onEnded` below is what takes the "Recording"
+   * pill off the screen, so leaving the tracks live meant the mark disappeared
+   * while the light stayed on for the rest of the block: a phone that locked, a
+   * disk that filled, a clip that reached its length. The one promise this
+   * feature makes is that nobody is ever filmed without knowing it, and an
+   * indicator that can disagree with the camera is the only way that breaks.
+   * They are one fact now.
+   *
+   * The file is deliberately left open. Everything filmed up to this point is
+   * still going to be kept, and stop() is what closes it and writes the row.
+   */
   private finishBecause(reason: RecordingEnd): void {
     if (this.phase !== 'recording') return;
     this.endedBy = reason;
+    this.releaseCamera();
     if (reason === 'hidden') {
       this.report(new RecordingError('device-lost', 'The camera stopped when the screen or the tab went away.'));
     } else if (reason === 'storage-full') {
@@ -430,6 +493,11 @@ export class PracticeRecorder {
 
     if (failure) {
       this.report(failure);
+      // And the file with it. close() seals the sink before it throws, so the
+      // abort() above finds it already sealed and leaves the file where it is.
+      // There is nothing in it worth keeping either way: close() only throws
+      // when no bytes were ever committed.
+      if (store) await deleteRecording({ backend: this.backend, key: this.key }).catch(() => {});
       return null;
     }
     // Nothing worth keeping, so nothing is left behind either. Leaving a drill
@@ -566,26 +634,25 @@ export class PracticeRecorder {
   }
 
   private async teardown(): Promise<void> {
-    if (this.limitTimer !== null) {
-      clearTimeout(this.limitTimer);
-      this.limitTimer = null;
-    }
-    this.detach?.();
+    this.releaseCamera();
     if (this.recorder) {
       this.recorder.ondataavailable = null;
       this.recorder.onerror = null;
       this.recorder = null;
     }
-    // Only what this recorder opened. A preview the technique check is still
-    // showing belongs to the technique check, and stopping it here would blank
-    // the screen between two of the three angles.
-    const stream = this.stream;
-    this.stream = null;
-    if (stream) {
-      for (const track of stream.getTracks()) {
-        if (track.kind === 'video' && !this.ownsVideo) continue;
-        track.stop();
-      }
-    }
+
+    // The file, if one is still open here.
+    //
+    // stop() and cancel() both take the sink off this object before they get
+    // this far, so a sink still held at this point belongs to a start() that
+    // threw between opening the file and rolling — MediaRecorder refusing the
+    // stream, or start() throwing. Left alone it is the worst kind of leak this
+    // feature has: the writable stream stays open, the file sits on the disk,
+    // and `markWriting` still names the key, which is exactly what makes
+    // findOrphans() skip it. The one mechanism built to reclaim lost footage
+    // could never see it, so nothing would ever come back for it.
+    const sink = this.sink;
+    this.sink = null;
+    if (sink) await sink.abort().catch(() => {});
   }
 }
