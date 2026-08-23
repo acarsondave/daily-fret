@@ -390,10 +390,23 @@ export function computeXp(dailyLogs: Record<string, DailyLog>): XpTotals {
     const points: XpSource = {
       heard: Math.round(day.raw.heard * bend),
       reps: Math.round(day.raw.reps * bend),
-      timed: Math.round(timed * bend),
+      // The two figures the app did not hear are taken DOWN to the point, never
+      // to the nearest one, and that asymmetry is the whole point of them.
+      //
+      // The clamp above is applied to the raw figures. Rounding all six
+      // independently afterwards then broke the promise at the top of this file
+      // by a point a day: on a day built of timers and claims both unheard
+      // figures round up while the heard ones round either way. Measured over 1,
+      // 5, 20, 60 and 200 days it never washed out — unheard ran a quarter ahead
+      // of heard, permanently.
+      //
+      // A guarantee that only holds before rounding is not one the learner can
+      // read off their own screen. So the bias runs the way the promise does,
+      // and the cost is at most a point a day of credit for work nobody heard.
+      timed: Math.floor(timed * bend),
       bests: Math.round(day.raw.bests * bend),
       streak: day.raw.streak,
-      stated: Math.round(stated * bend),
+      stated: Math.floor(stated * bend),
     };
     const xp = points.heard + points.reps + points.timed + points.bests
       + points.streak + points.stated;

@@ -214,19 +214,25 @@ console.log('\nWhat the app cannot hear\n');
     day(iso(i), { a: 20 }, { t1: timed(30), t2: timed(30), t3: stated(), t4: stated() }))));
   const heardPart = (x) => x.source.heard + x.source.reps + x.source.bests;
   const unheardPart = (x) => x.source.timed + x.source.stated;
-  // The slack is not a fudge: the clamp is applied before each figure is
-  // rounded, and both unheard figures round up on a day this shape, so the
-  // delivered breakdown runs one point a day over the guarantee. That is a real
-  // gap and it is written down here rather than rounded away. What must not
-  // happen is the share itself moving: at UNHEARD_SHARE 3 this day pays 12
-  // unheard against 4 heard.
-  const DAYS = 20;
+  // No slack. This used to allow a point a day, because the clamp was applied
+  // before each figure was rounded and both unheard figures rounded up on a day
+  // this shape — a real gap that ran a quarter over and never washed out. The
+  // unheard figures are floored now, so the promise holds on the numbers the
+  // learner actually reads rather than on the figures behind them.
   check('a history built on timers and claims cannot outweigh what was heard',
-    unheardPart(mostlyUnheard) <= heardPart(mostlyUnheard) + DAYS,
+    unheardPart(mostlyUnheard) <= heardPart(mostlyUnheard),
     `${unheardPart(mostlyUnheard)} unheard against ${heardPart(mostlyUnheard)} heard`);
-  check('and the overshoot is rounding, not a share of its own',
-    unheardPart(mostlyUnheard) - heardPart(mostlyUnheard) <= DAYS,
-    `${unheardPart(mostlyUnheard) - heardPart(mostlyUnheard)} over ${DAYS} days`);
+
+  // Length is where the old gap showed itself: it accumulated rather than
+  // averaging out, so a long history drifted further from the promise than a
+  // short one. Checked at four lengths so a per-day bias cannot hide again.
+  for (const days of [1, 5, 60, 200]) {
+    const run = computeXp(logs(...Array.from({ length: days }, (_, i) =>
+      day(iso(i), { a: 20 }, { t1: timed(30), t2: timed(30), t3: stated(), t4: stated() }))));
+    check(`and still cannot over ${days} days`,
+      unheardPart(run) <= heardPart(run),
+      `${unheardPart(run)} unheard against ${heardPart(run)} heard`);
+  }
 
   const oneMinute = computeXp(logs(day('2026-06-01', { a: 20, b: 20, c: 20 }, { t: timed(1) })));
   check('a minute on the clock is worth a point', oneMinute.source.timed === 1,
