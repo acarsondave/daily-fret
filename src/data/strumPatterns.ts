@@ -32,7 +32,7 @@
 //   how many up strums it asks for              rungs 1 to 5
 //   whether a down strum is left out            rungs 6 to 10
 //   whether the arm crosses two silent slots    rungs 8 to 10
-//   whether the phrase is longer than one bar   rungs 11 and 12
+//   whether the phrase is longer than one bar   rung 11
 //
 // The last of those is "Exploring Strumming" again, also in as many words:
 // "generally, every four or eight bars, a slight rhythmic strumming variation
@@ -43,6 +43,15 @@
 // ask for it in Module 5, and beat one is the slot the player finds their place
 // in the bar by, so a pattern without it drills finding the bar line rather than
 // holding a pattern. That is a real exercise and it is not this one.
+//
+// AND NO SONG'S PATTERN. A song's strumming lives on the song (the
+// `strumPatterns` field in src/data/songs.ts), not here. Get Lucky's did sit on
+// this ladder for a while as a twelfth rung, and it was two mistakes at once: it
+// was built from a reading of the song that has since been replaced, and a
+// pattern that arrives because a song needs it is not a rung that adds one
+// difficulty to the rung below. The ladder is the course. A song brings its own.
+// That is also why no rung uses the percussive slap `X` the matcher now
+// understands: nothing in Module 5 teaches it, so nothing here asks for it.
 
 export interface StrumPattern {
   id: string;
@@ -140,17 +149,6 @@ export const BUILTIN_PATTERNS: StrumPattern[] = [
     name: 'Old faithful, varied',
     pattern: 'D-DU-UD-D-DU-UDU',
     adds: 'Two bars. The same pattern, opening up on the repeat.',
-  },
-  {
-    // Get Lucky. How the nine strums map onto sixteen slots is argued in
-    // src/data/songs.ts, because it is a claim about the song rather than about
-    // the ladder. Here it is the top rung for a plain reason: it is the same
-    // two-bar shape as the rung above with beat four out of both bars, which is
-    // rung eight's mechanic held for twice as long.
-    id: 'get-lucky',
-    name: 'Get Lucky',
-    pattern: 'D-D-DU-UD-D-DU--',
-    adds: 'Two bars off a song rather than an exercise, differing by one strum.',
   },
 ];
 

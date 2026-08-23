@@ -20,7 +20,17 @@
 //
 // `s(chord, lyric?, strum?)` keeps authoring terse. That's the whole job.
 
-export type StrumDir = 'D' | 'U' | '-';
+/**
+ * One slot of arrow art: a down, an up, a percussive slap, or nothing.
+ *
+ * `X` reads the same way it does in tab and in the pattern matcher: the stroke
+ * happens and the strings are dead. It used to fall through to a rest here,
+ * which drew the one stroke in Get Lucky that carries the groove as a slot with
+ * nothing in it.
+ */
+import { SIXTEENTHS, type SlotResolution } from '../lib/strumPattern';
+
+export type StrumDir = 'D' | 'U' | 'X' | '-';
 
 export interface SongStepDef {
   chord: string; // the chord we detect for this bar
@@ -48,6 +58,39 @@ export interface SongSection {
   beatsPerBar?: number;
 }
 
+/**
+ * One strumming phrase a song asks the hand to own, in the drill's own alphabet.
+ *
+ * Separate from {@link Song.strum} because the two answer different questions.
+ * `strum` is what to draw in one bar of the chart and may be any number of
+ * arrows; this is a phrase the pattern matcher can score, which means whole bars
+ * of eighth-note slots and nothing else (src/lib/strumPattern.ts). A song's real
+ * strumming is often longer than one of its chart's bars, and a chart cell has
+ * no room to say so.
+ */
+export interface SongStrum {
+  /** D, U, X (a percussive slap) and `-` for a slot the arm passes through. */
+  pattern: string;
+  /**
+   * How finely this phrase divides the beat: 2 for eighths, 4 for sixteenths.
+   * Absent is eighths, which is what almost every chart is.
+   *
+   * THIS LINE IS THE READING, AND IT IS MEANT TO BE EASY TO CHANGE. Which grid a
+   * song is counted on is a claim about the record, and the only real test of it
+   * is the player putting the pattern against the record and hearing whether it
+   * sits. Nothing downstream hardcodes an answer: the matcher, the drill, the
+   * drawn count and the history key all read the grid off the pattern itself, so
+   * changing this number here is the whole of changing the reading.
+   */
+  slotsPerBeat?: SlotResolution;
+  /**
+   * What to call it. The song's own title when it has one phrase, which is the
+   * usual case; named individually where a song needs more than one, because a
+   * deck of two cards both labelled "Get Lucky" tells the player nothing.
+   */
+  name?: string;
+}
+
 export interface Song {
   id: string;
   title: string;
@@ -69,6 +112,10 @@ export interface Song {
   // no following anchor to interpolate towards, so it is given one explicitly
   // rather than guessed at from the nominal tempo.
   endSeconds?: number;
+  // The strumming this song asks the hand to own, as phrases the drill can
+  // score. Absent means the chart's own `strum` is the only thing written down,
+  // which is enough to draw and not always enough to practise.
+  strumPatterns?: SongStrum[];
   // Fret the capo has to be on for these shapes to match the linked recording.
   //
   // A beginner chart is often written in an easier key than the record: Sing is
@@ -488,42 +535,76 @@ const getLucky: Song = {
   title: 'Get Lucky',
   artist: 'Daft Punk',
   level: 'Beginner',
-  // THE STRUM, AND HOW NINE STRUMS BECAME SIXTEEN SLOTS. The pattern played
-  // against this song is nine strums, written down as "D DDU UDDDU". Nine is not
-  // a bar of anything, so the question is what it is nine of.
+  // THE STRUM, AND WHY FOURTEEN SYMBOLS ARE SIXTEEN SLOTS.
   //
-  // It is a direction sequence with the ghosts left out, which is the same
-  // shorthand every other `strum` in this file already uses: `DDUUDU` here is
-  // `D-DU-UDU` written without its rests, and expanding it is mechanical because
-  // the arm is a pendulum. A down can only land on an even slot and an up on an
-  // odd one, so each strum takes the next slot of its own direction and the
-  // ghosts fall out of the arithmetic rather than being chosen.
+  // THE SOURCE. Marty Schwartz's lesson (youtube.com/watch?v=eAIrWJZY9Ck), as
+  // the owner wrote it down from the video:
   //
-  // Run that on D D D U U D D D U and it lands on sixteen slots exactly, with no
-  // slack at either end: `D-D-DU-U` then `D-D-DU--`. Two bars, differing by one
-  // strum on the last slot, which is "Exploring Strumming"'s own description of
-  // a phrase ("your strumming pattern should stay the same most of the time, but
-  // this change will make it pop"). The exactness is the argument: a wrong
-  // reading would not fill a whole number of bars.
+  //   DOWN - UP DOWN(slap) - - UP UP - UP DOWN UP DOWN UP
   //
-  // WHAT IS STILL UNCERTAIN. The record is sixteenth-note funk, and the same
-  // nine strums read as sixteenths would fill one bar rather than two, at double
-  // the speed. Sixteenths are not the Module 5 mechanic and not what the drill
-  // grades against, so the two-bar reading is the one taken, here and on the
-  // pattern ladder. If the video is counting in sixteenths the shape is
-  // identical and only the tempo it is held at changes.
+  // Fourteen symbols. Sixteen is what a bar of sixteenths needs, so either the
+  // grid is not sixteenths or two slots went missing on the way from the video
+  // to the page. Two things settle it, and neither is padding it out to fit.
   //
-  // The sheet also gives two patterns with muted strums, which this alphabet
-  // cannot write; a muted strum still reaches the microphone as an onset, so
-  // nothing is lost in the grading, only in the notation.
+  // THE ARM DECIDES WHERE THE STROKES GO. The strumming arm is a pendulum: it is
+  // on its way down through every even slot and up through every odd one, so a
+  // stroke can only land on a slot facing the way it is already going, and two
+  // up strokes can never be adjacent — something has to bring the arm back down
+  // between them, even if it does not sound. Lay those fourteen symbols on a
+  // continuous grid under that one rule and ask how many rests have to be added
+  // for every stroke to face the right way, and the answer is exactly two, in
+  // exactly two places, giving exactly sixteen slots:
   //
-  // WHY THIS FIELD IS ONLY THE FIRST BAR OF IT. A song's `strum` is the default
-  // for one bar and this chart holds one chord to a bar, so the whole phrase
-  // written here would put both of its bars under every single chord. The full
-  // two-bar phrase is the `get-lucky` rung in src/data/strumPatterns.ts, where a
-  // pattern is allowed to be two bars long; this is its first bar, which the
-  // second differs from by one strum on the last slot.
-  strum: 'D-D-DU-U',
+  //   D - - U X - - U - U - U D U D U
+  //
+  // One rest after the opening down, so the up that follows it is the "a" of one
+  // rather than the "e"; and one between the two ups the transcription writes
+  // side by side, which is the down the arm has to pass through to get back up
+  // there. No other number of rests fits at all, and no other arrangement of two
+  // fits. That exactness is the argument. `tests/songs.test.mjs` re-derives it
+  // rather than trusting this comment.
+  //
+  // THE GRID IS SIXTEENTHS, NOT TWO BARS OF EIGHTHS. Sixteen slots could be one
+  // bar of sixteenths or two bars of eighths, and the shape is identical either
+  // way; only the tempo it sits at differs, by a factor of two. Sixteenths, for
+  // three reasons. The slap lands on beat two under that reading, which is the
+  // backbeat and where a funk chuck belongs; under the two-bar reading it lands
+  // on beat three, which is nowhere in particular. The record is a sixteenth-note
+  // groove at 116 and the chords change once a bar, so one figure per chord is
+  // what a loop of Am C Em D actually is. And read as two bars, the two bars
+  // hold four strokes and six: not a phrase that varies on the repeat but a
+  // groove sawn in half at the wrong place.
+  //
+  // WHAT THAT COSTS THE DRILL, STATED PLAINLY. The pattern matcher's slot is an
+  // eighth note (src/lib/strumPattern.ts), so it reads these sixteen slots as two
+  // bars of eighths and grades them against a click counting eighths. The arm
+  // movement and every interval between strokes are identical, which is why a
+  // sixteenth groove is practised this way anyway. What is not identical is the
+  // number on the click, and it goes the opposite way to the obvious guess: a
+  // drill slot has to be as short as a sixteenth of the record, so
+  //
+  //   drill click = twice the song tempo
+  //
+  // 232 on the drill is Get Lucky at 116. The default practice click of 80 is the
+  // same groove at 40, about a third of record speed. The metronome tops out at
+  // 240 (src/audio/metronome.ts), so the record's own tempo is reachable, but
+  // only just, and nothing on screen currently tells the player any of this.
+  // Written down here rather than guessed at twice.
+  //
+  // THE SLAP. `X` is the percussive slap Marty mentions, and it is its own
+  // symbol rather than a `D`, because muting the strings and strumming them are
+  // different jobs for the fretting hand and the owner picked this version for
+  // exactly that sound. The drill scores it as a stroke that has to arrive in
+  // the right slot and claims nothing about whether it was actually muted.
+  //
+  // WHY `strum` IS STILL ONE BAR. A song's `strum` is the default for one bar of
+  // the chart and this chart holds one chord to a bar, so the phrase cannot live
+  // here without printing all of it under every chord. It lives in
+  // `strumPatterns` below, which is where the drill reads it from; this stays as
+  // it was, the first half of the figure, which is what one bar of the chart has
+  // room to say.
+  strum: 'D--UX--U',
+  strumPatterns: [{ pattern: 'D--UX--U-U-UDUDU', slotsPerBeat: SIXTEENTHS }],
   capo: 2,
   bpm: 116,
   chords: ['Am', 'C', 'Em', 'D'],
@@ -613,7 +694,7 @@ export function getSong(id: string | undefined): Song | undefined {
 
 export function parseStrum(strum: string): StrumDir[] {
   const out: StrumDir[] = [];
-  for (const c of strum) out.push(c === 'D' || c === 'U' ? c : '-');
+  for (const c of strum) out.push(c === 'D' || c === 'U' || c === 'X' ? c : '-');
   return out;
 }
 

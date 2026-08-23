@@ -52,7 +52,9 @@ console.log('\nReading a pattern\n');
 
   check('six characters are refused, not padded', parsePattern('D-DUD-') === null);
   check('an up on a quarter is refused', parsePattern('DUDU') === null);
-  check('rubbish is refused', parsePattern('DXDU-UD-') === null);
+  // This used to read `DXDU-UD-`, from before X meant anything. It means the
+  // percussive slap now, so the rubbish had to be rubbish that stayed rubbish.
+  check('rubbish is refused', parsePattern('DZDU-UD-') === null);
   // The arm cannot be going up on a downbeat, so this is not a hard pattern, it
   // is an impossible one. Taken as written it would draw a pick facing the wrong
   // way and subtract the up strum's detection lag from a down stroke.
@@ -91,7 +93,10 @@ function play(pattern, passes, { offsetMs = () => 0, drop = () => false, add = (
       const at = GRID.origin + (pass * length + slot) * slotPeriod;
       // The player strikes; the analyser hears it a little later, by an amount
       // that depends on which way the hand was going.
-      const lag = (expected === 'U' ? UP_DETECTION_LAG_MS : DOWN_DETECTION_LAG_MS) / 1000;
+      // A slap has no direction of its own, so it is heard with the lag of
+      // whichever way the arm is already going through that slot.
+      const facing = expected === 'D' || expected === 'U' ? expected : slot % 2 === 0 ? 'D' : 'U';
+      const lag = (facing === 'U' ? UP_DETECTION_LAG_MS : DOWN_DETECTION_LAG_MS) / 1000;
       if (expected && !drop(pass, slot)) onsets.push(at + lag + offsetMs(pass, slot) / 1000);
       if (!expected && add(pass, slot)) onsets.push(at + DOWN_DETECTION_LAG_MS / 1000);
     }
@@ -222,6 +227,55 @@ const run = (pattern, onsets, passes) =>
 }
 
 // --- the deck --------------------------------------------------------------
+// --- the percussive slap ----------------------------------------------------
+//
+// A slap is a stroke that arrives, and that is the whole of what is scored. It
+// has no direction of its own, so the drill takes the arm's: on an even slot the
+// arm is coming down, so the slap is heard with a down stroke's detection lag.
+// Getting that wrong would put every slap twenty milliseconds out inside a fifty
+// millisecond budget, and report it as the player rushing.
+//
+// What is deliberately NOT asserted anywhere: that the strings were muted. The
+// analyser reports onsets. A slap and a strummed chord in the same slot at the
+// same moment are the same evidence, and the drill says so by scoring them the
+// same rather than by claiming to tell them apart.
+console.log('\nA pattern with a percussive slap in it\n');
+{
+  const lucky = parsePattern('D--UX--U-U-UDUDU');
+  check('the slap parses as its own thing', lucky?.slots[4] === 'X', String(lucky?.slots[4]));
+  check('and it is sixteen slots', lucky?.slots.length === 16, String(lucky?.slots.length));
+  check('a slap counts as a slot that sounds', soundedSlots(lucky) === 10, String(soundedSlots(lucky)));
+
+  const clean = run(lucky, play(lucky, 6), 6);
+  check('a clean take scores 100', clean.score === 100, String(clean.score));
+  check('the slap is one of the strokes expected',
+    clean.expected === 10 * 6, String(clean.expected));
+  check('it settles the first time round', clean.settledBar === 0, String(clean.settledBar));
+
+  // A slap on an even slot is played on the way down. Heard with an up stroke's
+  // lag instead, it would land twenty milliseconds from where it was played.
+  const slapSlot = clean.slots.find((sl) => sl.expected === 'X');
+  check('the slap slot is reported as a slap', slapSlot?.expected === 'X');
+  check('and lands where it was played', Math.abs(slapSlot?.medianMs ?? 99) < 1,
+    String(slapSlot?.medianMs));
+
+  // Drop only the slap and the drill says which slot went missing, rather than
+  // handing back one lower percentage.
+  const dropped = run(lucky, play(lucky, 6, { drop: (_pass, slot) => slot === 4 }), 6);
+  check('dropping the slap is visible on its own slot',
+    dropped.slots[4].struck === 0, String(dropped.slots[4].struck));
+  check('and the slots around it are untouched',
+    dropped.slots[3].struck === 6 && dropped.slots[7].struck === 6);
+  check('while the score falls by exactly the slap',
+    dropped.score === Math.round((54 / 60) * 100), String(dropped.score));
+
+  // An up strum cannot sit on a downbeat, but a slap can sit anywhere, because
+  // it is played with whatever the arm is already doing.
+  check('a slap is allowed on a downbeat', parsePattern('X-DU-UD-') !== null);
+  check('and on an offbeat', parsePattern('D-DX-UD-') !== null);
+  check('a quarter-note slap expands like a down', parsePattern('DXDD')?.slots[2] === 'X');
+}
+
 console.log('\nThe deck\n');
 {
   check('nothing played is new', patternStanding([]) === 'new');

@@ -34,23 +34,113 @@
 
 import { IN_TIME_MS, type BeatGrid } from './strumTiming';
 
-/** What a pattern does at one eighth-note slot. `null` is a ghost. */
-export type SlotStroke = 'D' | 'U' | null;
+/**
+ * What a pattern does at one eighth-note slot. `null` is a ghost.
+ *
+ * `X` IS THE PERCUSSIVE SLAP, AND IT IS A THIRD THING. The pick crosses the
+ * strings and the strings are dead: an onset with no chord in it. Writing it as
+ * `D` would teach the hand to strum where it should mute, and writing it as `-`
+ * would teach it to skip the stroke that carries the groove, so it is neither.
+ * It has no direction of its own; the arm's own direction at that slot is the
+ * direction it is played with, which is the same rule a ghost already follows.
+ *
+ * What the drill does NOT claim about it: nothing here verifies that the strings
+ * were actually muted. The analyser reports onsets, and an onset is all the
+ * evidence there is, so a slap is scored exactly as a strike in the right slot
+ * at the right time and no more than that. Saying "that was a proper slap" would
+ * be a verdict on a measurement nobody has taken.
+ */
+export type SlotStroke = 'D' | 'U' | 'X' | null;
+
+/**
+ * Which way the arm is travelling through a slot, whatever the pattern asks.
+ *
+ * The pendulum, stated once. The arm is on its way down through every even slot
+ * and up through every odd one, so a ghost and a slap both know their own
+ * direction without being told, and a `D` or `U` can only ever agree with it.
+ */
+export const armDirectionAt = (slot: number): 'D' | 'U' => (slot % 2 === 0 ? 'D' : 'U');
 
 export interface Pattern {
-  /** The authored string, exactly as the task stores it. */
+  /** The authored string, exactly as the task stores it, grid mark and all. */
   source: string;
-  /** One entry per eighth-note slot, in order. */
+  /** One entry per slot, in order. How wide a slot is, see `slotsPerBeat`. */
   slots: SlotStroke[];
+  /**
+   * Slots this pattern puts in one beat: 2 for eighths, 4 for sixteenths.
+   *
+   * Read from the string it was parsed out of, never assumed. Everything that
+   * turns a slot into a time or into a count goes through this number, so a
+   * pattern's grid is a property of that pattern and of nothing else.
+   */
+  slotsPerBeat: SlotResolution;
 }
+
+/** Beats in a bar. Every pattern in this app is 4/4. */
+export const BEATS_PER_BAR = 4;
+
+/**
+ * How finely a pattern divides the beat.
+ *
+ * Two is eighth notes, counted 1 + 2 + 3 + 4 +, and is what Module 5 teaches and
+ * what every pattern on the ladder is written in. Four is sixteenths, counted
+ * 1 e + a, and exists because some songs are not counted in eighths and reading
+ * one as though it were teaches the wrong count. Get Lucky is the case that
+ * forced it: laid out as eighths its sixteen slots become two bars, which puts a
+ * bar line and an accented downbeat in the middle of a phrase the record counts
+ * straight through, and moves the percussive slap off the backbeat where it
+ * belongs onto beat three where nothing happens.
+ *
+ * NOT A GLOBAL. This is a property of each pattern, carried on the pattern and on
+ * the string it was written as, never a constant read from anywhere. Which grid a
+ * song is counted on is a claim about the record, it is decided in
+ * src/data/songs.ts, and it has to stay changeable there in one line: the only
+ * real test of the reading is the player putting it against the record.
+ */
+export type SlotResolution = 2 | 4;
+
+export const EIGHTHS: SlotResolution = 2;
+export const SIXTEENTHS: SlotResolution = 4;
 
 /**
  * Slots in one bar of 4/4, at eighth resolution: 1 + 2 + 3 + 4 +.
  *
  * The count Justin has the player say out loud, and the reason the pattern
- * alphabet is what it is.
+ * alphabet is what it is. Still exported and still eight, because eighths are
+ * still what almost everything here is: read a pattern's own bar length off
+ * {@link slotsPerBarOf} rather than assuming this one.
  */
 export const SLOTS_PER_BAR = 8;
+
+/** Slots in one bar of this pattern. Eight for eighths, sixteen for sixteenths. */
+export const slotsPerBarOf = (pattern: Pattern): number =>
+  pattern.slotsPerBeat * BEATS_PER_BAR;
+
+/**
+ * What marks a written pattern as sixteenths.
+ *
+ * A prefix on the string, and it has to be on the string rather than beside it,
+ * because the string is the whole of what travels: a deck is `string[]` from the
+ * task through to the drill, and a drill key is that string with a tempo on the
+ * end. Two patterns of the same sixteen characters on different grids are
+ * different exercises held at different tempos, and without the mark they would
+ * collapse into one series in the player's history.
+ *
+ * `16.` and not something shorter. It cannot contain `:`, which every key is
+ * split on, nor `~`, which separates a pattern from its tempo, nor `@`, which
+ * belongs to the window a count was counted over. It also has to be unmistakable
+ * in a stored key somebody reads months from now, and `16.` says what it is.
+ *
+ * ABSENCE MEANS EIGHTHS. That is the whole compatibility guarantee: no pattern
+ * ever written carries this mark, so every stored key and every built-in rung
+ * parses, scores and keys exactly as it did before sixteenths existed.
+ */
+export const SIXTEENTH_MARK = '16.';
+
+/** A pattern's slots written as the string that carries its grid with it. */
+export function writePattern(slots: string, resolution: SlotResolution): string {
+  return resolution === SIXTEENTHS ? `${SIXTEENTH_MARK}${slots}` : slots;
+}
 
 /**
  * The longest phrase a pattern may be, in bars.
@@ -72,7 +162,7 @@ export const MAX_PATTERN_BARS = 2;
 
 /** Bars the phrase occupies. One for every pattern until two-bar phrases. */
 export function barsIn(pattern: Pattern): number {
-  return pattern.slots.length / SLOTS_PER_BAR;
+  return pattern.slots.length / slotsPerBarOf(pattern);
 }
 
 /**
@@ -94,15 +184,45 @@ export const DOWN_DETECTION_LAG_MS = 23;
 export const UP_DETECTION_LAG_MS = 3;
 
 /**
- * Read a pattern string into eighth-note slots.
+ * How late a stroke of the given kind is detected, at a slot.
  *
- * Three lengths are accepted and they mean different things. Eight characters
- * is one bar at eighth resolution and is taken as written. Sixteen is a two-bar
- * phrase, read the same way straight through; see {@link MAX_PATTERN_BARS}.
- * Four characters is one bar of quarter notes, the "four down strums" every
- * beginner starts on, and is expanded by putting a ghost after each: `DDDD`
- * becomes `D-D-D-D-`, which is the same instruction, because the arm still
- * travels through the offbeats.
+ * A slap takes the lag of the direction the arm is already going, and that is
+ * inherited rather than measured. The reason the two figures above differ is
+ * geometry — a down stroke's onset builds as the sweep crosses from the wound E,
+ * an up stroke's starts on the thin E and rises at once — and a muted stroke
+ * sweeps across the same strings in the same direction, so the same geometry
+ * applies to it. What is genuinely unmeasured is whether damping the strings
+ * sharpens the transient enough to move the figure; if it does, the error is at
+ * most the twenty milliseconds between the two, inside a fifty millisecond
+ * budget. Said out loud here because it is the one number in this file taken by
+ * argument instead of from a take.
+ */
+function detectionLagMs(expected: SlotStroke, slot: number): number {
+  const direction = expected === 'D' || expected === 'U' ? expected : armDirectionAt(slot);
+  return direction === 'U' ? UP_DETECTION_LAG_MS : DOWN_DETECTION_LAG_MS;
+}
+
+/**
+ * Read a pattern string into slots.
+ *
+ * THE GRID COMES FIRST. A string beginning `16.` is one bar of sixteenths and
+ * everything else is eighths ({@link SIXTEENTH_MARK}). Nothing infers a grid from
+ * a length, because sixteen characters is a real pattern under both readings and
+ * guessing between them is exactly the mistake this exists to stop.
+ *
+ * IN EIGHTHS, three lengths are accepted and they mean different things. Eight
+ * characters is one bar and is taken as written. Sixteen is a two-bar phrase,
+ * read the same way straight through; see {@link MAX_PATTERN_BARS}. Four
+ * characters is one bar of quarter notes, the "four down strums" every beginner
+ * starts on, and is expanded by putting a ghost after each: `DDDD` becomes
+ * `D-D-D-D-`, which is the same instruction, because the arm still travels
+ * through the offbeats.
+ *
+ * IN SIXTEENTHS, exactly sixteen characters, which is exactly one bar. Not two: a
+ * two-bar sixteenth phrase is thirty-two slots to hold in one go, which is a
+ * piece of music rather than a pattern, and allowing it would push past every
+ * length this file and the pattern manager are built around for no case anyone
+ * has.
  *
  * Everything else returns null rather than being guessed at. Six characters in
  * particular describes three beats, which is not a bar of 4/4 at all, and a
@@ -110,15 +230,23 @@ export const UP_DETECTION_LAG_MS = 3;
  * not exist.
  */
 export function parsePattern(source: string): Pattern | null {
-  const trimmed = source.trim().toUpperCase();
-  if (!/^[DU-]+$/.test(trimmed)) return null;
+  const marked = source.trim().toUpperCase().startsWith(SIXTEENTH_MARK.toUpperCase());
+  const body = marked ? source.trim().slice(SIXTEENTH_MARK.length) : source.trim();
+  const trimmed = body.toUpperCase();
+  if (!/^[DUX-]+$/.test(trimmed)) return null;
 
   const read = (chars: string): SlotStroke[] =>
-    [...chars].map((c) => (c === 'D' ? 'D' : c === 'U' ? 'U' : null));
+    [...chars].map((c) => (c === 'D' ? 'D' : c === 'U' ? 'U' : c === 'X' ? 'X' : null));
+
+  if (marked) {
+    if (trimmed.length !== SIXTEENTHS * BEATS_PER_BAR) return null;
+    const slots = read(trimmed);
+    return travelsWithTheArm(slots) ? { source, slots, slotsPerBeat: SIXTEENTHS } : null;
+  }
 
   if (trimmed.length % SLOTS_PER_BAR === 0 && trimmed.length <= SLOTS_PER_BAR * MAX_PATTERN_BARS) {
     const slots = read(trimmed);
-    return travelsWithTheArm(slots) ? { source, slots } : null;
+    return travelsWithTheArm(slots) ? { source, slots, slotsPerBeat: EIGHTHS } : null;
   }
 
   if (trimmed.length === SLOTS_PER_BAR / 2) {
@@ -129,10 +257,13 @@ export function parsePattern(source: string): Pattern | null {
     if (trimmed.includes('U')) return null;
     const slots: SlotStroke[] = [];
     for (const c of trimmed) {
-      slots.push(c === 'D' ? 'D' : null);
+      // A slap survives the expansion where an up strum cannot: it is played
+      // with whatever direction the arm already has, and on a quarter note that
+      // is always a down.
+      slots.push(c === 'D' ? 'D' : c === 'X' ? 'X' : null);
       slots.push(null);
     }
-    return { source, slots };
+    return { source, slots, slotsPerBeat: EIGHTHS };
   }
 
   return null;
@@ -150,7 +281,11 @@ export function parsePattern(source: string): Pattern | null {
  * milliseconds the wrong way inside a fifty millisecond budget.
  */
 function travelsWithTheArm(slots: readonly SlotStroke[]): boolean {
-  return slots.every((stroke, slot) => !stroke || stroke === (slot % 2 === 0 ? 'D' : 'U'));
+  return slots.every(
+    // A slap is exempt because it has no direction to disagree with: it is
+    // played with whichever way the arm is already going through that slot.
+    (stroke, slot) => !stroke || stroke === 'X' || stroke === armDirectionAt(slot),
+  );
 }
 
 /** Slots the pattern actually strikes. A pattern of all ghosts is not a pattern. */
@@ -224,16 +359,19 @@ export interface PatternRun {
 export function matchPattern(run: PatternRun): SlotOutcome[] {
   const { onsets, grid, pattern, originBeat, passes } = run;
   const slots = pattern.slots.length;
-  // A slot is an eighth note whatever the phrase is: half a beat, always. The
-  // phrase's length says how many of them there are, never how wide one is.
-  const slotPeriod = grid.period / 2;
+  // How wide a slot is comes from the pattern and from nothing else. The phrase's
+  // length says how many slots there are; its grid says how long one lasts. This
+  // used to be `grid.period / 2` under a comment saying a slot is always half a
+  // beat, which was true of every pattern that existed at the time and is exactly
+  // the assumption a sixteenth-note phrase breaks.
+  const slotPeriod = grid.period / pattern.slotsPerBeat;
   const half = slotPeriod / 2;
 
   // Ideal time of every slot in the run, and the direction expected there.
   const ideal: { pass: number; slot: number; at: number; expected: SlotStroke }[] = [];
   for (let pass = 0; pass < passes; pass += 1) {
     for (let slot = 0; slot < slots; slot += 1) {
-      const beat = originBeat + (pass * slots + slot) / 2;
+      const beat = originBeat + (pass * slots + slot) / pattern.slotsPerBeat;
       ideal.push({
         pass,
         slot,
@@ -250,7 +388,7 @@ export function matchPattern(run: PatternRun): SlotOutcome[] {
     for (let i = 0; i < ideal.length; i += 1) {
       // Compare against where a strum of the expected direction would be *heard*,
       // not where it would be played, so the comparison is like for like.
-      const lag = ideal[i].expected === 'U' ? UP_DETECTION_LAG_MS : DOWN_DETECTION_LAG_MS;
+      const lag = detectionLagMs(ideal[i].expected, ideal[i].slot);
       const distance = Math.abs(onset - (ideal[i].at + lag / 1000));
       if (distance < bestDistance) {
         bestDistance = distance;
@@ -269,7 +407,7 @@ export function matchPattern(run: PatternRun): SlotOutcome[] {
     if (!struck) {
       return { pass: s.pass, slot: s.slot, expected: s.expected, kind: s.expected ? 'missed' : 'ghost' };
     }
-    const lag = s.expected === 'U' ? UP_DETECTION_LAG_MS : DOWN_DETECTION_LAG_MS;
+    const lag = detectionLagMs(s.expected, s.slot);
     const offsetMs = (struck.at - s.at) * 1000 - lag;
     if (!s.expected) {
       return { pass: s.pass, slot: s.slot, expected: null, kind: 'added', offsetMs };

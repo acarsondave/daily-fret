@@ -34,7 +34,10 @@ export function PatternManager() {
   const [pattern, setPattern] = useState('');
 
   const clean = (raw: string) =>
-    raw.toUpperCase().replace(/[^DU-]/g, '').slice(0, SLOTS_PER_BAR * MAX_PATTERN_BARS);
+    // X is the percussive slap. It belongs in the field for the reason the bar
+    // under the field exists: the matcher understands it, so a player who types
+    // it should see it drawn rather than have it silently deleted as they type.
+    raw.toUpperCase().replace(/[^DUX-]/g, '').slice(0, SLOTS_PER_BAR * MAX_PATTERN_BARS);
   const typed = clean(pattern);
   const parsed = parsePattern(typed);
   const preview = parsed ?? parsePattern(EXAMPLE);

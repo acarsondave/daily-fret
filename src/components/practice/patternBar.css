@@ -98,6 +98,16 @@
   color: rgb(236 222 205 / 0.18);
 }
 
+/* The "e" and the "a" of a sixteenth-note bar. Shorter and quieter than the
+   "and", so a row of sixteen reads 1 e + a 2 e + a rather than as sixteen
+   identical marks: the beat is tallest, the eighth-note pulse sits inside it,
+   and these two fill in between. Never drawn on an eighth-note pattern, which
+   has no slot this fine. */
+.pb-stem.is-sixteenth {
+  height: calc(var(--pb-stem) * 0.2);
+  color: rgb(236 222 205 / 0.13);
+}
+
 /* The strings. `.rail-wire` is the app's hairline; it only needs placing. */
 .pb-strings {
   position: absolute;
@@ -165,6 +175,49 @@
 /* Expected, and the microphone had nothing to say about it. Hollow, because an
    absence of evidence is not a miss and must not be drawn as one. */
 .pb-pick-mark.is-unheard {
+  color: var(--text-muted);
+}
+
+/* --- a percussive slap ------------------------------------------------------
+   A cross on the strings, at the slot the slap lands on. On the strings and not
+   on the pick, because that is where the difference is: the arm crosses exactly
+   as it does anywhere else and the fretting hand has killed what is underneath.
+   Bone, like the stems and the arm, because it is part of what is being asked
+   for rather than part of what the player did. */
+
+.pb-mute {
+  position: absolute;
+  top: 50%;
+  width: calc(var(--pb-pick) * 0.46);
+  height: calc(var(--pb-pick) * 0.46);
+  transform: translate(-50%, -50%);
+  color: var(--pb-bone);
+  transition: color var(--dur-base) ease;
+}
+
+.pb-mute::before,
+.pb-mute::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.pb-mute::before {
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.pb-mute::after {
+  transform: translateY(-50%) rotate(-45deg);
+}
+
+/* Asked for and nothing arrived. Dimmed with the pick above it, never
+   reddened: this drill does not mark a slot wrong. */
+.pb-mute.is-missed {
   color: var(--text-muted);
 }
 

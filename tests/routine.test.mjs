@@ -510,5 +510,66 @@ console.log('\nEdge cases\n');
     JSON.stringify(a.tasks.map(t=>({t:t.title,d:t.drill}))) === JSON.stringify(b.tasks.map(t=>({t:t.title,d:t.drill}))));
 }
 
+// A song brings its own strumming into the session.
+//
+// The owner learns a song by owning its strum first, and the whole point of this
+// block is that he does not have to build it: a song task already names a song
+// and a song already knows its strumming, so the block appears in routines saved
+// long before it existed. These checks are about the wiring rather than the
+// notation - tests/songStrum.test.mjs is where the pattern itself is derived.
+console.log('\nA song task brings its own strum block with it\n');
+{
+  const songTask = (songId) => ({ id: `t-${songId}`, title: 'Closer', drill: { kind: 'song', songId } });
+  const routineOf = (task) => ({ id: 'r', name: 'R', description: '', tasks: [task] });
+
+  const lucky = SONGS.find((s) => s.id === 'get-lucky');
+  const segs = buildSegments(routineOf(songTask('get-lucky')));
+  check('a song with a written strum flattens to two segments', segs.length === 2,
+    segs.map((s) => s.kind).join('+'));
+  check('the strum block comes first', segs[0]?.kind === 'patterns', segs[0]?.kind);
+  check('and the play-along second', segs[1]?.kind === 'song', segs[1]?.kind);
+  // Marked as sixteenths, because the grid has to reach the drill on the string
+  // itself: the deck is string[] all the way from here to the history key.
+  check("the block deals the song's own phrase, on its own grid",
+    segs[0]?.patterns?.join(' ') === '16.D--UX--U-U-UDUDU', segs[0]?.patterns?.join(' '));
+  check('it is titled after the song', segs[0]?.title === 'Get Lucky strum', segs[0]?.title);
+  check('and stays on that task, so nothing new has to be added to the routine',
+    segs[0]?.taskId === segs[1]?.taskId);
+  // The record's tempo is ambition, and a drill's click is prescribed from what
+  // the player has actually held. Stating the song's BPM here would put the
+  // record in charge of the number.
+  check("the block does not pin the record's tempo", segs[0]?.bpm === undefined,
+    String(segs[0]?.bpm));
+  check('the play-along is still the play-along', segs[1]?.songId === 'get-lucky');
+  check('the song itself carries the tempo it always did', lucky?.bpm === 116, String(lucky?.bpm));
+
+  // A chart whose strum is arrow art has nothing the matcher can score, and gets
+  // no block rather than a block dealing a bar that does not exist.
+  const plain = buildSegments(routineOf(songTask('wild-thing')));
+  check('a song with no drillable strum flattens to the song alone',
+    plain.length === 1 && plain[0].kind === 'song', plain.map((s) => s.kind).join('+'));
+
+  // A song the player wrote themselves is reached through the catalogue the
+  // caller passes in, not the shipped one.
+  const written = [{ ...SONGS[0], id: 'mine', title: 'Mine', strum: 'DD',
+    strumPatterns: [{ pattern: 'D-DU-UDU' }] }];
+  const own = buildSegments(routineOf(songTask('mine')), written);
+  check('a written chart gets a strum block too', own[0]?.kind === 'patterns', own[0]?.kind);
+  check('dealing what that chart wrote', own[0]?.patterns?.join(' ') === 'D-DU-UDU');
+  // Looked up in the catalogue the caller passed, and nowhere else. The
+  // play-along still runs and says for itself that it cannot find the chart;
+  // what must not happen is a strum block dealing a phrase from a song this
+  // caller never had.
+  const unknown = buildSegments(routineOf(songTask('mine')));
+  check('the shipped catalogue gives that chart no strum block',
+    unknown.length === 1 && unknown[0].kind === 'song', unknown.map((s) => s.kind).join('+'));
+
+  // A song task still reports no minutes. It runs until the record ends and the
+  // routine does not get to say how long that is; the strum block in front of it
+  // is a segment of the session rather than a claim about the song's length.
+  check('a song task still reports no minutes of its own',
+    taskMinutes(songTask('get-lucky')) === 0, String(taskMinutes(songTask('get-lucky'))));
+}
+
 console.log(failures===0?'\nALL PASS\n':`\n${failures} FAILURE(S)\n`);
 process.exit(failures?1:0);

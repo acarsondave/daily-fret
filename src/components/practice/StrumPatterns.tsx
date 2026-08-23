@@ -8,8 +8,8 @@ import { sfx } from '../../audio/sfx';
 import { fitBeatGrid, type BeatGrid } from '../../lib/strumTiming';
 import {
   MIN_PATTERN_PASSES,
-  SLOTS_PER_BAR,
   barsIn,
+  slotsPerBarOf,
   dealNext,
   matchPattern,
   parsePattern,
@@ -23,6 +23,8 @@ import {
 } from '../../lib/strumPattern';
 import { describePattern, passesPerDeal, upStrumsUnheard } from '../../lib/patternDeck';
 import { patternName } from '../../data/strumPatterns';
+import { songPatternName } from '../../lib/songStrum';
+import { useSongs } from '../../hooks/useSongs';
 import { useStore } from '../../store';
 import { PatternBar, type SlotView } from './PatternBar';
 import { ClickPath } from './ClickPath';
@@ -143,6 +145,7 @@ export function StrumPatterns({
   const duration = config?.durationSec ?? 60;
   const passes = passesPerDeal(config?.bars);
   const custom = useStore((s) => s.accounts[s.currentAccountId]?.strumPatterns ?? []);
+  const songs = useSongs();
 
   const [view, setView] = useState<View>(autoStart ? 'playing' : 'deck');
   // Whatever the click is actually set to, which is not always the prescription:
@@ -215,8 +218,17 @@ export function StrumPatterns({
     timerRef.current = null;
   };
 
-  /** How wide one eighth-note slot is, in milliseconds, at the tempo being held. */
-  const slotMs = ((60 / tempo) * 1000 * BEATS_PER_BAR) / SLOTS_PER_BAR;
+  /**
+   * How wide one slot is, in milliseconds, at the tempo being held.
+   *
+   * Takes the pattern rather than reading a constant: a slot is half a beat on an
+   * eighth-note pattern and a quarter of one on a sixteenth-note pattern, and
+   * this number is what a heard strum's offset is drawn against.
+   */
+  const slotMsOf = useCallback(
+    (pattern: Pattern) => (60 / tempo) * 1000 / pattern.slotsPerBeat,
+    [tempo],
+  );
 
   /**
    * Where the arm is, in slots from the start of the phrase, read every frame.
@@ -237,7 +249,7 @@ export function StrumPatterns({
     const beatsIn =
       phase.position - deal.startBar * BEATS_PER_BAR + phase.sinceSeconds / phase.secondsPerBeat;
     const length = deal.pattern.slots.length;
-    const at = beatsIn * (SLOTS_PER_BAR / BEATS_PER_BAR);
+    const at = beatsIn * deal.pattern.slotsPerBeat;
     return ((at % length) + length) % length;
   }, []);
 
@@ -525,8 +537,7 @@ export function StrumPatterns({
 
       const atBar = Math.floor(phase.position / BEATS_PER_BAR);
       const beatInBar = phase.position - atBar * BEATS_PER_BAR;
-      const slot =
-        Math.floor((beatInBar + phase.sinceSeconds / phase.secondsPerBeat) * (SLOTS_PER_BAR / BEATS_PER_BAR));
+      const intoBar = beatInBar + phase.sinceSeconds / phase.secondsPerBeat;
 
       const deal = dealRef.current;
       if (!deal) {
@@ -554,8 +565,14 @@ export function StrumPatterns({
         return;
       }
 
+      // Which slot of the phrase the arm has just crossed. Off the dealt card's
+      // own grid, so a sixteenth-note bar reports sixteen slots where an
+      // eighth-note bar reports eight, rather than every card being read as
+      // eighths and a sixteenth phrase advancing at half the rate it is played.
+      const perBar = slotsPerBarOf(deal.pattern);
+      const slot = Math.floor(intoBar * deal.pattern.slotsPerBeat);
       setPass(Math.floor(into / barsPerPass));
-      setPassedSlot((into % barsPerPass) * SLOTS_PER_BAR + slot);
+      setPassedSlot((into % barsPerPass) * perBar + slot);
       // One bar out, the next card comes up beside this one, so the player sees
       // it coming and the arm never breaks between them. One bar whatever the
       // phrase length: a longer card is a longer thing to hold, not a longer
@@ -595,9 +612,12 @@ export function StrumPatterns({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, autoAdvance]);
 
+  // The ladder and the player's own patterns first, then the song catalogue: a
+  // phrase dealt from a song's strum block has no rung to be named by, and a card
+  // reading `D--UX--U-U-UDUDU` is the pattern rather than its name.
   const nameOf = useCallback(
-    (source: string) => patternName(source, custom) ?? source,
-    [custom],
+    (source: string) => patternName(source, custom) ?? songPatternName(source, songs) ?? source,
+    [custom, songs],
   );
 
   // The deck minus whichever card is about to be dealt, for the wait before the
@@ -735,7 +755,7 @@ export function StrumPatterns({
               className="sp-current"
               pattern={current}
               sweepAt={sweepAt}
-              slots={liveSlots(current, outcomes, pass, passedSlot, slotMs)}
+              slots={liveSlots(current, outcomes, pass, passedSlot, slotMsOf(current))}
               label={describePattern(current)}
             />
           )}
@@ -798,7 +818,7 @@ export function StrumPatterns({
               <PatternBar
                 pattern={report.pattern}
                 size="card"
-                slots={reportSlots(report, slotMs)}
+                slots={reportSlots(report, slotMsOf(report.pattern))}
                 label={`${nameOf(report.source)}. ${describePattern(report.pattern)}`}
               />
               {report.upsUnheard && (

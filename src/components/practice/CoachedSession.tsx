@@ -13,6 +13,7 @@ import { useStore, getTodayString, drillLogsOf, type CoachStepResult } from '../
 import { pairKey } from '../../lib/pairs';
 import { chordKey, findKey, patternKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } from '../../lib/drillKeys';
 import { deckOf, patternRuns } from '../../lib/patternDeck';
+import { cappedTempo } from '../../lib/songStrum';
 import { buildSegments, isResumable, restIsSpoken, restSecondsAfter } from '../../lib/coached';
 import { keyDrillHistory } from '../../lib/drillStats';
 import { DRILL_UNIT, trainerBlockSeconds } from '../../lib/drills';
@@ -110,7 +111,9 @@ export function CoachedSession({ routine, onClose }: Props) {
   const recordNoteFinds = useStore((s) => s.recordNoteFinds);
 
   const songs = useSongs();
-  const segments = useMemo(() => buildSegments(routine), [routine]);
+  // The real catalogue, not the built-in one: a song the player wrote carries
+  // its own strumming and has to get the same strum block a shipped chart does.
+  const segments = useMemo(() => buildSegments(routine, songs), [routine, songs]);
   // Only nudge about the mic if this routine actually listens. Songs used to be
   // in this list, but the play-along has had no mic since the learn pass was
   // retired, so a song-only routine was asking for a permission it never uses.
@@ -1007,7 +1010,7 @@ export function CoachedSession({ routine, onClose }: Props) {
           <StrumPatterns
             key={`seg-${index}-${take}`}
             config={{ kind: 'strum-pattern', durationSec: seg.seconds, bpm: seg.bpm, bars: seg.bars }}
-            bpm={tempoPlan?.bpm ?? DEFAULT_PRACTICE_BPM}
+            bpm={cappedTempo(patternDeck, tempoPlan?.bpm ?? DEFAULT_PRACTICE_BPM)}
             deck={patternDeck}
             history={patternHistory}
             autoStart

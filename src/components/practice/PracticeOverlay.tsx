@@ -6,6 +6,7 @@ import { useStore, getTodayString, drillLogsOf } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import { chordKey, findKey, patternKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } from '../../lib/drillKeys';
 import { deckOf, patternRuns } from '../../lib/patternDeck';
+import { cappedTempo } from '../../lib/songStrum';
 import { finderHistory } from '../../lib/finderHistory';
 import { keyDrillHistory } from '../../lib/drillStats';
 import { trainerBlockSeconds } from '../../lib/drills';
@@ -492,7 +493,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
         {!recording.noticeDue && drill?.kind === 'strum-pattern' && (
           <StrumPatterns
             config={drill}
-            bpm={tempoPlan?.bpm ?? DEFAULT_PRACTICE_BPM}
+            bpm={cappedTempo(patternDeck, tempoPlan?.bpm ?? DEFAULT_PRACTICE_BPM)}
             deck={patternDeck}
             history={patternHistory}
             onSessionStart={beginDrill}
