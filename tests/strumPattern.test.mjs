@@ -26,10 +26,10 @@ import {
   UP_DETECTION_LAG_MS,
   MIN_PATTERN_PASSES,
 } from '../src/lib/strumPattern.ts';
-import { TimingAnalyser, TIMING_FRAME_SIZE, MIN_STRUM_GAP_MS } from '../src/audio/timing.ts';
+import { TimingAnalyser, TIMING_FRAME_SIZE } from '../src/audio/timing.ts';
 import { SIXTEENTH_MAX_BPM, cappedTempo } from '../src/lib/songStrum.ts';
 import { renderClick, VOICES, accentFor } from '../src/audio/metronome.ts';
-import { fitBeatGrid } from '../src/lib/strumTiming.ts';
+import { fitBeatGrid, MIN_STRUM_GAP_MS } from '../src/lib/strumTiming.ts';
 import { renderStrum, addRoom, VOICINGS } from './browser/tone.mjs';
 
 const RATE = 44100;

@@ -32,8 +32,12 @@
 // anyone knowing which way the hand was moving, and claiming to know would be
 // the kind of confident wrong number this app has already paid for once.
 
-import { MIN_STRUM_GAP_MS } from '../audio/timing';
-import { IN_TIME_MS, TIMING_RESOLUTION_MS, type BeatGrid } from './strumTiming';
+import {
+  IN_TIME_MS,
+  MIN_STRUM_GAP_MS,
+  TIMING_RESOLUTION_MS,
+  type BeatGrid,
+} from './strumTiming';
 
 /**
  * What a pattern does at one eighth-note slot. `null` is a ghost.
