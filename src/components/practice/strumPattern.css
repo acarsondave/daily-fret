@@ -269,40 +269,14 @@
   }
 }
 
-/* The deck, in the seconds before the click is found. The card about to be
-   dealt at full size, the rest of the deck under it at deck size, so which one
-   is coming is legible from the shape of the block and not only from a name. */
-.sp-waiting {
-  display: flex;
-  flex: 1 1 auto;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.sp-waiting-rest {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--border-subtle);
-}
-
 /* The card drawn but not yet dealt, while the drill is still finding the click.
    Quieter than a live one, because nothing is being measured against it yet and
    a bar at full weight would read as a run already under way. It is here at all
-   so the stage is never blank under a running clock. */
+   so the stage is never blank under a running clock, and it is the same bar in
+   the same box the run will use, so finding the click brightens the card rather
+   than replacing the screen. */
 .sp-current.is-waiting {
   opacity: 0.5;
-}
-
-/* Quieter again than the card that is coming, so the block reads as one thing
-   about to happen and the rest standing behind it. Through the bar's own bone
-   variables rather than through opacity, the way a deck card's standing already
-   works: the marks are drawn in a colour, and a colour is what should change. */
-.sp-waiting-rest .pattern-bar {
-  --pb-bone: rgb(236 222 205 / 0.34);
-  --pb-bone-quiet: rgb(236 222 205 / 0.16);
 }
 
 @media (prefers-reduced-motion: no-preference) {

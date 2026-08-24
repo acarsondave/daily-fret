@@ -619,6 +619,93 @@ console.log('\nA two-bar phrase\n');
   await browser.close();
 }
 
+// --- the stage holds still --------------------------------------------------
+
+/**
+ * The drill opens straight into a run in coached mode, and for the first few
+ * seconds it has no beat grid: the card is drawn but nothing is being measured
+ * against it yet. That wait used to be a taller stage than the run, because the
+ * rest of the deck was stacked under the drawn card, so the whole stage jumped
+ * at whatever moment the grid happened to fit. A card being read with both
+ * hands on the guitar must not move under the reader.
+ *
+ * Measured on the phone frame as well as the laptop, because the stack was a
+ * column and a column costs a phone most.
+ */
+if (run('stage')) for (const [label, viewport] of [
+  ['1366x900', { width: 1366, height: 900 }],
+  ['390x780', { width: 390, height: 780 }],
+]) {
+  console.log(`\nThe stage does not change shape when the click is found (${label})\n`);
+  const { browser, page, errors } = await open({
+    wav: 'eighths.wav',
+    // Four cards, so anything that draws the rest of the deck draws three bars.
+    drill: drillFor([DOWNS, EIGHTHS, 'D-DU-UD-', 'D-DUDUD-'], 20),
+    viewport,
+  });
+
+  const cueBox = () => page.evaluate(() => {
+    const cue = document.querySelector('.sp-stage .drill-cue');
+    const read = document.querySelector('.sp-stage .drill-read');
+    const meter = document.querySelector('.signal-meter');
+    if (!cue) return null;
+    const r = cue.getBoundingClientRect();
+    return {
+      top: Math.round(r.top),
+      height: Math.round(r.height),
+      readHeight: read ? Math.round(read.getBoundingClientRect().height) : -1,
+      meter: meter ? `${meter.className}|${Math.round(meter.getBoundingClientRect().height)}` : 'none',
+    };
+  });
+
+  await page.waitForSelector('.sp-current.is-waiting', { timeout: 20000 });
+  const waiting = await cueBox();
+  // Counted here rather than after the run starts: the deck stack this replaces
+  // only ever existed during the wait, so an assertion taken later would pass
+  // whether or not it was there.
+  const barsWhileWaiting = await page.locator('.sp-stage .drill-cue .pattern-bar').count();
+  await page.screenshot({ path: `${OUT}/patterns-waiting-${label}.png` });
+
+  // The same card, now live: same element, same box, brought up to full weight.
+  await page.waitForSelector('.sp-current:not(.is-waiting)', { timeout: 45000 });
+  const playing = await cueBox();
+
+  check(`${label}: the card sits in the same place before and after`,
+    waiting !== null && playing !== null && waiting.top === playing.top,
+    `${JSON.stringify(waiting)} then ${JSON.stringify(playing)}`);
+  check(`${label}: and the stage is the same height`,
+    waiting !== null && playing !== null && waiting.height === playing.height,
+    `${waiting?.height}px then ${playing?.height}px`);
+  check(`${label}: one card is drawn while the click is being found, not the deck`,
+    barsWhileWaiting === 1, String(barsWhileWaiting));
+
+  // The arm crosses the strings sixty times a second. It has to do that on the
+  // compositor: `left` is a layout property, and moving it every frame
+  // invalidates the lane on the one screen where a microphone, a metronome and
+  // often a camera are already running.
+  const arm = await page.evaluate(async () => {
+    const el = document.querySelector('.sp-current .pb-arm');
+    if (!el) return null;
+    const read = () => ({
+      left: getComputedStyle(el).left,
+      transform: getComputedStyle(el).transform,
+    });
+    const first = read();
+    await new Promise((r) => setTimeout(r, 260));
+    const second = read();
+    return { first, second };
+  });
+  check(`${label}: the arm is actually moving`,
+    arm !== null && arm.first.transform !== arm.second.transform,
+    JSON.stringify(arm));
+  check(`${label}: and it moves without touching layout`,
+    arm !== null && arm.first.left === '0px' && arm.second.left === '0px',
+    `left ${arm?.first.left} then ${arm?.second.left}`);
+
+  check(`${label}: no page errors`, errors.length === 0, errors.join(' | '));
+  await browser.close();
+}
+
 // --- the frames the owner actually practises on -----------------------------
 
 if (run('frames')) for (const [label, viewport] of [
