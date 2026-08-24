@@ -8,6 +8,7 @@
 
 import { buildTempoTimeline, songPace, DEFAULT_SONG_BPM } from '../src/lib/songTempo.ts';
 import { buildTimeline, barIndexAt, sectionIndexAt } from '../src/lib/songTiming.ts';
+import { SONGS } from '../src/data/songs.ts';
 
 let failures = 0;
 const check = (l, ok, d) => { if (!ok) failures++; console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${l}${d ? ' — ' + d : ''}`); };
@@ -197,6 +198,33 @@ console.log('\nWhose tempo the number is\n');
   check('a chosen tempo wins', songPace(withBpm, plan, 81).bpm === 81);
   check('and says it was chosen', songPace(withBpm, plan, 81).source === 'chosen');
   check('while still knowing the record\'s pace', songPace(withBpm, plan, 81).fullBpm === 116);
+}
+
+console.log('\nEvery song in the catalogue can actually be played\n');
+{
+  // The claim the whole mode rests on. Before this, buildTimeline returned
+  // no-anchors for all eight, so the scrolling chart had never once run for a
+  // shipped song. If a song loses its tempo or its bars, this is where it shows.
+  const broken = [];
+  const untimed = [];
+  for (const song of SONGS) {
+    if (!(typeof song.bpm === 'number' && song.bpm > 0)) untimed.push(song.id);
+    const built = buildTempoTimeline(song, song.bpm ?? DEFAULT_SONG_BPM);
+    if (!built.ok) broken.push(`${song.id}: ${built.gap.message}`);
+  }
+  check('every built-in song carries a written tempo', untimed.length === 0, untimed.join(', '));
+  check('and every one of them lays out as a chart', broken.length === 0, broken.join(' | '));
+  check('none of them can be laid out against a recording',
+    SONGS.every((song) => buildTimeline(song).ok === false),
+    'a song has been anchored; this check has served its purpose and can go');
+
+  // A tempo that is wrong by a factor of two is the mistake worth catching, and
+  // it shows up as a chart whose length is nothing like the song's.
+  const long = SONGS.filter((song) => {
+    const t = buildTempoTimeline(song, song.bpm).timeline;
+    return t.endSeconds < 15 || t.endSeconds > 420;
+  }).map((song) => `${song.id} ${Math.round(buildTempoTimeline(song, song.bpm).timeline.endSeconds)}s`);
+  check('and each runs for a plausible number of minutes', long.length === 0, long.join(', '));
 }
 
 console.log(failures ? `\n${failures} failed\n` : '\nall good\n');

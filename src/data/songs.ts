@@ -160,6 +160,9 @@ const wildThing: Song = {
   artist: 'The Troggs',
   level: 'Beginner',
   strum: 'DD',
+  // 103. The databases print about 206 for this record; that is the eighth-note
+  // count, and the A-D-E vamp is one chord a bar at half of it.
+  bpm: 103,
   chords: ['A', 'D', 'E'],
   youtubeId: 'gSWInYFVksg',
   sections: [
@@ -206,6 +209,7 @@ const threeLittleBirds: Song = {
   artist: 'Bob Marley',
   level: 'Beginner',
   strum: 'DDUUDU',
+  bpm: 74,
   chords: ['A', 'D', 'E'],
   sections: [
     { label: 'Chorus', steps: [s('A', "Don't worry"), s('A', 'about a thing'), s('D'), s('A', "'cause every little thing"), s('E'), s('A', 'gonna be all right')] },
@@ -220,6 +224,9 @@ const badMoonRising: Song = {
   artist: 'Creedence Clearwater Revival',
   level: 'Easy',
   strum: 'DDUUDU',
+  // 90, which is the half-time count of the 179 the databases print. The count
+  // that matters here is the one this chart is written in: one chord a bar.
+  bpm: 90,
   chords: ['D', 'A', 'G'],
   sections: [
     { label: 'Verse', steps: [s('D', 'I see a bad moon rising'), s('A'), s('G'), s('D')] },
@@ -234,6 +241,7 @@ const knockinHeaven: Song = {
   artist: 'Bob Dylan',
   level: 'Easy',
   strum: 'DDUUDU',
+  bpm: 140,
   chords: ['G', 'D', 'Am', 'C'],
   sections: [
     { label: 'Verse', steps: [s('G', 'Mama, take this badge off of me'), s('D'), s('Am'), s('Am'), s('G'), s('D'), s('C'), s('C')] },
@@ -252,6 +260,7 @@ const iBelongToYou: Song = {
   artist: 'Lenny Kravitz',
   level: 'Beginner',
   strum: 'DD',
+  bpm: 87,
   chords: ['Am', 'Em'],
   youtubeId: 'ucvLuGgsGS8',
   sections: [
@@ -321,6 +330,7 @@ const singEdSheeran: Song = {
   level: 'Easy',
   strum: 'DDUUDU',
   capo: 4,
+  bpm: 120,
   chords: ['Em', 'Am'],
   youtubeId: 'tlYcUqEPN58',
   sections: [
