@@ -16,7 +16,9 @@ import {
   cursorAt,
 } from '../src/audio/songBacking.ts';
 import { SongClock } from '../src/lib/songClock.ts';
-import { buildTempoTimeline } from '../src/lib/songTempo.ts';
+import { buildTempoTimeline, songPace } from '../src/lib/songTempo.ts';
+import { barIndexAt } from '../src/lib/songTiming.ts';
+import { SONGS } from '../src/data/songs.ts';
 
 let failures = 0;
 const check = (l, ok, d) => { if (!ok) failures++; console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${l}${d ? ' — ' + d : ''}`); };
@@ -297,6 +299,58 @@ console.log('\nA chord with no shape is silent rather than wrong\n');
   for (let t = 0; t <= 3; t += 0.05) { ctx.currentTime = Number(t.toFixed(3)); backing.pump(); }
   backing.stop();
   check('the chord the app cannot shape is not played as something else', nodes.length === 0);
+}
+
+console.log('\nThe chord in the speaker is the chord under the playhead\n');
+{
+  // The acceptance test for the whole mode, as a value rather than as a
+  // listening session: at any moment of any song in the catalogue, the most
+  // recent chord the scheduler would have sounded is the chord the chart is
+  // drawing at that same moment. If the plan and the chart ever came off the
+  // same timeline, this is where it shows.
+  const wrong = [];
+  for (const s of SONGS) {
+    const pace = songPace(s, null);
+    const line = buildTempoTimeline(s, pace.bpm).timeline;
+    const plan = buildBackingPlan(line, 4).filter((e) => e.kind === 'chord');
+    // Sample through the whole song, deliberately off the grid so a moment is
+    // taken mid-bar rather than exactly on a downbeat.
+    const step = line.endSeconds / 400;
+    for (let t = step / 3; t < line.endSeconds; t += step) {
+      const bar = line.bars[barIndexAt(line, t)];
+      if (!bar) continue;
+      let sounding = null;
+      for (const e of plan) {
+        // No tolerance: an event exactly at t is sounding at t, and barIndexAt
+        // puts t in the bar that starts at t. The two have to agree on the edge
+        // as well as in the middle.
+        if (e.at > t) break;
+        sounding = e;
+      }
+      if (!sounding) continue;
+      if (sounding.chord !== bar.chord) {
+        wrong.push(`${s.id} at ${t.toFixed(2)}s: hears ${sounding.chord}, sees ${bar.chord}`);
+        break;
+      }
+    }
+  }
+  check('through every song in the catalogue, the two agree', wrong.length === 0, wrong.slice(0, 3).join(' | '));
+
+  // And the same holds for the arrows: nothing sounds outside the bar it
+  // belongs to, which is what would happen if a bar's strokes were laid out
+  // against the wrong span.
+  const stray = [];
+  for (const s of SONGS) {
+    const line = buildTempoTimeline(s, s.bpm ?? 80).timeline;
+    for (const bar of line.bars) {
+      for (const stroke of barStrokes(bar)) {
+        if (stroke.at < bar.startSeconds - 1e-9 || stroke.at >= bar.endSeconds - 1e-9) {
+          stray.push(`${s.id} bar ${bar.index}`);
+        }
+      }
+    }
+  }
+  check('and no stroke falls outside the bar that drew it', stray.length === 0, stray.slice(0, 3).join(', '));
 }
 
 console.log(failures ? `\n${failures} failed\n` : '\nall good\n');

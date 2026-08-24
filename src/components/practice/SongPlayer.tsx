@@ -1,19 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRightIcon, CapoIcon, CheckCircleIcon, MusicNoteIcon, PlayIcon } from '../icons';
-import { YoutubeLogo } from '@phosphor-icons/react';
-import { useStore } from '../../store';
-import { YouTubePlayer, type PlaybackPhase } from './YouTubePlayer';
-import { SyncedChart, ChartStandIn } from './SyncedChart';
-import { PlaybackControls } from './PlaybackControls';
+import { ArrowRightIcon, CapoIcon, ChartModeIcon, CheckCircleIcon, MusicNoteIcon, RecordModeIcon } from '../icons';
+import { SongRecordStage } from './SongRecordStage';
+import { SongChartStage } from './SongChartStage';
+import { SongModeChoice, type SongMode } from './SongModeChoice';
 import { ChordDiagram } from './ChordDiagram';
 import { StrumRow } from './StrumRow';
 import { sfx } from '../../audio/sfx';
 import { useSong } from '../../hooks/useSongs';
-import { usePlayerClock } from '../../hooks/usePlayerClock';
 import { useCapoOffset } from '../../hooks/useCapo';
-import { buildTimeline, loopTarget, sectionIndexAt, type SongTimeline } from '../../lib/songTiming';
-import { seekPlayerTo, setPlayerRate, type YTPlayer } from '../../lib/youtube';
+import { useOnline } from '../../lib/offline';
+import { buildTempoTimeline, songPace } from '../../lib/songTempo';
 
 const AUTO_ADVANCE_SECONDS = 5;
 
@@ -22,53 +19,38 @@ type Phase = 'intro' | 'play' | 'results';
 interface Props {
   songId: string;
   onClose?: () => void;
-  autoStart?: boolean;
   onNext?: () => void;
   autoAdvance?: boolean;
   nextLabel?: string;
   /**
-   * The play-along is over. `reachedEnd` is true only when the recording itself
-   * ran out: the Done button is the player's word that they are finished, and
-   * filing the two identically had the day's record claim a clock had run to its
-   * end when someone had tapped Done ten seconds in.
+   * The play-along is over. `reachedEnd` is true only when the song itself ran
+   * out: the Done button is the player's word that they are finished, and filing
+   * the two identically had the day's record claim a clock had run to its end
+   * when someone had tapped Done ten seconds in.
    */
   onFinish?: (reachedEnd: boolean) => void;
 }
 
-// Pull a YouTube video id out of any common link shape (or a bare id).
-function youtubeId(raw: string): string | null {
-  const url = raw.trim();
-  const patterns = [
-    /youtu\.be\/([\w-]{11})/,
-    /[?&]v=([\w-]{11})/,
-    /\/embed\/([\w-]{11})/,
-    /\/shorts\/([\w-]{11})/,
-  ];
-  for (const re of patterns) {
-    const m = url.match(re);
-    if (m) return m[1];
-  }
-  return /^[\w-]{11}$/.test(url) ? url : null;
-}
-
-// Play along to the real recording, with the chords named up front. There is no
-// mic here: playing in time with a record is the skill, and a detector listening
-// through the speakers can only get in the way of it.
+// A song, two ways.
 //
-// The same reasoning is why nothing on this screen is scored. The microphone
-// would hear the record through the speakers, so any accuracy number would be
-// measuring the band and reporting it as the player's. It is not that grading
-// was too hard to build; it is that the number would be a lie. The screen says
-// so in as many words, and there is no streak, no miss count and no fail state
-// anywhere in it.
+// **Record mode: play with the band. Chart mode: play the song.** They are not a
+// good one and a degraded one. Playing to a record is where you find out whether
+// you have it; playing the chart at seventy percent with the chords under you is
+// where you get it. Neither is the fallback for the other, and the app never
+// switches between them on its own: a connection dying mid-song leaves the
+// record stage stalled where it always stalled, with the chart card there.
 //
-// What replaced grading is the chart moving with the record, plus the two
-// controls that actually teach a song: slow it down, and loop the section you
-// cannot play yet.
+// Nothing on either stage is scored. The microphone would hear the record
+// through the speakers, so any accuracy number would be grading the band and
+// reporting it as the player's, and a generated backing would be worse: it would
+// be grading the app. There is no streak, no miss count and no fail state
+// anywhere inside a song, and that rule is older than chart mode.
+//
+// This component keeps the phases, the chords, the choice and the results. The
+// two engines live in their own files, and neither knows the other exists.
 export function SongPlayer({
   songId,
   onClose,
-  autoStart = false,
   onNext,
   autoAdvance = false,
   nextLabel = 'Up next',
@@ -77,68 +59,20 @@ export function SongPlayer({
   const song = useSong(songId);
   // Where the clamp actually is, as against where this chart wants it.
   const accountCapo = useCapoOffset();
+  const online = useOnline();
 
-  const storedLink = useStore((st) => (song ? st.accounts[st.currentAccountId]?.songLinks?.[song.id] : undefined));
-  const setSongLink = useStore((st) => st.setSongLink);
-
-  const [phase, setPhase] = useState<Phase>(autoStart ? 'play' : 'intro');
+  const [phase, setPhase] = useState<Phase>('intro');
+  const [mode, setMode] = useState<SongMode>('chart');
   const [advanceLeft, setAdvanceLeft] = useState(AUTO_ADVANCE_SECONDS);
-  const [linkDraft, setLinkDraft] = useState('');
-  const [editingLink, setEditingLink] = useState(false);
 
-  const [player, setPlayer] = useState<YTPlayer | null>(null);
-  const [playback, setPlayback] = useState<PlaybackPhase>('idle');
-  const [playerError, setPlayerError] = useState<number | null>(null);
-  const [sectionIndex, setSectionIndex] = useState(-1);
-  const [loopIndex, setLoopIndex] = useState<number | null>(null);
-
-  const clock = usePlayerClock(player, playback);
-
-  // A chart only follows the recording it was timed against. If the player is
-  // watching a different upload of the song, its anchors are for someone else's
-  // video and would put the chart confidently in the wrong place.
-  const timed = useMemo(() => (song ? buildTimeline(song) : null), [song]);
-  const timeline = timed?.ok && !storedLink ? timed.timeline : null;
-
-  // The frame callback runs sixty times a second and must never cause a render,
-  // so everything it consults is a ref and everything it publishes is compared
-  // first. In practice that is one setState per section and one seek per loop.
-  const playerRef = useRef<YTPlayer | null>(null);
-  const timelineRef = useRef<SongTimeline | null>(null);
-  const loopRef = useRef<number | null>(null);
-  const sectionRef = useRef(-1);
-  const loopPending = useRef(false);
-  useEffect(() => {
-    playerRef.current = player;
-    timelineRef.current = timeline;
-    loopRef.current = loopIndex;
-  }, [player, timeline, loopIndex]);
-
-  const onFrame = useCallback((seconds: number) => {
-    const line = timelineRef.current;
-    if (!line) return;
-
-    const index = sectionIndexAt(line, seconds);
-    if (index !== sectionRef.current) {
-      sectionRef.current = index;
-      setSectionIndex(index);
-    }
-
-    const loop = loopRef.current;
-    if (loop === null) return;
-    const section = line.sections[loop];
-    if (!section) return;
-    if (seconds < section.endSeconds) {
-      loopPending.current = false;
-      return;
-    }
-    // One seek per lap. Until the player reports a time inside the section
-    // again, every frame still reads as past the end and would re-seek.
-    if (loopPending.current) return;
-    loopPending.current = true;
-    const target = playerRef.current;
-    if (target) seekPlayerTo(target, loopTarget(line, loop));
-  }, []);
+  // Chart mode needs no anchoring, so this is available for every song that has
+  // bars, which is every song in the catalogue.
+  const pace = useMemo(() => (song ? songPace(song, null) : null), [song]);
+  const charted = useMemo(
+    () => (song && pace ? buildTempoTimeline(song, pace.bpm) : null),
+    [song, pace],
+  );
+  const chartTimeline = charted?.ok ? charted.timeline : null;
 
   const finish = (reachedEnd: boolean) => {
     sfx.sessionComplete();
@@ -184,7 +118,7 @@ export function SongPlayer({
         {/* The hand, not the sentence. "Strum DDUUDU" is a code a beginner has to
             decode before it means anything; the arrows are the movement. The
             chords were three initials, and this screen is the last look at them
-            before a record starts and does not wait. */}
+            before the song starts and does not wait. */}
         <StrumRow strum={song.strum} size={24} />
         {/* The capo is drawn on every shape rather than written once beside
             them, because it is a fact about how each of these is fretted. Get
@@ -211,134 +145,77 @@ export function SongPlayer({
               : `Your capo is set to ${accountCapo}. This one wants ${song.capo}.`}
           </p>
         )}
-        <button className="practice-btn primary" onClick={() => { sfx.go(); setPhase('play'); }}>
-          <PlayIcon size={20} /> Start play-along
-        </button>
+        {/* The way in, and the whole of it. There is no separate start button,
+            because starting and choosing how to play are one decision, and a
+            screen that starts one mode by default is a screen on which the other
+            mode does not exist. */}
+        <SongModeChoice
+          timeline={chartTimeline}
+          online={online}
+          onPick={(picked) => {
+            sfx.go();
+            setMode(picked);
+            setPhase('play');
+          }}
+        />
       </div>
     );
   }
 
   if (phase === 'play') {
-    const videoId = (storedLink ? youtubeId(storedLink) : null) ?? song.youtubeId ?? null;
-    // The video stays on screen at a real size whatever else is showing: it is
-    // the performance, people want to watch it, and YouTube's terms are clear
-    // that the player is not a hidden audio source for something else.
-    const theater = !!videoId && !editingLink;
-    const section = sectionIndex >= 0 ? timeline?.sections[sectionIndex] ?? null : null;
-    const chartLive = !!timeline && clock.ready && !playerError;
+    const foot = (
+      <>
+        <span className="song-honest is-inline">Not graded, just play.</span>
+        <button className="practice-btn primary" onClick={() => finish(false)}>
+          Done <ArrowRightIcon size={18} />
+        </button>
+      </>
+    );
+
+    // The other mode, one tap away, drawn and not written. Someone who landed on
+    // the video and wanted the chart should not have to go back to find it.
+    const other: SongMode = mode === 'chart' ? 'record' : 'chart';
+    const canSwitch = other === 'chart' ? !!chartTimeline : online;
+    const swap = canSwitch ? (
+      <button
+        className="song-mode-swap"
+        onClick={() => setMode(other)}
+        aria-label={other === 'chart' ? 'Play the song from the chart' : 'Play along with the recording'}
+      >
+        {other === 'chart' ? <ChartModeIcon size={18} /> : <RecordModeIcon size={18} />}
+      </button>
+    ) : null;
+
+    if (mode === 'chart' && chartTimeline && pace) {
+      return (
+        <SongChartStage
+          song={song}
+          timeline={chartTimeline}
+          pace={pace}
+          capo={song.capo ?? 0}
+          onEnded={() => finish(true)}
+          topline={swap}
+          foot={foot}
+        />
+      );
+    }
 
     return (
-      <motion.div
-        className={`song-real${theater ? ' is-theater' : ''}${timeline ? ' has-chart' : ''}`}
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <div className="song-topline">
-          <span className="song-pass is-play">{section ? section.label : song.chords.join(' · ')}</span>
-          <span className="song-section-tag">{song.title}</span>
-          {playback === 'buffering' && <span className="song-buffering">buffering</span>}
-        </div>
-
-        {theater ? (
-          <YouTubePlayer
-            videoId={videoId}
-            onEnded={() => finish(true)}
-            // A stored link is the user's own pick and may not share the
-            // catalogue recording's intro, so only skip ahead on ours.
-            startSeconds={storedLink ? undefined : song.startSeconds}
-            onPlayer={setPlayer}
-            onPhase={setPlayback}
-            onError={setPlayerError}
-          />
-        ) : (
-          <div className="song-real-link">
-            <YoutubeLogo size={32} color="#ff5252" />
-            <p className="om-caption">Paste a YouTube link for {song.title} to play along to the real recording.</p>
-            <div className="song-real-link-row">
-              <input
-                className="task-input"
-                aria-label={`YouTube link for ${song.title}`}
-                placeholder="https://youtu.be/…"
-                value={linkDraft}
-                onChange={(e) => setLinkDraft(e.target.value)}
-                autoFocus
-              />
-              <button
-                className="practice-btn primary"
-                disabled={!youtubeId(linkDraft)}
-                onClick={() => {
-                  setSongLink(song.id, linkDraft.trim());
-                  setLinkDraft('');
-                  setEditingLink(false);
-                }}
-              >
-                Load
-              </button>
-            </div>
-          </div>
-        )}
-
-        {theater && playerError !== null && (
-          <p className="song-untimed">
-            This recording will not play here. Change the link to another upload of the song.
-          </p>
-        )}
-
-        {theater && playerError === null && timeline && (
-          chartLive ? (
-            <>
-              <SyncedChart timeline={timeline} time={clock.time} onFrame={onFrame} />
-              <PlaybackControls
-                rate={clock.rate}
-                rates={clock.rates}
-                onRate={(rate) => {
-                  if (player) setPlayerRate(player, rate);
-                }}
-                sectionLabel={section?.label ?? null}
-                looping={loopIndex !== null}
-                onToggleLoop={() =>
-                  setLoopIndex((current) => (current === null ? sectionIndex : null))
-                }
-              />
-            </>
-          ) : (
-            <ChartStandIn note="Getting the recording's clock." />
-          )
-        )}
-
-        {/* Stated, never hidden. A chart with no timing is not shown scrolling
-            approximately: it says it has none, and the play-along runs the way
-            it always did. */}
-        {theater && playerError === null && !timeline && (
-          <p className="song-untimed">
-            {storedLink
-              ? 'The chart is timed to the catalogue recording, so it stays off for your own link.'
-              : `${timed?.ok ? 'This chart has no timing yet.' : timed?.gap.message ?? 'This chart has no timing yet.'} Play along with the chords above.`}
-          </p>
-        )}
-
-        <div className="song-real-foot">
-          {theater && (
-            <button className="song-skip" onClick={() => { setLinkDraft(storedLink ?? ''); setEditingLink(true); }}>
-              <YoutubeLogo size={16} /> Change link
-            </button>
-          )}
-          <span className="song-honest is-inline">Not graded, just play.</span>
-          <button className="practice-btn primary" onClick={() => finish(false)}>
-            Done <ArrowRightIcon size={18} />
-          </button>
-        </div>
-      </motion.div>
+      <SongRecordStage
+        song={song}
+        onEnded={() => finish(true)}
+        topline={swap}
+        foot={foot}
+      />
     );
   }
 
   return (
     <motion.div className="om-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-      {/* The record ran to its end with the player on it, which is the only
-          thing this drill can honestly witness, so that is all the card says.
-          "Nice playing" was the app congratulating someone for showing up,
-          which is the one thing its voice is not for. */}
+      {/* The song ran to its end with the player on it, which is the only thing
+          this drill can honestly witness, so that is all the card says. "Nice
+          playing" was the app congratulating someone for showing up, which is
+          the one thing its voice is not for. */}
       <CheckCircleIcon size={48} className="coach-summary-check" />
       <div className="coach-intro-title">{song.title}</div>
       {autoAdvance ? (

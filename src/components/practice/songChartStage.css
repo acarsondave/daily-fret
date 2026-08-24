@@ -1,0 +1,113 @@
+/* Chart mode. No video, so the chart is the stage and the column is a reading
+   width rather than a video's aspect ratio. */
+.song-real.is-chartmode {
+  max-width: 720px;
+  justify-content: center;
+}
+
+.song-chart-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* --- The pace, as a fraction ---------------------------------------------
+   A bar that fills toward the song's own tempo with the played tempo marked on
+   it. The number rides at the end of the fill rather than in a labelled field,
+   so what is read is "this much of the song" and the beats per minute is the
+   detail rather than the headline. */
+.song-pace {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
+}
+
+.song-pace-track {
+  position: relative;
+  flex: 1;
+  min-width: 60px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--border-default);
+}
+
+.song-pace-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+  transition: width var(--dur-base) var(--ease-out);
+}
+
+/* The mark is the player's place on the song's pace, and it is what moves right
+   over weeks. Drawn proud of the track so it reads as a position rather than as
+   the end of a fill. */
+.song-pace-mark {
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 16px;
+  margin-left: -1.5px;
+  border-radius: var(--radius-full);
+  background: var(--text-primary);
+  transform: translateY(-50%);
+  transition: left var(--dur-base) var(--ease-out);
+}
+
+.song-pace-value {
+  font-family: var(--font-primary);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+/* The audio has gone. Same colour and same word the metronome already uses when
+   its click cannot be heard: one fact, one appearance. */
+.song-pace.is-silent .song-pace-value {
+  color: var(--warning-color);
+  text-transform: uppercase;
+  font-size: 0.62rem;
+  letter-spacing: 0.09em;
+}
+
+.song-pace.is-silent .song-pace-fill {
+  background: var(--warning-color);
+}
+
+.song-click {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color var(--dur-base) ease, background var(--dur-base) ease,
+    border-color var(--dur-base) ease;
+}
+
+.song-click:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.song-click.is-on {
+  color: var(--accent-primary);
+  background: var(--accent-glow);
+  border-color: rgba(56, 189, 248, 0.34);
+}
+
+@media (pointer: coarse) {
+  .song-click {
+    width: 44px;
+    height: 44px;
+  }
+}
