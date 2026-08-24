@@ -363,9 +363,9 @@ console.log('\nA clean run of straight eighths\n');
     (await page.locator('.sp-current .pb-arm').count()) === 1);
   check('and it is actually moving', await page.evaluate(async () => {
     const arm = document.querySelector('.sp-current .pb-arm');
-    const first = arm.style.left;
+    const first = arm.style.transform;
     await new Promise((r) => setTimeout(r, 180));
-    return arm.style.left !== first && arm.style.opacity === '1';
+    return arm.style.transform !== first && arm.style.opacity === '1';
   }));
   // The requirement, as a number. Everything the drill says while both hands
   // are on the guitar it says by drawing; the only glyphs left are the seconds
@@ -500,19 +500,20 @@ console.log('\nThe switch from one pattern to the next\n');
     wav: 'switching.wav',
     drill: drillFor([DOWNS, EIGHTHS], 26),
   });
-  // A coached session opens straight into the run and never shows the deck
-  // screen, so the seconds spent finding the click are the only place the whole
-  // deck can be read. It costs no practice time and shortens nothing: the card
-  // still switches on the bar, with one bar of warning.
+  // One card while the click is being found, and it is the card that gets dealt.
+  // The rest of the deck used to be stacked under it, which made the stage taller
+  // during the wait than during the run and dropped it out from under the reader
+  // at whatever moment the grid fitted. See the section on the stage holding
+  // still, which measures that directly.
   await page.waitForSelector('.sp-current.is-waiting', { timeout: 30000 });
-  const onDeck = await page.locator('.sp-waiting .pattern-bar').count();
-  check('the whole deck is on screen while the click is being found',
-    onDeck === 2, String(onDeck));
+  const drawn = await page.locator('.sp-stage .drill-cue .pattern-bar').count();
+  check('one card is drawn while the click is being found', drawn === 1, String(drawn));
   const first = await page.locator('.sp-current').getAttribute('aria-label');
 
   await page.waitForSelector('.sp-current:not(.is-waiting)', { timeout: 40000 });
-  check('and it is gone the moment the run starts',
-    (await page.locator('.sp-waiting').count()) === 0);
+  check('and the card that was drawn is the one that gets dealt',
+    (await page.locator('.sp-current').getAttribute('aria-label')) === first,
+    `${first} -> ${await page.locator('.sp-current').getAttribute('aria-label')}`);
 
   await page.waitForSelector('.sp-next', { timeout: 40000 });
   check('the next pattern comes up beside the one being played', true);
@@ -581,17 +582,21 @@ console.log('\nA two-bar phrase\n');
   check('and the count marks both downbeats',
     (await page.locator('.sp-current .pb-stem.is-one').count()) === 2,
     String(await page.locator('.sp-current .pb-stem.is-one').count()));
-  // The arm crosses the bar line rather than restarting at it. Read off the
-  // element the drill actually writes to, because that is the only place the
-  // phase of a two-bar phrase is expressed.
+  // The arm crosses the bar line rather than restarting at it. Measured where
+  // the arm actually is against the lane it travels, rather than off whichever
+  // style property happens to be carrying it, so the assertion survives the
+  // marker being moved onto the compositor.
   check('the arm travels the whole phrase, both sides of the bar line',
     await page.evaluate(async () => {
       const arm = document.querySelector('.sp-current .pb-arm');
+      const lane = document.querySelector('.sp-current .pb-lane');
       let before = false;
       let after = false;
       for (let i = 0; i < 200; i += 1) {
-        const at = parseFloat(arm.style.left);
-        if (Number.isFinite(at)) {
+        const a = arm.getBoundingClientRect();
+        const l = lane.getBoundingClientRect();
+        const at = l.width > 0 ? ((a.left + a.width / 2 - l.left) / l.width) * 100 : NaN;
+        if (Number.isFinite(at) && getComputedStyle(arm).opacity === '1') {
           if (at < 45) before = true;
           if (at > 55) after = true;
         }
