@@ -15,6 +15,7 @@
     "test": "node tests/run.mjs",
     "test:browser": "node tests/browser/smoke.mjs",
     "test:offline": "node tests/browser/offline.mjs",
+    "test:song": "node tests/browser/songChartMode.mjs",
     "test:awards": "node tests/browser/awards.mjs",
     "test:chords": "node tests/browser/chordPerfect.mjs",
     "test:patterns": "node tests/browser/strumPatterns.mjs"
