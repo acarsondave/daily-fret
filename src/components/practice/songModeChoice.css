@@ -8,9 +8,11 @@
   width: 100%;
 }
 
+/* The chart card takes the larger share: it is the one whose picture needs
+   width to be a picture at all, and the record card's mark is a fixed size. */
 @media (min-width: 520px) {
   .song-modes {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1.4fr 1fr;
   }
 }
 

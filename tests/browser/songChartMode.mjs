@@ -190,17 +190,17 @@ console.log('\nPicking the chart plays the song\n');
   check('the pace is the song\'s own written tempo',
     (await page.locator('.song-pace-value').innerText()).trim() === '74',
     await page.locator('.song-pace-value').innerText());
-  const fill = await page.evaluate(() => document.querySelector('.song-pace-fill').style.width);
-  check('and the bar is full at full pace', fill === '100%', fill);
+  const fill = await page.evaluate(() => document.querySelector('.song-pace-fill').style.transform);
+  check('and the bar is full at full pace', fill === 'scaleX(1)', fill);
 
   // Slow it down: the fraction has to move with it.
   await page.locator('.pbc-step').first().click();
   await page.waitForTimeout(250);
   const slowed = (await page.locator('.song-pace-value').innerText()).trim();
-  const slowedFill = await page.evaluate(() => document.querySelector('.song-pace-fill').style.width);
+  const slowedFill = await page.evaluate(() => document.querySelector('.song-pace-fill').style.transform);
   check('slowing down draws a smaller fraction of the same song',
     Number(slowed) < 74 && Number(slowed) > 40, slowed);
-  check('and the fill follows it', slowedFill !== '100%', slowedFill);
+  check('and the fill follows it', slowedFill !== 'scaleX(1)' && slowedFill.startsWith('scaleX(0.9'), slowedFill);
 
   // The chart kept its place through the pace change rather than restarting.
   const moved = await transform('.chart-track');

@@ -20,13 +20,31 @@ interface Props {
   bars?: number;
 }
 
-/** Pixels per beat. A quarter of the real chart's 24 to 46. */
-const BEAT_PX = 11;
+/** Pixels per beat. Roughly half the real chart's 24 to 46. A quarter of it drew
+ *  six arrows into forty pixels, which is texture rather than a strum. */
+const BEAT_PX = 16;
+
+/**
+ * Where the loop starts.
+ *
+ * At the first chord change, so the card always shows the thing it is there to
+ * show. Sing opens on four bars of Em, and two bars of one chord going past is a
+ * picture of nothing changing.
+ */
+function loopStart(bars: SongTimeline['bars']): number {
+  for (let i = 0; i < bars.length - 1; i++) {
+    if (bars[i].chord !== bars[i + 1].chord) return i;
+  }
+  return 0;
+}
 
 export function ChartMiniature({ timeline, bars = 2 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const count = Math.max(1, Math.min(bars, timeline.bars.length));
-  const loop = useMemo(() => timeline.bars.slice(0, count), [timeline, count]);
+  const loop = useMemo(() => {
+    const from = Math.min(loopStart(timeline.bars), Math.max(0, timeline.bars.length - count));
+    return timeline.bars.slice(from, from + count);
+  }, [timeline, count]);
   const loopBeats = loop.reduce((sum, bar) => sum + bar.beats, 0);
   const loopSeconds = loop[loop.length - 1].endSeconds - loop[0].startSeconds;
 
@@ -67,7 +85,7 @@ export function ChartMiniature({ timeline, bars = 2 }: Props) {
               }}
             >
               <span className="chart-mini-chord">{bar.chord}</span>
-              <StrumRow strum={bar.strum} size={7} />
+              <StrumRow strum={bar.strum} size={9} />
             </span>
           ))}
         </span>

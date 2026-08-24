@@ -34,8 +34,13 @@ export function SongPaceBar({ pace, rate, audible }: Props) {
   return (
     <div className={audible ? 'song-pace' : 'song-pace is-silent'} role="status" aria-label={label}>
       {fraction !== null && (
-        <span className="song-pace-track" aria-hidden="true">
-          <span className="song-pace-fill" style={{ width: `${fraction * 100}%` }} />
+        <span className="song-pace-gauge" aria-hidden="true">
+          {/* The fill is scaled rather than resized: a width that transitions is
+              a layout pass on every frame of it. The track's own radius clips
+              the ends, so the cap stays round at any fraction. */}
+          <span className="song-pace-track">
+            <span className="song-pace-fill" style={{ transform: `scaleX(${fraction})` }} />
+          </span>
           <span className="song-pace-mark" style={{ left: `${fraction * 100}%` }} />
         </span>
       )}
