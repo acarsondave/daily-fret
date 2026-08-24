@@ -171,13 +171,23 @@ export const songHasStrum = (song: Song | undefined): boolean =>
 export function songPatternName(pattern: string, songs: readonly Song[]): string | null {
   for (const song of songs) {
     for (const strum of song.strumPatterns ?? []) {
-      // Against the written string, mark and all. The catalogue keeps the slots
-      // and the grid in two fields; everything downstream of `songStrumPatterns`
-      // carries them as one string, and that string is what a card is drawn
-      // from and what a run is filed under. Comparing the bare slots meant Get
-      // Lucky's phrase matched nothing anywhere it was actually asked about, so
-      // its card and its history row both read `16.D--UX--U-U-UDUDU`.
-      if (writePattern(strum.pattern, strum.slotsPerBeat ?? EIGHTHS) === pattern) {
+      // Both readings of the string, and this is the one place in the app that
+      // accepts both. Everything downstream of `songStrumPatterns` carries the
+      // slots and the grid as one marked string, and that is what a card is
+      // drawn from and what a run is filed under, so comparing only the bare
+      // slots meant Get Lucky's phrase matched nothing anywhere it was actually
+      // asked about: its card and its history row both read
+      // `16.D--UX--U-U-UDUDU`.
+      //
+      // The bare form still has to answer, because runs were filed under it
+      // before the phrase was re-read in sixteenths, and a month of practice
+      // does not stop having come off this song because the reading of it
+      // changed. The two remain different exercises and different keys; what
+      // they share is a name, which is all this function hands out.
+      if (
+        writePattern(strum.pattern, strum.slotsPerBeat ?? EIGHTHS) === pattern
+        || strum.pattern === pattern
+      ) {
         return strum.name ?? song.title;
       }
     }

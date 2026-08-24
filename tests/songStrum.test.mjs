@@ -143,8 +143,13 @@ console.log('\nNaming a phrase that came off a song\n');
 check('a song phrase is named after its song',
   songPatternName(songStrumPatterns(lucky)[0], SONGS) === 'Get Lucky',
   `${songStrumPatterns(lucky)[0]} -> ${songPatternName(songStrumPatterns(lucky)[0], SONGS)}`);
-check('and the name is reached from the marked string, not the bare slots',
+check('and the string it is reached by is the marked one',
   songStrumPatterns(lucky)[0].startsWith('16.'), songStrumPatterns(lucky)[0]);
+// Runs filed before the phrase was re-read in sixteenths carry the bare slots,
+// and they still came off this song. Two exercises, two keys, one name.
+check('the bare slots are still named too, for the runs already filed under them',
+  songPatternName('D--UX--U-U-UDUDU', SONGS) === 'Get Lucky',
+  String(songPatternName('D--UX--U-U-UDUDU', SONGS)));
 check('a ladder pattern is not claimed by any song',
   songPatternName('D-DU-UD-', SONGS) === null);
 {
