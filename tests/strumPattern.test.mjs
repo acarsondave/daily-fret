@@ -12,6 +12,9 @@
 // assertion below is that it now scores 100.
 
 import {
+  closestStrokesMs,
+  gradableCeilingBpm,
+  strokesTooCloseToHear,
   parsePattern,
   matchPattern,
   summarisePattern,
@@ -23,7 +26,8 @@ import {
   UP_DETECTION_LAG_MS,
   MIN_PATTERN_PASSES,
 } from '../src/lib/strumPattern.ts';
-import { TimingAnalyser, TIMING_FRAME_SIZE } from '../src/audio/timing.ts';
+import { TimingAnalyser, TIMING_FRAME_SIZE, MIN_STRUM_GAP_MS } from '../src/audio/timing.ts';
+import { SIXTEENTH_MAX_BPM, cappedTempo } from '../src/lib/songStrum.ts';
 import { renderClick, VOICES, accentFor } from '../src/audio/metronome.ts';
 import { fitBeatGrid } from '../src/lib/strumTiming.ts';
 import { renderStrum, addRoom, VOICINGS } from './browser/tone.mjs';
@@ -313,14 +317,20 @@ console.log('\nThrough the real analyser, on synthesised guitar\n');
 const OPEN_ONLY = (frets, keep) => frets.map((f, i) => (keep.includes(i) ? f : -1));
 
 // A down sweeps low to high across the sounding strings; an up sweeps high to
-// low and, for most players, only catches the top three.
-function strike(audio, atSec, chord, { up, amp, period, seed }) {
+// low and, for most players, only catches the top three. A slap crosses the
+// same strings with the fretting hand killing them, so it keeps the pick
+// transient and loses everything after it.
+function strike(audio, atSec, chord, { up, amp, period, seed, muted = false }) {
   const frets = VOICINGS[chord];
   const order = up ? [5, 4, 3] : [0, 1, 2, 3, 4, 5];
   order.forEach((string, i) => {
     if (frets[string] < 0) return;
     renderStrum(audio, Math.round((atSec + (i * 7) / 1000) * RATE), OPEN_ONLY(frets, [string]), {
-      amp, dampAt: period * 0.9, spreadMs: 0, seed: seed + string,
+      amp,
+      dampAt: muted ? 0.005 : period * 0.9,
+      dampMs: muted ? 12 : 70,
+      spreadMs: 0,
+      seed: seed + string,
     });
   });
 }
@@ -329,9 +339,13 @@ function takeOf(patternText, { bpm = 80, passes = 8, upAmp = 0.36, drop = () => 
   const pattern = parsePattern(patternText);
   const length = pattern.slots.length;
   const beat = 60 / bpm;
-  const eighth = beat / 2;
+  // Off the pattern's own grid rather than off a constant. This used to divide
+  // by two under every pattern, which meant a sixteenth-note phrase could not be
+  // synthesised at all and the one grid the drill had just learned to read had
+  // never been played through the analyser.
+  const slotSec = beat / pattern.slotsPerBeat;
   const lead = 0.6;
-  const beats = (passes * length) / 2;
+  const beats = (passes * length) / pattern.slotsPerBeat;
   const total = Math.ceil((lead + beats * beat + 1.5) * RATE);
   const audio = new Float32Array(total);
   let seed = 4242;
@@ -345,11 +359,12 @@ function takeOf(patternText, { bpm = 80, passes = 8, upAmp = 0.36, drop = () => 
     for (let slot = 0; slot < length; slot += 1) {
       const expected = pattern.slots[slot];
       if (!expected || drop(pass, slot)) continue;
-      strike(audio, lead + (pass * length + slot) * eighth, 'Am', {
+      strike(audio, lead + (pass * length + slot) * slotSec, 'Am', {
         up: expected === 'U',
         amp: expected === 'U' ? upAmp : 0.5,
         period: beat,
         seed: 7 + pass * SLOTS_PER_BAR + slot,
+        muted: expected === 'X',
       });
     }
   }
@@ -418,6 +433,119 @@ function measure(patternText, opts = {}) {
     upSlots.map((s) => `${s.slot}:${s.struck}/${s.passes}`).join(' '));
   check('while the downs around them stay clean',
     faint.summary.slots.filter((s) => s.expected === 'D').every((s) => s.struck >= s.passes - 1));
+}
+
+
+// --- how close two strums can be ------------------------------------------
+//
+// The number the whole sixteenth-note question turns on, measured rather than
+// argued. The analyser goes quiet for PLAY_REFRACTORY_MS after every strum and
+// then has to see the level fall back before it will fire again, so there is a
+// spacing below which a run of strums simply is not reported, whatever the
+// player did. MIN_STRUM_GAP_MS is that spacing, and these two takes are what it
+// is worth. If either the constant or the detector moves, one of them fails.
+console.log('\nHow close two strums can be and still both be heard\n');
+{
+  const evenly = (gapMs, count = 8) => {
+    const total = Math.ceil((1 + (count * gapMs) / 1000 + 2) * RATE);
+    const audio = new Float32Array(total);
+    for (let i = 0; i < count; i += 1) {
+      strike(audio, 0.6 + (i * gapMs) / 1000, 'Am', {
+        up: false, amp: 0.5, period: 0.2, seed: 11 + i * 6,
+      });
+    }
+    addRoom(audio, 0.0015, 11);
+    return analyse(audio).strums.length;
+  };
+
+  const atFloor = evenly(MIN_STRUM_GAP_MS);
+  check(`at ${MIN_STRUM_GAP_MS} ms apart every strum is reported`, atFloor === 8, `${atFloor}/8`);
+  const under = evenly(MIN_STRUM_GAP_MS - 10);
+  check(`ten milliseconds closer and some are not`, under < 8, `${under}/8`);
+}
+
+// --- what the drill may put a number on ------------------------------------
+console.log('\nWhat the drill may put a number on\n');
+{
+  const lucky = parsePattern('16.D--UX--U-U-UDUDU');
+  const faithful = parsePattern('D-DU-UD-');
+  const eighths = parsePattern('DUDUDUDU');
+  const quarters = parsePattern('D-D-D-D-');
+
+  // The gap is round the phrase, not across it: the pattern repeats, so its last
+  // stroke and its first are neighbours in the hand.
+  check('a lone stroke on beat one has no gap to be too small',
+    closestStrokesMs(parsePattern('D-------'), 200) === Infinity);
+  const wrapped = parsePattern('D------U');
+  check('and a stroke on the last slot is measured against the next time round',
+    closestStrokesMs(wrapped, 120) === closestStrokesMs(eighths, 120),
+    String(closestStrokesMs(wrapped, 120)));
+
+  check('quarter notes are a long way clear anywhere in the click band',
+    !strokesTooCloseToHear(quarters, 132), String(closestStrokesMs(quarters, 132)));
+  // The consequence worth stating plainly, because it changes what the ladder
+  // does at the top of the band. Old Faithful puts two of its strokes an eighth
+  // apart, so it is in exactly the same position as straight eighths: 227 ms at
+  // 132 BPM, which clears the analyser and does not clear a person playing one
+  // of them slightly early.
+  check('any pattern with two strokes an eighth apart runs out at 132',
+    strokesTooCloseToHear(faithful, 132) && strokesTooCloseToHear(eighths, 132),
+    String(closestStrokesMs(faithful, 132)));
+  check('and at 120 both are fine',
+    !strokesTooCloseToHear(faithful, 120) && !strokesTooCloseToHear(eighths, 120),
+    String(closestStrokesMs(eighths, 120)));
+  check('so their ceiling sits between the two, under the click band top',
+    gradableCeilingBpm(eighths) >= 120 && gradableCeilingBpm(eighths) < 132,
+    String(gradableCeilingBpm(eighths)));
+  check('and the drill takes the click there rather than refusing to score',
+    cappedTempo(['D-DU-UD-'], 132) === gradableCeilingBpm(faithful),
+    String(cappedTempo(['D-DU-UD-'], 132)));
+
+  // The case that forced all of this.
+  check("Get Lucky's phrase is too fast at the record's tempo",
+    strokesTooCloseToHear(lucky, 116), String(Math.round(closestStrokesMs(lucky, 116))));
+  // Seventy-five is where the cap used to sit. It was picked off the scoring
+  // window and it landed, to the millisecond, on the analyser's own floor.
+  check('and at the 75 BPM this used to be capped to',
+    strokesTooCloseToHear(lucky, 75), String(Math.round(closestStrokesMs(lucky, 75))));
+  // Which is why the cap moved. The drill now takes the click all the way down
+  // to where the phrase can be measured, rather than running it at a tempo where
+  // the number it files is about the microphone.
+  check('so the drill caps the click to its ceiling and not to its grid',
+    cappedTempo(['16.D--UX--U-U-UDUDU'], 116) === gradableCeilingBpm(lucky),
+    `${cappedTempo(['16.D--UX--U-U-UDUDU'], 116)} vs ${gradableCeilingBpm(lucky)}`);
+  check('and at that tempo it is finally something the microphone can resolve',
+    !strokesTooCloseToHear(lucky, gradableCeilingBpm(lucky)),
+    String(Math.round(closestStrokesMs(lucky, gradableCeilingBpm(lucky)))));
+  // A sixteenth grid is not the problem by itself. A sixteenth phrase whose
+  // strokes are a beat apart is as gradable as anything else.
+  check('a sixteenth phrase with no adjacent strokes is fine at the cap',
+    !strokesTooCloseToHear(parsePattern('16.D---D---D---D---'), SIXTEENTH_MAX_BPM));
+}
+
+// --- and what happens when it does anyway ----------------------------------
+//
+// The number the guard exists for. This is a take played exactly right, through
+// the real analyser, at the fastest tempo the drill will run this phrase at.
+console.log("\nGet Lucky's phrase, played perfectly, at one cap and then the other\n");
+{
+  const LUCKY = '16.D--UX--U-U-UDUDU';
+  // The same take twice. Nothing about the playing changes between these two
+  // blocks; only the click does, and only by twelve beats a minute.
+  const was = measure(LUCKY, { bpm: 75, passes: 6, upAmp: 0.5 });
+  check('at the old 75 BPM cap it is scored far below what it was played at',
+    was.grid !== null && was.summary.score < 60, String(was.summary?.score));
+  check('with slots it struck every single time reported as never struck',
+    was.summary.slots.filter((s) => s.expected && s.struck === 0).length >= 4,
+    was.summary.slots.filter((s) => s.expected).map((s) => `${s.slot}:${s.struck}/${s.passes}`).join(' '));
+  check('and the guard refuses to put a number on exactly that run',
+    strokesTooCloseToHear(parsePattern(LUCKY), 75));
+
+  const now = measure(LUCKY, { bpm: SIXTEENTH_MAX_BPM, passes: 6, upAmp: 0.5 });
+  check(`at the ${SIXTEENTH_MAX_BPM} BPM it is capped to now, the same take scores like a good one`,
+    now.grid !== null && now.summary.score >= 80, String(now.summary?.score));
+  check('and the guard is satisfied there',
+    !strokesTooCloseToHear(parsePattern(LUCKY), SIXTEENTH_MAX_BPM));
 }
 
 console.log(failures ? `\n${failures} failed\n` : '\nall passed\n');

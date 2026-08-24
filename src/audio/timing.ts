@@ -198,6 +198,29 @@ const PLAY_REFRACTORY_MS = 200;
 const CLICK_REFRACTORY_MS = 100;
 const RE_ARM_RATIO = 1.12;
 
+/**
+ * The closest two strums can be and still both be reported, in milliseconds.
+ *
+ * The refractory above says this in the negative and nothing outside this file
+ * could read it, which is how a sixteenth-note drill came to be built on top of
+ * a detector that cannot resolve sixteenth notes. It is stated here as a
+ * positive number so anything asking a player for two strokes can check first
+ * whether the answer it gets back could mean anything.
+ *
+ * Measured, not derived: eight identical strums at a fixed spacing through the
+ * real analyser are all eight reported at 210 ms apart, and at 200 ms three of
+ * them go missing. That is PLAY_REFRACTORY_MS plus what the re-arm costs, and
+ * the ten milliseconds between them is why this is not simply the refractory.
+ * tests/strumPattern.test.mjs holds both halves of that measurement, so this
+ * number cannot drift away from the detector it describes.
+ *
+ * What it does NOT include is the player. Two strokes written a fifth of a
+ * second apart arrive closer than that whenever the second one is early, so a
+ * caller deciding whether a pattern can be graded has to leave room for that on
+ * top; see MIN_GRADED_STROKE_GAP_MS in src/lib/strumPattern.ts.
+ */
+export const MIN_STRUM_GAP_MS = 210;
+
 // Noise floor tracking for the signal meter, mirroring the chord detector's.
 const SILENCE_RMS = 0.005;
 const NOISE_FLOOR_MAX = 0.03;

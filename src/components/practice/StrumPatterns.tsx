@@ -11,9 +11,11 @@ import {
   barsIn,
   slotsPerBarOf,
   dealNext,
+  gradableCeilingBpm,
   matchPattern,
   parsePattern,
   patternStanding,
+  strokesTooCloseToHear,
   summarisePattern,
   type Pattern,
   type PatternRunRecord,
@@ -57,6 +59,12 @@ export interface PatternDeal {
   settledBar: number | null;
   /** Every up strum in this deal went missing together. Nothing is scored. */
   upsUnheard: boolean;
+  /**
+   * The pattern asks for two strokes closer together than the microphone can
+   * tell apart, at this tempo. Nothing is scored, and the reason is the
+   * equipment rather than the playing.
+   */
+  tooFast: boolean;
 }
 
 export interface StrumPatternResult {
@@ -103,6 +111,8 @@ interface PatternReport {
   pattern: Pattern;
   summary: PatternSummary;
   upsUnheard: boolean;
+  /** The pattern outran the microphone at this tempo. Nothing here is a score. */
+  tooFast: boolean;
   standing: PatternStanding;
 }
 
@@ -318,15 +328,22 @@ export function StrumPatterns({
     });
     const summary = summarisePattern(found, deal.pattern);
     const unheard = upStrumsUnheard(summary);
-    // A deal whose up strums all went missing is not scored. The downs were
-    // fine, so a score built from them would be a real number about half a
+    // A pattern whose own strokes fall inside the analyser's resolution is not
+    // scored at all, and this is checked before anything else because it is not
+    // a fact about the run: whatever the player did, what came back is a fact
+    // about the microphone. Every stroke inside the floor reads as missing, so
+    // an ungated score here is a low number about a good performance.
+    const tooFast = strokesTooCloseToHear(deal.pattern, tempoRef.current);
+    // A deal whose up strums all went missing is not scored either. The downs
+    // were fine, so a score built from them would be a real number about half a
     // pattern, presented as a number about the pattern.
-    const score = summary.enough && !unheard ? summary.score : 0;
+    const score = summary.enough && !unheard && !tooFast ? summary.score : 0;
     dealsRef.current.push({
       pattern: deal.source,
       score,
-      settledBar: unheard ? null : summary.settledBar,
-      upsUnheard: unheard,
+      settledBar: unheard || tooFast ? null : summary.settledBar,
+      upsUnheard: unheard && !tooFast,
+      tooFast,
     });
     if (score > 0) {
       const held = recordsRef.current[deal.source] ?? [];
@@ -399,17 +416,22 @@ export function StrumPatterns({
       const pattern = parsePattern(source);
       if (!pattern) continue;
       const summary = summarisePattern(found, pattern);
+      const tooFast = strokesTooCloseToHear(pattern, tempoRef.current);
       built.push({
         source,
         pattern,
         summary,
-        upsUnheard: upStrumsUnheard(summary),
+        upsUnheard: upStrumsUnheard(summary) && !tooFast,
+        tooFast,
         standing: standingOf(source),
       });
     }
     diag.mark(
       `strum patterns finish at ${bpm} BPM: ${dealsRef.current
-        .map((d) => `${d.pattern} ${d.upsUnheard ? 'ups unheard' : `${d.score}%`}`)
+        .map((d) => {
+          if (d.tooFast) return `${d.pattern} too fast to resolve`;
+          return `${d.pattern} ${d.upsUnheard ? 'ups unheard' : `${d.score}%`}`;
+        })
         .join(', ')}`,
     );
     if (dealsRef.current.some((d) => d.score > 0)) sfx.complete();
@@ -796,6 +818,16 @@ export function StrumPatterns({
                 slots={reportSlots(report, slotMsOf(report.pattern))}
                 label={`${nameOf(report.source)}. ${describePattern(report.pattern)}`}
               />
+              {/* The row above has already drawn every slot as evidence nobody
+                  has, which is the whole of what happened. These words carry the
+                  one thing a row cannot: the tempo at which it would mean
+                  something, so the player has somewhere to go. */}
+              {report.tooFast && (
+                <p className="sp-note">
+                  Too fast to separate the strums. Not scored above{' '}
+                  {gradableCeilingBpm(report.pattern)} BPM.
+                </p>
+              )}
               {report.upsUnheard && (
                 <p className="sp-note">The up strums were too quiet to hear.</p>
               )}
@@ -892,6 +924,11 @@ function reportSlots(report: PatternReport, slotMs: number): SlotView[] {
     if (!slot.expected) {
       return share > 0 ? { state: 'added', at, share } : { state: 'idle' };
     }
+    // Every sounded slot, drawn as evidence nobody has. The pattern outran the
+    // microphone, so what the run knows about slot three is what it knows about
+    // slot six, which is nothing. Marking the ones that happened to land as hits
+    // would draw a diagnosis out of an accident.
+    if (report.tooFast) return { state: 'unheard' };
     if (report.upsUnheard && slot.expected === 'U') return { state: 'unheard' };
     if (slot.struck === 0) return { state: 'missed' };
     return { state: 'struck', at, share };
