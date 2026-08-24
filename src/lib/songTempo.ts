@@ -17,7 +17,7 @@
 
 import type { Song, SongStepDef } from '../data/songs';
 import type { TempoPlan } from './tempo';
-import { DEFAULT_BEATS_PER_BAR, type SongTimeline, type TimedBar, type TimedSection, type TimelineGap, type TimelineResult } from './songTiming';
+import { DEFAULT_BEATS_PER_BAR, type TimedBar, type TimedSection, type TimelineGap, type TimelineResult } from './songTiming';
 
 const gap = (code: TimelineGap['code'], message: string, sectionIndex?: number): TimelineResult => ({
   ok: false,
