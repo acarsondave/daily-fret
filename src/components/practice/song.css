@@ -121,6 +121,39 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
+
+/* The other mode, one tap away, in the top line where the section label already
+   lives. Drawn and never written: the mark is the mode, and a person who landed
+   on the video and wanted the chart should not have to go back to find it. */
+.song-mode-swap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color var(--dur-base) ease, border-color var(--dur-base) ease,
+    background var(--dur-base) ease;
+}
+
+.song-mode-swap:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+@media (pointer: coarse) {
+  .song-mode-swap {
+    width: 44px;
+    height: 44px;
+  }
+}
+
 /* --- The recording -------------------------------------------------------- */
 .song-real {
   display: flex;

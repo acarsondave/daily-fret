@@ -1099,7 +1099,6 @@ export function CoachedSession({ routine, onClose }: Props) {
           <SongPlayer
             key={`seg-${index}`}
             songId={seg.songId}
-            autoStart
             autoAdvance
             nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
             onFinish={(reachedEnd) => {

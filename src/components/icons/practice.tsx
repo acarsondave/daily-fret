@@ -63,6 +63,30 @@ export const LoopIcon = (p: IconProps) => (
   </IconBase>
 );
 
+// The moving chart: a ribbon of bars with the playhead standing through it.
+//
+// Drawn as the thing itself rather than as a bar chart, because that is what
+// this mode is. The playhead runs past the ribbon top and bottom exactly as it
+// does on the real chart, which is the detail that stops it reading as a plain
+// framed rectangle.
+export const ChartModeIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <rect x="3" y="6.6" width="18" height="10.8" rx="2.6" />
+    <path d="M9.4 4.1v15.8" />
+    <path d="M5.7 10.6h1.6M12.2 10.6h5.4M5.7 13.9h1.6M12.2 13.9h3.2" />
+  </IconBase>
+);
+
+// The record: a disc, its label and one groove. The one thing on the shelf that
+// is somebody else's performance rather than the player's own.
+export const RecordModeIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <circle cx="12" cy="12" r="8.4" />
+    <circle cx="12" cy="12" r="2" />
+    <path d="M12 5.8a6.2 6.2 0 0 1 5.6 3.6" />
+  </IconBase>
+);
+
 // A plectrum. This is the app's signature mark: it launches a drill, and it is
 // the one object every user of this product is physically holding.
 export const PlectrumIcon = (p: IconProps) => (

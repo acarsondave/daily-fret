@@ -156,10 +156,14 @@ async function open(viewport = { width: 390, height: 844 }) {
   return { ctx, page, errors };
 }
 
+// The way in used to be one Start button. It is now the mode choice, because a
+// song can be played two ways and a screen that starts one of them by default is
+// a screen on which the other does not exist. This suite is about the chart
+// following the recording, so it picks the record card.
 const startSong = async (page, title) => {
   await page.locator('.task-row', { hasText: title }).click();
   await page.waitForSelector('.practice-overlay');
-  await page.getByRole('button', { name: 'Start play-along' }).click();
+  await page.locator('.song-mode.is-record').click();
 };
 
 // Put the recording at a given second and let the clock poll, project and paint.

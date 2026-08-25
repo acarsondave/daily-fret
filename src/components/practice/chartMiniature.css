@@ -1,0 +1,65 @@
+/* A quarter of the real chart. Same geometry, same playhead, same edge fade, so
+   what the card shows and what the mode does are visibly the same object. */
+.chart-mini {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 46px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+}
+
+.chart-mini-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* The fade lives on the viewport and never on the track: the track is as wide
+     as the loop drawn twice, so a mask on it would be measured against that. */
+  mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent);
+}
+
+.chart-mini-track {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* The playhead sits a third in, so what is coming is on screen before it
+     arrives. The real chart's whole layout rests on the same lead. */
+  left: 33%;
+  will-change: transform;
+}
+
+.chart-mini-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-left: 1px solid var(--border-subtle);
+}
+
+.chart-mini-chord {
+  font-family: var(--font-primary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.chart-mini .strum-row {
+  gap: 1px;
+  color: var(--text-muted);
+}
+
+.chart-mini-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 33%;
+  width: 1.75px;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+}

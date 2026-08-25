@@ -225,6 +225,43 @@
   flex: 0 0 auto;
 }
 
+/* A newer build is cached and waiting. It never takes over on its own, so this
+   is the only way in, and it is a control rather than a notice: the icon is the
+   reload, the word is the action, and there is no sentence explaining either.
+   Accent rather than amber, because nothing is wrong. */
+.build-update {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  border: 1px solid rgba(56, 189, 248, 0.34);
+  transition: background var(--dur-base) ease, border-color var(--dur-base) ease;
+  animation: build-update-in var(--dur-slow) var(--ease-out) both;
+}
+
+.build-update:hover {
+  background: rgba(56, 189, 248, 0.3);
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
+/* It arrives while the player is looking at something else, so it settles in
+   rather than appearing: the only motion is the one that says it is new. */
+@keyframes build-update-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .build-update { animation-duration: 120ms; }
+}
+
 .account-btn {
   display: inline-flex;
   align-items: center;
