@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRightIcon, HourglassIcon, MicIcon, PlayIcon, RetryIcon } from '../icons';
 import { useStrumTiming } from '../../hooks/useStrumTiming';
@@ -11,9 +11,11 @@ import {
   barsIn,
   slotsPerBarOf,
   dealNext,
+  gradableCeilingBpm,
   matchPattern,
   parsePattern,
   patternStanding,
+  strokesTooCloseToHear,
   summarisePattern,
   type Pattern,
   type PatternRunRecord,
@@ -57,6 +59,12 @@ export interface PatternDeal {
   settledBar: number | null;
   /** Every up strum in this deal went missing together. Nothing is scored. */
   upsUnheard: boolean;
+  /**
+   * The pattern asks for two strokes closer together than the microphone can
+   * tell apart, at this tempo. Nothing is scored, and the reason is the
+   * equipment rather than the playing.
+   */
+  tooFast: boolean;
 }
 
 export interface StrumPatternResult {
@@ -103,6 +111,8 @@ interface PatternReport {
   pattern: Pattern;
   summary: PatternSummary;
   upsUnheard: boolean;
+  /** The pattern outran the microphone at this tempo. Nothing here is a score. */
+  tooFast: boolean;
   standing: PatternStanding;
 }
 
@@ -318,15 +328,22 @@ export function StrumPatterns({
     });
     const summary = summarisePattern(found, deal.pattern);
     const unheard = upStrumsUnheard(summary);
-    // A deal whose up strums all went missing is not scored. The downs were
-    // fine, so a score built from them would be a real number about half a
+    // A pattern whose own strokes fall inside the analyser's resolution is not
+    // scored at all, and this is checked before anything else because it is not
+    // a fact about the run: whatever the player did, what came back is a fact
+    // about the microphone. Every stroke inside the floor reads as missing, so
+    // an ungated score here is a low number about a good performance.
+    const tooFast = strokesTooCloseToHear(deal.pattern, tempoRef.current);
+    // A deal whose up strums all went missing is not scored either. The downs
+    // were fine, so a score built from them would be a real number about half a
     // pattern, presented as a number about the pattern.
-    const score = summary.enough && !unheard ? summary.score : 0;
+    const score = summary.enough && !unheard && !tooFast ? summary.score : 0;
     dealsRef.current.push({
       pattern: deal.source,
       score,
-      settledBar: unheard ? null : summary.settledBar,
-      upsUnheard: unheard,
+      settledBar: unheard || tooFast ? null : summary.settledBar,
+      upsUnheard: unheard && !tooFast,
+      tooFast,
     });
     if (score > 0) {
       const held = recordsRef.current[deal.source] ?? [];
@@ -399,17 +416,22 @@ export function StrumPatterns({
       const pattern = parsePattern(source);
       if (!pattern) continue;
       const summary = summarisePattern(found, pattern);
+      const tooFast = strokesTooCloseToHear(pattern, tempoRef.current);
       built.push({
         source,
         pattern,
         summary,
-        upsUnheard: upStrumsUnheard(summary),
+        upsUnheard: upStrumsUnheard(summary) && !tooFast,
+        tooFast,
         standing: standingOf(source),
       });
     }
     diag.mark(
       `strum patterns finish at ${bpm} BPM: ${dealsRef.current
-        .map((d) => `${d.pattern} ${d.upsUnheard ? 'ups unheard' : `${d.score}%`}`)
+        .map((d) => {
+          if (d.tooFast) return `${d.pattern} too fast to resolve`;
+          return `${d.pattern} ${d.upsUnheard ? 'ups unheard' : `${d.score}%`}`;
+        })
         .join(', ')}`,
     );
     if (dealsRef.current.some((d) => d.score > 0)) sfx.complete();
@@ -620,17 +642,6 @@ export function StrumPatterns({
     [custom, songs],
   );
 
-  // The deck minus whichever card is about to be dealt, for the wait before the
-  // click is found. Kept out of the render so the list is not rebuilt on every
-  // one of the twenty-five ticks a second the run loop causes.
-  const rest = useMemo(() => {
-    if (!waiting) return [];
-    return deck
-      .filter((source) => source !== waiting.source)
-      .map((source) => parsePattern(source))
-      .filter((p): p is Pattern => p !== null);
-  }, [deck, waiting]);
-
   // --- The deck ------------------------------------------------------------
 
   if (view === 'deck') {
@@ -714,40 +725,26 @@ export function StrumPatterns({
       <div className="sp-stage drill-stage">
         <div className="drill-cue sp-bars">
           {/* What is about to be asked for, while the drill is still finding
-              the click, and under it the rest of the deck.
+              the click. The same bar, in the same box, at the same size as the
+              one that will be played: when the click is found this card does
+              not move, it simply comes up to full strength and the arm starts
+              travelling through it. That is the whole transition, and it is the
+              reason nothing else may stand here.
 
-              No sweep on any of it: the arm has nothing to follow yet, and a
+              The rest of the deck used to sit under it, and it cost a stage
+              that changed height several seconds into a run, at whatever moment
+              the grid happened to fit. A card the player is reading with both
+              hands on the guitar must not move under them.
+
+              No sweep on it either: the arm has nothing to follow yet, and a
               marker moving to a beat the app cannot hear would be the drill
-              inventing the one thing it is here to measure.
-
-              The rest of the deck is here because a coached session opens
-              straight into the run and never shows the deck screen at all, so
-              a card could arrive that the player had never seen drawn. This is
-              the only place to put it that costs nothing: the seconds spent
-              waiting for the click are already spent. It makes nothing easier
-              either. The switch is still cold, the warning before the next card
-              is still one bar, and reading your own deck before you play it is
-              what "pick a few patterns and focus on playing those well" means. */}
+              inventing the one thing it is here to measure. */}
           {!current && waiting && (
-            <div className="sp-waiting">
-              <PatternBar
-                className="sp-current is-waiting"
-                pattern={waiting}
-                label={describePattern(waiting)}
-              />
-              {rest.length > 0 && (
-                <div className="sp-waiting-rest">
-                  {rest.map((card) => (
-                    <PatternBar
-                      key={card.source}
-                      pattern={card}
-                      size="deck"
-                      label={`Also in the deck. ${describePattern(card)}`}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+            <PatternBar
+              className="sp-current is-waiting"
+              pattern={waiting}
+              label={describePattern(waiting)}
+            />
           )}
           {current && (
             <PatternBar
@@ -821,6 +818,16 @@ export function StrumPatterns({
                 slots={reportSlots(report, slotMsOf(report.pattern))}
                 label={`${nameOf(report.source)}. ${describePattern(report.pattern)}`}
               />
+              {/* The row above has already drawn every slot as evidence nobody
+                  has, which is the whole of what happened. These words carry the
+                  one thing a row cannot: the tempo at which it would mean
+                  something, so the player has somewhere to go. */}
+              {report.tooFast && (
+                <p className="sp-note">
+                  Too fast to separate the strums. Not scored above{' '}
+                  {gradableCeilingBpm(report.pattern)} BPM.
+                </p>
+              )}
               {report.upsUnheard && (
                 <p className="sp-note">The up strums were too quiet to hear.</p>
               )}
@@ -917,6 +924,11 @@ function reportSlots(report: PatternReport, slotMs: number): SlotView[] {
     if (!slot.expected) {
       return share > 0 ? { state: 'added', at, share } : { state: 'idle' };
     }
+    // Every sounded slot, drawn as evidence nobody has. The pattern outran the
+    // microphone, so what the run knows about slot three is what it knows about
+    // slot six, which is nothing. Marking the ones that happened to land as hits
+    // would draw a diagnosis out of an accident.
+    if (report.tooFast) return { state: 'unheard' };
     if (report.upsUnheard && slot.expected === 'U') return { state: 'unheard' };
     if (slot.struck === 0) return { state: 'missed' };
     return { state: 'struck', at, share };

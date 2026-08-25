@@ -32,7 +32,12 @@
 // anyone knowing which way the hand was moving, and claiming to know would be
 // the kind of confident wrong number this app has already paid for once.
 
-import { IN_TIME_MS, type BeatGrid } from './strumTiming';
+import {
+  IN_TIME_MS,
+  MIN_STRUM_GAP_MS,
+  TIMING_RESOLUTION_MS,
+  type BeatGrid,
+} from './strumTiming';
 
 /**
  * What a pattern does at one eighth-note slot. `null` is a ghost.
@@ -286,6 +291,75 @@ function travelsWithTheArm(slots: readonly SlotStroke[]): boolean {
     // played with whichever way the arm is already going through that slot.
     (stroke, slot) => !stroke || stroke === 'X' || stroke === armDirectionAt(slot),
   );
+}
+
+/**
+ * The closest two strokes a pattern asks for, in milliseconds, at a tempo.
+ *
+ * Measured round the phrase rather than across it, because a pattern repeats:
+ * the last slot that sounds and the first slot of the next time round are
+ * neighbours in the player's hands even though they sit at opposite ends of the
+ * string. `D------U` looks spacious written down and asks for two strokes an
+ * eighth apart every time it comes round.
+ *
+ * Infinity when the pattern sounds once or not at all, which is the honest
+ * answer: there is no gap to be too small.
+ */
+export function closestStrokesMs(pattern: Pattern, bpm: number): number {
+  const slots = closestStrokesInSlots(pattern);
+  if (slots === Infinity || bpm <= 0) return Infinity;
+  return slots * (60000 / (bpm * pattern.slotsPerBeat));
+}
+
+/** The same gap, counted in slots, which is a property of the pattern alone. */
+function closestStrokesInSlots(pattern: Pattern): number {
+  const sounded = pattern.slots.flatMap((s, i) => (s ? [i] : []));
+  if (sounded.length < 2) return Infinity;
+  let closest = pattern.slots.length - sounded[sounded.length - 1] + sounded[0];
+  for (let i = 1; i < sounded.length; i += 1) {
+    closest = Math.min(closest, sounded[i] - sounded[i - 1]);
+  }
+  return closest;
+}
+
+/**
+ * The closest two strokes a run may ask for and still be worth scoring.
+ *
+ * The analyser's own floor ({@link MIN_STRUM_GAP_MS}) plus the room a person
+ * needs inside it. Two strokes written a fifth of a second apart do not arrive a
+ * fifth of a second apart: the second one lands early as often as not, and
+ * {@link TIMING_RESOLUTION_MS} is this app's own statement of how far a stroke
+ * can move before the movement means anything. Grading right at the floor would
+ * therefore drop a stroke from every player who is slightly ahead and report it
+ * to them as a stroke they did not play, which is the one lie this drill exists
+ * not to tell.
+ */
+export const MIN_GRADED_STROKE_GAP_MS = MIN_STRUM_GAP_MS + TIMING_RESOLUTION_MS;
+
+/**
+ * Whether this pattern at this tempo asks for something the microphone cannot
+ * resolve, so no score taken from it would mean anything.
+ *
+ * This is not a judgement about difficulty and it must never be presented as
+ * one. The player may well be playing it perfectly; the analyser cannot see two
+ * strums that close together, so what comes back is a fact about the detector.
+ * The drill's rule is the app's rule: report nothing rather than a number that
+ * is really about the equipment. See src/data/skills.ts.
+ *
+ * The case that forced it is Get Lucky's phrase, which is counted in sixteenths.
+ * At the record's 116 BPM a sixteenth is 129 ms and at the drill's own cap it is
+ * 200 ms, both under the floor, so a take played exactly right came back at 20
+ * per cent with two thirds of its strokes reported missing.
+ */
+export function strokesTooCloseToHear(pattern: Pattern, bpm: number): boolean {
+  return closestStrokesMs(pattern, bpm) < MIN_GRADED_STROKE_GAP_MS;
+}
+
+/** The fastest click this pattern can be graded at, in whole BPM. */
+export function gradableCeilingBpm(pattern: Pattern): number {
+  const slots = closestStrokesInSlots(pattern);
+  if (slots === Infinity) return Infinity;
+  return Math.floor((slots * 60000) / (MIN_GRADED_STROKE_GAP_MS * pattern.slotsPerBeat));
 }
 
 /** Slots the pattern actually strikes. A pattern of all ghosts is not a pattern. */

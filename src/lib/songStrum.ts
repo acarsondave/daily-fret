@@ -17,7 +17,9 @@
 import type { Song } from '../data/songs';
 import {
   EIGHTHS,
+  MIN_GRADED_STROKE_GAP_MS,
   SIXTEENTHS,
+  gradableCeilingBpm,
   parsePattern,
   writePattern,
   type SlotResolution,
@@ -87,35 +89,60 @@ export function deckIsOneGrid(deck: readonly string[]): boolean {
 /**
  * The fastest click a sixteenth-note pattern is drilled at.
  *
- * Seventy-five, and the number comes from the scoring rather than from taste. A
- * strum counts as in time within IN_TIME_MS (src/lib/strumTiming.ts), fifty
- * milliseconds, and the
- * matcher gives an onset to the nearest slot within half a slot. At sixteenths
- * and 116 BPM, the record's own tempo, half a slot is 65 ms: over three quarters
- * of the window that decides which slot a strum belongs to also counts as in
- * time, so almost anything landing in roughly the right place scores perfectly
- * and the drill stops telling the player anything. At 75 a sixteenth slot is
- * 200 ms, half of it is 100 ms, and the fifty stays the meaningful half it is on
- * an eighth-note pattern at ordinary tempos.
+ * Derived from what the microphone can actually resolve, and no longer chosen.
+ * It used to be seventy-five, taken from the scoring: a strum counts as in time
+ * within IN_TIME_MS, fifty milliseconds, the matcher gives an onset to the
+ * nearest slot within half a slot, and at 75 a sixteenth slot is 200 ms so the
+ * fifty stays the meaningful half it is on an eighth-note pattern.
  *
- * So the drill deliberately never runs this phrase at the record's speed. That
- * is the app's own position rather than a compromise: tempo is prescribed from
- * what the player has actually held and never above it, the drill is where the
- * shape is built, and the record is where the shape gets fast. A drill that has
- * stopped discriminating is worse than a drill that is slow.
+ * That reasoning is still right and it was answering the wrong question. Two
+ * hundred milliseconds is also, to the millisecond, the point below which the
+ * analyser cannot report two strums at all (MIN_STRUM_GAP_MS in
+ * src/audio/timing.ts), so the cap sat exactly on a cliff nobody had noticed and
+ * on the wrong side of it. Measured through the real analyser, a perfectly
+ * played take of Get Lucky's phrase at this cap came back at 20 per cent with
+ * two thirds of its strokes reported missing.
  *
- * `IN_TIME_MS` is deliberately not touched. Widening or narrowing the window
- * changes what every stored score in the app ever meant.
+ * So the cap now comes off the detector. What it does NOT do is make the phrase
+ * gradable on its own: `strokesTooCloseToHear` in ./strumPattern is what the
+ * drill consults per pattern, and it still refuses a phrase whose own strokes
+ * fall inside the floor once a person's timing is allowed for. The cap keeps the
+ * click honest; the guard keeps the score honest.
+ *
+ * The rest of the old reasoning stands. Tempo is prescribed from what the player
+ * has actually held and never above it, the drill is where the shape is built,
+ * and the record is where the shape gets fast. `IN_TIME_MS` is deliberately not
+ * touched: widening or narrowing it changes what every stored score in the app
+ * ever meant.
  */
-export const SIXTEENTH_MAX_BPM = 75;
+export const SIXTEENTH_MAX_BPM = Math.floor(
+  60000 / (MIN_GRADED_STROKE_GAP_MS * SIXTEENTHS),
+);
 
-/** The tempo a deck may actually be held at, given how finely it is counted. */
+/**
+ * The tempo a deck may actually be held at, so that every card in it can be
+ * scored honestly.
+ *
+ * Off each pattern's own closest pair of strokes rather than off its grid. A
+ * grid is a poor proxy for the question: `16.D---D---D---D---` is counted in
+ * sixteenths and puts a whole beat between its strokes, while `DUDUDUDU` is
+ * counted in eighths and runs out of room before the click band does. What
+ * decides it is the shortest gap the pattern asks the hand for, which is what
+ * {@link gradableCeilingBpm} reads.
+ *
+ * Slowing the click rather than refusing to score is the better of the two
+ * honest answers, and it is available because the drill's own position is
+ * already that the shape is built slowly and the record is where it gets fast.
+ * The refusal still exists (`strokesTooCloseToHear` in ./strumPattern) and
+ * covers the case this cannot: the player is free to move the click from the metronome panel
+ * mid-run, and a drill cannot follow them up there and still mean anything.
+ */
 export function cappedTempo(deck: readonly string[], bpm: number): number {
-  const finest = deck.reduce(
-    (most, p) => Math.max(most, parsePattern(p)?.slotsPerBeat ?? EIGHTHS),
-    EIGHTHS as number,
-  );
-  return finest === SIXTEENTHS ? Math.min(bpm, SIXTEENTH_MAX_BPM) : bpm;
+  const ceiling = deck.reduce((lowest, source) => {
+    const pattern = parsePattern(source);
+    return pattern ? Math.min(lowest, gradableCeilingBpm(pattern)) : lowest;
+  }, Infinity);
+  return Number.isFinite(ceiling) ? Math.min(bpm, ceiling) : bpm;
 }
 
 /**
@@ -144,7 +171,25 @@ export const songHasStrum = (song: Song | undefined): boolean =>
 export function songPatternName(pattern: string, songs: readonly Song[]): string | null {
   for (const song of songs) {
     for (const strum of song.strumPatterns ?? []) {
-      if (strum.pattern === pattern) return strum.name ?? song.title;
+      // Both readings of the string, and this is the one place in the app that
+      // accepts both. Everything downstream of `songStrumPatterns` carries the
+      // slots and the grid as one marked string, and that is what a card is
+      // drawn from and what a run is filed under, so comparing only the bare
+      // slots meant Get Lucky's phrase matched nothing anywhere it was actually
+      // asked about: its card and its history row both read
+      // `16.D--UX--U-U-UDUDU`.
+      //
+      // The bare form still has to answer, because runs were filed under it
+      // before the phrase was re-read in sixteenths, and a month of practice
+      // does not stop having come off this song because the reading of it
+      // changed. The two remain different exercises and different keys; what
+      // they share is a name, which is all this function hands out.
+      if (
+        writePattern(strum.pattern, strum.slotsPerBeat ?? EIGHTHS) === pattern
+        || strum.pattern === pattern
+      ) {
+        return strum.name ?? song.title;
+      }
     }
   }
   return null;

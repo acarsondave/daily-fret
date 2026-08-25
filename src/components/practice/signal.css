@@ -7,6 +7,11 @@
   background: rgba(255, 255, 255, 0.04);
   font-family: var(--font-secondary);
   font-size: var(--text-micro);
+  /* The label's line box is the bars' own height, so the meter is one height in
+     every state. It sits under a drill whose card must not move: a note
+     arriving to say the room is too quiet, and leaving again when it is not,
+     would otherwise nudge the pattern the player is reading. */
+  line-height: 12px;
   letter-spacing: 0.04em;
   color: var(--text-secondary);
   transition: color 0.25s ease, background 0.25s ease;

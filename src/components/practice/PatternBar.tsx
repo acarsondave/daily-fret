@@ -162,6 +162,9 @@ export function PatternBar({
   label,
 }: Props) {
   const armRef = useRef<HTMLSpanElement | null>(null);
+  const laneRef = useRef<HTMLDivElement | null>(null);
+  // The lane's width, kept here so the frame loop below never reads geometry.
+  const laneWidthRef = useRef(0);
   const length = pattern.slots.length;
   const perBar = slotsPerBarOf(pattern);
   const bars = length / perBar;
@@ -172,10 +175,32 @@ export function PatternBar({
     [length],
   );
 
+  // The lane's own width, measured when it changes and never inside the frame
+  // loop. The arm moves across a percentage of the lane, and asking the element
+  // for that percentage sixty times a second is a layout read wedged between
+  // sixty layout writes, which is the one shape of animation a browser cannot
+  // keep off the main thread.
+  useEffect(() => {
+    const lane = laneRef.current;
+    if (!lane || !sweepAt) return;
+    laneWidthRef.current = lane.clientWidth;
+    const observer = new ResizeObserver(([entry]) => {
+      laneWidthRef.current = entry.contentRect.width;
+    });
+    observer.observe(lane);
+    return () => observer.disconnect();
+  }, [sweepAt]);
+
   // The arm, from one number, written straight to the element. Inside a slot it
   // travels from one extreme to the other and crosses the strings at the slot's
   // centre, so the sign of the travel flips every slot. That zigzag is the
   // mechanic the lesson teaches, and it is the only thing here that moves.
+  //
+  // Both axes go through one transform. `left` used to carry the horizontal,
+  // and `left` is a layout property: every frame invalidated the lane, on the
+  // one surface where a mic capture, a metronome and often a camera are already
+  // running. A transform stays on the compositor and costs the layout engine
+  // nothing.
   useEffect(() => {
     if (!sweepAt) return;
     let frame = requestAnimationFrame(function draw() {
@@ -191,12 +216,13 @@ export function PatternBar({
       const inSlot = phase % 1;
       const descending = Math.floor(phase) % 2 === 0;
       const travel = descending ? inSlot * 2 - 1 : 1 - inSlot * 2;
+      const across = (phase / length) * laneWidthRef.current;
       arm.style.opacity = '1';
-      arm.style.left = centreOf(Math.floor(phase), inSlot - 0.5);
-      arm.style.transform = `translate(-50%, calc(-50% + ${travel * 46}%))`;
+      arm.style.transform =
+        `translate(calc(${across}px - 50%), calc(-50% + ${travel * 46}%))`;
     });
     return () => cancelAnimationFrame(frame);
-  }, [sweepAt, length, centreOf]);
+  }, [sweepAt, length]);
 
   return (
     <div
@@ -210,7 +236,7 @@ export function PatternBar({
       role="img"
       aria-label={label}
     >
-      <div className="pb-lane">
+      <div className="pb-lane" ref={laneRef}>
         {/* The count, drawn rather than written: a full stem on every beat one,
             a shorter one on the other beats, a short one on every "and". The row
             reads as 1 + 2 + 3 + 4 + without any of it being text. */}

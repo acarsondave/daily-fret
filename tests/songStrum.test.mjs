@@ -135,7 +135,19 @@ console.log('\nA song that never named a phrase but whose bar happens to be one\
 
 // --- naming -----------------------------------------------------------------
 console.log('\nNaming a phrase that came off a song\n');
+// Asked with the string that actually travels, which is the one the deck holds
+// and the one a run is filed under: the grid mark is part of it. Asking with the
+// bare slots was a test that could not fail, and it hid a real defect. Get
+// Lucky's card and its history row both read `16.D--UX--U-U-UDUDU`, because the
+// only string anything ever looks this up with is the marked one.
 check('a song phrase is named after its song',
+  songPatternName(songStrumPatterns(lucky)[0], SONGS) === 'Get Lucky',
+  `${songStrumPatterns(lucky)[0]} -> ${songPatternName(songStrumPatterns(lucky)[0], SONGS)}`);
+check('and the string it is reached by is the marked one',
+  songStrumPatterns(lucky)[0].startsWith('16.'), songStrumPatterns(lucky)[0]);
+// Runs filed before the phrase was re-read in sixteenths carry the bare slots,
+// and they still came off this song. Two exercises, two keys, one name.
+check('the bare slots are still named too, for the runs already filed under them',
   songPatternName('D--UX--U-U-UDUDU', SONGS) === 'Get Lucky',
   String(songPatternName('D--UX--U-U-UDUDU', SONGS)));
 check('a ladder pattern is not claimed by any song',
@@ -210,14 +222,21 @@ console.log('\nA deck is one grid, and a click cannot serve two\n');
   check('an empty deck is trivially one grid', deckIsOneGrid([]));
 }
 
-console.log('\nA sixteenth deck is capped below where the scoring stops discriminating\n');
+console.log('\nA deck is capped to where the microphone can still resolve it\n');
 {
   const deck = songStrumPatterns(lucky);
   check('a fast prescription is pulled back to the cap',
     cappedTempo(deck, 120) === SIXTEENTH_MAX_BPM, String(cappedTempo(deck, 120)));
   check('a slow one is left exactly alone', cappedTempo(deck, 60) === 60);
-  check('an eighth-note deck is never capped',
+  check('an eighth-note deck at an ordinary tempo is left alone',
     cappedTempo(['D-DU-UD-'], 120) === 120, String(cappedTempo(['D-DU-UD-'], 120)));
+  // The cap is off each pattern's closest pair of strokes, not off its grid, so
+  // an eighth-note pattern with two adjacent strokes runs out before the click
+  // band's own ceiling of 132 does.
+  check('but an eighth-note pattern is capped too, at the top of the band',
+    cappedTempo(['D-DU-UD-'], 132) === 127, String(cappedTempo(['D-DU-UD-'], 132)));
+  check('while four down strums are never capped at all',
+    cappedTempo(['D-D-D-D-'], 132) === 132, String(cappedTempo(['D-D-D-D-'], 132)));
   // The record is 116. The drill deliberately does not go there.
   check('so the drill never runs it at the record tempo',
     cappedTempo(deck, lucky.bpm) < lucky.bpm);

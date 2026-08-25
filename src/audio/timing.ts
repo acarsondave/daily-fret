@@ -198,6 +198,13 @@ const PLAY_REFRACTORY_MS = 200;
 const CLICK_REFRACTORY_MS = 100;
 const RE_ARM_RATIO = 1.12;
 
+// What the play refractory and the re-arm together mean for anything asking a
+// player for two strokes is stated as a positive number, in the pure layer that
+// judges runs: MIN_STRUM_GAP_MS in src/lib/strumTiming.ts. It is deliberately
+// not exported from here, so nothing needs the filters and the pickers in scope
+// to find out how close two strums may be.
+
+
 // Noise floor tracking for the signal meter, mirroring the chord detector's.
 const SILENCE_RMS = 0.005;
 const NOISE_FLOOR_MAX = 0.03;
