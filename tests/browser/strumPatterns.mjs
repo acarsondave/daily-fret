@@ -688,24 +688,45 @@ if (run('stage')) for (const [label, viewport] of [
   // compositor: `left` is a layout property, and moving it every frame
   // invalidates the lane on the one screen where a microphone, a metronome and
   // often a camera are already running.
+  // Where the marker actually is on screen, sampled over a quarter of a second,
+  // rather than whether a style string changed. A style string changing is the
+  // code having run; a marker that has crossed part of the lane and reversed its
+  // vertical travel is the mechanic the drill exists to teach.
   const arm = await page.evaluate(async () => {
     const el = document.querySelector('.sp-current .pb-arm');
-    if (!el) return null;
-    const read = () => ({
-      left: getComputedStyle(el).left,
-      transform: getComputedStyle(el).transform,
-    });
-    const first = read();
-    await new Promise((r) => setTimeout(r, 260));
-    const second = read();
-    return { first, second };
+    const lane = document.querySelector('.sp-current .pb-lane');
+    if (!el || !lane) return null;
+    const read = () => {
+      const a = el.getBoundingClientRect();
+      const l = lane.getBoundingClientRect();
+      return {
+        across: l.width > 0 ? ((a.left + a.width / 2 - l.left) / l.width) * 100 : NaN,
+        down: a.top + a.height / 2,
+        left: getComputedStyle(el).left,
+      };
+    };
+    const seen = [read()];
+    for (let i = 0; i < 6; i += 1) {
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => setTimeout(r, 40));
+      seen.push(read());
+    }
+    return seen;
   });
-  check(`${label}: the arm is actually moving`,
-    arm !== null && arm.first.transform !== arm.second.transform,
-    JSON.stringify(arm));
-  check(`${label}: and it moves without touching layout`,
-    arm !== null && arm.first.left === '0px' && arm.second.left === '0px',
-    `left ${arm?.first.left} then ${arm?.second.left}`);
+  const across = arm ? arm.map((s) => s.across) : [];
+  const down = arm ? arm.map((s) => s.down) : [];
+  const travelled = across.length ? Math.max(...across) - Math.min(...across) : 0;
+  // At this tempo the marker crosses the whole lane in three seconds, so a
+  // quarter of a second is about eight per cent of it. Two is a floor a moving
+  // arm clears easily and a stopped one cannot reach at all.
+  check(`${label}: the arm is actually crossing the lane`,
+    arm !== null && travelled > 2, `${travelled.toFixed(1)}% of the lane in 250ms`);
+  check(`${label}: and travelling through the strings while it does`,
+    down.length > 0 && Math.max(...down) - Math.min(...down) > 1,
+    `${(Math.max(...down) - Math.min(...down)).toFixed(1)}px vertically`);
+  check(`${label}: without touching layout to do it`,
+    arm !== null && arm.every((s) => s.left === '0px'),
+    arm ? [...new Set(arm.map((s) => s.left))].join(' ') : 'no arm');
 
   check(`${label}: no page errors`, errors.length === 0, errors.join(' | '));
   await browser.close();
