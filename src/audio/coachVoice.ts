@@ -90,7 +90,10 @@ async function loadManifest(): Promise<void> {
   if (manifestPromise) return manifestPromise;
   manifestPromise = (async () => {
     try {
-      const res = await fetch(`${base()}coach/manifest.json`, { cache: 'force-cache' });
+      // Revalidated, not force-cached: the list grows when a drill is added to
+      // the pack, and a forced cache kept the first copy forever. The service
+      // worker still answers from its own copy when offline.
+      const res = await fetch(`${base()}coach/manifest.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const raw = await res.json();
       // Tolerate both the structured shape and a legacy flat counts map.

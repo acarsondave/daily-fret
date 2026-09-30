@@ -46,8 +46,22 @@ export default defineConfig({
         globIgnores: ['**/coach/**'],
         navigateFallback: 'index.html',
         runtimeCaching: [
+          // The list of spoken names changes whenever a drill is added to the
+          // pack, so it is asked for fresh and only read from the cache when
+          // there is no connection. Under the clips' CacheFirst rule the first
+          // copy a phone ever saw was the copy it kept for good.
           {
-            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/coach/'),
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname === '/coach/manifest.json',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'coach-manifest',
+              networkTimeoutSeconds: 3,
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin && url.pathname.startsWith('/coach/') && url.pathname !== '/coach/manifest.json',
             handler: 'CacheFirst',
             options: {
               cacheName: 'coach-voice',
