@@ -39,7 +39,21 @@ function runIdle(fn: () => void, timeout: number): void {
   else setTimeout(fn, Math.min(timeout, 200));
 }
 
+/**
+ * Whether this build was given a Firebase project at all.
+ *
+ * A build without one (local dev with no .env, the test previews, a fork) used
+ * to download the whole SDK anyway, have it refuse the empty key, and log a
+ * red "Cloud sync unavailable" on every load. The app is local-first and fully
+ * usable without the cloud, so an unconfigured build simply never starts it.
+ */
+export const cloudConfigured = Boolean(import.meta.env.VITE_FIREBASE_API_KEY);
+
 export function initAuthListener(): void {
+  if (!cloudConfigured) {
+    useAuthStore.getState().setSyncing(false);
+    return;
+  }
   const start = () => {
     const failSafe = setTimeout(() => {
       console.warn('Cloud sync did not load in time; continuing locally');

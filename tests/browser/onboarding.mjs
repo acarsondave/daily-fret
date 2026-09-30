@@ -557,7 +557,22 @@ async function openApp(state, viewport, extraInit) {
 // cloud copy on its way: the wizard used to open over it and be yanked away
 // mid-question when the sync landed.
 // ---------------------------------------------------------------------------
-{
+// Only a build that was given a Firebase project has a cloud to wait for. One
+// without (every local preview) skips sync on purpose (lib/auth.ts), so this
+// case is asked of the build and skipped out loud when it cannot apply.
+const cloudBuilt = await (async () => {
+  const html = await (await fetch(BASE)).text();
+  const entry = html.match(/src="(\/assets\/index-[\w-]+\.js)"/)?.[1];
+  if (!entry) return false;
+  const js = await (await fetch(new URL(entry, BASE))).text();
+  const sync = js.match(/firebaseSync-[\w-]+\.js/)?.[0];
+  if (!sync) return false;
+  return /AIza[\w-]{20,}/.test(await (await fetch(new URL(`/assets/${sync}`, BASE))).text());
+})();
+if (!cloudBuilt) {
+  console.log('\nsigned in, on a second device\n');
+  console.log('  SKIP  this build has no Firebase project, so there is no sync to wait for');
+} else {
   console.log('\nsigned in, on a second device\n');
   const { ctx, page } = await openApp({}, { width: 390, height: 844 }, {
     'daily-fret-had-session': '1',

@@ -178,6 +178,20 @@
   }
 }
 
+/* A tablet held upright is wide enough for the whole nav on one line once the
+   pills stop padding for a laptop. With Quick beside Coached it wrapped
+   Progress onto a second row at 768, and that row came straight out of the
+   height the day's list gets. Phones keep their own, tighter sizes below. */
+@media (min-width: 601px) and (max-width: 899px) {
+  .path-rail-nav {
+    gap: var(--space-2);
+  }
+  .path-rail-nav .progress-launch,
+  .path-rail-nav .routine-selector {
+    padding-inline: var(--space-3);
+  }
+}
+
 @media (min-width: 900px) {
   .rail-group {
     display: flex;
@@ -311,6 +325,63 @@
 
 .progress-launch-icon {
   color: inherit;
+}
+
+/* --- Coached, whole or quick ----------------------------------------------
+
+   One control in two halves on a phone: the whole routine on the left, filled,
+   and a chosen part of it on the right, outlined in the same accent. They are
+   joined because they are the same session at two lengths, and a second
+   floating pill would read as a second, unrelated thing to do. */
+.session-pair {
+  display: inline-flex;
+  align-items: stretch;
+  isolation: isolate;
+}
+
+.progress-launch.is-quick {
+  color: var(--accent-primary);
+  background: rgba(20, 20, 22, 0.4);
+  border-color: rgba(56, 189, 248, 0.32);
+}
+
+.progress-launch.is-quick:hover {
+  color: var(--accent-primary);
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
+@media (max-width: 899px) {
+  .session-pair .progress-launch.is-primary + .progress-launch.is-quick {
+    margin-left: -1px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+  .session-pair .progress-launch.is-primary:has(+ .progress-launch.is-quick) {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  /* The half under the pointer draws its edge over the seam. */
+  .session-pair .progress-launch:hover,
+  .session-pair .progress-launch:focus-visible {
+    z-index: 1;
+  }
+}
+
+/* In the rail the two stack: Coached keeps the rail's one filled pill, and
+   Quick sits under it as the same shape outlined, so the column still has one
+   primary and the shorter run is visibly its sibling rather than a detour. */
+@media (min-width: 900px) {
+  .session-pair {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .path-rail-nav .progress-launch.is-quick {
+    min-height: 44px;
+    padding-block: var(--space-2);
+    border-radius: var(--radius-lg);
+  }
 }
 
 .routine-selector {

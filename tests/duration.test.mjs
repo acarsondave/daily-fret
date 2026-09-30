@@ -11,7 +11,7 @@
 // So this states the whole contract, spelling by spelling, including the ones
 // that must NOT be read as seconds.
 
-import { parseDuration } from '../src/lib/coached.ts';
+import { parseDuration, taskMinutes } from '../src/lib/coached.ts';
 
 let failures = 0;
 const check = (l, ok, d) => { if (!ok) failures++; console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${l}${d ? ' — ' + d : ''}`); };
@@ -57,6 +57,21 @@ console.log('\nThe bounds\n');
   is('a label with no number does too', 'a while', 180);
   is('anything under fifteen seconds is fifteen', '5s', 15);
   is('and nothing runs longer than half an hour', '90 mins', 1800);
+}
+
+// The minutes a task is planned for, as the Quick path sheet and the calendar
+// reminder print them. `Number("5 mins")` is NaN, and the owner's own routine
+// still carries labels written that way, so the total read "NaN min".
+console.log('\nMinutes a task is planned for\n');
+{
+  const mins = (task, expected, label) =>
+    check(label, taskMinutes(task) === expected, `${JSON.stringify(task.duration ?? task.drill?.kind)} -> ${taskMinutes(task)}, wanted ${expected}`);
+  mins({ id: 'a', title: 'a', duration: '5' }, 5, 'a bare number is minutes');
+  mins({ id: 'a', title: 'a', duration: '5 mins' }, 5, 'a legacy label with its unit is still five');
+  mins({ id: 'a', title: 'a', duration: '2-3 mins' }, 2, 'a range reads as its lower bound, never NaN');
+  mins({ id: 'a', title: 'a', duration: '90s' }, 2, 'ninety seconds is a minute and a half, rounded');
+  mins({ id: 'a', title: 'a', duration: 'a while' }, 3, 'a label with no number takes the timer\'s own default');
+  mins({ id: 'a', title: 'a', drill: { kind: 'one-minute-changes', durationSec: 60, pairs: [{ from: 'A', to: 'D' }] } }, 1, 'one pair is one minute');
 }
 
 console.log(failures === 0 ? '\nALL PASS\n' : `\n${failures} FAILURE(S)\n`);

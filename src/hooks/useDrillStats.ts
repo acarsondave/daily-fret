@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { useDrillLogs, getTodayString } from '../store';
+import { useDrillLogs } from '../store';
+import { useToday } from './useToday';
 import { collectDrillStats, type AllDrillStats } from '../lib/drillStats';
 
 // The React seam over the pure stat functions in lib/drillStats.
@@ -10,7 +11,7 @@ import { collectDrillStats, type AllDrillStats } from '../lib/drillStats';
 // the key and a number outlives the task that produced it.
 export function useDrillStats(): AllDrillStats {
   const dailyLogs = useDrillLogs();
-  const today = getTodayString();
+  const today = useToday();
 
   return useMemo(() => collectDrillStats(dailyLogs, today), [dailyLogs, today]);
 }

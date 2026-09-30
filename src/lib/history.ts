@@ -8,6 +8,7 @@
 import type { DailyLog, Routine } from '../types';
 import { DRILL_UNIT } from './drills';
 import { describeDrillKey, isDrillKey } from './drillKeys';
+import { completedCount, type TaskSplits } from './taskSplit';
 
 export interface HistoryResult {
   key: string;
@@ -109,6 +110,7 @@ const formatDate = (date: string): string => {
 export function buildHistory(
   dailyLogs: Record<string, DailyLog>,
   routines: readonly Routine[],
+  splits?: TaskSplits,
 ): HistoryDay[] {
   const dates = Object.keys(dailyLogs).sort();
   const best = new Map<string, number>();
@@ -136,7 +138,9 @@ export function buildHistory(
     // A day with no drill results and no completions is not a practice day; it
     // is a log entry the app created for some other reason, and listing it as
     // practice would pad the history.
-    const completed = log.completedTaskIds?.length ?? 0;
+    // A day that completed a task since split into parts completed every part,
+    // and the routine it is compared against below is the split one.
+    const completed = completedCount(log, splits);
     if (!results.length && !completed && !log.feedback) continue;
 
     // Routines are read as they stand now, so an edited routine can claim fewer

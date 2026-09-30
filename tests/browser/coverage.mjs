@@ -322,7 +322,15 @@ for (const spec of STATES) {
       await page.locator('.progress-tab', { hasText: new RegExp(`^${tab}$`) }).click();
       await page.waitForTimeout(tab === 'Journey' ? 900 : 500);
       const panel = await readable(page, '#progress-panel');
-      check(`${at}: ${tab} says something`, Boolean(panel) && panel.length > 40, (panel ?? '').slice(0, 90));
+      // An empty panel is drawn now (a preview of the chart it will become,
+      // one title, one action) rather than described in a paragraph, so the
+      // forty-character floor this used to hold every panel to is met by the
+      // drawing, not the words. What must hold is that it is one or the other.
+      const drawnEmpty = await page.locator('#progress-panel .empty-state .empty-state-preview > *').count();
+      const emptyTitle = await readable(page, '#progress-panel .empty-state-title');
+      check(`${at}: ${tab} says something`,
+        Boolean(panel) && (panel.length > 40 || (drawnEmpty > 0 && Boolean(emptyTitle))),
+        (panel ?? '').slice(0, 90));
       shots[`${spec.name}-${tag}-${tab}`] = panel;
       check(`${at}: ${tab} holds no empty-set arithmetic`, !NONSENSE.test(panel ?? ''), nonsenseIn(panel));
 

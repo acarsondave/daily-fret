@@ -45,8 +45,8 @@ export function HistoryPanel({ onStartSession }: Props) {
   const [open, setOpen] = useState<string | null | undefined>(undefined);
 
   const days = useMemo(
-    () => buildHistory(drillLogs, data.routines),
-    [drillLogs, data.routines],
+    () => buildHistory(drillLogs, data.routines, data.taskSplits),
+    [drillLogs, data.routines, data.taskSplits],
   );
   const weeks = useMemo(
     () => weeklyTotals(days, getTodayString()).slice(-WEEKS_SHOWN),

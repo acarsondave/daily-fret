@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { useStreak } from '../hooks/useStreak';
 import { isFirstViewToday } from '../lib/firstView';
-import { getTodayString } from '../store';
+import { useToday } from '../hooks/useToday';
 import { FlameIcon } from './icons';
 import clsx from 'clsx';
 import './StreakGraph.css';
 
 export function StreakGraph() {
-  const { currentStreak, graphData } = useStreak();
-  const today = getTodayString();
+  const today = useToday();
+  const { currentStreak, graphData } = useStreak(today);
   // One cell, once a day. Coming back is worth marking and it is not worth a
   // banner: the mark is the square that already stands for the day, landing.
   const [firstView] = useState(() => isFirstViewToday(today));

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { getTodayString, useDrillLogs, useUserData } from '../store';
+import { useDrillLogs, useUserData } from '../store';
+import { useToday } from './useToday';
 import { allStandings, type SkillStanding } from '../lib/progression';
 
 const NO_CLAIMS: string[] = [];
@@ -19,6 +20,6 @@ export function useProgression(): SkillStanding[] {
   const claimed = useUserData().claimedSkills ?? NO_CLAIMS;
   // Standings expire: evidence goes cold two weeks after the last run, so the
   // answer depends on the date and not only on the logs.
-  const today = getTodayString();
+  const today = useToday();
   return useMemo(() => allStandings(dailyLogs, today, claimed), [dailyLogs, today, claimed]);
 }

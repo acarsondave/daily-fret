@@ -21,6 +21,17 @@
   color: var(--text-primary);
   text-wrap: balance;
 }
+/* A Quick path says so under its name, in the label voice: the same session,
+   a shorter list. It is a fact about the run, not a state, so it takes the
+   bone of the rail's inlay rather than the accent. */
+.coach-quick-tag {
+  font-family: var(--font-secondary);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
 /* The rest, on a ring. What is left of the break is a length, so the player can
    take it in without reading a number they then have to divide by thirty.
 

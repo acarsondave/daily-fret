@@ -320,14 +320,22 @@ export function NoteFinder({
         // One position carries one mark. A rung of six positions gets asked
         // about the same fret several times in a minute, and a second mark on
         // top of the first would be a second drawing of one fact.
-        setAnswers((was) => [
-          ...was,
-          {
+        // It said so and appended anyway, so a fret asked twice drew two marks
+        // under one React key. Replaced in place now, and a recall is never
+        // demoted by a later placement, the same rule runMarks applies.
+        setAnswers((was) => {
+          const at = was.findIndex(
+            (m) => m.stringPosition === asked.stringPosition && m.fret === asked.fret,
+          );
+          const mark: NeckMark = {
             stringPosition: asked.stringPosition,
             fret: asked.fret,
             kind: wasLit ? 'shown' : 'found',
-          },
-        ]);
+          };
+          if (at === -1) return [...was, mark];
+          if (wasLit && was[at].kind === 'found') return was;
+          return was.map((m, i) => (i === at ? mark : m));
+        });
       }
       sfx.tick();
     }

@@ -233,6 +233,18 @@ export const SessionIcon = (p: IconProps) => (
   </IconBase>
 );
 
+// A Quick path: the same session ring, with only part of it run. The arc is
+// the stretch chosen and the three ticks are the tasks on it, so it reads as a
+// piece of the Coached mark rather than as a new idea.
+export const QuickPathIcon = (p: IconProps) => (
+  <IconBase {...p}>
+    <path d="M12 3.5a8.5 8.5 0 0 1 8.5 8.5" />
+    <path d="M3.5 12A8.5 8.5 0 0 1 7.2 5" strokeDasharray="0.1 3.4" />
+    <path d="M20.5 12a8.5 8.5 0 0 1-12.4 7.6" strokeDasharray="0.1 3.4" />
+    <path d="M8.5 9.5h7M8.5 12.5h5M8.5 15.5h3" />
+  </IconBase>
+);
+
 // A chord shape in a fret box: four strings, one fret, two fingers down. The
 // mark for owning the grips, drawn as the thing itself rather than as a hand or
 // a generic "skill" glyph.

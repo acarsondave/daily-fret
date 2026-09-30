@@ -19,7 +19,20 @@ import { trackModules } from '../src/data/curriculum.ts';
 
 let failures = 0;
 const check = (l, ok, d) => { if (!ok) failures++; console.log(`  ${ok?'ok  ':'FAIL'}  ${l}${d?' — '+d:''}`); };
-const time = (fn) => { const t0 = performance.now(); const out = fn(); return [out, performance.now() - t0]; };
+// The fastest of five runs. A single wall-clock sample on a shared machine
+// measured the neighbours as often as the code (35 to 103ms for one build),
+// and the budget is a claim about the code. A real regression is slow on every
+// run, so the minimum still catches it.
+const time = (fn) => {
+  let out;
+  let best = Infinity;
+  for (let i = 0; i < 5; i++) {
+    const t0 = performance.now();
+    out = fn();
+    best = Math.min(best, performance.now() - t0);
+  }
+  return [out, best];
+};
 
 const CHORDS = ['A', 'D', 'E', 'Am', 'Em', 'G', 'C', 'Dm', 'F'];
 const DAYS = 1825; // five years

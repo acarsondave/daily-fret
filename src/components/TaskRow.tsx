@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { useUndoStore } from '../store/undo';
-import { useStore, getTodayString, drillLogsOf, useDrillLogs } from '../store';
+import { useStore, drillLogsOf, useDrillLogs } from '../store';
+import { useToday } from '../hooks/useToday';
 import {
   CheckIcon,
   CircleIcon,
@@ -23,6 +24,7 @@ import { finderHistory } from '../lib/finderHistory';
 import { currentRung } from '../lib/noteFinder';
 import { sanitizeMinutes, formatDuration } from '../lib/coached';
 import { looksLikeTab } from '../lib/tab';
+import { isTaskDone, recordThroughSplit } from '../lib/taskSplit';
 // One definition of what each drill's number means, shared with Progress.
 import { DRILL_UNIT, DRILL_LABEL } from '../lib/drills';
 import { SongPicker } from './SongPicker';
@@ -122,7 +124,7 @@ interface TaskRowProps {
 }
 
 export const TaskRow = memo(function TaskRow({ routineId, taskId, title, description, duration, drill, blocks, index, total, onStart }: TaskRowProps) {
-  const today = getTodayString();
+  const today = useToday();
   // Select each action on its own — Zustand returns the *same* function
   // reference every render, so this row no longer subscribes to the whole store
   // (a bare `useStore()` did, re-rendering every row on any state change).
@@ -135,9 +137,12 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
   // Subscribe narrowly to just this task's completion and best result so one
   // task toggling doesn't re-render every other row (these return primitives,
   // so unrelated mutations don't trigger a render here).
-  const isCompleted = useStore(
-    (s) => s.accounts[s.currentAccountId]?.dailyLogs?.[today]?.completedTaskIds?.includes(taskId) ?? false,
-  );
+  // Read through the split map, so a task split out of one completed earlier
+  // today (before the split) is still done (lib/taskSplit.ts).
+  const isCompleted = useStore((s) => {
+    const acc = s.accounts[s.currentAccountId];
+    return isTaskDone(acc?.dailyLogs?.[today], taskId, acc?.taskSplits);
+  });
 
   // The storage keys this task's results live under. Every one of them names
   // what the drill plays rather than the row it is played from, so the badge
@@ -200,9 +205,10 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
 
   // The record is a stable object reference until this task's day changes, so
   // subscribing to it does not re-render the row on unrelated store writes.
-  const record = useStore(
-    (s) => s.accounts[s.currentAccountId]?.dailyLogs?.[today]?.taskRecords?.[taskId],
-  );
+  const record = useStore((s) => {
+    const acc = s.accounts[s.currentAccountId];
+    return recordThroughSplit(acc?.dailyLogs?.[today], taskId, acc?.taskSplits);
+  });
 
   const todayRuns = useStore((s) => {
     if (resultKeys.length === 0) return 0;
@@ -449,7 +455,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
             </div>
             {editDrillKind === 'one-minute-changes' && (
               <>
-                <span className="drill-hint">Chords to switch between</span>
+                <span className="drill-hint">Chords to switch between (each pair becomes its own task)</span>
                 <div className="drill-chip-grid">
                   {DRILL_CHORDS.map(c => (
                     <button
@@ -520,7 +526,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
             )}
             {editDrillKind === 'none' && (
               <>
-                <span className="drill-hint">Timed blocks (optional). One per pattern, each with its own minutes.</span>
+                <span className="drill-hint">Timed blocks (optional). Each block is saved as its own task.</span>
                 <div className="drill-blocks">
                   {editBlocks.map(block => (
                     <div key={block.id} className="drill-block">
