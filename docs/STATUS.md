@@ -8,6 +8,10 @@ Updated 2026-09-30.
   automatically from `main` on every push).
 - Check it with `npm run health -- --live`; the full maintenance pass is
   `npm run health` (see README).
+- 2026-09-30: `13393a3` deployed to production. `npm run health -- --live`
+  passed all 15 checks (production = origin/main). `tests/browser/quickPaths.mjs`
+  and `tests/browser/onboarding.mjs` (including the signed-in second-device
+  case, which needs a real Firebase build) both pass against the live URL.
 
 ## Shipped in this round
 
