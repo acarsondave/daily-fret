@@ -141,7 +141,9 @@ export function ReadyScreen({ headingRef, plan, micLive, onStart }: Props) {
           nothing has been played. It is not part of today and does not pretend
           to be, which is why it sits below the session rather than in it. */}
       {horizon && (
-        <motion.p
+        // A div, not a p: the shape inside is a <figure>, which a paragraph
+        // cannot hold, and React said so on every first run.
+        <motion.div
           className="onboarding-horizon"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -149,7 +151,7 @@ export function ReadyScreen({ headingRef, plan, micLive, onStart }: Props) {
         >
           <Shapes chords={[horizon.missing]} muted />
           <span className="onboarding-horizon-text">opens {horizon.song.title}</span>
-        </motion.p>
+        </motion.div>
       )}
 
       <div className="onboarding-actions is-end">
