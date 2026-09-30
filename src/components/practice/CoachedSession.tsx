@@ -86,6 +86,13 @@ const RECORD_NOTHING = () => {};
 
 interface Props {
   routine: Routine;
+  /**
+   * Run only these tasks, in routine order: a Quick path. Absent runs the whole
+   * routine. Everything else about the session is the same one, on purpose: the
+   * same coach, clock, click, camera and record, because a short day is still a
+   * day of practice and the app should hear it the same way.
+   */
+  taskIds?: readonly string[];
   onClose: () => void;
 }
 
@@ -101,7 +108,23 @@ function blockLength(seconds: number): string {
   return `${m} min${m === 1 ? '' : 's'}`;
 }
 
-export function CoachedSession({ routine, onClose }: Props) {
+/** Two selections are the same session when they hold the same tasks. */
+const sameTasks = (a: readonly string[] | undefined, b: readonly string[] | undefined): boolean =>
+  (a ?? []).join('\n') === (b ?? []).join('\n');
+
+export function CoachedSession({ routine: fullRoutine, taskIds, onClose }: Props) {
+  // The routine this session actually runs. A Quick path is the routine with
+  // only the chosen tasks in it, which keeps every rule below (segments, rests,
+  // settling, the summary) the same rule for both.
+  const routine = useMemo<Routine>(() => {
+    if (!taskIds) return fullRoutine;
+    const chosen = new Set(taskIds);
+    return { ...fullRoutine, tasks: fullRoutine.tasks.filter((t) => chosen.has(t.id)) };
+  }, [fullRoutine, taskIds]);
+  // What the session saves its place under. The ids actually running, so a
+  // paused Quick path resumes as itself and never as the full routine, or as a
+  // different Quick path chosen since.
+  const quickIds = useMemo(() => (taskIds ? routine.tasks.map((t) => t.id) : undefined), [taskIds, routine]);
   const recordMeasurements = useStore((s) => s.recordMeasurements);
   const recordTime = useStore((s) => s.recordTime);
   const settleTask = useStore((s) => s.settleTask);
@@ -139,6 +162,7 @@ export function CoachedSession({ routine, onClose }: Props) {
     const s = useStore.getState();
     const cp = s.accounts[s.currentAccountId]?.coachProgress;
     if (!cp || cp.routineId !== routine.id) return null;
+    if (!sameTasks(cp.taskIds, quickIds)) return null;
     if (!isResumable(cp, Date.now(), getTodayString())) return null;
     if (cp.index <= 0 || cp.index >= segments.length) return null;
     return cp;
@@ -461,7 +485,7 @@ export function CoachedSession({ routine, onClose }: Props) {
     // would have if the countdown had been allowed to finish.
     commitPending();
     if (phase !== 'summary' && index > 0) {
-      saveCoachProgress({ routineId: routine.id, date: today, startedAt, index, results });
+      saveCoachProgress({ routineId: routine.id, date: today, startedAt, index, results, taskIds: quickIds });
     }
     onClose();
   };
@@ -542,9 +566,11 @@ export function CoachedSession({ routine, onClose }: Props) {
       // Announce the name when the title changes from the previous segment. A
       // task that fans into same-titled segments (changes → one per pair) is
       // announced once; distinct-titled segments (blocks, songs) each get named.
-      const isNewTitle = index === 0 || segments[index - 1]?.title !== seg.title;
+      // By what it is announced as rather than by its task: the three pairs of
+      // one changes exercise are three tasks now and still one announcement.
+      const isNewTitle = index === 0 || segments[index - 1]?.announce !== seg.announce;
       const announced = isNewTitle
-        ? await announceDrill(seg.title) // "Up next, <drill name>"
+        ? await announceDrill(seg.announce) // "Up next, <drill name>"
         : await speak('up-next');
       if (cancelled) return;
       const counted = announced ? await speak('count-in') : false; // spoken 3·2·1
@@ -643,7 +669,7 @@ export function CoachedSession({ routine, onClose }: Props) {
     setResults(nextResults);
     const nextIndex = index + 1;
     if (nextIndex < segments.length) {
-      saveCoachProgress({ routineId: routine.id, date: today, startedAt, index: nextIndex, results: nextResults });
+      saveCoachProgress({ routineId: routine.id, date: today, startedAt, index: nextIndex, results: nextResults, taskIds: quickIds });
       setIndex(nextIndex);
       // How long the break is depends on the work that just finished, and it can
       // be nothing at all: two timed blocks of one task run straight on.
@@ -812,6 +838,7 @@ export function CoachedSession({ routine, onClose }: Props) {
         {view === 'resume' && (
           <motion.div className="coach-intro" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <div className="coach-intro-title">{routine.name}</div>
+            {quickIds && <div className="coach-quick-tag">Quick path</div>}
             {/* Where the session stopped, on the same neck the topbar draws it
                 on, so "resume" is a place rather than a fraction to work out. */}
             <SegmentRail total={segments.length} index={index} className="is-summary" />
@@ -1165,6 +1192,7 @@ export function CoachedSession({ routine, onClose }: Props) {
                 className="is-summary"
               />
               <h2 className="coach-summary-title">{routine.name}</h2>
+              {quickIds && <div className="coach-quick-tag">Quick path</div>}
             </div>
             {/* A summary that checks off every step it walked past would be the
                 same lie the day's list used to tell. A step that produced

@@ -9,6 +9,7 @@ import { Modal } from './Modal';
 import { Loader } from './Loader';
 import { SurfaceBoundary } from './SurfaceBoundary';
 import { TaskCreatorModal } from './TaskCreatorModal';
+import { QuickPaths } from './QuickPaths';
 import { UndoStrip } from './UndoStrip';
 import { PracticeNudge } from './PracticeNudge';
 import { useUndoStore, type TaskDeletion } from '../store/undo';
@@ -20,6 +21,7 @@ import { ProgressPanel } from './practice/ProgressPanel';
 import { TunerLauncher } from './practice/TunerLauncher';
 import { preloadTuner } from './practice/tunerChunk';
 import { sanitizeMinutes } from '../lib/coached';
+import { completedSet } from '../lib/taskSplit';
 import { useRecordingStore } from '../media/recordingStore';
 import type { Task } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -32,6 +34,7 @@ import {
   FramingIcon,
   CameraIcon,
   SessionIcon,
+  QuickPathIcon,
   TuningForkIcon,
   NoteCircleIcon,
 } from './icons';
@@ -145,6 +148,14 @@ export function DailyPath() {
     tabRefs.current[next.id]?.focus();
   };
   const [isCoachedOpen, setIsCoachedOpen] = useState(false);
+  // The tasks a Quick path chose, or null for the whole routine. Set together
+  // with opening the session, so the session never opens on a stale choice.
+  const [quickTaskIds, setQuickTaskIds] = useState<string[] | null>(null);
+  const [isQuickOpen, setIsQuickOpen] = useState(false);
+  const openCoached = useCallback(() => {
+    setQuickTaskIds(null);
+    setIsCoachedOpen(true);
+  }, []);
   const [isTunerOpen, setIsTunerOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [isTechniqueOpen, setIsTechniqueOpen] = useState(false);
@@ -217,15 +228,21 @@ export function DailyPath() {
 
   // Coached mode runs every task in order (drills + timed blocks).
   const hasCoachable = tasks.length > 0;
+  // Choosing part of a routine needs a routine with parts to choose from.
+  const hasQuickPaths = tasks.length > 1;
 
   // The way out of an empty Progress panel: close it and start practising, so
   // the panel that says "run a drill and this fills up" can actually run one.
   // Undefined when there is nothing to run, rather than offering a dead button.
   const startSession = hasCoachable
-    ? () => { setIsProgressOpen(false); setIsCoachedOpen(true); }
+    ? () => { setIsProgressOpen(false); openCoached(); }
     : undefined;
 
-  const allCompleted = !isEmpty && tasks.every(t => log?.completedTaskIds?.includes(t.id));
+  // Through the split map: a day that completed a task since split into parts
+  // completed every part (lib/taskSplit.ts).
+  const taskSplits = userData?.taskSplits;
+  const doneToday = useMemo(() => completedSet(log, taskSplits), [log, taskSplits]);
+  const allCompleted = !isEmpty && tasks.every((t) => doneToday.has(t.id));
 
   // Has anything ever been measured. On day zero the ledger below carries the
   // one thing worth pressing, and a second control in the header doing the same
@@ -387,7 +404,7 @@ export function DailyPath() {
           <Onboarding
             onDone={(options) => {
               setOnboardingSkipped(true);
-              if (options?.startCoached) setIsCoachedOpen(true);
+              if (options?.startCoached) openCoached();
             }}
           />
         </Suspense>
@@ -483,17 +500,35 @@ export function DailyPath() {
           </AnimatePresence>
         </div>
 
-        {hasCoachable && everMeasured && (
+        {((hasCoachable && everMeasured) || hasQuickPaths) && (
           <>
             <span className="rail-wire" aria-hidden="true" />
-            <button
-              className="progress-launch is-primary"
-              onClick={() => setIsCoachedOpen(true)}
-              title="Run this whole routine, guided"
-            >
-              <SessionIcon size={18} className="progress-launch-icon" />
-              <span>Coached</span>
-            </button>
+            {/* The whole routine, and a chosen part of it, as one control in two
+                halves: both start the same coached session, and on the days the
+                whole routine is not happening the shorter one is right there. */}
+            <div className="session-pair">
+              {hasCoachable && everMeasured && (
+                <button
+                  className="progress-launch is-primary"
+                  onClick={openCoached}
+                  title="Run this whole routine, guided"
+                >
+                  <SessionIcon size={18} className="progress-launch-icon" />
+                  <span>Coached</span>
+                </button>
+              )}
+              {hasQuickPaths && (
+                <button
+                  className="progress-launch is-quick"
+                  onClick={() => setIsQuickOpen(true)}
+                  title="Pick the tasks, then run just those, guided"
+                  aria-haspopup="dialog"
+                >
+                  <QuickPathIcon size={18} className="progress-launch-icon" />
+                  <span>Quick</span>
+                </button>
+              )}
+            </div>
           </>
         )}
 
@@ -595,7 +630,7 @@ export function DailyPath() {
         {!isEmpty && (
           <>
             <span className="rail-wire" aria-hidden="true" />
-            <DayLedger onStart={hasCoachable ? () => setIsCoachedOpen(true) : null} />
+            <DayLedger onStart={hasCoachable ? openCoached : null} />
           </>
         )}
       </aside>
@@ -604,7 +639,7 @@ export function DailyPath() {
         <div className="task-container">
           {/* Above the list, not over it: the thing it is asking you to do is
               right there underneath. */}
-          <PracticeNudge onStart={() => setIsCoachedOpen(true)} />
+          <PracticeNudge onStart={openCoached} />
           <div
             ref={listRef}
             className={clsx(
@@ -816,6 +851,17 @@ export function DailyPath() {
         routineId={activeRoutine.id}
       />
 
+      <QuickPaths
+        isOpen={isQuickOpen}
+        routine={activeRoutine}
+        onClose={() => setIsQuickOpen(false)}
+        onStart={(ids) => {
+          setIsQuickOpen(false);
+          setQuickTaskIds(ids);
+          setIsCoachedOpen(true);
+        }}
+      />
+
       <RoutineManagerModal
         isOpen={isRoutineModalOpen}
         onClose={() => setIsRoutineModalOpen(false)}
@@ -955,15 +1001,18 @@ export function DailyPath() {
         <AnimatePresence>
           {isCoachedOpen && activeRoutine && (
             <CoachedSession
-              key="coached"
+              key={quickTaskIds ? `quick:${quickTaskIds.join(',')}` : 'coached'}
               routine={activeRoutine}
+              taskIds={quickTaskIds ?? undefined}
               onClose={() => {
                 setIsCoachedOpen(false);
+                setQuickTaskIds(null);
                 // If the guided run finished the whole routine, invite a
                 // reflection note now (read fresh state — `log` is stale here).
                 const acc = useStore.getState().accounts[useStore.getState().currentAccountId];
                 const freshLog = acc?.dailyLogs?.[today];
-                const done = tasks.length > 0 && tasks.every((t) => freshLog?.completedTaskIds?.includes(t.id));
+                const freshDone = completedSet(freshLog, acc?.taskSplits);
+                const done = tasks.length > 0 && tasks.every((t) => freshDone.has(t.id));
                 if (done && freshLog?.feedback === undefined) {
                   setIsJotterOpen(true);
                 }
