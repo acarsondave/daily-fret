@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { useUndoStore } from '../store/undo';
-import { useStore, getTodayString, drillLogsOf, useDrillLogs } from '../store';
+import { useStore, drillLogsOf, useDrillLogs } from '../store';
+import { useToday } from '../hooks/useToday';
 import {
   CheckIcon,
   CircleIcon,
@@ -123,7 +124,7 @@ interface TaskRowProps {
 }
 
 export const TaskRow = memo(function TaskRow({ routineId, taskId, title, description, duration, drill, blocks, index, total, onStart }: TaskRowProps) {
-  const today = getTodayString();
+  const today = useToday();
   // Select each action on its own — Zustand returns the *same* function
   // reference every render, so this row no longer subscribes to the whole store
   // (a bare `useStore()` did, re-rendering every row on any state change).

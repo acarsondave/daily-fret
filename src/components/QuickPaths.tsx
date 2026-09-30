@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { Modal } from './Modal';
 import { CheckIcon, SessionIcon } from './icons';
-import { useStore, useUserData, getTodayString } from '../store';
+import { useStore, useUserData } from '../store';
+import { useToday } from '../hooks/useToday';
 import { completedSet } from '../lib/taskSplit';
 import { taskMinutes } from '../lib/coached';
 import type { Routine, Task } from '../types';
@@ -61,7 +62,7 @@ function summarise(tasks: readonly Task[]): string {
 
 export function QuickPaths({ isOpen, routine, onClose, onStart }: Props) {
   const account = useUserData();
-  const today = getTodayString();
+  const today = useToday();
   const remembered = account.quickPaths?.[routine.id];
   const done = useMemo(
     () => completedSet(account.dailyLogs[today], account.taskSplits),

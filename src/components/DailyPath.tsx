@@ -2,7 +2,8 @@ import {
   useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
-import { useStore, useUserData, getTodayString } from '../store';
+import { useStore, useUserData } from '../store';
+import { useToday } from '../hooks/useToday';
 import { useAuthStore } from '../lib/auth';
 import { TaskRow } from './TaskRow';
 import { Modal } from './Modal';
@@ -103,7 +104,8 @@ const INLINE_HINTS: Record<(typeof INLINE_STEPS)[number], string> = {
 const MAX_TASKS = 100;
 
 export function DailyPath() {
-  const today = getTodayString();
+  // Listens for the day turning, so a list left open overnight is today's list.
+  const today = useToday();
   const userData = useUserData();
   // Whether the cloud copy of this account is still on its way. A signed-in
   // player opening the app on a second device has no local routine yet, which
@@ -630,7 +632,7 @@ export function DailyPath() {
         {!isEmpty && (
           <>
             <span className="rail-wire" aria-hidden="true" />
-            <DayLedger onStart={hasCoachable ? openCoached : null} />
+            <DayLedger key={today} onStart={hasCoachable ? openCoached : null} />
           </>
         )}
       </aside>

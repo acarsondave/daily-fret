@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { DailyPath } from './components/DailyPath';
 import { Footer } from './components/Footer';
 // Settings, sign-in, the pattern manager and a chord diagram all hang off this
@@ -17,6 +17,7 @@ import { readDurability, requestDurableStorage } from './lib/durability';
 import { SurfaceBoundary } from './components/SurfaceBoundary';
 import { CloudIcon, DeviceFullIcon, DeviceIcon } from './components/icons';
 import { usePersistence } from './store/persistence';
+import { useToday } from './hooks/useToday';
 import { motion } from 'framer-motion';
 import './App.css';
 
@@ -25,15 +26,19 @@ function App() {
   const syncing = useAuthStore((s) => s.syncing);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // Read once per mount rather than on every render: the heading is a fixed
-  // fact about this session, not something that should re-derive on each paint.
+  // Derived from the day rather than read once per mount: an installed app
+  // left open overnight kept yesterday's date in its header (hooks/useToday).
   // Two lengths of the same date. A phone header has to hold the date, the
   // streak and the storage state at once, and the long form was crowding the
   // other two off the row until both lost their labels. CSS picks one.
-  const [displayDate] = useState(() => ({
-    long: new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
-    short: new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-  }));
+  const today = useToday();
+  const displayDate = useMemo(() => {
+    const date = new Date(`${today}T12:00:00`);
+    return {
+      long: date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+      short: date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+    };
+  }, [today]);
 
   // This pill is the one place the app states where a result went, so it is the
   // one place that has to stop saying "saved" the moment a write is refused.
