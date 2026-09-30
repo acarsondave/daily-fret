@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { DownloadIcon, HourglassIcon } from '../icons';
 import { useStore, useUserData } from '../../store';
 import { buildIcs } from '../../lib/calendarFile';
+import { taskMinutes } from '../../lib/coached';
+import type { Task } from '../../types';
 import {
   DAY_NAMES,
   DEFAULT_REMINDER,
@@ -20,12 +22,13 @@ import {
 // open. Selling the weaker mechanism as "reminders" would mean someone relies
 // on it, misses a week, and stops believing anything else the app tells them.
 
-/** Rough length of the active routine, so the calendar block is not a guess. */
-function routineMinutes(durations: readonly (string | undefined)[]): number {
-  const total = durations.reduce((sum, d) => {
-    const n = d ? Number.parseInt(d, 10) : NaN;
-    return sum + (Number.isFinite(n) ? n : 0);
-  }, 0);
+/**
+ * Rough length of the active routine, so the calendar block is not a guess.
+ * The same per-task minutes the rest of the app prints, so drills count too;
+ * they used to be skipped because only a stated duration was read.
+ */
+function routineMinutes(tasks: readonly Task[]): number {
+  const total = tasks.reduce((sum, t) => sum + taskMinutes(t), 0);
   return total > 0 ? total : 20;
 }
 
@@ -40,7 +43,7 @@ export function ReminderSetting() {
 
   const minutes = useMemo(() => {
     const active = account.routines.find((r) => r.id === account.activeRoutineId);
-    return routineMinutes((active?.tasks ?? []).map((t) => t.duration));
+    return routineMinutes(active?.tasks ?? []);
   }, [account.routines, account.activeRoutineId]);
 
   const patch = (updates: Partial<ReminderSettings>) => setReminder({ ...settings, ...updates });
