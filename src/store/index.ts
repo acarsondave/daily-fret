@@ -18,6 +18,7 @@ import {
   mergeDrillKeyAliases,
   resolveDrillLogs,
 } from '../lib/drillKeys';
+import { mergeTaskSplits, splitRoutines, type TaskSplits } from '../lib/taskSplit';
 import type { Song } from '../data/songs';
 import type { StrumPattern } from '../data/strumPatterns';
 import type { CalibrationData, ChordCalibration } from '../audio/calibration';
@@ -75,6 +76,12 @@ export interface CoachProgress {
    * back to the date it carries.
    */
   startedAt?: number;
+  /**
+   * The tasks a Quick path ran, when it was one. Absent means the whole
+   * routine. A paused session resumes only into the same selection, so a
+   * three-task Quick path never comes back as the full routine at segment 3.
+   */
+  taskIds?: string[];
 }
 
 /**
@@ -201,6 +208,22 @@ export interface UserData {
   // Nothing rewrites a day. Old logs are read through this map and stay on disk
   // exactly as they were recorded.
   drillKeyAliases?: Record<string, string>;
+  /**
+   * What each combined task became when it was split into atomic ones
+   * (src/lib/taskSplit.ts): parent task id -> the part ids, append-only.
+   *
+   * Old days are never rewritten. A day that completed "Chord Speed Training"
+   * reads as having completed each of its three pairs through this map, which
+   * is what keeps streaks, history and the day's list whole across the split.
+   */
+  taskSplits?: TaskSplits;
+  /**
+   * The last Quick path chosen, per routine: the task ids selected, in routine
+   * order. Remembered so the days that want the same short session again are
+   * one tap, and kept per routine because a selection only means something
+   * against the tasks it was made from.
+   */
+  quickPaths?: Record<string, string[]>;
   // Epoch ms of the last local mutation to this account. Drives conflict
   // resolution against the cloud copy. Older/legacy data defaults to 0.
   updatedAt: number;
@@ -268,6 +291,8 @@ interface AppState {
   clearTaskRecord: (date: string, taskId: string) => void;
   setActiveRoutine: (routineId: string) => void;
   setLastPair: (from: string, to: string) => void;
+  // Remember a Quick path selection for a routine.
+  setQuickPath: (routineId: string, taskIds: string[]) => void;
   saveCoachProgress: (progress: CoachProgress) => void;
   clearCoachProgress: () => void;
   addStrumPattern: (pattern: StrumPattern) => void;
@@ -304,6 +329,53 @@ interface AppState {
   markNudged: (date: string) => void;
 }
 
+/**
+ * Point remembered Quick path selections at the parts of any task since split.
+ *
+ * Only an id the routine no longer holds is expanded. Task ids are not unique
+ * across routines (a copied routine keeps its ids), so a split recorded for one
+ * routine's task must not rewrite a selection in another where that id still
+ * names a task of its own. Returns the same object when nothing changed.
+ */
+function remapQuickPaths(
+  paths: Record<string, string[]> | undefined,
+  splits: TaskSplits | undefined,
+  routines: readonly Routine[],
+): Record<string, string[]> | undefined {
+  if (!paths || !splits) return paths;
+  let out: Record<string, string[]> | undefined;
+  for (const [routineId, ids] of Object.entries(paths)) {
+    const held = new Set(routines.find((r) => r.id === routineId)?.tasks.map((t) => t.id) ?? []);
+    const stale = (id: string) => !held.has(id) && !!splits[id];
+    if (!ids.some(stale)) continue;
+    const expand = (id: string): string[] => (stale(id) ? splits[id].flatMap(expand) : [id]);
+    out ??= { ...paths };
+    out[routineId] = [...new Set(ids.flatMap(expand))];
+  }
+  return out ?? paths;
+}
+
+/**
+ * An account with no combined task left in it.
+ *
+ * Run at every door a routine comes in through: the copy on disk, a cloud read,
+ * and each local write. Returns the account itself when there was nothing to
+ * split, so the no-op costs no write and no sync.
+ */
+export function withAtomicTasks(acc: UserData): UserData {
+  const { routines, splits } = splitRoutines(acc.routines ?? [], acc.taskSplits);
+  if (routines === acc.routines && splits === acc.taskSplits) {
+    const paths = remapQuickPaths(acc.quickPaths, acc.taskSplits, acc.routines ?? []);
+    return paths === acc.quickPaths ? acc : { ...acc, quickPaths: paths };
+  }
+  return {
+    ...acc,
+    routines,
+    taskSplits: splits,
+    quickPaths: remapQuickPaths(acc.quickPaths, splits, routines),
+  };
+}
+
 export const useStore = create<AppState>()(
   persist(
     (set) => {
@@ -315,10 +387,13 @@ export const useStore = create<AppState>()(
       ): Partial<AppState> => {
         const accId = state.currentAccountId;
         const acc = state.accounts[accId] ?? defaultUserData;
+        // Every write passes through the split, so no door (the task editor, a
+        // restored routine, a routine rebuilt from history) can leave a
+        // combined task behind.
         return {
           accounts: {
             ...state.accounts,
-            [accId]: { ...updater(acc), updatedAt: now() },
+            [accId]: { ...withAtomicTasks(updater(acc)), updatedAt: now() },
           },
         };
       };
@@ -415,11 +490,18 @@ export const useStore = create<AppState>()(
               routines,
               mergeDrillKeyAliases(local?.drillKeyAliases, data.drillKeyAliases),
             ),
+            // Unioned, like the aliases above: each device records the splits
+            // it made, and a day completed on either has to read through both.
+            taskSplits: mergeTaskSplits(local?.taskSplits, data.taskSplits),
+            quickPaths: data.quickPaths ?? local?.quickPaths,
             updatedAt: remoteUpdatedAt,
           };
 
+          // A routine can arrive combined from a build that predates the split.
+          // Split here as well, keeping the remote stamp: this is derived, not
+          // an edit, and must not win a last-write-wins race it did not enter.
           return {
-            accounts: { ...state.accounts, [uid]: merged },
+            accounts: { ...state.accounts, [uid]: withAtomicTasks(merged) },
           };
         }),
 
@@ -580,6 +662,10 @@ export const useStore = create<AppState>()(
 
         setLastPair: (from, to) => set((state) =>
           mutate(state, (a) => ({ ...a, lastPair: { from, to } })),
+        ),
+
+        setQuickPath: (routineId, taskIds) => set((state) =>
+          mutate(state, (a) => ({ ...a, quickPaths: { ...a.quickPaths, [routineId]: taskIds } })),
         ),
 
         saveCoachProgress: (progress) => set((state) =>
@@ -823,9 +909,14 @@ export const useStore = create<AppState>()(
         const accounts: Record<string, UserData> = {};
         // Storage that has lost its accounts is storage this cannot repair, and
         // throwing here would leave the app on the loader with no way back in.
-        for (const [id, acc] of Object.entries(state.accounts ?? current.accounts)) {
-          const aliases = captureDrillKeyAliases(acc.routines ?? [], acc.drillKeyAliases);
-          accounts[id] = aliases === acc.drillKeyAliases ? acc : { ...acc, drillKeyAliases: aliases };
+        for (const [id, stored] of Object.entries(state.accounts ?? current.accounts)) {
+          // Aliases first, from the routines as they were stored: they describe
+          // the combined tasks the old numbers were filed under. Then the split,
+          // which is the migration's other write and, like the first, leaves
+          // `updatedAt` alone (see withAtomicTasks).
+          const aliases = captureDrillKeyAliases(stored.routines ?? [], stored.drillKeyAliases);
+          const acc = aliases === stored.drillKeyAliases ? stored : { ...stored, drillKeyAliases: aliases };
+          accounts[id] = withAtomicTasks(acc);
         }
         return { ...state, accounts };
       },
