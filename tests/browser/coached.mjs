@@ -32,6 +32,14 @@ import { changesTake, silence, write } from './tone.mjs';
 
 const BASE = process.env.PREVIEW_URL ?? 'http://localhost:5199/';
 
+// Relative to today. These were written as fixed August dates, and six weeks
+// later the tempo planner read the history as a player coming back after a
+// break (which it rightly treats differently), so the suite was testing the
+// calendar instead of the click.
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return iso(d); };
+const RECENT = [daysAgo(3), daysAgo(2), daysAgo(1)];
+
 let failures = 0;
 const check = (label, ok, detail) => {
   if (!ok) failures += 1;
@@ -194,7 +202,7 @@ console.log('\nChord Perfect asks for a pace the player has actually reached\n')
   // configured 90 it reads 49.3 a minute and asks for 51, which is above
   // anything the player has done.
   const dailyLogs = {};
-  const days = ['2026-08-14', '2026-08-15', '2026-08-16'];
+  const days = RECENT;
   [70, 72, 74].forEach((value, i) => {
     dailyLogs[days[i]] = {
       date: days[i], routineId: 'r1', completedTaskIds: [],
@@ -258,7 +266,7 @@ const todayLog = (page) =>
 /** Three prior sessions worth 30 a minute, so there is a baseline to fall short of. */
 const seededPair = () => {
   const logs = {};
-  for (const date of ['2026-08-14', '2026-08-15', '2026-08-16']) {
+  for (const date of RECENT) {
     logs[date] = { date, routineId: 'r1', completedTaskIds: [], drillResults: { 'pair:Am|Em': 30 } };
   }
   return logs;
