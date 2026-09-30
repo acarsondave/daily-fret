@@ -29,15 +29,14 @@ const check = (label, ok, detail) => {
 const routine = {
   id: 'r1', name: 'Late session', description: '', isDefault: true,
   tasks: [
-    // Two blocks, so the overlay itself re-renders between them: the first
-    // block is recorded, the surface advances, and only the second one settles
-    // the task. That gap is where midnight used to get in.
+    // One block of forty seconds, started twenty-five before midnight: the
+    // countdown re-renders the overlay every second across the turn of the
+    // day, and the task only settles at the end. That gap is where midnight
+    // used to get in. (This task was two blocks until every task became one
+    // exercise; two blocks would now load as two tasks, see lib/taskSplit.ts.)
     {
       id: 't1', title: 'Spider walk', duration: '1',
-      blocks: [
-        { id: 'b1', label: 'Low strings', durationSec: 15 },
-        { id: 'b2', label: 'High strings', durationSec: 15 },
-      ],
+      blocks: [{ id: 'b1', label: 'Spider walk', durationSec: 40 }],
     },
     { id: 't2', title: 'Finger stretches', duration: '15 sec' },
   ],
@@ -123,20 +122,17 @@ const logs = (page) =>
   await page.waitForSelector('.practice-overlay', { timeout: 15000 });
   await page.waitForTimeout(600);
 
-  // The first block runs out before midnight and the surface advances to the
-  // second, re-rendering on the way.
+  // Most of the way to midnight, re-rendering on the way.
   await page.evaluate(() => window.__advance(16_000));
   await page.waitForTimeout(2500);
-  await page.evaluate(() => window.__advance(6_000));
-  await page.waitForTimeout(2000);
 
-  // Now midnight arrives, part-way through the second block.
-  await page.evaluate(() => window.__advance(10_000));
+  // Now midnight arrives, part-way through the block.
+  await page.evaluate(() => window.__advance(12_000));
   await page.waitForTimeout(1200);
   const endedOn = await page.evaluate(() => window.__localDate());
   check('the clock genuinely crossed midnight during the run', startedOn !== endedOn, `${startedOn} -> ${endedOn}`);
 
-  // Let the second block run out and settle the task.
+  // Let the block run out and settle the task.
   await page.evaluate(() => window.__advance(20_000));
   await page.waitForTimeout(2500);
   await page.evaluate(() => window.__advance(10_000));
