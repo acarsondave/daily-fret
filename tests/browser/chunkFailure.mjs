@@ -36,7 +36,11 @@ const TASK = {
 const account = {
   activeRoutineId: 'r1',
   routines: [{ id: 'r1', name: 'Chunks', description: '', isDefault: true, tasks: [TASK] }],
-  dailyLogs: {}, strumPatterns: [], songLinks: [], userSongs: [], updatedAt: 1, capoFret: 0,
+  // One measured day. The Coached button is only offered once the app has heard
+  // something, so an empty history made the second half of this suite look for
+  // a control that was never on screen and fail on its absence, not on a crash.
+  dailyLogs: { '2026-01-05': { date: '2026-01-05', routineId: 'r1', completedTaskIds: ['t1'], drillResults: { 'pair:A|D': 40 } } },
+  strumPatterns: [], songLinks: [], userSongs: [], updatedAt: 1, capoFret: 0,
 };
 
 const browser = await chromium.launch();
@@ -80,7 +84,7 @@ console.log('\nAnd again on the coached session\n');
 {
   await page.keyboard.press('Escape');
   await page.waitForTimeout(400);
-  const coached = page.getByRole('button', { name: /coach/i }).first();
+  const coached = page.getByRole('button', { name: /^coached$/i }).first();
   if (await coached.count()) {
     await coached.click().catch(() => {});
     await page.waitForTimeout(2500);
