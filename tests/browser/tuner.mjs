@@ -146,7 +146,18 @@ const text = (page, sel) => page.locator(sel).first().innerText().catch(() => nu
 const sideways = (page) =>
   page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 
-for (const [name, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
+// WebKit needs GTK and GStreamer on Linux. A host without them (a headless
+// server) still runs the Chromium half, and says plainly that the other half
+// did not run rather than crashing on the launch or passing in silence.
+const engines = [['chromium', chromium]];
+try {
+  await (await webkit.launch()).close();
+  engines.push(['webkit', webkit]);
+} catch (err) {
+  console.log(`\n  SKIP  webkit could not launch on this host: ${String(err.message).split('\n')[0]}`);
+}
+
+for (const [name, launcher] of engines) {
   // --- it opens, and never says it is listening while it is not ------------
   {
     console.log(`\n${name}: the tuner opens\n`);

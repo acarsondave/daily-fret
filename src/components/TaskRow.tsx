@@ -455,7 +455,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
             </div>
             {editDrillKind === 'one-minute-changes' && (
               <>
-                <span className="drill-hint">Chords to switch between</span>
+                <span className="drill-hint">Chords to switch between (each pair becomes its own task)</span>
                 <div className="drill-chip-grid">
                   {DRILL_CHORDS.map(c => (
                     <button
@@ -526,7 +526,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
             )}
             {editDrillKind === 'none' && (
               <>
-                <span className="drill-hint">Timed blocks (optional). One per pattern, each with its own minutes.</span>
+                <span className="drill-hint">Timed blocks (optional). Each block is saved as its own task.</span>
                 <div className="drill-blocks">
                   {editBlocks.map(block => (
                     <div key={block.id} className="drill-block">

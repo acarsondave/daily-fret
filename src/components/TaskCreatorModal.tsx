@@ -218,7 +218,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
             )}
             {drillKind === 'one-minute-changes' && (
               <>
-                <span className="drill-hint">Chords to switch between (pairs are auto-made)</span>
+                <span className="drill-hint">Chords to switch between (each pair becomes its own task)</span>
                 <div className="drill-chip-grid">
                   {DRILL_CHORDS.map(c => (
                     <button
@@ -288,7 +288,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
             {drillKind === 'none' && (
               <>
                 <span className="drill-hint">
-                  Timed blocks (optional). One per pattern, each with its own minutes.
+                  Timed blocks (optional). Each block is saved as its own task.
                 </span>
                 <div className="drill-blocks">
                   {blocks.map(block => (
