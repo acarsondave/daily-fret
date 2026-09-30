@@ -178,6 +178,20 @@
   }
 }
 
+/* A tablet held upright is wide enough for the whole nav on one line once the
+   pills stop padding for a laptop. With Quick beside Coached it wrapped
+   Progress onto a second row at 768, and that row came straight out of the
+   height the day's list gets. Phones keep their own, tighter sizes below. */
+@media (min-width: 601px) and (max-width: 899px) {
+  .path-rail-nav {
+    gap: var(--space-2);
+  }
+  .path-rail-nav .progress-launch,
+  .path-rail-nav .routine-selector {
+    padding-inline: var(--space-4);
+  }
+}
+
 @media (min-width: 900px) {
   .rail-group {
     display: flex;
