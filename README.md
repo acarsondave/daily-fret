@@ -15,6 +15,14 @@ hands-free session with a spoken coach.
 - **Coached mode.** Runs a routine end to end: announces each drill by name,
   counts you in, runs the drill, then a short rest, and repeats. Optional spoken
   coach voice and sound effects; resumes where you left off.
+- **Quick paths.** For days the whole routine isn't happening: tap **Quick**
+  beside **Coached**, tick any of the routine's tasks, and run just those in the
+  same coached session (coach, click, camera, record, streak). The last choice
+  is remembered per routine.
+- **One exercise per task.** A changes task over several chords is one task per
+  pair, and a timed task with several blocks is one task per block, so any one
+  of them can be run on its own. Older routines are split on load without
+  touching past days (`src/lib/taskSplit.ts`).
 - **Progress.** Per-chord-pair history and best scores over time.
 - **Local-first with optional sync.** Works offline via `localStorage`; signing
   in with Firebase syncs routines and progress across devices.
@@ -62,5 +70,45 @@ Then commit `public/coach/` and `scripts/drill-names.json`. Phrases live in
 - `npm run dev` — dev server
 - `npm run build` — typecheck and production build
 - `npm run lint` — ESLint
+- `npm test` — unit suites (`tests/*.test.mjs`, no framework)
+- `npm run health` — the maintenance check (below)
 - `npm run names` — fetch your drill names from Firebase
 - `npm run gen:voice` — render coach-voice clips
+
+## Health check
+
+One command for a maintenance pass:
+
+```bash
+npm run health               # build, unit tests, lint, npm audit, live smoke
+npm run health -- --live     # live site only, a few seconds
+npm run health -- --browser  # also every browser suite, one at a time (slow)
+```
+
+The live part loads https://routines.minirecc.com in a throwaway headless
+browser (nothing signed in, nothing written anywhere), checks the shell, the
+service worker, the coach pack and a deep link, seeds a routine with one
+combined task and checks that it is split and that Quick paths opens. With
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in the environment it also
+reports whether production was built from `origin/main`. Point it elsewhere
+with `HEALTH_URL=…`. The exit code is the number of failed checks.
+
+Deploys are automatic: Cloudflare Pages builds `main` on every push, with the
+`VITE_FIREBASE_*` values set as production build variables in the project.
+
+Two machine notes. If `NODE_ENV=production` is set in your shell, `npm ci`
+skips the dev dependencies; use `NODE_ENV=development npm ci` (the health
+script sets it for its own steps). The browser suites need
+`npx playwright install chromium` once.
+
+## Browser suites
+
+`tests/browser/*.mjs` drive a real Chromium against a preview build:
+
+```bash
+npm run build && npx vite preview --port 4173
+PREVIEW_URL=http://localhost:4173/ node tests/browser/quickPaths.mjs
+```
+
+Run them one at a time: several feed synthesised guitar audio through a fake
+microphone and are timing-sensitive on a busy machine.
