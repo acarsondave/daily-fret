@@ -40,6 +40,12 @@ import { bestAnchoredPair, describeAnchors, type Anchor } from './anchors';
 import { BEGINNER_MODULES, findModule, gradeOfModule } from './beginnerCourse';
 import { chordPairs } from './pairs';
 import { songsPlayableWith } from './songCatalog';
+import { splitTask } from './taskSplit';
+import { taskMinutes } from './coached';
+
+// Lives beside the session builder now, so the Quick path sheet can total a
+// selection without pulling the curriculum this file imports.
+export { taskMinutes };
 
 const CHORD_PERFECT_SECONDS = 90;
 const CHANGES_SECONDS = 60;
@@ -511,13 +517,18 @@ function buildPlayingTasks(basis: RoutineBasis, module: number | null): Task[] {
     );
   }
 
+  // One task per pair, sharing one exercise. A changes task over several pairs
+  // could only ever be run whole, and the one change a player wants to drill on
+  // its own is exactly the one buried in the middle of it (lib/taskSplit.ts).
   const pairs = pairsToDrill(newChords, vocabulary).slice(0, MAX_PAIRS);
   if (pairs.length) {
     tasks.push(
-      task(newChords.length ? `${list(newChords)} changes` : 'Chord changes', {
-        description: 'One minute each. Count only the clean ones.',
-        drill: { kind: 'one-minute-changes', durationSec: CHANGES_SECONDS, pairs },
-      }),
+      ...splitTask(
+        task(newChords.length ? `${list(newChords)} changes` : 'Chord changes', {
+          description: 'One minute. Count only the clean ones.',
+          drill: { kind: 'one-minute-changes', durationSec: CHANGES_SECONDS, pairs },
+        }),
+      ),
     );
   }
 
@@ -615,37 +626,6 @@ function buildPlayingTasks(basis: RoutineBasis, module: number | null): Task[] {
     }),
     ...tasks,
   ];
-}
-
-/**
- * Whole minutes one task will take, or 0 for one that has no length.
- *
- * Whole minutes because the number is drawn as well as printed: first run shows
- * the session as one stroke per minute, and a total that did not equal the
- * strokes beside it would be the drawing and the caption disagreeing in public.
- * Rounding per task and summing is therefore the definition, not an
- * approximation of one.
- *
- * A song play-along comes back as 0. It runs until the record ends and the
- * routine does not get to say how long that is; the block it replaced claimed
- * five minutes, which was a number nobody had measured.
- */
-export function taskMinutes(task: Task): number {
-  if (task.duration) return Math.max(1, Math.round(Number(task.duration)));
-  if (task.blocks?.length) {
-    const seconds = task.blocks.reduce((total, b) => total + b.durationSec, 0);
-    return seconds > 0 ? Math.max(1, Math.round(seconds / 60)) : 0;
-  }
-  const drill = task.drill;
-  if (!drill) return 0;
-  if (drill.kind === 'song') return 0;
-  const seconds =
-    drill.kind === 'one-minute-changes'
-      ? (drill.pairs?.length ?? 1) * (drill.durationSec ?? CHANGES_SECONDS)
-      : drill.kind === 'chord-trainer'
-        ? (drill.durationSec ?? CHORD_PERFECT_SECONDS)
-        : (drill.durationSec ?? CHANGES_SECONDS);
-  return Math.max(1, Math.round(seconds / 60));
 }
 
 /**

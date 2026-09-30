@@ -69,6 +69,16 @@ export interface Task {
   drill?: DrillConfig; // when set, the task launches an interactive detector
   blocks?: TimedBlock[]; // when set (and no drill), a multi-block timed task
   bpm?: number; // practice tempo for a plain timed task (see TimedBlock.bpm)
+  // The exercise this task is one part of, when it was split out of a task that
+  // bundled several (one changes task over three chords is three pairs). Kept
+  // so the parts can still be announced, grouped and paced as one exercise.
+  // See src/lib/taskSplit.ts.
+  group?: TaskGroup;
+}
+
+export interface TaskGroup {
+  id: string;
+  title: string;
 }
 
 export interface Routine {

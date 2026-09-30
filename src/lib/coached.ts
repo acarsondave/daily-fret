@@ -8,7 +8,20 @@ import { SONG_STRUM_SECONDS, songStrumPatterns } from './songStrum';
 // segments: chord-change tasks expand across the routine's pairs, the chord
 // trainer is seeded with the routine's chords, and any plain task becomes a
 // timed block. This is what lets one "Coached" tap run the whole day.
-export type CoachSegment =
+//
+// Every segment also says what the coach announces it as and which exercise it
+// belongs to. A task is atomic now (lib/taskSplit.ts), so three pairs that used
+// to be one task are three tasks, and without these the session would name
+// "Chord Speed Training" three times over and rest a full minute between two
+// halves of one strumming exercise.
+export interface SegmentMeta {
+  /** What the coach says before it. Consecutive segments saying the same are announced once. */
+  announce: string;
+  /** The exercise it is part of: the task's group, or the task itself. */
+  group: string;
+}
+
+export type CoachSegment = SegmentMeta & (
   | { kind: 'changes'; taskId: string; title: string; from: string; to: string; seconds: number }
   | { kind: 'trainer'; taskId: string; title: string; chords: string[]; seconds: number }
   | { kind: 'rotation'; taskId: string; title: string; chords: string[]; seconds: number }
@@ -33,7 +46,7 @@ export type CoachSegment =
       /** A rung pinned by the routine. Absent lets the drill read its own history. */
       rungId?: string;
     }
-  | { kind: 'timed'; taskId: string; title: string; description?: string; seconds: number; pattern?: string; bpm?: number };
+  | { kind: 'timed'; taskId: string; title: string; description?: string; seconds: number; pattern?: string; bpm?: number });
 
 // Parse a free-form duration label ("5 mins", "2-3 mins", "90s") into seconds.
 // Durations are now captured as plain minute numbers ("5"), but legacy labels
@@ -99,6 +112,39 @@ export function timedBlocks(task: Task): TimedBlock[] {
 }
 
 /**
+ * Whole minutes one task will take, or 0 for one that has no length.
+ *
+ * Whole minutes because the number is drawn as well as printed: first run shows
+ * the session as one stroke per minute, and a total that did not equal the
+ * strokes beside it would be the drawing and the caption disagreeing in public.
+ * Rounding per task and summing is therefore the definition, not an
+ * approximation of one.
+ *
+ * A song play-along comes back as 0. It runs until the record ends and the
+ * routine does not get to say how long that is; the block it replaced claimed
+ * five minutes, which was a number nobody had measured.
+ */
+export function taskMinutes(task: Task): number {
+  // Read through the same parser the timer runs on. `Number("5 mins")` is NaN,
+  // and routines saved before durations were bare digits still say that.
+  if (task.duration) return Math.max(1, Math.round(parseDuration(task.duration) / 60));
+  if (task.blocks?.length) {
+    const seconds = task.blocks.reduce((total, b) => total + b.durationSec, 0);
+    return seconds > 0 ? Math.max(1, Math.round(seconds / 60)) : 0;
+  }
+  const drill = task.drill;
+  if (!drill) return 0;
+  if (drill.kind === 'song') return 0;
+  const seconds =
+    drill.kind === 'one-minute-changes'
+      ? (drill.pairs?.length ?? 1) * (drill.durationSec ?? 60)
+      : drill.kind === 'chord-trainer'
+        ? (drill.durationSec ?? 90)
+        : (drill.durationSec ?? 60);
+  return Math.max(1, Math.round(seconds / 60));
+}
+
+/**
  * The runnable segments of a routine, in the order the session plays them.
  *
  * `songs` is the catalogue to look song tasks up in, which is the built-in
@@ -117,6 +163,10 @@ export function buildSegments(
 
   for (const task of routine.tasks) {
     const kind = task.drill?.kind;
+    const group = task.group?.id ?? task.id;
+    // The exercise's own name, which is what the coach has a clip for and what
+    // the intro shows; the pair is drawn under it.
+    const exercise = task.group?.title ?? task.title;
     // Interactive drills run for their own configured length (defaulting to the
     // classic 60s), derived straight from the task's drill config.
     const drillSeconds = task.drill?.durationSec ?? 60;
@@ -134,7 +184,7 @@ export function buildSegments(
       const explicit = task.drill?.pairs?.filter((p) => p.from && p.to && p.from !== p.to);
       const pairs = explicit?.length ? explicit : chordPairs(changeChords);
       for (const p of pairs) {
-        segments.push({ kind: 'changes', taskId: task.id, title: task.title, from: p.from, to: p.to, seconds: drillSeconds });
+        segments.push({ kind: 'changes', taskId: task.id, title: exercise, announce: exercise, group, from: p.from, to: p.to, seconds: drillSeconds });
       }
     } else if (kind === 'chord-rotation') {
       // Anchor changes: cycle the task's ordered ring (falls back to the routine's
@@ -143,6 +193,8 @@ export function buildSegments(
         kind: 'rotation',
         taskId: task.id,
         title: task.title,
+        announce: task.title,
+        group,
         chords: task.drill?.chords?.length ? task.drill.chords : learned,
         seconds: drillSeconds,
       });
@@ -152,6 +204,8 @@ export function buildSegments(
         kind: 'trainer',
         taskId: task.id,
         title: task.title,
+        announce: task.title,
+        group,
         chords: task.drill?.chords?.length ? task.drill.chords : learned,
         seconds: drillSeconds,
       });
@@ -164,6 +218,8 @@ export function buildSegments(
         kind: 'timing',
         taskId: task.id,
         title: task.title,
+        announce: task.title,
+        group,
         seconds: drillSeconds,
         bpm: task.drill?.bpm,
       });
@@ -176,6 +232,8 @@ export function buildSegments(
         kind: 'patterns',
         taskId: task.id,
         title: task.title,
+        announce: task.title,
+        group,
         seconds: drillSeconds,
         bpm: task.drill?.bpm,
         patterns: task.drill?.patterns,
@@ -190,6 +248,8 @@ export function buildSegments(
         kind: 'finder',
         taskId: task.id,
         title: task.title,
+        announce: task.title,
+        group,
         seconds: drillSeconds,
         rungId: task.drill?.rungId,
       });
@@ -218,6 +278,8 @@ export function buildSegments(
           kind: 'patterns',
           taskId: task.id,
           title: `${song.title} strum`,
+          announce: `${song.title} strum`,
+          group,
           seconds: SONG_STRUM_SECONDS,
           patterns,
           // No tempo stated on purpose. The song's own BPM is the record's, and
@@ -232,6 +294,8 @@ export function buildSegments(
         kind: 'song',
         taskId: task.id,
         title: task.title,
+        announce: task.title,
+        group,
         songId: task.drill.songId,
       });
     } else {
@@ -243,6 +307,8 @@ export function buildSegments(
           kind: 'timed',
           taskId: task.id,
           title: block.label,
+          announce: block.label,
+          group,
           description: block.note,
           seconds: block.durationSec,
           pattern: block.pattern,
@@ -323,13 +389,18 @@ const REST_AFTER: Record<CoachSegment['kind'], number> = {
   timed: 8,
 };
 
+/** The exercise a segment belongs to. Segments built before groups existed fall back to their task. */
+const exerciseOf = (segment: CoachSegment): string => segment.group ?? segment.taskId;
+
 export function restSecondsAfter(ended: CoachSegment, next: CoachSegment | undefined): number {
   // Nothing follows the last segment, so there is nothing to rest before.
   if (!next) return 0;
   // Two timed blocks of one task are one exercise with a label change halfway
   // through. A full announced rest between "Pattern 1" and "Pattern 2" of the
   // same strumming task interrupts the thing it is meant to sit between.
-  if (ended.kind === 'timed' && next.kind === 'timed' && ended.taskId === next.taskId) return 0;
+  // Judged by the exercise rather than the task, because the blocks of a
+  // strumming task are separate tasks now and still one exercise.
+  if (ended.kind === 'timed' && next.kind === 'timed' && exerciseOf(ended) === exerciseOf(next)) return 0;
   return REST_AFTER[ended.kind];
 }
 

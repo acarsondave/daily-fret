@@ -55,6 +55,12 @@ console.log('\nTwo timed blocks of one task are not two exercises\n');
   // attempts is the exercise.
   is('and a pair of counted segments of one task keeps its full minute',
     changes('speed'), changes('speed'), 60);
+  // Tasks are atomic now: the two blocks of one strumming task are two tasks
+  // that remember they are one exercise. The rule follows the exercise.
+  is('two parts split out of one timed task still run straight on',
+    { ...timed('strum:b1', 'Pattern 1'), group: 'strum' }, { ...timed('strum:b2', 'Pattern 2'), group: 'strum' }, 0);
+  is('and two changes parts of one exercise keep their full minute',
+    { ...changes('speed:A>D'), group: 'speed' }, { ...changes('speed:A>E'), group: 'speed' }, 60);
 }
 
 console.log('\nThe last segment has nothing to rest before\n');
