@@ -838,6 +838,14 @@
   .add-task-btn {
     min-height: 44px;
   }
+  /* The taller target brings its own breathing room, so the footer gives back
+     the same nine pixels. Taken from the list instead, they were the second
+     task's row on a 360-wide phone: the layout suite only saw it once it ran
+     in WebKit with an iPhone's touch screen, which Chromium never emulated. */
+  .task-container-footer {
+    padding-top: 0;
+    padding-bottom: var(--space-2);
+  }
 }
 
 /* Safari before 18 only knows the prefixed form. Kept in its own block because

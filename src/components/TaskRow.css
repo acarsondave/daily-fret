@@ -355,6 +355,11 @@
   .task-go {
     width: 32px;
     height: 32px;
+    /* The thumb gets 32px; the line it sits on keeps the 26px it was laid out
+       for. Without this the bigger target made every row six pixels taller on
+       a touch screen, and a 360-wide phone lost its second whole row. The
+       spare three pixels each side overlap the row's own 16px padding. */
+    margin-block: -3px;
   }
 }
 
