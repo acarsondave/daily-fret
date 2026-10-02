@@ -8,7 +8,9 @@
 //   HEALTH_URL=https://… npm run health -- --live
 //
 // The live smoke uses a throwaway browser with nothing signed in, so it reads
-// the site and writes nothing anywhere but its own scratch localStorage.
+// the site and writes nothing anywhere but its own scratch localStorage. It
+// runs in Chromium and in WebKit as an iPhone, the Safari check on a host with
+// no Mac; WebKit needs `npx playwright install-deps webkit` once per machine.
 //
 // When CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are set it also says
 // which commit production was built from and whether that is origin/main.
@@ -17,7 +19,7 @@
 
 import { spawnSync, spawn } from 'node:child_process';
 import { setDefaultResultOrder } from 'node:dns';
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -80,12 +82,21 @@ if (withBrowser && !liveOnly) {
   const suites = readdirSync(join(ROOT, 'tests/browser'))
     .filter((f) => f.endsWith('.mjs') && !['tone.mjs', 'fakeGuitar.mjs'].includes(f))
     .sort();
-  for (const suite of suites) {
+  // Suites that take BROWSER (tests/browser/engine.mjs) run a second time in
+  // WebKit as an iPhone: that is the Safari check on a host with no Mac.
+  const runs = suites.flatMap((suite) => {
+    const takesEngine = readFileSync(join(ROOT, 'tests/browser', suite), 'utf8').includes('./engine.mjs');
+    return takesEngine ? [[suite, 'chromium'], [suite, 'webkit']] : [[suite, null]];
+  });
+  for (const [suite, engine] of runs) {
     const res = spawnSync('node', [join('tests/browser', suite), '/tmp/daily-fret-health-shots'], {
-      cwd: ROOT, env: { ...env, PREVIEW_URL: `http://localhost:${port}/` }, encoding: 'utf8', timeout: 600_000,
+      cwd: ROOT,
+      env: { ...env, PREVIEW_URL: `http://localhost:${port}/`, ...(engine ? { BROWSER: engine } : {}) },
+      encoding: 'utf8',
+      timeout: 600_000,
     });
     const fails = `${res.stdout ?? ''}`.split('\n').filter((l) => /^\s*FAIL/.test(l));
-    record(`browser: ${suite}`, res.status === 0, fails.slice(0, 2).join(' / ').trim());
+    record(`browser: ${suite}${engine ? ` (${engine})` : ''}`, res.status === 0, fails.slice(0, 2).join(' / ').trim());
   }
   preview.kill();
 }
@@ -126,10 +137,18 @@ try {
 
 // A real load in a real browser: seed a routine the way an old install saved it
 // (one combined task), and check the app splits it and offers a Quick path.
+// Run in Chromium and again in WebKit as an iPhone, which is how Safari is
+// checked without a Mac or a phone (tests/browser/engine.mjs). WebKit needs
+// its system libraries (`npx playwright install-deps webkit`); a host without
+// them reports the Safari check as not run instead of passing it.
+const { chromium, webkit, devices } = await import('playwright');
+for (const [label, launcher, context] of [
+  ['', chromium, { viewport: { width: 390, height: 844 } }],
+  [' (Safari/WebKit, iPhone)', webkit, { ...devices['iPhone 15'], viewport: { width: 390, height: 844 } }],
+]) {
 try {
-  const { chromium } = await import('playwright');
-  const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const browser = await launcher.launch();
+  const page = await (await browser.newContext(context)).newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e).slice(0, 160)));
   await page.addInitScript(() => {
@@ -147,19 +166,20 @@ try {
   await page.goto(LIVE, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await page.waitForSelector('.task-container', { timeout: 30000 });
   const rows = await page.locator('.task-row').count();
-  record('the app renders a routine', rows > 0, `${rows} rows`);
-  record('a combined task is split into its pairs', rows === 4, `${rows} rows (want 4)`);
+  record(`the app renders a routine${label}`, rows > 0, `${rows} rows`);
+  record(`a combined task is split into its pairs${label}`, rows === 4, `${rows} rows (want 4)`);
   const quick = page.getByRole('button', { name: /^quick$/i });
-  record('Quick paths is offered', (await quick.count()) === 1);
+  record(`Quick paths is offered${label}`, (await quick.count()) === 1);
   if (await quick.count()) {
     await quick.click();
     await page.waitForSelector('.quick-sheet', { timeout: 10000 });
-    record('the Quick path sheet opens', (await page.getByRole('checkbox').count()) === 4);
+    record(`the Quick path sheet opens${label}`, (await page.getByRole('checkbox').count()) === 4);
   }
-  record('no uncaught errors on the page', errors.length === 0, errors.join(' / '));
+  record(`no uncaught errors on the page${label}`, errors.length === 0, errors.join(' / '));
   await browser.close();
 } catch (err) {
-  record('live browser smoke', false, String(err?.message ?? err).split('\n')[0]);
+  record(`live browser smoke${label}`, false, String(err?.message ?? err).split('\n')[0]);
+}
 }
 
 // --- deploy -----------------------------------------------------------------
