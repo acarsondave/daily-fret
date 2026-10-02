@@ -9,7 +9,7 @@
 //   npm run build && npx vite preview --port 4173 --strictPort
 //   node tests/browser/layout.mjs
 
-import { chromium } from 'playwright';
+import { launch, contextOptions, ENGINE } from './engine.mjs';
 import { mkdirSync } from 'node:fs';
 const BASE=process.env.PREVIEW_URL ?? 'http://localhost:4173/';
 const SHOT=(process.argv[2] ?? 'tests/browser/.shots') + '/layout-';
@@ -32,9 +32,10 @@ const account=(extra={})=>({
   strumPatterns:[],songLinks:[],updatedAt:1,...extra});
 const seed=(e)=>({currentAccountId:'anonymous',accounts:{anonymous:account(e)}});
 
-const browser=await chromium.launch();
+const browser=await launch();
+console.log(`engine: ${ENGINE}`);
 async function open(state,vp){
-  const ctx=await browser.newContext({viewport:vp});
+  const ctx=await browser.newContext(contextOptions(vp));
   const page=await ctx.newPage();
   const errors=[];
   page.on('console',m=>m.type()==='error'&&errors.push(m.text()));
@@ -50,7 +51,7 @@ const box=(page,sel)=>page.evaluate(s=>{const e=document.querySelector(s);if(!e)
   right:+b.right.toFixed(1),bottom:+b.bottom.toFixed(1)};},sel);
 
 for (const vp of [{width:1440,height:900},{width:1366,height:572},{width:1280,height:800},
-                  {width:1024,height:700},{width:900,height:700},{width:768,height:900},
+                  {width:1024,height:700},{width:900,height:700},{width:820,height:1180},{width:768,height:900},
                   {width:430,height:860},{width:390,height:780},{width:360,height:740}]) {
   console.log(`\n=== ${vp.width}x${vp.height} ===`);
   const {ctx,page,errors}=await open(seed(),vp);
@@ -166,7 +167,7 @@ const EXPECT={
 
 for (const w of [1366,1024,390]) {
   for (const [state,who] of [[seed(),'a practised account'],[seed({dailyLogs:{}}),'day zero']]) {
-    const ctx=await browser.newContext({viewport:{width:w,height:w===390?780:700}});
+    const ctx=await browser.newContext(contextOptions({width:w,height:w===390?780:700}));
     const page=await ctx.newPage();
     await page.addInitScript(s=>localStorage.setItem('daily-fret-storage',JSON.stringify({state:s,version:0})),state);
     await page.goto(BASE,{waitUntil:'domcontentloaded'});
@@ -239,7 +240,7 @@ for (const w of [1366,1024,390]) {
 // 20px disagreement; everybody feels it.
 console.log('\nEdges');
 for (const w of [1800,1440,1366,1280,1024,900,820,768,430,390,360]) {
-  const ctx=await browser.newContext({viewport:{width:w,height:900}});
+  const ctx=await browser.newContext(contextOptions({width:w,height:900}));
   const page=await ctx.newPage();
   await page.addInitScript(s=>localStorage.setItem('daily-fret-storage',JSON.stringify({state:s,version:0})),seed());
   await page.goto(BASE,{waitUntil:'domcontentloaded'});

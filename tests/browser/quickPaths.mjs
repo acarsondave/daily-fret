@@ -13,8 +13,9 @@
 //
 //   npm run build && npx vite preview --port 4173
 //   node tests/browser/quickPaths.mjs [outputDir]
+//   BROWSER=webkit node tests/browser/quickPaths.mjs [outputDir]   (the Safari check)
 
-import { chromium } from 'playwright';
+import { launch, contextOptions, ENGINE } from './engine.mjs';
 import { mkdirSync } from 'node:fs';
 
 const OUT = process.argv[2] ?? 'tests/browser/.shots';
@@ -70,12 +71,11 @@ const account = (extra = {}) => ({
   ...extra,
 });
 
-const browser = await chromium.launch({
-  args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required'],
-});
+const browser = await launch({ media: true });
+console.log(`engine: ${ENGINE}`);
 
 async function open(acc, viewport = { width: 390, height: 844 }) {
-  const ctx = await browser.newContext({ viewport, permissions: ['microphone'] });
+  const ctx = await browser.newContext(contextOptions(viewport, { microphone: true }));
   const page = await ctx.newPage();
   const errors = [];
   // Firebase refuses a preview build's placeholder key; that is the environment,
