@@ -97,7 +97,16 @@ const MIC = {
       value: {
         // A real audio track with no device behind it, so the graph builds in
         // headless engines that have no microphone to offer.
-        getUserMedia: async () => new Ctor().createMediaStreamDestination().stream,
+        // The context is kept on window: left unreferenced, WebKit collects it
+        // and ends the track, and the tuner rightly says the microphone closed.
+        // A real microphone does not end because a page dropped a reference.
+        getUserMedia: async () => {
+          window.__fakeMicContext = new Ctor();
+          const stream = window.__fakeMicContext.createMediaStreamDestination().stream;
+          // Recorded so the case can tell the stand-in failing from the app.
+          stream.getAudioTracks()[0]?.addEventListener('ended', () => { window.__fakeMicEnded = true; });
+          return stream;
+        },
       },
     });
     Object.defineProperty(Ctor.prototype, 'state', { configurable: true, get: () => 'suspended' });
@@ -184,9 +193,31 @@ for (const [name, launcher] of engines) {
   // --- a refused audio route is stated, not spun on ------------------------
   {
     console.log(`\n${name}: the browser will not start audio\n`);
-    const { browser, page, errors } = await open(launcher, { mic: 'refusedRoute' });
+    let { browser, page, errors } = await open(launcher, { mic: 'refusedRoute' });
     await page.waitForSelector('.tuner-overlay', { timeout: 10000 });
-    await page.waitForTimeout(1500);
+    // Headless WebKit on Linux sometimes ends the stand-in microphone's track
+    // under load (its audio backend has no device behind it). The tuner then
+    // says the microphone closed, which is the right answer to a track that
+    // ended, and not this case. Seen, it is said and the case runs once more;
+    // a second ended track fails as usual.
+    await page.waitForTimeout(1000);
+    if (await page.evaluate(() => window.__fakeMicEnded === true)) {
+      console.log('  note  the stand-in microphone track ended (test harness); running the case again');
+      await browser.close();
+      ({ browser, page, errors } = await open(launcher, { mic: 'refusedRoute' }));
+      await page.waitForSelector('.tuner-overlay', { timeout: 10000 });
+    }
+    // A hang is "Asking" that never ends, so give the start-up a bounded while
+    // to finish rather than reading the screen once at a fixed moment. One
+    // fixed 1.5s read failed WebKit on a busy host that reached "Audio is
+    // paused" a little later, and would pass a hang that began at 1.6s.
+    await page
+      .waitForFunction(
+        () => !/asking for the microphone/i.test(document.querySelector('.tuner-call')?.textContent ?? ''),
+        null,
+        { timeout: 8000 },
+      )
+      .catch(() => {});
     const guidance = (await text(page, '.tuner-call')) ?? '';
     check('it does not hang on opening the microphone', !/asking for the microphone/i.test(guidance), guidance);
     check('it says audio is paused', /audio is paused/i.test(guidance), guidance);
@@ -296,6 +327,7 @@ const targetString = (page) =>
     .then((l) => (l ? /string (\d)/.exec(l)?.[1] ?? null : null))
     .catch(() => null);
 const settledCount = (page) => page.locator('.headstock-machine.is-settled').count();
+const toCents = (shown) => Number(String(shown).replace('\u2212', '-').replace(' cents', ''));
 
 {
   console.log('\nguided: it leads before anything is played\n');
@@ -432,12 +464,23 @@ const settledCount = (page) => page.locator('.headstock-machine.is-settled').cou
   await page.waitForFunction(
     () => /cents/.test(document.querySelector('.tuner-cents')?.textContent ?? ''),
     null, { timeout: 20000 });
-  const value = await text(page, '.tuner-cents');
+  // The first number on screen is the note arriving, not the note held, and on
+  // a busy machine it lands a few cents short (−34 against −38 across runs of
+  // one fixture). What a player reads is where it settles, so take the middle
+  // of two seconds of readings.
+  const readings = [];
+  for (let i = 0; i < 10; i += 1) {
+    await page.waitForTimeout(200);
+    const shown = await text(page, '.tuner-cents');
+    if (shown && /cents/.test(shown)) readings.push(shown);
+  }
+  const middle = (xs) => [...xs].sort((a, b) => toCents(a) - toCents(b))[Math.floor(xs.length / 2)];
+  const value = readings.length ? middle(readings) : (await text(page, '.tuner-cents')) ?? '';
   check('signed the universal way', value.startsWith('\u2212'), value);
   // Within a couple of cents of the tone in the file. The remaining offset is
   // the fake-capture path resampling 44.1k to the context rate, not the
   // estimator: an exactly-in-tune fixture reads 0.
-  const read = Number(value.replace('\u2212', '-').replace(' cents', ''));
+  const read = toCents(value);
   check('and reads what a player would expect', read <= -35 && read >= -41, value);
   check('the cue is still the headline', /^Tighten$/.test(await text(page, '.tuner-call')),
     await text(page, '.tuner-call'));
