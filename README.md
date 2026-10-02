@@ -88,7 +88,8 @@ npm run health -- --browser  # also every browser suite, one at a time (slow)
 The live part loads https://routines.minirecc.com in a throwaway headless
 browser (nothing signed in, nothing written anywhere), checks the shell, the
 service worker, the coach pack and a deep link, seeds a routine with one
-combined task and checks that it is split and that Quick paths opens. With
+combined task and checks that it is split and that Quick paths opens, once in
+Chromium and once in WebKit as an iPhone (the Safari check). With
 `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in the environment it also
 reports whether production was built from `origin/main`. Point it elsewhere
 with `HEALTH_URL=…`. The exit code is the number of failed checks.
@@ -99,7 +100,8 @@ Deploys are automatic: Cloudflare Pages builds `main` on every push, with the
 Two machine notes. If `NODE_ENV=production` is set in your shell, `npm ci`
 skips the dev dependencies; use `NODE_ENV=development npm ci` (the health
 script sets it for its own steps). The browser suites need
-`npx playwright install chromium` once.
+`npx playwright install chromium webkit` once, and on Linux WebKit also needs
+its system libraries: `npx playwright install-deps webkit` (needs root).
 
 ## Browser suites
 
@@ -112,3 +114,20 @@ PREVIEW_URL=http://localhost:4173/ node tests/browser/quickPaths.mjs
 
 Run them one at a time: several feed synthesised guitar audio through a fake
 microphone and are timing-sensitive on a busy machine.
+
+### Safari, without a Mac
+
+Safari is checked with Playwright's WebKit, the engine Safari is built on, on
+any Linux or macOS machine. No Mac or iPhone is needed. Suites that import
+`tests/browser/engine.mjs` (`quickPaths`, `layout`) take `BROWSER=webkit` and
+then run as an iPhone (touch, 3x scale, Safari's user agent) at each phone
+viewport. `tuner` always runs both engines:
+
+```bash
+BROWSER=webkit PREVIEW_URL=http://localhost:4173/ node tests/browser/quickPaths.mjs
+BROWSER=webkit PREVIEW_URL=http://localhost:4173/ node tests/browser/layout.mjs
+```
+
+WebKit is not Safari on iOS. It has no iOS audio session, no home-screen
+install and no real microphone. Anything that needs those is listed in
+`docs/STATUS.md` under "needs Acarson's phone".
