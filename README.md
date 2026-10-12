@@ -23,6 +23,10 @@ hands-free session with a spoken coach.
   pair, and a timed task with several blocks is one task per block, so any one
   of them can be run on its own. Older routines are split on load without
   touching past days (`src/lib/taskSplit.ts`).
+- **Module 6.** One-tap living-routine update with preview, snooze and archived Undo.
+  Adds G/D practice, 6/8 strumming, alternate picking and two 6/8 songs, preserving
+  past results. The metronome now supports 4/4, 3/4 and 6/8 with configurable
+  accents. [Details, sources and measurement limits](docs/MODULE6.md).
 - **Progress.** Per-chord-pair history and best scores over time.
 - **Local-first with optional sync.** Works offline via `localStorage`; signing
   in with Firebase syncs routines and progress across devices.
@@ -114,6 +118,12 @@ PREVIEW_URL=http://localhost:4173/ node tests/browser/quickPaths.mjs
 
 Run them one at a time: several feed synthesised guitar audio through a fake
 microphone and are timing-sensitive on a busy machine.
+
+Module 6: `node tests/browser/module6.mjs <shotsDir>` and
+`BROWSER=webkit node tests/browser/module6.mjs <shotsDir>`. Both accept
+`PREVIEW_URL`. This suite feeds decoded PCM on the capture clock through the real
+worklet and scorer; `M6_AUDIO_SOURCE=native` is a separate Chromium fake-device
+diagnostic, not a reliable scored fixture on the busy VPS.
 
 ### Safari, without a Mac
 

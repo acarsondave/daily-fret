@@ -11,7 +11,7 @@
 // it when the song stops. Not on mount, and not on the intro screen.
 
 import { getOutputContext, releaseOutputAudio, requestOutputAudio } from './outputContext';
-import { COUNT_IN_BEATS, VOICES, renderClick, type BeatAccent } from './metronome';
+import { VOICES, renderClick, type BeatAccent } from './metronome';
 import { renderStrum, type StrumDir } from './songVoice';
 import { getChordShape } from '../data/chordShapes';
 import { parseStrum } from '../data/songs';
@@ -76,7 +76,7 @@ export function barStrokes(bar: TimedBar): { at: number; dir: StrumDir }[] {
  * moment before the first downbeat, so there is nothing to add to the chart and
  * nothing to add to the timeline.
  */
-export function buildBackingPlan(timeline: SongTimeline, countInBeats = COUNT_IN_BEATS): BackingEvent[] {
+export function buildBackingPlan(timeline: SongTimeline, countInBeats = timeline.bars[0]?.beats ?? 4): BackingEvent[] {
   const events: BackingEvent[] = [];
   const first = timeline.bars[0];
   if (!first) return events;
@@ -92,7 +92,7 @@ export function buildBackingPlan(timeline: SongTimeline, countInBeats = COUNT_IN
       events.push({
         at: bar.startSeconds + b * beat,
         kind: 'click',
-        accent: b === 0 ? 'downbeat' : 'beat',
+        accent: b === 0 ? 'downbeat' : bar.beats === 6 && b === 3 ? 'midbar' : 'beat',
       });
     }
     for (const stroke of barStrokes(bar)) {

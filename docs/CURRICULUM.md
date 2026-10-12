@@ -1,5 +1,12 @@
 # Curriculum data
 
+## Module 6 implementation (2026-10-12)
+
+The current captured lesson data in `curriculum/justinguitar.db.json` informs the
+B1-601..608 plan. See [MODULE6.md](MODULE6.md) for practice mapping, song sources,
+capo/voicing choices and detector limits. The reusable plan is application data in
+`src/lib/moduleRoutine.ts`, not copied lesson prose.
+
 > **Superseded.** This describes the sitemap-derived build, which was replaced
 > on 2026-08-09 by a capture of each lesson page's own published JSON. Its
 > conclusions are no longer true: the lesson pages are readable, module

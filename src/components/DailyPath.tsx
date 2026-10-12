@@ -13,6 +13,7 @@ import { TaskCreatorModal } from './TaskCreatorModal';
 import { QuickPaths } from './QuickPaths';
 import { UndoStrip } from './UndoStrip';
 import { PracticeNudge } from './PracticeNudge';
+import { ModuleUpdate } from './ModuleUpdate';
 import { useUndoStore, type TaskDeletion } from '../store/undo';
 import { RoutineManagerModal } from './RoutineManagerModal';
 import { DayLedger } from './practice/DayLedger';
@@ -641,6 +642,7 @@ export function DailyPath() {
         <div className="task-container">
           {/* Above the list, not over it: the thing it is asking you to do is
               right there underneath. */}
+          <ModuleUpdate />
           <PracticeNudge onStart={openCoached} />
           <div
             ref={listRef}

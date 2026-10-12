@@ -120,6 +120,7 @@ export function SongPlayer({
             chords were three initials, and this screen is the last look at them
             before the song starts and does not wait. */}
         <StrumRow strum={song.strum} size={24} />
+        {song.arrangementNote && <p className="om-caption">{song.arrangementNote}</p>}
         {/* The capo is drawn on every shape rather than written once beside
             them, because it is a fact about how each of these is fretted. Get
             Lucky is charted in A minor against a record in B minor: without the

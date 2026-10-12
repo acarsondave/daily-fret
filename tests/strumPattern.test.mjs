@@ -25,7 +25,13 @@ import {
   DOWN_DETECTION_LAG_MS,
   UP_DETECTION_LAG_MS,
   MIN_PATTERN_PASSES,
+  SIX_EIGHT_MARK,
+  slotsPerBarOf,
+  writePattern,
+  meterOfPattern,
 } from '../src/lib/strumPattern.ts';
+import { SIX_EIGHT_PATTERNS } from '../src/data/strumPatterns.ts';
+import { patternKey, parsePatternKey } from '../src/lib/drillKeys.ts';
 import { TimingAnalyser, TIMING_FRAME_SIZE } from '../src/audio/timing.ts';
 import { SIXTEENTH_MAX_BPM, cappedTempo } from '../src/lib/songStrum.ts';
 import { renderClick, VOICES, accentFor } from '../src/audio/metronome.ts';
@@ -78,6 +84,55 @@ console.log('\nReading a pattern\n');
     parsePattern('D-DU-UD-D-DU-UD-D-DU-UD-') === null);
   check('and the parity rule holds across the bar line',
     parsePattern('D-DU-UD-U-DU-UD-') === null);
+}
+
+console.log('\nA pattern in 6/8\n');
+{
+  // Justin's B1-604 pattern: beats 2 and 5 skipped, an up strum between, the
+  // arm still swinging through everything. Counted 1 + 2 + 3 + 4 + 5 + 6 +.
+  const six = parsePattern(`${SIX_EIGHT_MARK}D--UD-D--UD-`);
+  check('a 6/8 bar is twelve slots: six beats of eighths', six?.slots.length === 12, String(six?.slots.length));
+  check('it knows its bar is six beats long', six?.beatsPerBar === 6 && slotsPerBarOf(six) === 12);
+  check('it is in 6/8', meterOfPattern(six) === '6/8');
+  check('the downs land on 1, 3, 4 and 6', [0, 4, 6, 10].every((i) => six.slots[i] === 'D'));
+  check('the ups sit between 2 and 3 and between 5 and 6', six.slots[3] === 'U' && six.slots[9] === 'U');
+  check('beats 2 and 5 are skipped', six.slots[2] === null && six.slots[8] === null);
+  check('without the mark, twelve characters are still refused', parsePattern('D--UD-D--UD-') === null);
+  check('the mark is written by writePattern', writePattern('D--UD-D--UD-', 2, 6) === `${SIX_EIGHT_MARK}D--UD-D--UD-`);
+  check('a 4/4 pattern is untouched by it', writePattern('D-DU-UD-', 2) === 'D-DU-UD-' && meterOfPattern(parsePattern('D-DU-UD-')) === '4/4');
+  check('a 6/8 bar still has to travel with the arm', parsePattern(`${SIX_EIGHT_MARK}U--UD-D--UD-`) === null);
+  check('every 6/8 rung parses', SIX_EIGHT_PATTERNS.every((p) => parsePattern(p.pattern)?.beatsPerBar === 6));
+  check('there are three rungs, as in the lesson', SIX_EIGHT_PATTERNS.length === 3);
+
+  // The click in 6/8 runs eighth notes, so Justin's "about 130" is 130 here,
+  // and a slot is a sixteenth of a dotted-quarter feel. The up into beat 3 is
+  // one slot from the down on 3: the analyser's floor decides how fast that can
+  // be scored, and the drill has to say so rather than mark good strums missing.
+  check('the full pattern cannot be graded at 130', strokesTooCloseToHear(six, 130));
+  check('it can at 120', !strokesTooCloseToHear(six, 120));
+  check('one down per beat can be graded at 130',
+    !strokesTooCloseToHear(parsePattern(`${SIX_EIGHT_MARK}D-D-D-D-D-D-`), 130));
+
+  // Same strokes, different bar: a 6/8 run and a 4/4 run are different exercises.
+  const key = patternKey(`${SIX_EIGHT_MARK}D--UD-D--UD-`, 110);
+  check('a 6/8 pattern keeps its mark in the history key', parsePatternKey(key)?.pattern === `${SIX_EIGHT_MARK}D--UD-D--UD-`, key);
+}
+
+{
+  // Scoring a perfect 6/8 take. The grid is the eighth-note click.
+  const g = { origin: 1, period: 60 / 110, clicks: 40 };
+  const six = parsePattern(`${SIX_EIGHT_MARK}D--UD-D--UD-`);
+  const onsets = [];
+  for (let pass = 0; pass < 4; pass += 1) {
+    six.slots.forEach((s, slot) => {
+      if (!s) return;
+      const lag = (s === 'U' ? UP_DETECTION_LAG_MS : DOWN_DETECTION_LAG_MS) / 1000;
+      onsets.push(g.origin + ((pass * 12 + slot) / 2) * g.period + lag);
+    });
+  }
+  const summary = summarisePattern(matchPattern({ onsets, grid: g, pattern: six, originBeat: 0, passes: 4 }), six);
+  check('a perfect 6/8 take scores 100', summary.score === 100, String(summary.score));
+  check('six strokes a bar are expected', summary.expected === 6 * 4, String(summary.expected));
 }
 
 // --- scoring, with the answers known ---------------------------------------

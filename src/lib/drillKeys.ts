@@ -39,7 +39,7 @@ import { DRILL_UNIT } from './drills';
 import { PAIR_PREFIX, parsePairKey } from './pairs';
 import { ASSUMED_WINDOW_SEC, WINDOW_SEP, baseKey, keyWindow, perMinute } from './drillWindow';
 import { patternName } from '../data/strumPatterns';
-import { SIXTEENTH_MARK } from './strumPattern';
+import { SIX_EIGHT_MARK, SIXTEENTH_MARK } from './strumPattern';
 import { SONGS } from '../data/songs';
 import { songPatternName } from './songStrum';
 import { getRung } from './noteFinder';
@@ -51,6 +51,13 @@ export const SWEEP_PREFIX = 'sweep:';
 export const TIMING_PREFIX = 'timing:';
 export const PATTERN_PREFIX = 'pattern:';
 export const FIND_PREFIX = 'find:';
+/**
+ * Alternate picking on one string, at a tempo: `pick:70`. A share of picks that
+ * landed in time, like `timing:`, and kept apart from it because one pick on a
+ * single string and one strum across six are different motions with different
+ * histories, even when the number means the same thing.
+ */
+export const PICK_PREFIX = 'pick:';
 
 /**
  * What separates a pattern from the tempo it was held at.
@@ -183,6 +190,16 @@ export function timingKey(bpm: number): string {
   return `${TIMING_PREFIX}${Math.round(bpm / TEMPO_BUCKET) * TEMPO_BUCKET}`;
 }
 
+export function pickKey(bpm: number): string {
+  return `${PICK_PREFIX}${Math.round(bpm / TEMPO_BUCKET) * TEMPO_BUCKET}`;
+}
+
+export function parsePickKey(key: string): number | null {
+  if (!key.startsWith(PICK_PREFIX)) return null;
+  const bpm = Number(baseKey(key).slice(PICK_PREFIX.length));
+  return Number.isFinite(bpm) && bpm > 0 ? bpm : null;
+}
+
 export function parseTimingKey(key: string): number | null {
   if (!key.startsWith(TIMING_PREFIX)) return null;
   const bpm = Number(baseKey(key).slice(TIMING_PREFIX.length));
@@ -224,7 +241,8 @@ export function parsePatternKey(key: string): { pattern: string; bpm: number } |
   // dropped the mark would average one player's two different practices into a
   // single series. Absence of the mark is eighths, so every key ever written
   // still parses to exactly the pattern it always did.
-  if (!new RegExp(`^(${SIXTEENTH_MARK.replace('.', '\\.')})?[DUX-]+$`).test(pattern)) return null;
+  const marks = [SIXTEENTH_MARK, SIX_EIGHT_MARK].map((m) => m.replace('.', '\\.')).join('|');
+  if (!new RegExp(`^(${marks})?[DUX-]+$`).test(pattern)) return null;
   return Number.isFinite(bpm) && bpm > 0 ? { pattern, bpm } : null;
 }
 
@@ -257,7 +275,7 @@ export function rotationRing(chords: readonly string[] | undefined): string[] {
 }
 
 export type DrillKeyKind =
-  | 'pair' | 'chord' | 'pool' | 'ring' | 'sweep' | 'timing' | 'pattern' | 'find' | 'retired';
+  | 'pair' | 'chord' | 'pool' | 'ring' | 'sweep' | 'timing' | 'pick' | 'pattern' | 'find' | 'retired';
 
 export interface DrillKeyDescription {
   kind: DrillKeyKind;
@@ -319,6 +337,10 @@ export function describeDrillKey(key: string): DrillKeyDescription {
   if (bpm) {
     return { kind: 'timing', label: `${bpm} BPM`, unit: DRILL_UNIT['strum-timing'] };
   }
+  const picked = parsePickKey(key);
+  if (picked) {
+    return { kind: 'pick', label: `Picking \u00b7 ${picked} BPM`, unit: DRILL_UNIT['alternate-picking'] };
+  }
   const dealt = parsePatternKey(key);
   if (dealt) {
     // The pattern's own name where it has one, and the string itself where it
@@ -364,6 +386,7 @@ export const isDrillKey = (key: string): boolean =>
     key.startsWith(RING_PREFIX) ||
     key.startsWith(SWEEP_PREFIX) ||
     key.startsWith(TIMING_PREFIX) ||
+    key.startsWith(PICK_PREFIX) ||
     key.startsWith(PATTERN_PREFIX) ||
     key.startsWith(FIND_PREFIX));
 
@@ -380,7 +403,10 @@ export const isDrillKey = (key: string): boolean =>
  * happened, and the app no longer knows in what unit.
  */
 export const countedDrillKey = (key: string): boolean =>
-  isDrillKey(key) && !key.startsWith(TIMING_PREFIX) && !key.startsWith(PATTERN_PREFIX);
+  isDrillKey(key) &&
+  !key.startsWith(TIMING_PREFIX) &&
+  !key.startsWith(PICK_PREFIX) &&
+  !key.startsWith(PATTERN_PREFIX);
 
 /**
  * One stored number, as the per-minute rate it stands for.

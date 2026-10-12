@@ -79,10 +79,21 @@ export interface Pattern {
    * pattern's grid is a property of that pattern and of nothing else.
    */
   slotsPerBeat: SlotResolution;
+  /**
+   * Clicks in one bar of this pattern: four in 4/4, six in 6/8.
+   *
+   * In 6/8 the click is the eighth note, so a 6/8 bar is six clicks and, at
+   * eighth resolution, twelve slots: "1 + 2 + 3 + 4 + 5 + 6 +". Read from the
+   * string's mark like the grid is, never inferred from its length.
+   */
+  beatsPerBar: number;
 }
 
-/** Beats in a bar. Every pattern in this app is 4/4. */
+/** Beats in a bar of 4/4, which is every pattern without a 6/8 mark. */
 export const BEATS_PER_BAR = 4;
+
+/** Beats in a bar of 6/8, counted on the eighth-note click. */
+export const SIX_EIGHT_BEATS = 6;
 
 /**
  * How finely a pattern divides the beat.
@@ -119,7 +130,11 @@ export const SLOTS_PER_BAR = 8;
 
 /** Slots in one bar of this pattern. Eight for eighths, sixteen for sixteenths. */
 export const slotsPerBarOf = (pattern: Pattern): number =>
-  pattern.slotsPerBeat * BEATS_PER_BAR;
+  pattern.slotsPerBeat * pattern.beatsPerBar;
+
+/** The time signature a pattern is counted in. */
+export const meterOfPattern = (pattern: Pattern): '4/4' | '6/8' =>
+  pattern.beatsPerBar === SIX_EIGHT_BEATS ? '6/8' : '4/4';
 
 /**
  * What marks a written pattern as sixteenths.
@@ -142,8 +157,20 @@ export const slotsPerBarOf = (pattern: Pattern): number =>
  */
 export const SIXTEENTH_MARK = '16.';
 
-/** A pattern's slots written as the string that carries its grid with it. */
-export function writePattern(slots: string, resolution: SlotResolution): string {
+/**
+ * What marks a written pattern as a bar of 6/8.
+ *
+ * On the string for the reason the sixteenth mark is: the string is all that
+ * travels, from the task to the drill to the history key, and twelve slots of
+ * 6/8 must never be mistaken for one and a half bars of 4/4 or filed in the same
+ * series as them. Same character rules as `16.`, and absence still means 4/4,
+ * so nothing ever written changes meaning.
+ */
+export const SIX_EIGHT_MARK = '68.';
+
+/** A pattern's slots written as the string that carries its grid and bar with it. */
+export function writePattern(slots: string, resolution: SlotResolution, beatsPerBar = BEATS_PER_BAR): string {
+  if (beatsPerBar === SIX_EIGHT_BEATS) return `${SIX_EIGHT_MARK}${slots}`;
   return resolution === SIXTEENTHS ? `${SIXTEENTH_MARK}${slots}` : slots;
 }
 
@@ -235,8 +262,14 @@ function detectionLagMs(expected: SlotStroke, slot: number): number {
  * not exist.
  */
 export function parsePattern(source: string): Pattern | null {
-  const marked = source.trim().toUpperCase().startsWith(SIXTEENTH_MARK.toUpperCase());
-  const body = marked ? source.trim().slice(SIXTEENTH_MARK.length) : source.trim();
+  const upper = source.trim().toUpperCase();
+  const marked = upper.startsWith(SIXTEENTH_MARK.toUpperCase());
+  const sixEight = upper.startsWith(SIX_EIGHT_MARK);
+  const body = marked
+    ? source.trim().slice(SIXTEENTH_MARK.length)
+    : sixEight
+      ? source.trim().slice(SIX_EIGHT_MARK.length)
+      : source.trim();
   const trimmed = body.toUpperCase();
   if (!/^[DUX-]+$/.test(trimmed)) return null;
 
@@ -246,12 +279,27 @@ export function parsePattern(source: string): Pattern | null {
   if (marked) {
     if (trimmed.length !== SIXTEENTHS * BEATS_PER_BAR) return null;
     const slots = read(trimmed);
-    return travelsWithTheArm(slots) ? { source, slots, slotsPerBeat: SIXTEENTHS } : null;
+    return travelsWithTheArm(slots)
+      ? { source, slots, slotsPerBeat: SIXTEENTHS, beatsPerBar: BEATS_PER_BAR }
+      : null;
+  }
+
+  if (sixEight) {
+    // One bar of six eighth-note clicks, each split down and up. Exactly one
+    // bar: a 6/8 phrase is new to the player and a two-bar one is not a thing
+    // the lesson asks for.
+    if (trimmed.length !== EIGHTHS * SIX_EIGHT_BEATS) return null;
+    const slots = read(trimmed);
+    return travelsWithTheArm(slots)
+      ? { source, slots, slotsPerBeat: EIGHTHS, beatsPerBar: SIX_EIGHT_BEATS }
+      : null;
   }
 
   if (trimmed.length % SLOTS_PER_BAR === 0 && trimmed.length <= SLOTS_PER_BAR * MAX_PATTERN_BARS) {
     const slots = read(trimmed);
-    return travelsWithTheArm(slots) ? { source, slots, slotsPerBeat: EIGHTHS } : null;
+    return travelsWithTheArm(slots)
+      ? { source, slots, slotsPerBeat: EIGHTHS, beatsPerBar: BEATS_PER_BAR }
+      : null;
   }
 
   if (trimmed.length === SLOTS_PER_BAR / 2) {
@@ -268,7 +316,7 @@ export function parsePattern(source: string): Pattern | null {
       slots.push(c === 'D' ? 'D' : c === 'X' ? 'X' : null);
       slots.push(null);
     }
-    return { source, slots, slotsPerBeat: EIGHTHS };
+    return { source, slots, slotsPerBeat: EIGHTHS, beatsPerBar: BEATS_PER_BAR };
   }
 
   return null;

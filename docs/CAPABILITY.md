@@ -12,6 +12,15 @@ Derived from `src/data/skills.ts`. Regenerate the numbers with the skills test.
 60 of Grade 1's 74 lessons map to a skill. The 14 that do not are practice
 routines, song lists and "when to move on" lessons: correctly not skills.
 
+## Module 6 measurement boundary (2026-10-12)
+
+The catalogue counts above describe whole skills, not every partial drill.
+Written-pattern timing now supports 6/8; alternate-picking practice measures one
+attack per click at up to 140 BPM and compares instructed flat/angled halves.
+Neither proves stroke direction, actual pick angle, tone or accent loudness. Full
+6/8 patterns prescribe at most 126 eighth-BPM; the 200ms refractory still applies.
+See [MODULE6.md](MODULE6.md) for the browser evidence and native-microphone limits.
+
 ## The work list, clustered
 
 **Nothing new needed (2 skills).**
@@ -40,17 +49,18 @@ need. It cannot see two strums closer than a fifth of a second, because the
 attack detector holds that refractory to stay clear of a strum's own ring-out.
 And nothing in a band envelope says which way the hand was moving. So
 `rhythm.up-strums` needs both a shorter refractory and a direction, and
-`rhythm.patterns` and `rhythm.six-eight` need up strums plus a matcher that reads
-a written pattern as expected positions on the beat grid that already exists.
+`rhythm.patterns` and `rhythm.six-eight` now have a matcher that reads written
+attack positions on the beat grid, within the speed ceiling; actual up/down
+direction remains unverified.
 
 It also carries a real limit: the click has to reach the microphone, so the drill
 cannot be practised on headphones and says so rather than measuring against a
 grid it invented.
 
-**Picking evenness (1 skill).** `technique.alternate-picking` wants the gap
-between successive attacks, which the timing analyser now produces, but at
-alternate-picking speed those gaps are shorter than its refractory. Same blocker
-as up strums, and it falls out of the same fix.
+**Picking evenness (1 skill, partial measurement).** `technique.alternate-picking`
+now has a coached timing drill for one pick per click. Faster doubled picking
+still runs into the analyser refractory; direction and angle are cues, not
+measured technique. Those limits keep the full skill from being claimed solved.
 
 **Per-string energy (3 skills).** `technique.finger-placement`,
 `technique.string-accuracy`, `technique.muting`. The chromagram collapses the

@@ -22,6 +22,11 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
 }
+.metro-trigger-meter {
+  margin-left: 4px;
+  font-style: normal;
+  opacity: 0.7;
+}
 
 /* Beat one, held for the length of a beat. This is a colour change rather than
    a transform on purpose: it is the only beat marker left on the closed trigger
@@ -107,6 +112,53 @@
 .metro-cell.is-countin.is-now {
   background: var(--text-secondary);
   box-shadow: none;
+}
+
+/* A beat whose weight can be changed. The cell is the control, so it only grows
+   a hit area downwards and never changes the shape of the bar it draws. */
+.metro-cell.is-tappable {
+  position: relative;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+}
+.metro-cell.is-tappable::after {
+  content: '';
+  position: absolute;
+  inset: -14px -3px -10px;
+}
+.metro-cell.is-tappable:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.metro-meters {
+  display: flex;
+  gap: var(--space-1);
+  padding: 3px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.05);
+}
+.metro-meter {
+  flex: 1;
+  min-height: 32px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  transition: color var(--dur-base) ease, background var(--dur-base) ease;
+}
+.metro-meter:hover {
+  color: var(--text-primary);
+}
+.metro-meter.is-on {
+  color: var(--accent-primary);
+  background: var(--accent-glow);
+}
+.metro-meter:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .metro-readout {

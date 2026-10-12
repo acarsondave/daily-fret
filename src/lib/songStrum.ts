@@ -59,7 +59,7 @@ export function songStrumPatterns(song: Song | undefined): string[] {
   const written = (song.strumPatterns ?? [])
     // The grid travels with the string, because the string is the whole of what
     // reaches the drill and the history key. See `writePattern`.
-    .map((s) => writePattern(s.pattern, s.slotsPerBeat ?? EIGHTHS))
+    .map((s) => writePattern(s.pattern, s.slotsPerBeat ?? EIGHTHS, s.beatsPerBar))
     .filter((p) => parsePattern(p) !== null);
   if (written.length) return [...new Set(written)];
   return parsePattern(song.strum) !== null ? [song.strum] : [];
@@ -80,8 +80,13 @@ export function songStrumPatterns(song: Song | undefined): string[] {
  * deck out of two sources is the day it stops being obviously true.
  */
 export function deckIsOneGrid(deck: readonly string[]): boolean {
+  // A grid is the slot size and the bar together: 6/8 and 4/4 eighths are not
+  // one grid, because the click under them is counted differently.
   const grids = new Set(
-    deck.map((p) => parsePattern(p)?.slotsPerBeat).filter((g): g is SlotResolution => g !== undefined),
+    deck
+      .map((p) => parsePattern(p))
+      .filter((p) => p !== null)
+      .map((p) => `${p.slotsPerBeat as SlotResolution}/${p.beatsPerBar}`),
   );
   return grids.size <= 1;
 }

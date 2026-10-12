@@ -5,7 +5,8 @@ export type DrillKind =
   | 'chord-rotation'
   | 'strum-timing'
   | 'strum-pattern'
-  | 'note-finder';
+  | 'note-finder'
+  | 'alternate-picking';
 
 export interface DrillConfig {
   kind: DrillKind;
@@ -74,7 +75,15 @@ export interface Task {
   // so the parts can still be announced, grouped and paced as one exercise.
   // See src/lib/taskSplit.ts.
   group?: TaskGroup;
+  // Where a task came from when a module update wrote it (src/lib/moduleRoutine.ts):
+  // `module` is the course's new material, `carry` a weakness the player's own
+  // numbers asked for. The next module's update reads it to decide what rolls
+  // forward. Absent on everything the player wrote, which is never proposed
+  // for removal on that basis.
+  source?: TaskSource;
 }
+
+export type TaskSource = 'module' | 'carry';
 
 export interface TaskGroup {
   id: string;
@@ -88,6 +97,8 @@ export interface Routine {
   tasks: Task[];
   isDefault?: boolean;
   chords?: string[]; // working chord vocabulary; drives pairs + Coached mode
+  // The module update this routine was last rewritten by (src/lib/moduleRoutine.ts).
+  module?: string;
 }
 
 // What the app itself witnessed for a task today. Absent means it witnessed

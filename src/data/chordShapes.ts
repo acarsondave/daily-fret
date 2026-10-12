@@ -71,7 +71,14 @@ const SHAPES: ChordShape[] = [
 
 const BY_NAME = new Map(SHAPES.map((s) => [s.name, s] as const));
 
-export function getChordShape(name: string): ChordShape | null {
+// B1-602 starts with this grip; the traditional three-finger G stays the
+// catalogue default for existing songs and diagrams.
+const TWO_FINGER_G: ChordShape = {
+  name: 'G', frets: [3, -1, 0, 0, 0, 3], fingers: [2, 0, 0, 0, 0, 3],
+  tip: 'Mute string 5 with finger 2. For the three-finger grip, add finger 1 at fret 2 on string 5.',
+};
+export function getChordShape(name: string, grip?: 'two-finger'): ChordShape | null {
+  if (name === 'G' && grip === 'two-finger') return TWO_FINGER_G;
   return BY_NAME.get(name) ?? null;
 }
 

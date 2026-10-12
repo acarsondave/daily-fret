@@ -88,6 +88,11 @@
   color: rgb(236 222 205 / 0.4);
 }
 
+.pb-stem.is-four {
+  height: calc(var(--pb-stem) * 0.84);
+  color: rgb(236 222 205 / 0.34);
+}
+
 .pb-stem.is-beat {
   height: calc(var(--pb-stem) * 0.66);
   color: rgb(236 222 205 / 0.26);

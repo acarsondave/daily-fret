@@ -27,6 +27,7 @@ export type CoachSegment = SegmentMeta & (
   | { kind: 'rotation'; taskId: string; title: string; chords: string[]; seconds: number }
   | { kind: 'song'; taskId: string; title: string; songId: string }
   | { kind: 'timing'; taskId: string; title: string; seconds: number; bpm?: number }
+  | { kind: 'picking'; taskId: string; title: string; seconds: number; bpm?: number }
   | {
       kind: 'patterns';
       taskId: string;
@@ -223,6 +224,18 @@ export function buildSegments(
         seconds: drillSeconds,
         bpm: task.drill?.bpm,
       });
+    } else if (kind === 'alternate-picking') {
+      // Its own segment for the reason timing has one: a plain timer would count
+      // the player in and then hear nothing.
+      segments.push({
+        kind: 'picking',
+        taskId: task.id,
+        title: task.title,
+        announce: task.title,
+        group,
+        seconds: drillSeconds,
+        bpm: task.drill?.bpm,
+      });
     } else if (kind === 'strum-pattern') {
       // Its own segment for the same reason timing is: the timer branch below
       // would announce it, count it in and then measure nothing, which is the
@@ -383,6 +396,7 @@ const REST_AFTER: Record<CoachSegment['kind'], number> = {
   rotation: 60,
   trainer: 45,
   timing: 20,
+  picking: 20,
   patterns: 20,
   finder: 20,
   song: 15,

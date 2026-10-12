@@ -11,8 +11,9 @@ import {
 } from '../icons';
 import { useStore, getTodayString, drillLogsOf, type CoachStepResult } from '../../store';
 import { pairKey } from '../../lib/pairs';
-import { chordKey, findKey, patternKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } from '../../lib/drillKeys';
-import { deckOf, patternRuns } from '../../lib/patternDeck';
+import { chordKey, findKey, patternKey, poolKey, rotationRing, sweepKey, timingKey, pickKey, trainerPool } from '../../lib/drillKeys';
+import { deckOf, deckMeter, patternRuns } from '../../lib/patternDeck';
+import { PICK_CEILING_BPM } from '../../lib/picking';
 import { cappedTempo } from '../../lib/songStrum';
 import { buildSegments, isResumable, restIsSpoken, restSecondsAfter } from '../../lib/coached';
 import { keyDrillHistory } from '../../lib/drillStats';
@@ -32,6 +33,7 @@ import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
 import { ChordRotation } from './ChordRotation';
 import { StrumTiming } from './StrumTiming';
+import { AlternatePicking } from './AlternatePicking';
 import { StrumPatterns } from './StrumPatterns';
 import { NoteFinder } from './NoteFinder';
 import { finderHistory } from '../../lib/finderHistory';
@@ -148,6 +150,7 @@ export function CoachedSession({ routine: fullRoutine, taskIds, onClose }: Props
           s.kind === 'trainer' ||
           s.kind === 'rotation' ||
           s.kind === 'timing' ||
+          s.kind === 'picking' ||
           s.kind === 'patterns' ||
           s.kind === 'finder',
       ),
@@ -231,11 +234,12 @@ export function CoachedSession({ routine: fullRoutine, taskIds, onClose }: Props
   // The tempo this timing block will run at, so its best is read from the same
   // series the result will be filed under.
   const timingBest = useMemo(() => {
-    if (seg?.kind !== 'timing') return 0;
+    if (seg?.kind !== 'timing' && seg?.kind !== 'picking') return 0;
     const state = useStore.getState();
     const acc = state.accounts[state.currentAccountId];
     if (!acc) return 0;
-    return keyDrillHistory(drillLogsOf(acc), timingKey(seg.bpm ?? DEFAULT_PRACTICE_BPM)).best;
+    const at = seg.bpm ?? DEFAULT_PRACTICE_BPM;
+    return keyDrillHistory(drillLogsOf(acc), seg.kind === 'picking' ? pickKey(at) : timingKey(at)).best;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
   // The deck this block will deal, and what the player's own history says about
@@ -256,7 +260,7 @@ export function CoachedSession({ routine: fullRoutine, taskIds, onClose }: Props
     const state = useStore.getState();
     const acc = state.accounts[state.currentAccountId];
     const logs = acc ? drillLogsOf(acc) : {};
-    const at = seg.bpm ?? DEFAULT_PRACTICE_BPM;
+    const at = Math.floor(cappedTempo(patternDeck, seg.bpm ?? DEFAULT_PRACTICE_BPM) / 2) * 2;
     return Object.fromEntries(patternDeck.map((p) => [p, patternRuns(logs, p, at)]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, patternDeck]);
@@ -317,13 +321,18 @@ export function CoachedSession({ routine: fullRoutine, taskIds, onClose }: Props
     if (seg.kind === 'timing') {
       return fixedTempo(seg.bpm, `Hold ${seg.bpm ?? DEFAULT_PRACTICE_BPM} in 4/4. One down strum on every click.`);
     }
+    if (seg.kind === 'picking') {
+      return fixedTempo(Math.min(seg.bpm ?? DEFAULT_PRACTICE_BPM, PICK_CEILING_BPM), 'One pick on every click, in then out.');
+    }
     // Patterns state theirs too, and for the same reason. The click also has to
     // run unbroken through the whole block, which is what the drill is about.
     if (seg.kind === 'patterns') {
-      return fixedTempo(
-        seg.bpm,
-        `Hold ${seg.bpm ?? DEFAULT_PRACTICE_BPM} in 4/4. The arm keeps moving through every slot.`,
-      );
+      // The deck says which bar it is in. A 6/8 deck runs the click in six, so
+      // the accent and the drill agree about where every bar starts.
+      // Cap before the plan reaches the engine, not just the drill prop.
+      // Round down: fixedTempo rounds to even BPM and must not round over the cap.
+      const bpm = Math.floor(cappedTempo(patternDeck, seg.bpm ?? DEFAULT_PRACTICE_BPM) / 2) * 2;
+      return fixedTempo(bpm, undefined, deckMeter(patternDeck));
     }
     // The note finder has no tempo of its own and does not want one: a click
     // running under a question about where C is would be metronome practice
@@ -539,6 +548,7 @@ export function CoachedSession({ routine: fullRoutine, taskIds, onClose }: Props
       seg.kind === 'timed' ||
       seg.kind === 'song' ||
       seg.kind === 'timing' ||
+      seg.kind === 'picking' ||
       seg.kind === 'patterns' ||
       // The note finder is in this list for the reason timing is: it listens,
       // but through its own monophonic pitch capture rather than a chromagram.
@@ -763,6 +773,8 @@ export function CoachedSession({ routine: fullRoutine, taskIds, onClose }: Props
             ? 'Play along with the real song'
             : seg.kind === 'timing'
               ? 'One down strum on every click'
+              : seg.kind === 'picking'
+              ? 'One string, one pick on every click'
               : seg.kind === 'patterns'
                 ? 'Patterns dealt against a click that never stops'
                 : seg.kind === 'finder'
@@ -1023,6 +1035,31 @@ export function CoachedSession({ routine: fullRoutine, taskIds, onClose }: Props
                   recordMeasurements(today, seg.taskId, [{ key: timingKey(bpm), value: summary.score }]),
                 row: { title: seg.title, value: summary.score, unit: '% in time', done: summary.score > 0 },
                 value: summary.score,
+              });
+              void speak('done');
+            }}
+            onNext={advance}
+            onAgain={runAgain}
+            onSkip={skipSegment}
+            onClose={exit}
+          />
+        )}
+
+        {view === 'segment' && seg.kind === 'picking' && (
+          <AlternatePicking
+            key={`seg-${index}-${take}`}
+            config={{ kind: 'alternate-picking', durationSec: seg.seconds, bpm: seg.bpm }}
+            bpm={tempoPlan?.bpm ?? DEFAULT_PRACTICE_BPM}
+            personalBest={timingBest}
+            autoStart
+            autoAdvance
+            nextLabel={isLastSegment ? 'Finishing' : 'Rest'}
+            onResult={({ bpm, summary }) => {
+              const score = summary.enough ? summary.score : 0;
+              propose({
+                commit: () => recordMeasurements(today, seg.taskId, [{ key: pickKey(bpm), value: score }]),
+                row: { title: seg.title, value: score, unit: '% in time', done: score > 0 },
+                value: score,
               });
               void speak('done');
             }}

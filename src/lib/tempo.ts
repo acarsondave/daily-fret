@@ -1,3 +1,4 @@
+import { meterOf, type MeterId } from '../audio/meter';
 import type { DailyLog } from '../types';
 import { MIN_BPM, MAX_BPM } from '../audio/metronome';
 import { baseKey, keyWindow, perMinute } from './drillWindow';
@@ -37,6 +38,11 @@ export interface TempoPlan {
   // Beats between chord changes. The metronome accents this cycle, so the
   // accent always lands exactly where the player is meant to change.
   beatsPerChange: number;
+  // The time signature the click plays this in. A changes drill is always 4/4:
+  // its cycle is the change, not a bar of a song. A block can ask for 3/4 or
+  // 6/8, and then the cycle is one bar of it and the BPM is the meter's own
+  // pulse (eighth notes in 6/8).
+  meter: MeterId;
   // The pace this tempo is asking for, or null for a plain timed block where
   // there is no change rate to hit. Always `bpm / beatsPerChange`, so the number
   // shown and the number clicked cannot drift apart; fractional only at the
@@ -213,6 +219,7 @@ export function planTempo(series: HistoryPoint[], today: string): TempoPlan {
       beatsPerChange: 4,
       targetChangesPerMin: null,
       trend: 'new',
+      meter: '4/4',
       reason: 'No history for this yet. Steady 80 to find the groove.',
     };
   }
@@ -280,6 +287,7 @@ export function planTempo(series: HistoryPoint[], today: string): TempoPlan {
     beatsPerChange,
     targetChangesPerMin: changesPerMin,
     trend,
+    meter: '4/4',
     // Said out loud rather than hidden, because this is the one case where the
     // click asks for more than the player has shown and the rule that forbids
     // that cannot be satisfied: the metronome will not run slower.
@@ -289,13 +297,22 @@ export function planTempo(series: HistoryPoint[], today: string): TempoPlan {
 
 // A plain timed block: no change rate to derive from, so either the tempo the
 // block prescribes or the standard practice click.
-export function fixedTempo(bpm: number | undefined, note?: string): TempoPlan {
+export function fixedTempo(bpm: number | undefined, note?: string, meterId: MeterId = '4/4'): TempoPlan {
   const value = quantize(clampBpm(bpm ?? DEFAULT_PRACTICE_BPM));
+  const meter = meterOf(meterId);
   return {
     bpm: value,
-    beatsPerChange: 4,
+    beatsPerChange: meter.beats,
     targetChangesPerMin: null,
     trend: 'new',
-    reason: note ?? `Steady ${value} in 4/4. Accent on beat one.`,
+    meter: meter.id,
+    reason: note ?? meterReason(meter.id, value),
   };
+}
+
+/** The one line under a fixed tempo, saying the meter and where its weight is. */
+export function meterReason(meterId: MeterId, bpm: number): string {
+  if (meterId === '6/8') return `Steady ${bpm} in 6/8. Strong on 1, lighter on 4.`;
+  if (meterId === '3/4') return `Steady ${bpm} in 3/4. Accent on beat one.`;
+  return `Steady ${bpm} in 4/4. Accent on beat one.`;
 }

@@ -18,10 +18,11 @@ import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
 import { chordPairs, pairKey } from '../lib/pairs';
-import { findKey, poolKey, ringKey, rotationRing, sweepKey, trainerPool } from '../lib/drillKeys';
+import { findKey, pickKey, poolKey, ringKey, rotationRing, sweepKey, trainerPool } from '../lib/drillKeys';
 import { bestAcrossDays, bestOnDay, runsOnDay } from '../lib/drillStats';
 import { finderHistory } from '../lib/finderHistory';
 import { currentRung } from '../lib/noteFinder';
+import { DEFAULT_PRACTICE_BPM } from '../lib/tempo';
 import { sanitizeMinutes, formatDuration } from '../lib/coached';
 import { looksLikeTab } from '../lib/tab';
 import { isTaskDone, recordThroughSplit } from '../lib/taskSplit';
@@ -166,6 +167,7 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
       const ring = rotationRing(drill.chords);
       return [sweepKey(ring), ringKey(ring)];
     }
+    if (drill.kind === 'alternate-picking') return [pickKey(drill.bpm ?? DEFAULT_PRACTICE_BPM)];
     if (drill.kind === 'note-finder') {
       // Whatever rung the task pins, or the one its own history puts it on.
       // Read here rather than guessed, so the row's best is the best at the
@@ -333,7 +335,15 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
     } else if (editDrillKind === 'chord-trainer') {
       nextDrill = {
         kind: 'chord-trainer',
-        chords: editTrainerChords.length >= 2 ? editTrainerChords : ['A', 'D', 'E', 'G', 'C'],
+        chords: editTrainerChords.length >= 1 ? editTrainerChords : ['A', 'D', 'E', 'G', 'C'],
+        durationSec: drill?.durationSec ?? 60,
+      };
+    } else if (editDrillKind === 'alternate-picking' || editDrillKind === 'strum-pattern' || editDrillKind === 'strum-timing') {
+      // A rename must not turn an existing listening drill into a plain timer
+      // or throw away its written meter/deck/tempo.
+      nextDrill = {
+        ...(drill?.kind === editDrillKind ? drill : {}),
+        kind: editDrillKind,
         durationSec: drill?.durationSec ?? 60,
       };
     } else if (editDrillKind === 'note-finder') {
@@ -439,6 +449,9 @@ export const TaskRow = memo(function TaskRow({ routineId, taskId, title, descrip
                 ['one-minute-changes', 'Changes'],
                 ['chord-rotation', 'Anchor'],
                 ['chord-trainer', 'Perfect'],
+                ['strum-timing', 'Timing'],
+                ['strum-pattern', 'Patterns'],
+                ['alternate-picking', 'Picking'],
                 ['note-finder', 'Notes'],
                 ['song', 'Song'],
               ] as const).map(([value, label]) => (

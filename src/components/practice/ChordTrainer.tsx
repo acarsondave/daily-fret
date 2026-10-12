@@ -406,7 +406,7 @@ export function ChordTrainer({
               {/* Chosen by sight, not by name. The point of the setup screen is
                   deciding what to drill, and a shape you cannot picture is
                   exactly the one worth picking. */}
-              <ChordDiagram chord={c} size={62} showFingers={false} className="ct-chip-shape" />
+              <ChordDiagram chord={c} grip="two-finger" size={62} showFingers={false} className="ct-chip-shape" />
               <span className="ct-chip-name">{c}</span>
             </button>
           ))}
@@ -419,11 +419,11 @@ export function ChordTrainer({
         <button
           className="practice-btn primary"
           onClick={() => void startSession()}
-          disabled={pool.length < 2}
+          disabled={pool.length < 1}
         >
           <PlayIcon size={20} /> Start {pool.length * perChord}s
         </button>
-        {pool.length < 2 && <p className="om-caption">Pick at least two shapes</p>}
+        {pool.length < 1 && <p className="om-caption">Pick at least one shape</p>}
       </div>
     );
   }
@@ -484,7 +484,7 @@ export function ChordTrainer({
                 screen. It turns green while the chord is actually being held,
                 which closes the loop between the hand and the readout. */}
             <div ref={shapeRef} className="ct-shape">
-              <ChordDiagram chord={pool[slot]} size={130} />
+              <ChordDiagram chord={pool[slot]} grip="two-finger" size={130} />
             </div>
           </div>
 

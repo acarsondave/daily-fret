@@ -22,6 +22,9 @@ import { mergeTaskSplits, splitRoutines, type TaskSplits } from '../lib/taskSpli
 import type { Song } from '../data/songs';
 import type { StrumPattern } from '../data/strumPatterns';
 import type { CalibrationData, ChordCalibration } from '../audio/calibration';
+import type { AccentLevel, MeterId } from '../audio/meter';
+import type { ModulePlan, ModuleUpdateRecord } from '../lib/moduleRoutine';
+import { lessonOrder, planModuleUpdate, updateTarget } from '../lib/moduleRoutine';
 import type { ReminderSettings } from '../lib/reminders';
 import { mergeNoteMaps, recordFind, recordShown, type NoteMap } from '../lib/noteFinder';
 import {
@@ -146,6 +149,26 @@ export interface UserData {
   // Whether coached drills set the tempo (and start the click) themselves from
   // the player's own results. Defaults on; absent means never chosen.
   metronomeAuto?: boolean;
+  // The time signature the click plays when nothing prescribes one, and the
+  // weight the player has given each beat of each meter (src/audio/meter.ts).
+  // Absent means 4/4 and the default accents.
+  metronomeMeter?: MeterId;
+  metronomeAccents?: Partial<Record<MeterId, AccentLevel[]>>;
+  // The reversible application receipt, not the durable archive. Undo leaves
+  // an explicit tombstone so Firestore's recursive merge cannot revive it.
+  moduleUpdates?: Record<string, ModuleUpdateRecord>;
+  // Append-only local-first module snapshots. Accept saves the prior routine;
+  // Undo saves the outgoing routine (including edits made since acceptance).
+  // Each snapshot is committed in the SAME persisted account as its routine
+  // change, and travels in the same Firestore user-document upload. This does
+  // not depend on the debounced routineArchive subcollection writer, which
+  // cannot see intermediate offline versions. No archive browsing UI yet.
+  moduleRoutineArchive?: Record<string, {
+    module: string;
+    reason: 'accept' | 'undo';
+    at: number;
+    snapshot: Routine;
+  }>;
   // Skills the learner has said they have, for the ones the app cannot hear:
   // posture, reading tab, knowing what a time signature is. Never used to
   // override a measurement, only to fill the gap where there will never be one.
@@ -315,6 +338,11 @@ interface AppState {
   deleteChordProfile: (id: string) => void;
   setMetronomeBpm: (bpm: number) => void;
   setMetronomeAuto: (auto: boolean) => void;
+  setMetronomeMeter: (meter: MeterId) => void;
+  acceptModuleUpdate: (plan: ModulePlan) => void;
+  snoozeModuleUpdate: (plan: ModulePlan, until: number) => void;
+  undoModuleUpdate: (plan: ModulePlan) => void;
+  setMetronomeAccents: (meter: MeterId, accents: AccentLevel[]) => void;
   setCapoFret: (fret: number) => void;
   setLeftHanded: (left: boolean) => void;
   setSkillClaimed: (skillId: string, claimed: boolean) => void;
@@ -442,6 +470,17 @@ export const useStore = create<AppState>()(
           const localUpdatedAt = local?.updatedAt ?? 0;
 
           if (local && localUpdatedAt > remoteUpdatedAt) {
+            // LWW applies to mutable state, not immutable recovery snapshots.
+            // The initial reconcile can upload this whole account afterwards;
+            // preserve archive entries from the older cloud copy first.
+            const incoming = Object.keys(data.moduleRoutineArchive ?? {})
+              .some((id) => !local.moduleRoutineArchive?.[id]);
+            if (incoming) return {
+              accounts: {
+                ...state.accounts,
+                [uid]: { ...local, moduleRoutineArchive: { ...data.moduleRoutineArchive, ...local.moduleRoutineArchive } },
+              },
+            };
             return state;
           }
 
@@ -466,6 +505,10 @@ export const useStore = create<AppState>()(
             activeProfileId: data.activeProfileId ?? local?.activeProfileId,
             metronomeBpm: data.metronomeBpm ?? local?.metronomeBpm,
             metronomeAuto: data.metronomeAuto ?? local?.metronomeAuto,
+            metronomeMeter: data.metronomeMeter ?? local?.metronomeMeter,
+            metronomeAccents: data.metronomeAccents ?? local?.metronomeAccents,
+            moduleUpdates: data.moduleUpdates ?? local?.moduleUpdates,
+            moduleRoutineArchive: { ...data.moduleRoutineArchive, ...local?.moduleRoutineArchive },
             capoFret: data.capoFret ?? local?.capoFret,
             claimedSkills: data.claimedSkills ?? local?.claimedSkills ?? [],
             leftHanded: data.leftHanded ?? local?.leftHanded,
@@ -818,6 +861,80 @@ export const useStore = create<AppState>()(
 
         setMetronomeAuto: (auto) => set((state) =>
           mutate(state, (a) => ({ ...a, metronomeAuto: auto })),
+        ),
+
+        acceptModuleUpdate: (plan) => set((state) =>
+          mutate(state, (a) => {
+            const target = updateTarget(a);
+            if (!target || target.module === plan.id || a.moduleUpdates?.[plan.id]?.outcome === 'accepted') return a;
+            const { routine } = planModuleUpdate(target, plan, a.dailyLogs);
+            // Reaching the module's last lesson is what accepting says; never
+            // move a player backwards who is already further on.
+            const lesson =
+              lessonOrder(a.currentLesson) >= lessonOrder(plan.lastLesson) ? a.currentLesson : plan.lastLesson;
+            return {
+              ...a,
+              routines: a.routines.map((r) => (r.id === target.id ? routine : r)),
+              moduleRoutineArchive: {
+                ...a.moduleRoutineArchive,
+                [crypto.randomUUID()]: { module: plan.id, reason: 'accept', at: Date.now(), snapshot: target },
+              },
+              activeRoutineId: target.id,
+              currentLesson: lesson,
+              lessonJournal:
+                lesson !== a.currentLesson
+                  ? withArrival(a.lessonJournal, a.currentLesson, lesson!, getTodayString())
+                  : a.lessonJournal,
+              moduleUpdates: {
+                ...a.moduleUpdates,
+                [plan.id]: { outcome: 'accepted', at: Date.now(), previous: target },
+              },
+            };
+          }),
+        ),
+
+        snoozeModuleUpdate: (plan, until) => set((state) =>
+          mutate(state, (a) => a.moduleUpdates?.[plan.id]?.outcome === 'accepted' ? a : ({
+            ...a,
+            moduleUpdates: { ...a.moduleUpdates, [plan.id]: { outcome: 'snoozed', at: Date.now(), until } },
+          })),
+        ),
+
+        undoModuleUpdate: (plan) => set((state) =>
+          mutate(state, (a) => {
+            const record = a.moduleUpdates?.[plan.id];
+            const previous = record?.previous;
+            if (record?.outcome !== 'accepted' || !previous) return a;
+            const current = a.routines.find((r) => r.id === previous.id);
+            // Do not consume recovery information when its target was deleted.
+            if (!current) return a;
+
+            // Undo restores the exact routine, not a merge of two task lists.
+            // Later edits are recoverable in the archive, not silently lost.
+            // Logs, aliases, split history and lesson arrivals are not undone.
+            return {
+              ...a,
+              routines: a.routines.map((r) => (r.id === previous.id ? previous : r)),
+              moduleRoutineArchive: {
+                ...a.moduleRoutineArchive,
+                [crypto.randomUUID()]: { module: plan.id, reason: 'undo', at: Date.now(), snapshot: current },
+              },
+              // Deleting the key locally is insufficient: cloud uploads use
+              // setDoc(merge:true), which would retain the accepted receipt.
+              moduleUpdates: { ...a.moduleUpdates, [plan.id]: { outcome: 'undone', at: Date.now() } },
+            };
+          }),
+        ),
+
+        setMetronomeMeter: (meter) => set((state) =>
+          mutate(state, (a) => ({ ...a, metronomeMeter: meter })),
+        ),
+
+        setMetronomeAccents: (meter, accents) => set((state) =>
+          mutate(state, (a) => ({
+            ...a,
+            metronomeAccents: { ...a.metronomeAccents, [meter]: accents },
+          })),
         ),
 
         // Clamped rather than trusted: an out-of-range offset would shift the

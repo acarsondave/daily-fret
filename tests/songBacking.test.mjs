@@ -95,6 +95,17 @@ console.log('\nWhere a bar sounds its strokes\n');
   check('the second bar sounds in the second bar', near(second[0].at, 2) && near(second[1].at, 3));
 }
 
+console.log('\nModule 6 backing uses one bar of six\n');
+{
+  const line = buildTempoTimeline(SONGS.find((s) => s.id === 'fade-into-you'), 120).timeline;
+  const events = buildBackingPlan(line);
+  const count = events.filter((e) => e.kind === 'click' && e.at < 0);
+  check('the count-in has six clicks', count.length === 6, String(count.length));
+  check('the count-in begins a full bar before the song', near(count[0]?.at, -3));
+  const bar = events.filter((e) => e.kind === 'click' && e.at >= 0 && e.at < 3);
+  check('6/8 accents are strong on one, light on four', bar.map((e) => e.accent).join() === 'downbeat,beat,beat,midbar,beat,beat');
+}
+
 console.log('\nThe plan\n');
 {
   const line = timelineOf('DD');

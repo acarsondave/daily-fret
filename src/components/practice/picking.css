@@ -1,0 +1,148 @@
+/* Alternate picking: the string end on, and the pick swinging through it. */
+
+.pk-stage {
+  gap: var(--space-6);
+}
+
+.pk-figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  width: min(360px, 100%);
+}
+
+.pk-svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.pk-top {
+  stroke: var(--border-strong);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.pk-path {
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 5;
+  fill: none;
+}
+
+.pk-word {
+  fill: var(--text-muted);
+  font-family: var(--font-secondary);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.pk-string {
+  fill: var(--text-primary);
+}
+
+.pk-ring {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+}
+.pk-ring.is-in {
+  stroke: var(--accent-primary);
+}
+
+.pk-pick path {
+  fill: var(--accent-primary);
+  stroke: var(--bg-color);
+  stroke-width: 2;
+}
+
+/* The half is the pick's own tilt: square on to the string, then turned so an
+   edge leads. The turn animates, so the change is watched happening. */
+.pk-tilt {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform var(--dur-slow) var(--ease-out);
+}
+.pk-figure.is-flat .pk-tilt {
+  transform: rotate(-24deg) scaleX(1);
+}
+.pk-figure.is-angled .pk-tilt {
+  transform: rotate(-24deg) scaleX(0.42);
+}
+
+.pk-figure.is-demo .pk-pick {
+  animation: pk-swing 1.6s ease-in-out infinite;
+}
+@keyframes pk-swing {
+  0%, 100% { transform: translate(-42px, -18px); }
+  50% { transform: translate(42px, 18px); }
+}
+
+.pk-halves {
+  display: flex;
+  gap: var(--space-1);
+  padding: 3px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.05);
+}
+.pk-halves span {
+  min-width: 84px;
+  padding: 6px var(--space-3);
+  text-align: center;
+  border-radius: var(--radius-full);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  transition: color var(--dur-base) ease, background var(--dur-base) ease;
+}
+.pk-halves span.is-on {
+  color: var(--accent-primary);
+  background: var(--accent-glow);
+}
+
+.pk-compare {
+  width: min(360px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.pk-compare-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 44px;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.pk-compare-bar {
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.pk-compare-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--text-muted);
+}
+.pk-compare-fill.is-angled {
+  background: var(--accent-primary);
+}
+.pk-compare-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pk-figure.is-demo .pk-pick {
+    animation: none;
+  }
+  .pk-tilt {
+    transition-duration: 120ms;
+  }
+}

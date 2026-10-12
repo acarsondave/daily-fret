@@ -23,6 +23,7 @@ const FRET_GAP = (BOX_BOTTOM - BOX_TOP) / FRET_COUNT;
 
 interface Props {
   chord: string;
+  grip?: 'two-finger';
   /** Width in px. Height follows. */
   size?: number;
   /** Show the finger number inside each dot. */
@@ -52,8 +53,8 @@ interface Props {
  * so the same source can later drive a fretboard view, a capo offset, or a
  * left-handed mirror without anything being redrawn by hand.
  */
-export function ChordDiagram({ chord, size = 132, showFingers = true, flipped, capo = 0, className }: Props) {
-  const shape = useMemo(() => getChordShape(chord), [chord]);
+export function ChordDiagram({ chord, grip, size = 132, showFingers = true, flipped, capo = 0, className }: Props) {
+  const shape = useMemo(() => getChordShape(chord, grip), [chord, grip]);
   // Handedness is a fact about the instrument in the room, like the capo, so the
   // diagram reads it rather than making six call sites remember to pass it.
   const leftHanded = useUserData().leftHanded ?? false;

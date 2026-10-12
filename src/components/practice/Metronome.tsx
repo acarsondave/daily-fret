@@ -4,12 +4,21 @@ import { MinusIcon, PauseIcon, PlayIcon, PlusIcon, RetryIcon, ICON_STROKE } from
 import { useStore } from '../../store';
 import {
   metronome,
-  accentFor,
-  COUNT_IN_BEATS,
   MIN_BPM,
   MAX_BPM,
+  type BeatAccent,
   type BeatEvent,
 } from '../../audio/metronome';
+import {
+  METER_IDS,
+  countInFor,
+  cycleAccents,
+  meterOf,
+  nextAccentLevel,
+  normaliseAccents,
+  type AccentLevel,
+  type MeterId,
+} from '../../audio/meter';
 import { armOutputAudioUnlock } from '../../audio/outputContext';
 import { DEFAULT_PRACTICE_BPM, type TempoPlan } from '../../lib/tempo';
 
@@ -68,27 +77,48 @@ function MetronomeMark({ beat }: { beat: BeatEvent | null }) {
 // the player counting.
 function BeatStrip({
   cells,
+  accents,
   active,
   counting,
   live,
+  onTapBeat,
 }: {
   cells: number;
+  /** The voice of each cell, from the meter and its accents. */
+  accents: readonly BeatAccent[];
   active: number;
   counting: boolean;
   live: boolean;
+  /**
+   * Set when the strip is one bar of the meter and nothing is running, so each
+   * beat can be tapped to change its weight. The bar is the control: the weight
+   * of a beat is drawn as its height, so changing it is changing the picture.
+   */
+  onTapBeat?: (beat: number) => void;
 }) {
   return (
     <div
       className={live ? 'metro-strip is-live' : 'metro-strip'}
-      role="img"
+      role={onTapBeat ? 'group' : 'img'}
       // Deliberately the shape of the bar rather than the beat it is on.
       // Renaming this element four times a second would make a screen reader
       // unusable for the sake of information the ear already has.
-      aria-label={counting ? 'Counting in' : `${cells} beats to a chord change`}
+      aria-label={counting ? 'Counting in' : onTapBeat ? 'Accents. Tap a beat to change its weight.' : `${cells} beats to a chord change`}
     >
       {Array.from({ length: cells }, (_, i) => {
-        const accent = counting ? 'countin' : accentFor(i, cells);
+        const accent = counting ? 'countin' : accents[i % accents.length] ?? 'beat';
         const state = !live || active < 0 ? '' : i === active ? ' is-now' : i < active ? ' is-past' : '';
+        if (onTapBeat && i > 0) {
+          return (
+            <button
+              key={i}
+              type="button"
+              className={`metro-cell is-tappable is-${accent}${state}`}
+              onClick={() => onTapBeat(i)}
+              aria-label={`Beat ${i + 1}: ${accent === 'downbeat' ? 'strong' : accent === 'midbar' ? 'light' : 'plain'}`}
+            />
+          );
+        }
         return <span key={i} className={`metro-cell is-${accent}${state}`} />;
       })}
     </div>
@@ -115,7 +145,18 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
   const storedAuto = useStore((s) => s.accounts[s.currentAccountId]?.metronomeAuto);
   const setMetronomeBpm = useStore((s) => s.setMetronomeBpm);
   const setMetronomeAuto = useStore((s) => s.setMetronomeAuto);
+  const storedMeter = useStore((s) => s.accounts[s.currentAccountId]?.metronomeMeter);
+  const storedAccents = useStore((s) => s.accounts[s.currentAccountId]?.metronomeAccents);
+  const setMetronomeMeter = useStore((s) => s.setMetronomeMeter);
+  const setMetronomeAccents = useStore((s) => s.setMetronomeAccents);
   const auto = storedAuto ?? true;
+  // A drill prescription owns its written meter, even with auto tempo off;
+  // otherwise it is the player's own. Held locally so a plan can switch it for
+  // one drill without overwriting what the player chose for every other.
+  const [meter, setMeter] = useState<MeterId>(
+    plan ? plan.meter : meterOf(storedMeter).id,
+  );
+  const levels = normaliseAccents(meter, storedAccents?.[meter]);
 
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState(false);
@@ -135,8 +176,11 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
   // The strip has to show something before the first beat lands, so it falls
   // back to the cycle the prescription is about to run at.
   const cells = counting
-    ? COUNT_IN_BEATS
-    : (beat?.beatsPerBar ?? (auto && plan ? plan.beatsPerChange : 4));
+    ? countInFor(meter)
+    : (beat?.beatsPerBar ?? (auto && plan && plan.meter === meter ? plan.beatsPerChange : meterOf(meter).beats));
+  const accents = cycleAccents(meter, levels, cells);
+  const oneBar = cells === meterOf(meter).beats;
+  const levelsKey = levels.join(',');
   const onPlan = plan != null && bpm === plan.bpm;
 
   // The panel floats over a drill that is running. Escape and a tap outside
@@ -162,6 +206,14 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
       document.removeEventListener('keydown', onKey, true);
     };
   }, [open]);
+
+  // Keep the engine's meter and accents in step with the panel. setMeter keeps a
+  // stretched change cycle when the meter itself has not moved, so this never
+  // undoes a plan's beatsPerChange.
+  useEffect(() => {
+    metronome.setMeter(meter, levels);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meter, levelsKey]);
 
   // Keep the engine's tempo in step with the slider while it plays.
   useEffect(() => {
@@ -195,14 +247,19 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
     // mount/cleanup/mount.
     const t = setTimeout(() => {
       if (!auto) {
-        // Hand the click back as a plain 4/4 so a manual start isn't still
-        // accenting some earlier drill's change cycle.
-        metronome.setBeatsPerBar(4);
+        // Auto controls tempo/start, not the written bar of a drill. A manual
+        // start of a 6/8 pattern must still click in six, not the saved meter.
+        const own = plan.meter;
+        setMeter(own);
+        metronome.setMeter(own, normaliseAccents(own, storedAccents?.[own]));
+        metronome.setBeatsPerBar(meterOf(own).beats);
         metronome.stop();
         setRunning(false);
         setBeat(null);
         return;
       }
+      setMeter(plan.meter);
+      metronome.setMeter(plan.meter, normaliseAccents(plan.meter, storedAccents?.[plan.meter]));
       metronome.setBeatsPerBar(plan.beatsPerChange);
       setBpm(plan.bpm);
       if (autoPlay) {
@@ -227,7 +284,7 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
       setBpm(clamped);
       setMetronomeBpm(clamped);
     },
-    [setMetronomeBpm],
+    [setBpm, setMetronomeBpm],
   );
 
   const toggle = () => {
@@ -238,7 +295,7 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
       return;
     }
     // Starting by hand is the one case where nothing has counted the player in,
-    // so the click does it: a bar of four quiet ticks before the first real
+    // so the click does it: one bar of quiet ticks before the first real
     // downbeat, which is what stops bar one being a scramble.
     //
     // Running but silent means the browser never freed audio. This click is a
@@ -276,6 +333,21 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
     }
   };
 
+  const chooseMeter = (next: MeterId) => {
+    if (next === meter) return;
+    setMeter(next);
+    setMetronomeMeter(next);
+    metronome.setMeter(next, normaliseAccents(next, storedAccents?.[next]));
+    metronome.setBeatsPerBar(meterOf(next).beats);
+    setBeat(null);
+  };
+
+  const tapBeat = (index: number) => {
+    const row = [...levels];
+    row[index] = nextAccentLevel(row[index] as AccentLevel);
+    setMetronomeAccents(meter, normaliseAccents(meter, row));
+  };
+
   const tapLabel = tapsIn > 0 && tapsIn < TAPS_NEEDED ? `${TAPS_NEEDED - tapsIn} more` : 'Tap';
 
   return (
@@ -294,18 +366,23 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
         // when the OS asks for reduced motion and the arm stops swinging.
         data-down={live && beat?.accent === 'downbeat' ? 'true' : undefined}
         onClick={() => setOpen((o) => !o)}
-        title={silent ? 'Metronome muted by the browser. Tap to turn the sound on.' : running ? `Metronome ${bpm} BPM` : 'Metronome'}
+        title={silent ? 'Metronome muted by the browser. Tap to turn the sound on.' : running ? `Metronome ${bpm} BPM, ${meter}` : 'Metronome'}
         aria-label={
           silent
             ? 'Metronome: muted by the browser. Open tempo controls.'
             : running
-              ? `Metronome: running at ${bpm} BPM. Open tempo controls.`
+              ? `Metronome: running at ${bpm} BPM in ${meter}. Open tempo controls.`
               : 'Metronome: stopped. Open tempo controls.'
         }
         aria-expanded={open}
       >
         <MetronomeMark beat={live ? beat : null} />
-        {running && <span className="metro-trigger-bpm">{silent ? 'muted' : bpm}</span>}
+        {running && (
+          <span className="metro-trigger-bpm">
+            {silent ? 'muted' : bpm}
+            {!silent && meter !== '4/4' && <i className="metro-trigger-meter">{meter}</i>}
+          </span>
+        )}
       </button>
 
       <AnimatePresence>
@@ -319,10 +396,30 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
           >
             <BeatStrip
               cells={cells}
+              accents={accents}
               active={beat ? beat.beat : -1}
               counting={counting}
               live={live}
+              onTapBeat={oneBar && !counting ? tapBeat : undefined}
             />
+
+            {/* The time signature, as the three a beginner course uses. The
+                strip above redraws the bar the moment one is picked, so the
+                choice is seen as well as named. */}
+            <div className="metro-meters" role="radiogroup" aria-label="Time signature">
+              {METER_IDS.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={meter === id}
+                  className={meter === id ? 'metro-meter is-on' : 'metro-meter'}
+                  onClick={() => chooseMeter(id)}
+                >
+                  {id}
+                </button>
+              ))}
+            </div>
 
             <div className="metro-readout">
               <span className="metro-bpm">{bpm}</span>
@@ -341,7 +438,7 @@ export function Metronome({ plan = null, planKey, autoPlay = true }: Props) {
             </div>
 
             {/* The count-in has no line of its own any more: the strip above is
-                already drawing four count-in cells filling one at a time, and a
+                already drawing the count-in cells filling one at a time, and a
                 sentence under a picture of the thing it describes is the picture
                 said twice. The muted case keeps a line because nothing on this
                 panel can draw a browser refusing to make a sound, but it is the

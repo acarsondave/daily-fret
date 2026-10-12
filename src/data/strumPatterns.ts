@@ -153,7 +153,41 @@ export const BUILTIN_PATTERNS: StrumPattern[] = [
 ];
 
 // Find a pattern's display name by its string, across built-ins + custom.
+/**
+ * The 6/8 ladder, from B1-604.
+ *
+ * Its own list rather than more rungs on the 4/4 ladder, because a 6/8 bar is a
+ * different bar: the 4/4 deck must never deal one into a 4/4 click, and the
+ * working deck walks the 4/4 ladder as the player's long-term strumming
+ * standing. Counted on the eighth-note click, 1 + 2 + 3 + 4 + 5 + 6 +.
+ */
+export const SIX_EIGHT_PATTERNS: StrumPattern[] = [
+  {
+    id: 'six-eight-downs',
+    name: '6/8 downs',
+    // Justin's first step: one down per beat, counting out loud, the weight on
+    // one and a lighter weight on four.
+    pattern: '68.D-D-D-D-D-D-',
+    adds: 'Six downs, the weight on 1 and a lighter weight on 4.',
+  },
+  {
+    id: 'six-eight-justin',
+    name: '6/8 pattern',
+    // "Skip beats 2 and 5 and hit some up strums in between": D on 1, the arm
+    // passes 2, up before 3, D on 3, D on 4, passes 5, up before 6, D on 6.
+    pattern: '68.D--UD-D--UD-',
+    adds: 'Beats 2 and 5 skipped, with an up strum after each.',
+  },
+  {
+    id: 'six-eight-extra-up',
+    name: '6/8 with the last up',
+    // The variation he suggests once it is comfortable: an up after beat 6.
+    pattern: '68.D--UD-D--UDU',
+    adds: 'An extra up strum after beat 6, leading into the next bar.',
+  },
+];
+
 export function patternName(pattern: string, custom: StrumPattern[]): string | undefined {
-  const all = [...BUILTIN_PATTERNS, ...custom];
+  const all = [...BUILTIN_PATTERNS, ...SIX_EIGHT_PATTERNS, ...custom];
   return all.find((p) => p.pattern === pattern)?.name;
 }

@@ -243,5 +243,35 @@ console.log('\nScale\n');
   check('and a song without one is in the record\'s own key', noCapo.length > 0);
 }
 
+console.log('\nThe two Module 6 songs, both in 6/8\n');
+{
+  const DETECTABLE = new Set(['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F']);
+  const fade = SONGS.find((x) => x.id === 'fade-into-you');
+  const tyl = SONGS.find((x) => x.id === 'this-years-love');
+  for (const [name, song, capo, bars] of [['Fade Into You', fade, 2, 127], ["This Year's Love", tyl, 1, 112]]) {
+    check(`${name} is in the catalogue`, !!song);
+    if (!song) continue;
+    check(`${name} is counted in six`, song.beatsPerBar === 6);
+    check(`${name} is charted with capo ${capo}, matching the record`, song.capo === capo, String(song.capo));
+    check(`${name} uses only shapes the detector knows`,
+      song.chords.every((c) => DETECTABLE.has(c)) &&
+      song.sections.every((sec) => sec.steps.every((st) => DETECTABLE.has(st.chord))));
+    check(`${name}'s chord list is exactly the chords in its chart`,
+      [...new Set(song.sections.flatMap((sec) => sec.steps.map((st) => st.chord)))].sort().join() ===
+        [...song.chords].sort().join());
+    const total = song.sections.reduce((n, sec) => n + sec.steps.length, 0);
+    check(`${name} has every bar of the record (${bars})`, total === bars, String(total));
+    check(`${name}'s tempo is the eighth-note pulse a 6/8 click runs on`, (song.bpm ?? 0) > 140, String(song.bpm));
+    check(`${name} links a recording`, typeof song.youtubeId === 'string' && song.youtubeId.length === 11);
+    check(`${name} carries Justin's 6/8 strum as its drillable phrase`,
+      song.strumPatterns?.some((p) => p.pattern === 'D--UD-D--UD-' && p.beatsPerBar === 6));
+    check(`${name} ships untimed rather than with guessed anchors`,
+      song.sections.every((sec) => sec.atSeconds === undefined));
+  }
+  check('Fade Into You never leaves G, D, Am and C', fade?.chords.slice().sort().join() === 'Am,C,D,G');
+  check("This Year's Love has the A that stands in for the record's B flat 7",
+    tyl?.chords.includes('A'));
+}
+
 console.log(failures ? `\n${failures} FAILED\n` : '\nALL PASS\n');
 process.exit(failures ? 1 : 0);

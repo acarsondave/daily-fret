@@ -230,6 +230,22 @@ console.log('\nBlocks with no pace of their own\n');
     fixedTempo(97).bpm % 2 === 0, String(fixedTempo(97).bpm));
   check('a block can say its own thing', fixedTempo(80, 'Down strums only.').reason ===
     'Down strums only.');
+  check('a plain block is 4/4, as it always was', given.meter === '4/4' && given.beatsPerChange === 4);
+}
+
+console.log('\nA block in 6/8\n');
+{
+  const six = fixedTempo(130, undefined, '6/8');
+  check('it says so, so the click can play it', six.meter === '6/8');
+  check('the accent cycle is one bar of six', six.beatsPerChange === 6, String(six.beatsPerChange));
+  check('the tempo is the eighth-note pulse it was given', six.bpm === 130, String(six.bpm));
+  check('and the reason names the meter and where the weight goes',
+    /6\/8/.test(six.reason) && /1/.test(six.reason) && /4/.test(six.reason), six.reason);
+  const three = fixedTempo(90, undefined, '3/4');
+  check('3/4 cycles in three', three.meter === '3/4' && three.beatsPerChange === 3);
+  // A changes plan stays in four: chord changes are counted on the change rate,
+  // and the meter of a changes drill is whatever the cycle says.
+  check('a planned changes tempo is 4/4', planTempo([], '2026-07-01').meter === '4/4');
 }
 
 console.log('\nReading a drill\'s history out of the logs\n');

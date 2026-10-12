@@ -30,6 +30,16 @@ import {
   outputAudioState,
   onOutputAudioChange,
 } from './outputContext';
+import {
+  accentFor,
+  countInFor,
+  cycleAccents,
+  DEFAULT_METER,
+  type AccentLevel,
+  type MeterId,
+} from './meter';
+
+export { accentFor };
 
 const LOOKAHEAD_MS = 25; // how often the scheduler wakes to queue clicks
 const MIN_AHEAD_S = 0.12; // the queue depth when the page is running normally
@@ -38,7 +48,7 @@ const WAKE_HEADROOM = 3; // queue this many scheduler wakes ahead of the clock
 const DEFAULT_BEATS_PER_BAR = 4;
 const START_OFFSET_S = 0.08; // breathing room between "go" and the first click
 const SILENT_GRACE_MS = 700; // how long a start may take before we call it muted
-// A bar of four, whatever the cycle is. Musicians count in fours.
+// Legacy default for 4/4 callers. The engine uses countInFor(meter).
 export const COUNT_IN_BEATS = 4;
 // A visual beat older than this arrived while the page was not rendering. Only
 // the last one still means anything; the rest would flash past in one frame.
@@ -280,16 +290,6 @@ export function phaseAt(
   return { position: position - back, sinceSeconds, secondsPerBeat, beatsPerBar };
 }
 
-// Which voice a beat gets. A cycle that divides into bars of four gets a mark
-// halfway so the bar has a shape; anything else is downbeat and beats.
-export function accentFor(position: number, beatsPerBar: number): BeatAccent {
-  if (position < 0) return 'countin';
-  const beat = position % beatsPerBar;
-  if (beat === 0) return 'downbeat';
-  if (beatsPerBar > 4 && beatsPerBar % 4 === 0 && beat % 4 === 0) return 'midbar';
-  return 'beat';
-}
-
 /** Where the audible click is in its bar, as of the moment it was asked. */
 export interface ClickPhase {
   /**
@@ -315,6 +315,12 @@ export class Metronome {
   private position = 0;
   private bpm = 90;
   private beatsPerBar = DEFAULT_BEATS_PER_BAR;
+  private meter: MeterId = DEFAULT_METER;
+  private accentLevels: readonly AccentLevel[] | undefined = undefined;
+  // The voice of every click in the current cycle, worked out once whenever the
+  // meter, its accents or the cycle length change rather than per click.
+  private accents = cycleAccents(DEFAULT_METER, undefined, DEFAULT_BEATS_PER_BAR);
+  private countIn = COUNT_IN_BEATS;
   private running = false;
   private buffers: Map<BeatAccent, AudioBuffer> | null = null;
   private buffersFor: BaseAudioContext | null = null;
@@ -408,6 +414,39 @@ export class Metronome {
     return this.beatsPerBar;
   }
 
+  getMeter(): MeterId {
+    return this.meter;
+  }
+
+  /** Clicks in the count-in: one bar of whatever meter is playing. */
+  getCountIn(): number {
+    return this.countIn;
+  }
+
+  /** The voice of each click in the current cycle, for anything drawing it. */
+  getAccents(): readonly BeatAccent[] {
+    return this.accents;
+  }
+
+  /**
+   * The time signature, and the weight of each of its beats.
+   *
+   * Resets the cycle to one bar of the new meter. A drill that wants the
+   * accent to land on a chord change stretches it again with setBeatsPerBar,
+   * after this, which is the order the panel applies a plan in.
+   */
+  setMeter(id: MeterId, levels?: readonly AccentLevel[]): void {
+    const changed = id !== this.meter;
+    this.meter = id;
+    this.accentLevels = levels;
+    this.countIn = countInFor(id);
+    if (changed) {
+      this.beatsPerBar = countInFor(id);
+      if (this.position >= 0) this.position = 0;
+    }
+    this.accents = cycleAccents(this.meter, this.accentLevels, this.beatsPerBar);
+  }
+
   /**
    * Where the click is in its bar right now.
    *
@@ -447,6 +486,7 @@ export class Metronome {
     const next = Math.max(1, Math.round(beats));
     if (next === this.beatsPerBar) return;
     this.beatsPerBar = next;
+    this.accents = cycleAccents(this.meter, this.accentLevels, next);
     // Restart the cycle so the next accent is a full bar away, never a stray
     // one landing mid-figure because the old count was further along. A count-in
     // in progress keeps its own place.
@@ -463,7 +503,7 @@ export class Metronome {
     const ctx = getOutputContext();
     if (!ctx) return;
     this.running = true;
-    this.position = options?.countIn ? -COUNT_IN_BEATS : 0;
+    this.position = options?.countIn ? -this.countIn : 0;
     this.nextNoteTime = ctx.currentTime + START_OFFSET_S;
     this.visuals.length = 0;
 
@@ -566,7 +606,7 @@ export class Metronome {
 
     const buffers = this.clickBuffers(ctx);
     for (const beat of plan.beats) {
-      const accent = accentFor(beat.position, this.beatsPerBar);
+      const accent = accentFor(beat.position, this.beatsPerBar, this.accents);
       const buffer = buffers.get(accent);
       if (!buffer) throw new Error(`metronome: no click rendered for "${accent}"`);
       const node = ctx.createBufferSource();
@@ -578,7 +618,7 @@ export class Metronome {
         time: beat.time,
         event: {
           position: beat.position,
-          beat: beat.position < 0 ? beat.position + COUNT_IN_BEATS : beat.position % this.beatsPerBar,
+          beat: beat.position < 0 ? beat.position + this.countIn : beat.position % this.beatsPerBar,
           beatsPerBar: this.beatsPerBar,
           accent,
           secondsPerBeat,
@@ -651,5 +691,6 @@ if (typeof window !== 'undefined') {
     running: metronome.isRunning,
     audible: metronome.isAudible,
     bpm: metronome.getBpm(),
+    meter: metronome.getMeter(),
   });
 }

@@ -1,5 +1,14 @@
 # Roadmap — next features
 
+## Module 6 (2026-10-12)
+
+Implemented: versioned living-routine planner, archived accept/Undo, metronome
+meters/accents, 6/8 and picking coached practice, and two 6/8 song charts. See
+[MODULE6.md](MODULE6.md). Remaining: render the listed new coach names with the
+established voice when the synthesis credential is available; archive browsing;
+Module 7 plan data; accent loudness and fast picking/direction analysis only after
+real-signal evidence supports them. No new audio capability is implied by a cue.
+
 Captured 2026-06-25. **All four items below shipped on 2026-06-25** — kept here
 as a record of intent and where each lives. The PWA / offline-install route was
 explicitly **dropped** — not needed.

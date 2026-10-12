@@ -52,8 +52,19 @@ export interface DeckHistory {
  * With no deck stated, the player's own history picks one; see {@link workingDeck}.
  * Without history either, the opening rungs, which is where everyone starts.
  */
+/** The meter a deck is counted in: its first card's bar. Every card shares it (see deckOf). */
+export function deckMeter(deck: readonly string[]): '4/4' | '6/8' {
+  const first = deck.length ? parsePattern(deck[0]) : null;
+  return first?.beatsPerBar === 6 ? '6/8' : '4/4';
+}
+
 export function deckOf(patterns: readonly string[] | undefined, history?: DeckHistory): string[] {
-  const chosen = patterns?.filter((p) => parsePattern(p) !== null) ?? [];
+  const parsed = patterns?.filter((p) => parsePattern(p) !== null) ?? [];
+  // One bar shape per deck. The click is in one meter for the whole block, so
+  // a 6/8 card in a 4/4 deck (or the reverse) would be scored against bar
+  // lines that are not there. The first card decides.
+  const bar = parsed.length ? parsePattern(parsed[0])!.beatsPerBar : 0;
+  const chosen = parsed.filter((p) => parsePattern(p)!.beatsPerBar === bar);
   if (chosen.length) return [...new Set(chosen)];
   if (history) return workingDeck(history.dailyLogs, history.bpm);
   return BUILTIN_PATTERNS.slice(0, DEFAULT_DECK_SIZE).map((p) => p.pattern);

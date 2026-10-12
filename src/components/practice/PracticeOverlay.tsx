@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { CloseIcon } from '../icons';
 import { useStore, getTodayString, drillLogsOf } from '../../store';
 import { pairKey } from '../../lib/pairs';
-import { chordKey, findKey, patternKey, poolKey, rotationRing, sweepKey, timingKey, trainerPool } from '../../lib/drillKeys';
+import { chordKey, findKey, patternKey, poolKey, rotationRing, sweepKey, timingKey, pickKey, trainerPool } from '../../lib/drillKeys';
 import { deckOf, patternRuns } from '../../lib/patternDeck';
 import { cappedTempo } from '../../lib/songStrum';
 import { finderHistory } from '../../lib/finderHistory';
@@ -20,6 +20,9 @@ import { OneMinuteChanges } from './OneMinuteChanges';
 import { ChordTrainer } from './ChordTrainer';
 import { ChordRotation } from './ChordRotation';
 import { StrumTiming } from './StrumTiming';
+import { AlternatePicking } from './AlternatePicking';
+import { PICK_CEILING_BPM } from '../../lib/picking';
+import { deckMeter } from '../../lib/patternDeck';
 import { StrumPatterns } from './StrumPatterns';
 import { NoteFinder } from './NoteFinder';
 import { SongPlayer } from './SongPlayer';
@@ -93,7 +96,7 @@ export function PracticeOverlay({ task, onClose }: Props) {
     const state = useStore.getState();
     const acc = state.accounts[state.currentAccountId];
     const logs = acc ? drillLogsOf(acc) : {};
-    const at = drill.bpm ?? DEFAULT_PRACTICE_BPM;
+    const at = Math.floor(cappedTempo(patternDeck, drill.bpm ?? DEFAULT_PRACTICE_BPM) / 2) * 2;
     return Object.fromEntries(patternDeck.map((p) => [p, patternRuns(logs, p, at)]));
   }, [drill, patternDeck]);
 
@@ -175,6 +178,8 @@ export function PracticeOverlay({ task, onClose }: Props) {
       ? `timing-${drill.bpm ?? 'default'}`
       : drill.kind === 'strum-pattern'
       ? `pattern-${drill.bpm ?? 'default'}`
+      : drill.kind === 'alternate-picking'
+      ? `picking-${drill.bpm ?? 'default'}`
       : drill.kind === 'note-finder'
       ? `finder-${drill.rungId ?? 'auto'}`
       : drill.kind === 'one-minute-changes'
@@ -210,10 +215,13 @@ export function PracticeOverlay({ task, onClose }: Props) {
     // Patterns state their tempo too. The click has to run unbroken through the
     // whole block, which is the thing the drill is about.
     if (drill.kind === 'strum-pattern') {
-      return fixedTempo(
-        drill.bpm,
-        `Hold ${drill.bpm ?? DEFAULT_PRACTICE_BPM} in 4/4. The arm keeps moving through every slot.`,
-      );
+      // Cap before the plan reaches the engine, not just the drill prop.
+      // Round down: fixedTempo rounds to even BPM and must not round over the cap.
+      const bpm = Math.floor(cappedTempo(patternDeck, drill.bpm ?? DEFAULT_PRACTICE_BPM) / 2) * 2;
+      return fixedTempo(bpm, undefined, deckMeter(patternDeck));
+    }
+    if (drill.kind === 'alternate-picking') {
+      return fixedTempo(Math.min(drill.bpm ?? DEFAULT_PRACTICE_BPM, PICK_CEILING_BPM), 'One pick on every click, in then out.');
     }
     if (drill.kind === 'one-minute-changes') {
       const pair = explicitPairs.length
@@ -485,6 +493,18 @@ export function PracticeOverlay({ task, onClose }: Props) {
               // zero, so the day records that the drill ran and heard nothing
               // rather than looking as though it was never opened.
               measured([{ key: timingKey(bpm), value: summary.score }]);
+              settleTask(today, task.id);
+            }}
+            onClose={leave}
+          />
+        )}
+        {!recording.noticeDue && drill?.kind === 'alternate-picking' && (
+          <AlternatePicking
+            config={drill}
+            bpm={tempoPlan?.bpm ?? DEFAULT_PRACTICE_BPM}
+            onSessionStart={beginDrill}
+            onResult={({ bpm, summary }) => {
+              measured([{ key: pickKey(bpm), value: summary.enough ? summary.score : 0 }]);
               settleTask(today, task.id);
             }}
             onClose={leave}

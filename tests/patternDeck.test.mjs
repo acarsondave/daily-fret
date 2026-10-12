@@ -92,6 +92,14 @@ console.log('\nThe deck\n');
 // The ladder is longer than a deck. Which four cards a player gets is therefore
 // a decision, and this is the one thing here that could quietly make the drill
 // easier or quietly strand the top of the ladder where nobody reaches it.
+{
+  // A deck is one bar shape. A 6/8 card dealt into a 4/4 click would be scored
+  // against bar lines that are not there.
+  const mixed = deckOf(['68.D--UD-D--UD-', 'D-DU-UD-', '68.D-D-D-D-D-D-']);
+  check('a deck keeps only the cards that share its first card\'s bar',
+    mixed.join(' ') === '68.D--UD-D--UD- 68.D-D-D-D-D-D-', mixed.join(' '));
+}
+
 console.log('\nThe deck a player has earned\n');
 {
   const RUNGS = BUILTIN_PATTERNS.map((p) => p.pattern);
@@ -158,6 +166,12 @@ console.log('\nThe row in words\n');
     phrase.startsWith('Bar 1, down on 1') && phrase.includes('Bar 2, down on 1'), phrase);
   check('and its last slot is the "and" of four in the second bar',
     phrase.endsWith('up on and. The arm travels through the rest.'), phrase);
+}
+
+{
+  const six = parsePattern('68.D--UD-D--UD-');
+  const said = describePattern(six);
+  check('a 6/8 bar is counted to six', /up on and/.test(said) && /down on 6/.test(said), said);
 }
 
 console.log('\nWhat the history says about each card\n');

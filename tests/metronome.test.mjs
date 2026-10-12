@@ -242,6 +242,22 @@ console.log('\nThe route is taken and given back\n');
     queued.every((n) => n.stopped), `${queued.filter((n) => !n.stopped).length} still live`);
 
   metronome.stop();
+
+  globalThis.__theContext.set('running');
+  metronome.setMeter('6/8');
+  metronome.setBpm(130);
+  const events = [];
+  metronome.onBeat = event => events.push(event);
+  metronome.start(130, { countIn: true });
+  for (let i = 0; i < 260; i++) { currentTime += 0.025; run(); }
+  check('the real scheduler emits all six count-in positions exactly once',
+    JSON.stringify(events.filter(e => e.position < 0).map(e => [e.position, e.beat])) ===
+      JSON.stringify([[-6, 0], [-5, 1], [-4, 2], [-3, 3], [-2, 4], [-1, 5]]));
+  check('the first full 6/8 bar has weight on one and four',
+    JSON.stringify(events.filter(e => e.position >= 0 && e.position < 6).map(e => e.accent)) ===
+      JSON.stringify(['downbeat', 'beat', 'beat', 'midbar', 'beat', 'beat']));
+  metronome.stop();
+  metronome.onBeat = null;
 }
 
 console.log(failures===0?'\nALL PASS\n':`\n${failures} FAILURE(S)\n`);

@@ -1,6 +1,6 @@
 # Status
 
-Updated 2026-10-02.
+Updated 2026-10-12.
 
 ## Live
 
@@ -15,7 +15,32 @@ Updated 2026-10-02.
 - 2026-10-02: Safari is now checked on the VPS, with no Mac (see below and the
   addendum in `docs/AUDIT-2026-09.md`).
 
+## Module 6 release checks
+
+Implementation and measurement boundaries: [MODULE6.md](MODULE6.md).
+- Exact Undo/history and split-idempotent planner tests cover immutable account
+  archives, outgoing edits and remote reconciliation.
+- Chromium and WebKit/iPhone Module 6 browser checks pass: offer/update/Undo,
+  real picking scores above the unchanged 85 threshold, six-cell accents and the
+  actual picking → rest → 6/8 coached sequence.
+- Native Chromium fake-microphone capture can drop chunks on this shared host;
+  the scored fixture uses decoded PCM on the real capture context clock. This is
+  not evidence of physical iOS microphone behaviour.
+- One existing XP performance assertion hit 98ms against a 60ms budget under
+  load; its isolated retry and two subsequent complete 61-suite runs passed.
+  No threshold was relaxed. One short synthetic picking take also left a half
+  unmeasured under load; the fixture now runs 32 seconds to collect more evidence,
+  with the same score threshold and minimum-evidence checks.
+- New coach names are listed but not rendered (synthesis credential unavailable).
+  The existing generic intro/readiness clips remain the fallback.
+- The owner applies the update in-app; no real owner-account write was performed.
+
 ## Shipped
+
+- **Module 6:** G/D Chord Perfect (including standalone single-shape start),
+  6/8 meter/accents and pattern practice, coached alternate picking, Fade Into
+  You and This Year's Love, plus the previewable archived routine update.
+  The existing C/finger work and two requested riffs remain.
 
 - **Quick paths.** A **Quick** button joined to **Coached**. Pick any of the
   routine's tasks and run just those in the full coached session. The last
@@ -36,8 +61,12 @@ Updated 2026-10-02.
 
 | Suite | State |
 |-------|-------|
-| Unit (`npm test`, 56 suites) | pass |
-| Lint, `tsc -b`, `npm audit` | clean, 0 vulnerabilities |
+| Unit (`npm test`, 61 suites) | pass |
+| Lint, `tsc -b --force`, production build | pass |
+| Runtime dependency audit (2026-10-12) | 4 high dependency roll-ups from existing Firebase → `@grpc/grpc-js <1.13.6`; unchanged manifests/lockfile in M6. The advisories concern Node gRPC certificate context and server error messages, not a newly added app endpoint. Not reported as clean. |
+| M6 browser, Chromium + WebKit/iPhone | pass; real scorer, source fixture only |
+| M6 visual sweep | 42 screenshots: 390/820/1440 × light/dark OS preferences; no overflow/page errors; single established dark palette |
+| Regression smoke, coached, song chart (Chromium), Quick paths (both engines) | pass, serial |
 | Browser suites, Chromium (one at a time against a preview) | pass, except the two below |
 | `strumTiming`, `strumPatterns` | **fail, pre-existing**: the same checks fail on the previous `main` built on its own. Both feed synthesised strums through a fake microphone and are sensitive to machine load. Not caused by this round. |
 | Safari check, WebKit as an iPhone on the VPS | `quickPaths`, `layout` (10 viewports including 390/820/1440) and `tuner` pass; the live smoke passes in WebKit |

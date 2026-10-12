@@ -106,8 +106,11 @@ interface Props {
  * eighth-note pulse stays visible inside the sixteenths, which is what a player
  * counting "1 e + a" is actually holding on to.
  */
-function stemTier(within: number, slotsPerBeat: number): string {
+function stemTier(within: number, slotsPerBeat: number, beatsPerBar: number): string {
   if (within === 0) return 'is-one';
+  // 6/8's second weight, on beat four: taller than a beat and shorter than one,
+  // which is exactly what the click does with it.
+  if (beatsPerBar === 6 && within === 3 * slotsPerBeat) return 'is-four';
   if (within % slotsPerBeat === 0) return 'is-beat';
   if (within % (slotsPerBeat / 2) === 0) return 'is-and';
   return 'is-sixteenth';
@@ -243,7 +246,7 @@ export function PatternBar({
         {pattern.slots.map((_, slot) => (
           <span
             key={`stem-${slot}`}
-            className={clsx('pb-stem', stemTier(slot % perBar, pattern.slotsPerBeat))}
+            className={clsx('pb-stem', stemTier(slot % perBar, pattern.slotsPerBeat, pattern.beatsPerBar))}
             style={{ left: centreOf(slot) }}
           />
         ))}

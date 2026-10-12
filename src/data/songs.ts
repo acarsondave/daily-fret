@@ -84,6 +84,13 @@ export interface SongStrum {
    */
   slotsPerBeat?: SlotResolution;
   /**
+   * Clicks in one bar of this phrase, when it is not four. Six for a 6/8 song,
+   * whose click runs eighth notes. Travels onto the drill's string as the `68.`
+   * mark (src/lib/strumPattern.ts), so a 6/8 phrase can never be scored against
+   * a bar of four.
+   */
+  beatsPerBar?: number;
+  /**
    * What to call it. The song's own title when it has one phrase, which is the
    * usual case; named individually where a song needs more than one, because a
    * deck of two cards both labelled "Get Lucky" tells the player nothing.
@@ -125,6 +132,8 @@ export interface Song {
   // to whoever reads the file and not to the person holding the guitar. Absent
   // means the chart is in the record's own key.
   capo?: number;
+  /** Material differences from the linked recording, shown before play. */
+  arrangementNote?: string;
 }
 
 const s = (chord: string, lyric?: string, strum?: string): SongStepDef => ({
@@ -687,6 +696,85 @@ const getLucky: Song = {
   ],
 };
 
+// --- Module 6: two songs in 6/8 ---------------------------------------------
+//
+// Both are counted on the eighth-note click, six to a bar, the weight on 1 and
+// a lighter weight on 4, which is what the metronome plays in 6/8. `bpm` is
+// therefore the eighth-note pulse, three times the dotted-quarter figure most
+// sites quote. Both are strummed with Justin's B1-604 pattern.
+//
+// Sources, checked 2026-10-11 (full notes in docs/STATUS.md):
+//   Fade Into You: UG chords ver 2 (capo 2, G D Am, C on the chorus turn),
+//   Songsterr s12522 (127 bars, same harmony bar for bar), Chordify, Hooktheory
+//   (6/8, 52 dotted-quarter). Capo 2 G/D/Am/C is the record's A/E/Bm/D exactly;
+//   nothing is simplified.
+//   This Year's Love: JustinGuitar BS-309 (6/8, C D G Em A; capo 1 per his
+//   community thread), UG 69812, Songsterr s32940 (112 bars with its repeat),
+//   Hooktheory (6/8, 55). SIMPLIFIED: the record's Bb7 is played as A (no A7 in
+//   the detector set), and its Cadd9/Dsus2 colours are plain C and D.
+//   Section lengths follow Songsterr; the two outros are the least certain bars.
+const SIX_EIGHT_STRUM = 'D--UD-D--UD-';
+const fiy = (): SongStepDef[] => [s('G'), s('D'), s('Am'), s('Am')];
+const fiyTurn = (): SongStepDef[] => [s('G'), s('D'), s('Am'), s('C')];
+const times = (n: number, make: () => SongStepDef[]): SongStepDef[] =>
+  Array.from({ length: n }, make).flat();
+
+const fadeIntoYou: Song = {
+  id: 'fade-into-you',
+  title: 'Fade Into You',
+  artist: 'Mazzy Star',
+  level: 'Beginner',
+  strum: SIX_EIGHT_STRUM,
+  strumPatterns: [{ pattern: SIX_EIGHT_STRUM, beatsPerBar: 6, name: 'Fade Into You' }],
+  beatsPerBar: 6,
+  capo: 2,
+  bpm: 156,
+  chords: ['G', 'D', 'Am', 'C'],
+  // Album audio from the official Mazzy Star channel; the VEVO video is a
+  // shorter edit that will not line up with a full chart. Replaceable in-app.
+  youtubeId: 'avv2IIdDnnk',
+  sections: [
+    { label: 'Intro', steps: times(2, fiy) },
+    { label: 'Verse 1', steps: times(8, fiy) },
+    { label: 'Chorus', steps: [...times(2, fiy), ...fiyTurn(), ...fiy()] },
+    { label: 'Solo', steps: [...times(2, fiy), ...fiyTurn(), ...fiy()] },
+    { label: 'Verse 2', steps: times(4, fiy) },
+    { label: 'Chorus', steps: [...times(2, fiy), ...fiyTurn(), ...times(3, fiy), ...fiyTurn(), ...fiy()] },
+    { label: 'Outro', steps: [...fiy(), s('G'), s('D'), s('Am')] },
+  ],
+};
+
+const tylRun = (): SongStepDef[] => [s('C'), s('D'), s('C'), s('D'), s('C'), s('D')];
+const tylClimb = (): SongStepDef[] => [s('G'), s('G'), s('Em'), s('Em'), s('A'), s('C'), s('C')];
+
+const thisYearsLove: Song = {
+  id: 'this-years-love',
+  arrangementNote: 'Simplified: A instead of A7; C and D instead of Cadd9 and Dsus2.',
+  title: "This Year's Love",
+  artist: 'David Gray',
+  level: 'Beginner',
+  strum: SIX_EIGHT_STRUM,
+  strumPatterns: [{ pattern: SIX_EIGHT_STRUM, beatsPerBar: 6, name: "This Year's Love" }],
+  beatsPerBar: 6,
+  capo: 1,
+  bpm: 165,
+  chords: ['C', 'D', 'G', 'Em', 'A'],
+  youtubeId: 'PdR6GEArgsw',
+  sections: [
+    { label: 'Intro', steps: [...tylRun(), s('G'), s('Em')] },
+    { label: 'Verse 1', steps: [...tylRun(), s('G'), s('Em'), ...tylRun(), ...tylClimb()] },
+    { label: 'Verse 2', steps: [...tylRun(), s('G'), s('Em'), ...tylRun(), ...tylClimb()] },
+    { label: 'Pre-chorus', steps: [s('C'), s('C'), ...tylClimb()] },
+    { label: 'Chorus', steps: [...tylRun(), s('G'), s('Em')] },
+    { label: 'Verse 3', steps: [...tylRun(), ...tylClimb()] },
+    { label: 'Pre-chorus', steps: tylClimb() },
+    {
+      label: 'Outro',
+      steps: [...tylRun(), s('G'), s('Em'), ...tylRun(), s('G'), s('Em'), ...tylRun(), s('G'), s('G'), s('G')],
+    },
+  ],
+};
+
 export const SONGS: Song[] = [
   wildThing,
   threeLittleBirds,
@@ -696,6 +784,8 @@ export const SONGS: Song[] = [
   singEdSheeran,
   fiveOhFive,
   getLucky,
+  fadeIntoYou,
+  thisYearsLove,
 ];
 
 export function getSong(id: string | undefined): Song | undefined {

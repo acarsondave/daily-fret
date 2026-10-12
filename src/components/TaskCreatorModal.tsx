@@ -89,6 +89,8 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
       // No deck stated: the drill deals the opening rungs of the ladder, which
       // is what a player the app has never seen should be given.
       drill = { kind: 'strum-pattern', durationSec: 90, bpm: timingBpm };
+    } else if (drillKind === 'alternate-picking') {
+      drill = { kind: 'alternate-picking', durationSec: 60, bpm: timingBpm };
     } else if (drillKind === 'note-finder') {
       // No rung stated: the drill reads its own history and runs the lowest one
       // not yet cleared, which is what a player the app has never seen should be
@@ -182,6 +184,7 @@ export function TaskCreatorModal({ isOpen, onClose, routineId }: TaskCreatorModa
                 ['chord-trainer', 'Trainer'],
                 ['strum-timing', 'Timing'],
                 ['strum-pattern', 'Patterns'],
+                ['alternate-picking', 'Picking'],
                 ['note-finder', 'Notes'],
                 ['song', 'Song'],
               ] as const).map(([value, label]) => (

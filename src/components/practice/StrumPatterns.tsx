@@ -8,6 +8,7 @@ import { sfx } from '../../audio/sfx';
 import { fitBeatGrid, type BeatGrid } from '../../lib/strumTiming';
 import {
   MIN_PATTERN_PASSES,
+  BEATS_PER_BAR,
   barsIn,
   slotsPerBarOf,
   dealNext,
@@ -38,7 +39,6 @@ import './strumPattern.css';
 
 const AUTO_ADVANCE_SECONDS = 5;
 /** Beats in the bar a pattern is. Eight eighth-note slots is four of them. */
-const BEATS_PER_BAR = 4;
 /**
  * How long the drill listens for the click before it says it cannot hear one.
  *
@@ -220,6 +220,10 @@ export function StrumPatterns({
   // The same tempo the state carries, for the run loop and for `finish`, which
   // both read it outside a render and would otherwise close over a stale one.
   const tempoRef = useRef(bpm);
+  // Clicks in one bar of this deck: four, or six for a 6/8 deck. Every card in
+  // a deck shares a bar (see deckOf), and the click has been set to the same
+  // meter by the tempo plan, so this is where the bar lines are.
+  const barBeats = parsePattern(deck[0] ?? '')?.beatsPerBar ?? BEATS_PER_BAR;
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const finishedRef = useRef(false);
 
@@ -257,7 +261,7 @@ export function StrumPatterns({
     const deal = dealRef.current;
     if (!phase || !deal) return null;
     const beatsIn =
-      phase.position - deal.startBar * BEATS_PER_BAR + phase.sinceSeconds / phase.secondsPerBeat;
+      phase.position - deal.startBar * deal.pattern.beatsPerBar + phase.sinceSeconds / phase.secondsPerBeat;
     const length = deal.pattern.slots.length;
     const at = beatsIn * deal.pattern.slotsPerBeat;
     return ((at % length) + length) % length;
@@ -368,7 +372,7 @@ export function StrumPatterns({
       pattern,
       source: pattern.source,
       startBar,
-      originBeat: originBeatFor(startBar),
+      originBeat: originBeatFor(startBar, pattern.beatsPerBar),
       onsets: [],
     };
     nextRef.current = null;
@@ -390,13 +394,13 @@ export function StrumPatterns({
    * good take as a total miss, which is exactly the failure a player would
    * otherwise be blamed for.
    */
-  function originBeatFor(startBar: number): number | null {
+  function originBeatFor(startBar: number, beatsPerBar: number): number | null {
     const grid = gridRef.current;
     const clock = clockRef.current;
     const phase = metronome.phase();
     if (!grid || !clock || !phase) return null;
     const agoSeconds =
-      (phase.position - startBar * BEATS_PER_BAR) * phase.secondsPerBeat + phase.sinceSeconds;
+      (phase.position - startBar * beatsPerBar) * phase.secondsPerBeat + phase.sinceSeconds;
     const wallAtBarLine = performance.now() - agoSeconds * 1000;
     const analyserAtBarLine = clock.analyser + (wallAtBarLine - clock.wall) / 1000;
     return Math.round((analyserAtBarLine - grid.origin) / grid.period);
@@ -492,13 +496,13 @@ export function StrumPatterns({
     // of goes, so the backstop never fires on a deal that was simply two bars
     // rather than one.
     const longest = Math.max(
-      1,
+      BEATS_PER_BAR,
       ...deck
         .map((p) => parsePattern(p))
         .filter((p): p is Pattern => p !== null)
-        .map(barsIn),
+        .map((p) => barsIn(p) * p.beatsPerBar),
     );
-    const hardStopMs = (passes * longest * BEATS_PER_BAR * 60 * 1000) / opening + 3000;
+    const hardStopMs = (passes * longest * 60 * 1000) / opening + 3000;
     timerRef.current = setInterval(() => {
       const now = Date.now();
       setTimeLeft(Math.max(0, Math.ceil((deadline - now) / 1000)));
@@ -557,8 +561,8 @@ export function StrumPatterns({
       }
       silentSinceRef.current = null;
 
-      const atBar = Math.floor(phase.position / BEATS_PER_BAR);
-      const beatInBar = phase.position - atBar * BEATS_PER_BAR;
+      const atBar = Math.floor(phase.position / barBeats);
+      const beatInBar = phase.position - atBar * barBeats;
       const intoBar = beatInBar + phase.sinceSeconds / phase.secondsPerBeat;
 
       const deal = dealRef.current;

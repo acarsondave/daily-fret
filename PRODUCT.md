@@ -73,14 +73,20 @@ Confirmed today:
 
 - Routines of ordered tasks. A task is either a timed block (optionally several
   labelled blocks with their own minutes, strum pattern, and tempo) or a live drill.
-- Four live drills: one-minute chord changes between a pair, anchor rotation
-  through an ordered ring, Chord Perfect (place a shape, strum, lift off, place
-  again, one shape per block), and song play-along.
+- Live practice includes one-minute chord changes, anchor rotation, Chord Perfect,
+  strum timing and written-pattern timing (4/4 or 6/8), alternate-picking timing,
+  note finding and ungraded song play-along. G Chord Perfect starts with a drawn
+  two-finger grip; the traditional catalogue G remains available.
 - Coached mode flattens a routine into segments and runs them end to end with
   spoken announcements, a count-in, a rest between segments, auto-advance, and a
   summary. Progress is saved so an interrupted session resumes.
 - Tempo coaching derives BPM and beats-per-change from a drill's own result
-  history, with a stated reason for the number.
+  history, with a stated reason for the number. Fixed blocks carry a meter; the
+  metronome supports 4/4, 3/4 and 6/8 with configurable accents and one-bar count-ins.
+- A versioned module plan can refresh the living routine in one tap, with a preview,
+  snooze, Undo and atomic recovery snapshots. Historical results stay untouched.
+  Module 6 is the first plan; details and measurement boundaries are in
+  `docs/MODULE6.md`.
 - Per-guitar calibration learns discriminative chord templates from real playing,
   refined passively during normal drills.
 - Local-first: Zustand persisted to localStorage, with optional Firebase Auth and
@@ -98,8 +104,10 @@ Constraints:
   where a strummed guitar is thinnest, the input is split into two bands and each is
   detected on its own, and the beat is read from the click as the microphone hears
   it. It requires the click to reach the microphone, so the drill cannot be
-  practised on headphones and says so. Pattern, direction and up-strum grading stay
-  out of scope: nothing in the signal yet says which way the hand was moving.
+  practised on headphones and says so. Written patterns can be matched to attack
+  positions, including 6/8, but direction and accent loudness are not graded.
+  Picking compares timing under instructed flat/angled conditions; it cannot hear
+  actual pick angle, direction or tone. Fast sub-200ms strokes remain unsupported.
 - Full tab or notation transcription is out of scope with the current engine.
   Chords only.
 - No page navigation. Overlays, modals, and panels preserve context.
@@ -111,8 +119,9 @@ Decided, not yet built:
   ever as good as calibrated; the app does not guess on an unknown instrument.
 - A progression model: skills with prerequisites and unlock criteria driven by
   measured results rather than by ticking a box.
-- Adaptive routine composition, so the session is prescribed from results rather
-  than authored by hand.
+- Fully adaptive routine composition. The Module 6 planner now combines curriculum
+  tasks, an evidence-selected weak D pair and preserved consolidation; automatic
+  graduation and subsequent module plans are not built.
 - Deeper feedback than chord identity (cleanliness of the shape, muted or buzzing
   strings, per-finger diagnosis, tuning). The specific mechanism is undecided; the
   rhythm-grading constraint above still stands.

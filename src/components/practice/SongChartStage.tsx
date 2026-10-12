@@ -7,7 +7,6 @@ import { SongPaceBar } from './SongPaceBar';
 import { SongClock } from '../../lib/songClock';
 import { SongBacking, buildBackingPlan } from '../../audio/songBacking';
 import { onOutputAudioChange, isOutputAudioReady, unlockOutputAudio } from '../../audio/outputContext';
-import { COUNT_IN_BEATS } from '../../audio/metronome';
 import { secondsPerBeat, sectionIndexAt, type SongTimeline } from '../../lib/songTiming';
 import type { SongPace } from '../../lib/songTempo';
 import type { Song } from '../../data/songs';
@@ -61,8 +60,8 @@ export function SongChartStage({ song, timeline, pace, capo, onEnded, topline, f
     return { clock, backing: new SongBacking(clock) };
   });
 
-  const plan = useMemo(() => buildBackingPlan(timeline, COUNT_IN_BEATS), [timeline]);
-  const leadIn = COUNT_IN_BEATS * secondsPerBeat(timeline.bars[0]);
+  const plan = useMemo(() => buildBackingPlan(timeline), [timeline]);
+  const leadIn = timeline.bars[0].beats * secondsPerBeat(timeline.bars[0]);
 
   useEffect(() => {
     const { clock, backing } = engine;

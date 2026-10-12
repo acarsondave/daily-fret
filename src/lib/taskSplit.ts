@@ -73,6 +73,7 @@ export function splitTask(task: Task, routine?: Routine): Task[] {
         group,
       };
       if (task.description) part.description = task.description;
+      if (task.source) part.source = task.source;
       // A stated duration was the whole task's; each part is one pair now.
       if (task.duration) part.duration = String(Math.max(1, Math.round(seconds / 60)));
       if (task.bpm !== undefined) part.bpm = task.bpm;
@@ -90,6 +91,7 @@ export function splitTask(task: Task, routine?: Routine): Task[] {
       group,
     };
     if (task.description) part.description = task.description;
+    if (task.source) part.source = task.source;
     return part;
   });
 }
