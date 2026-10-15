@@ -8,6 +8,7 @@ import { CapoSetting } from './CapoSetting';
 import { HandednessSetting } from './HandednessSetting';
 import { RecordingSetting } from './RecordingSetting';
 import { ReminderSetting } from './ReminderSetting';
+import { SongWarmupSetting } from './SongWarmupSetting';
 import { PatternManager } from './PatternManager';
 import { AccountSection } from './AccountSection';
 import type { IconProps } from '../icons';
@@ -187,6 +188,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             {group === 'practice' && (
               <>
                 <ReminderSetting />
+                <SongWarmupSetting />
                 <PatternManager />
               </>
             )}

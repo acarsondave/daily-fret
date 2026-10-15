@@ -15,7 +15,14 @@ import {
   songToDraft,
   youtubeIdFrom,
 } from '../src/lib/songCatalog.ts';
-import { SONGS } from '../src/data/songs.ts';
+import { SONGS, RETIRED_SONGS, getSong } from '../src/data/songs.ts';
+import { songStrumPatterns, songPatternName } from '../src/lib/songStrum.ts';
+import { parsePattern } from '../src/lib/strumPattern.ts';
+
+// Bars in each Module 6 chart, from the record (see the comment block in
+// src/data/songs.ts for the sources).
+const FADE_BARS = 127;
+const SBM_BARS = 88;
 
 let failures = 0;
 const check = (l, ok, d) => { if (!ok) failures++; console.log(`  ${ok?'ok  ':'FAIL'}  ${l}${d?' — '+d:''}`); };
@@ -243,15 +250,14 @@ console.log('\nScale\n');
   check('and a song without one is in the record\'s own key', noCapo.length > 0);
 }
 
-console.log('\nThe two Module 6 songs, both in 6/8\n');
+console.log('\nThe two Module 6 songs: Fade Into You and Stand By Me\n');
 {
   const DETECTABLE = new Set(['A', 'C', 'D', 'E', 'G', 'Am', 'Dm', 'Em', 'F']);
   const fade = SONGS.find((x) => x.id === 'fade-into-you');
-  const tyl = SONGS.find((x) => x.id === 'this-years-love');
-  for (const [name, song, capo, bars] of [['Fade Into You', fade, 2, 127], ["This Year's Love", tyl, 1, 112]]) {
+  const sbm = SONGS.find((x) => x.id === 'stand-by-me');
+  for (const [name, song, capo, bars] of [['Fade Into You', fade, 2, FADE_BARS], ['Stand By Me', sbm, 2, SBM_BARS]]) {
     check(`${name} is in the catalogue`, !!song);
     if (!song) continue;
-    check(`${name} is counted in six`, song.beatsPerBar === 6);
     check(`${name} is charted with capo ${capo}, matching the record`, song.capo === capo, String(song.capo));
     check(`${name} uses only shapes the detector knows`,
       song.chords.every((c) => DETECTABLE.has(c)) &&
@@ -261,16 +267,49 @@ console.log('\nThe two Module 6 songs, both in 6/8\n');
         [...song.chords].sort().join());
     const total = song.sections.reduce((n, sec) => n + sec.steps.length, 0);
     check(`${name} has every bar of the record (${bars})`, total === bars, String(total));
-    check(`${name}'s tempo is the eighth-note pulse a 6/8 click runs on`, (song.bpm ?? 0) > 140, String(song.bpm));
     check(`${name} links a recording`, typeof song.youtubeId === 'string' && song.youtubeId.length === 11);
-    check(`${name} carries Justin's 6/8 strum as its drillable phrase`,
-      song.strumPatterns?.some((p) => p.pattern === 'D--UD-D--UD-' && p.beatsPerBar === 6));
-    check(`${name} ships untimed rather than with guessed anchors`,
-      song.sections.every((sec) => sec.atSeconds === undefined));
+    check(`${name} links a lesson that is not the recording`,
+      typeof song.lessonYoutubeId === 'string' && song.lessonYoutubeId.length === 11 && song.lessonYoutubeId !== song.youtubeId);
+    check(`${name} is chords only: no lyric anywhere in the chart`,
+      song.sections.every((sec) => sec.steps.every((st) => st.lyric === undefined)));
+    check(`${name} has exactly one drillable phrase, and the drill can read it`,
+      song.strumPatterns?.length === 1 && songStrumPatterns(song).length === 1);
+    check(`${name}'s chart strum is its phrase`, song.strum === song.strumPatterns?.[0]?.pattern);
   }
+
+  // Fade Into You: 6/8, on the eighth-note click, strummed from his sheet.
+  check('Fade Into You is counted in six', fade?.beatsPerBar === 6);
+  check("Fade Into You's tempo is the eighth-note pulse a 6/8 click runs on", (fade?.bpm ?? 0) > 140, String(fade?.bpm));
   check('Fade Into You never leaves G, D, Am and C', fade?.chords.slice().sort().join() === 'Am,C,D,G');
-  check("This Year's Love has the A that stands in for the record's B flat 7",
-    tyl?.chords.includes('A'));
+  check("Fade Into You's strum is his sheet's: down 1, down 3, up 4, down 5, up 6",
+    fade?.strum === 'D-DUDU' && fade?.strumPatterns?.[0]?.slotsPerBeat === 1 && fade?.strumPatterns?.[0]?.beatsPerBar === 6);
+  check('the drill deals it as one 6/8 bar of six clicks', songStrumPatterns(fade).join() === '68.D-DUDU', songStrumPatterns(fade).join());
+  check('and it is named for the song in Progress', songPatternName('68.D-DUDU', SONGS) === 'Fade Into You');
+  check('the cycle is G D Am Am with the G D Am C turn',
+    fade?.sections[0].steps.map((st) => st.chord).join(' ') === 'G D Am Am G D Am Am');
+
+  // Stand By Me: 4/4, capo 2, the sheet's whole-song strum with its muted strokes.
+  check('Stand By Me is in four', (sbm?.beatsPerBar ?? 4) === 4 && sbm?.sections.every((sec) => (sec.beatsPerBar ?? 4) === 4));
+  check('Stand By Me is at the record\'s 119, not the sheet\'s 120', sbm?.bpm === 119, String(sbm?.bpm));
+  check('Stand By Me never leaves G, Em, C and D', sbm?.chords.slice().sort().join() === 'C,D,Em,G');
+  check('Stand By Me is strummed D-XU-UX-, muted downs on 2 and 4', sbm?.strum === 'D-XU-UX-');
+  check('the drill deals it as one 4/4 bar of eighths', songStrumPatterns(sbm).join() === 'D-XU-UX-' &&
+    parsePattern('D-XU-UX-')?.slotsPerBeat === 2 && parsePattern('D-XU-UX-')?.beatsPerBar === 4);
+  check('its slaps sit on 2 and 4', parsePattern('D-XU-UX-')?.slots[2] === 'X' && parsePattern('D-XU-UX-')?.slots[6] === 'X');
+  check('the cycle is G G Em Em C D G G',
+    sbm?.sections[0].steps.map((st) => st.chord).join(' ') === 'G G Em Em C D G G');
+  check('every section is whole cycles of it, as on his sheet', sbm?.sections.every((sec) => sec.steps.length % 8 === 0));
+  check('Stand By Me ships untimed rather than with guessed anchors', sbm?.sections.every((sec) => sec.atSeconds === undefined) ?? false);
+}
+
+console.log("\nThis Year's Love is retired, not deleted\n");
+{
+  check('it is no longer in the catalogue', !SONGS.some((x) => x.id === 'this-years-love'));
+  check('it is not offered when merging with his own songs', !mergeSongs([]).some((x) => x.id === 'this-years-love'));
+  check('a task that names it still finds it', findSong(SONGS, 'this-years-love')?.title === "This Year's Love");
+  check('and so does getSong', getSong('this-years-love')?.id === 'this-years-love');
+  check('it is listed as retired', RETIRED_SONGS.some((x) => x.id === 'this-years-love'));
+  check('a user song with the id would still win', findSong([{ id: 'this-years-love', title: 'Mine' }], 'this-years-love')?.title === 'Mine');
 }
 
 console.log(failures ? `\n${failures} FAILED\n` : '\nALL PASS\n');

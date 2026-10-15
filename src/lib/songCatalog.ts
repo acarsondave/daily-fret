@@ -12,7 +12,7 @@
 // User songs win a name collision on purpose. If someone writes their own Wild
 // Thing, theirs is the one they meant.
 
-import { SONGS, type Song, type SongSection, type SongStepDef } from '../data/songs';
+import { RETIRED_SONGS, SONGS, type Song, type SongSection, type SongStepDef } from '../data/songs';
 import { hasChordShape } from '../data/chordShapes';
 
 /** Prefix that marks a song as user-written. The only thing that distinguishes one. */
@@ -33,8 +33,13 @@ export function mergeSongs(userSongs: readonly Song[] | undefined): Song[] {
   return [...mine, ...SONGS.filter((s) => !taken.has(s.id))];
 }
 
+/**
+ * The song a task or a day names. A retired built-in still answers, so a task
+ * saved before it left the catalogue plays and keeps its name.
+ */
 export function findSong(songs: readonly Song[], id: string | undefined): Song | undefined {
-  return id ? songs.find((s) => s.id === id) : undefined;
+  if (!id) return undefined;
+  return songs.find((s) => s.id === id) ?? RETIRED_SONGS.find((s) => s.id === id);
 }
 
 // --- What a vocabulary opens ----------------------------------------------

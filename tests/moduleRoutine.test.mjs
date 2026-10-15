@@ -6,6 +6,7 @@
 
 import {
   MODULE_6,
+  MODULE_6_SONGS,
   planModuleUpdate,
   moduleUpdateDue,
   lessonOrder,
@@ -101,8 +102,14 @@ console.log('\nWhat is added\n');
   const six = changes.added.find((a) => a.task.drill?.kind === 'strum-pattern');
   check('6/8 strumming deals only 6/8 cards', six?.task.drill?.patterns?.every((p) => p.startsWith('68.')));
   check('6/8 strumming starts below the grading ceiling', (six?.task.drill?.bpm ?? 999) <= 120, String(six?.task.drill?.bpm));
-  check('both 6/8 songs are added',
-    ['fade-into-you', 'this-years-love'].every((id) => changes.added.some((a) => a.task.drill?.songId === id)));
+  check('both Module 6 songs are added: Fade Into You and Stand By Me',
+    ['fade-into-you', 'stand-by-me'].every((id) => changes.added.some((a) => a.task.drill?.songId === id)));
+  check("This Year's Love is no longer added", !changes.added.some((a) => a.task.drill?.songId === 'this-years-love'));
+  check('Stand By Me is its own task, named for the song',
+    changes.added.find((a) => a.task.drill?.songId === 'stand-by-me')?.task.id === 'm6-stand-by-me' &&
+    changes.added.find((a) => a.task.drill?.songId === 'stand-by-me')?.task.title === 'Song: Stand By Me');
+  check('6/8 strumming keeps Justin\'s B1-604 cards, not a song\'s strum',
+    six?.task.drill?.patterns?.includes('68.D--UD-D--UD-') && !six?.task.drill?.patterns?.includes('68.D-DUDU'));
   check('note names are light: one minute, at most',
     (changes.added.find((a) => a.task.drill?.kind === 'note-finder')?.task.drill?.durationSec ?? 0) <= 60);
   check('G joins the working chords and Dm does not leave them',
@@ -155,6 +162,63 @@ console.log('\nThe actual atomic routine\n');
   const pairs = safe.tasks.find((task) => task.id === 'm6-changes').drill.pairs;
   check('the weakest carry cannot reintroduce graduated Dm', pairs.every((p) => p.from !== 'Dm' && p.to !== 'Dm'));
   check('the next eligible weak D pair carries instead', pairs.some((p) => pairKey(p.from, p.to) === pairKey('A', 'D')));
+}
+
+console.log('\nSwapping This Year\'s Love for Stand By Me in a routine already on Module 6\n');
+{
+  // The routine as the first Module 6 update left it: This Year's Love is the
+  // closing song, and the player may have edited the routine since.
+  const tyl = { id: 'm6-this-years-love', title: "Song: This Year's Love", source: 'module', drill: { kind: 'song', songId: 'this-years-love' } };
+  const fade = { id: 'm6-fade-into-you', title: 'Song: Fade Into You', source: 'module', drill: { kind: 'song', songId: 'fade-into-you' } };
+  const before = {
+    id: 'r_10min', name: 'My Module 6', description: '', module: MODULE_6.id, chords: ['A', 'C', 'G'],
+    tasks: [
+      { id: 'spider', title: 'Spider', duration: '3' },
+      { id: 'mine-song', title: 'Song: my own', drill: { kind: 'song', songId: 'u_mine' } },
+      fade,
+      tyl,
+      { id: 'after', title: 'Cool down', duration: '1' },
+    ],
+  };
+  const { routine: after, changes: swap } = planModuleUpdate(before, MODULE_6_SONGS, logs);
+  check('it revises the first Module 6 update and nothing else', MODULE_6_SONGS.revises === MODULE_6.id);
+  check("This Year's Love goes, and is reported", !after.tasks.some((x) => x.drill?.songId === 'this-years-love') &&
+    swap.removed.length === 1 && swap.removed[0].task.id === 'm6-this-years-love');
+  check('Stand By Me takes its exact place', after.tasks[3]?.id === 'm6-stand-by-me' && after.tasks[3]?.drill?.songId === 'stand-by-me',
+    after.tasks.map((x) => x.id).join());
+  check('and is tagged as course material', after.tasks[3]?.source === 'module' && swap.added.length === 1 && swap.added[0].source === 'module');
+  check('every other task is exactly as it was, in order',
+    JSON.stringify(after.tasks.filter((x) => x.id !== 'm6-stand-by-me')) === JSON.stringify(before.tasks.filter((x) => x !== tyl)));
+  check('his own song is not touched', after.tasks.some((x) => x.id === 'mine-song'));
+  check('name, module, chords and id are untouched',
+    after.name === before.name && after.module === MODULE_6.id && after.chords.join() === before.chords.join() && after.id === before.id);
+  const again = planModuleUpdate(after, MODULE_6_SONGS, logs);
+  check('applying it twice is applying it once', JSON.stringify(again.routine) === JSON.stringify(after) &&
+    again.changes.added.length === 0 && again.changes.removed.length === 0);
+  const split = splitRoutine(after).routine;
+  check('a no-op after the store split too', JSON.stringify(planModuleUpdate(split, MODULE_6_SONGS, logs).routine) === JSON.stringify(split));
+
+  const acc = { routines: [before], activeRoutineId: 'r_10min', currentLesson: 'b1-608', moduleUpdates: { [MODULE_6.id]: { outcome: 'accepted', at: 1 } } };
+  check('a routine on Module 6 with This Year\'s Love is offered the swap', moduleUpdateDue(acc, MODULE_6_SONGS, Date.now()));
+  check('and the first Module 6 update is not offered again', !moduleUpdateDue(acc, MODULE_6, Date.now()));
+  check('not once accepted', !moduleUpdateDue({ ...acc, moduleUpdates: { ...acc.moduleUpdates, [MODULE_6_SONGS.id]: { outcome: 'accepted', at: 2 } } }, MODULE_6_SONGS, Date.now()));
+  check('not while snoozed', !moduleUpdateDue({ ...acc, moduleUpdates: { [MODULE_6_SONGS.id]: { outcome: 'snoozed', at: 2, until: Date.now() + 1000 } } }, MODULE_6_SONGS, Date.now()));
+  check('not once the routine already has it', !moduleUpdateDue({ ...acc, routines: [after] }, MODULE_6_SONGS, Date.now()));
+  check('not to a Module 5 routine, which gets Stand By Me from the module update itself',
+    !moduleUpdateDue({ routines: [module5], activeRoutineId: 'r_10min', currentLesson: 'b1-504' }, MODULE_6_SONGS, Date.now()));
+  check('a Module 5 routine is left alone by it', JSON.stringify(planModuleUpdate(module5, MODULE_6_SONGS, logs).routine) === JSON.stringify(module5));
+  check('a fresh Module 6 routine has nothing to swap', !moduleUpdateDue({ routines: [next], activeRoutineId: 'r_10min', currentLesson: 'b1-608' }, MODULE_6_SONGS, Date.now()));
+
+  // He deleted This Year's Love himself: the song he asked for still arrives,
+  // at the end of the songs.
+  const deleted = { ...before, tasks: before.tasks.filter((x) => x !== tyl) };
+  const filled = planModuleUpdate(deleted, MODULE_6_SONGS, logs).routine;
+  check('without This Year\'s Love, Stand By Me joins after the last song',
+    filled.tasks.map((x) => x.id).join() === 'spider,mine-song,m6-fade-into-you,m6-stand-by-me,after', filled.tasks.map((x) => x.id).join());
+  // He already added Stand By Me by hand: no second copy.
+  const own = { ...before, tasks: [...before.tasks, { id: 'u1', title: 'SBM', drill: { kind: 'song', songId: 'stand-by-me' } }] };
+  const once = planModuleUpdate(own, MODULE_6_SONGS, logs);
+  check('never a second Stand By Me', once.routine.tasks.filter((x) => x.drill?.songId === 'stand-by-me').length === 1 && once.changes.added.length === 0);
 }
 
 console.log('\nThe picking key\n');

@@ -1,6 +1,6 @@
 // Real Zustand actions and persistence; no Firebase/network/browser required.
 import assert from 'node:assert/strict';
-import { MODULE_6 } from '../src/lib/moduleRoutine.ts';
+import { MODULE_6, MODULE_6_SONGS } from '../src/lib/moduleRoutine.ts';
 import { splitRoutine, completedSet } from '../src/lib/taskSplit.ts';
 
 class MemoryDisk {
@@ -131,6 +131,46 @@ check('an older remote snapshot still contributes immutable archive entries', ()
   actions().syncFromRemote('anonymous', { routines: [other], moduleRoutineArchive: { remote: entry }, updatedAt: 0 });
   assert.deepEqual(acc().routines, live);
   assert.deepEqual(acc().moduleRoutineArchive.remote, entry);
+});
+check("Stand By Me replaces This Year's Love in an accepted Module 6 routine, with Undo", () => {
+  actions().acceptModuleUpdate(MODULE_6);
+  // The routine as the first Module 6 update shipped it: This Year's Love closing.
+  const shipped = structuredClone(acc().routines[0]);
+  shipped.tasks = shipped.tasks.map((t) => t.id === 'm6-stand-by-me'
+    ? { id: 'm6-this-years-love', title: "Song: This Year's Love", source: 'module', drill: { kind: 'song', songId: 'this-years-love' } }
+    : t);
+  useStore.setState((s) => ({ accounts: { ...s.accounts, anonymous: { ...s.accounts.anonymous, routines: [shipped, other] } } }));
+  const lesson = acc().currentLesson;
+  const earned = structuredClone(acc().dailyLogs);
+  const m6Receipt = structuredClone(acc().moduleUpdates[MODULE_6.id]);
+  actions().acceptModuleUpdate(MODULE_6_SONGS);
+  const swapped = acc().routines[0];
+  assert.deepEqual(swapped.tasks.map((t) => t.id), shipped.tasks.map((t) => (t.id === 'm6-this-years-love' ? 'm6-stand-by-me' : t.id)));
+  assert.equal(swapped.module, MODULE_6.id);
+  assert.equal(swapped.name, shipped.name);
+  assert.equal(acc().currentLesson, lesson);
+  assert.deepEqual(acc().dailyLogs, earned);
+  assert.deepEqual(acc().moduleUpdates[MODULE_6.id], m6Receipt);
+  assert.equal(acc().moduleUpdates[MODULE_6_SONGS.id].outcome, 'accepted');
+  assert.ok(archived(shipped));
+  const saved = JSON.parse(localStorage.getItem('daily-fret-storage')).state.accounts.anonymous;
+  assert.ok(archived(shipped, saved));
+  actions().acceptModuleUpdate(MODULE_6_SONGS);
+  assert.deepEqual(acc().routines[0], swapped);
+  actions().undoModuleUpdate(MODULE_6_SONGS);
+  assert.deepEqual(acc().routines[0], shipped);
+  assert.deepEqual(acc().dailyLogs, earned);
+  assert.equal(acc().moduleUpdates[MODULE_6_SONGS.id].outcome, 'undone');
+});
+check('the song strum warm-up is off until set, and is saved when set', () => {
+  assert.equal(acc().songStrumWarmup, undefined);
+  actions().setSongStrumWarmup(true);
+  assert.equal(acc().songStrumWarmup, true);
+  let saved = JSON.parse(localStorage.getItem('daily-fret-storage')).state.accounts.anonymous;
+  assert.equal(saved.songStrumWarmup, true);
+  actions().setSongStrumWarmup(false);
+  saved = JSON.parse(localStorage.getItem('daily-fret-storage')).state.accounts.anonymous;
+  assert.equal(saved.songStrumWarmup, false);
 });
 console.log(failures ? `\n${failures} FAILED\n` : '\nALL PASS\n');
 process.exitCode = failures ? 1 : 0;

@@ -112,9 +112,17 @@ export const SIX_EIGHT_BEATS = 6;
  * song is counted on is a claim about the record, it is decided in
  * src/data/songs.ts, and it has to stay changeable there in one line: the only
  * real test of the reading is the player putting it against the record.
+ *
+ * One is a whole click per slot, and exists only in 6/8, where the click is
+ * already the eighth note. It is the bar a sheet counts "1 & 2 & 3 &": the arm
+ * swings once for every two eighths, so it is down on clicks 1, 3 and 5 and up
+ * on 2, 4 and 6. The owner's Fade Into You sheet is strummed that way, and laid
+ * on the twelve-slot grid its ups would sit on down-going slots and be refused.
  */
-export type SlotResolution = 2 | 4;
+export type SlotResolution = 1 | 2 | 4;
 
+/** One slot per click: a 6/8 bar strummed on the eighth note itself. */
+export const CLICKS: SlotResolution = 1;
 export const EIGHTHS: SlotResolution = 2;
 export const SIXTEENTHS: SlotResolution = 4;
 
@@ -256,6 +264,12 @@ function detectionLagMs(expected: SlotStroke, slot: number): number {
  * length this file and the pattern manager are built around for no case anyone
  * has.
  *
+ * IN 6/8, after the `68.` mark, exactly one bar and two lengths. Twelve
+ * characters is six clicks split down and up (Justin's B1-604 count, 1 + 2 + 3 +
+ * 4 + 5 + 6 +). Six characters is one slot per click, the arm swinging on the
+ * eighth note ({@link CLICKS}). A 6/8 phrase is never two bars, so the two
+ * lengths can never describe the same thing and the length is not a guess.
+ *
  * Everything else returns null rather than being guessed at. Six characters in
  * particular describes three beats, which is not a bar of 4/4 at all, and a
  * matcher that quietly padded it would score the player against a bar that does
@@ -288,10 +302,14 @@ export function parsePattern(source: string): Pattern | null {
     // One bar of six eighth-note clicks, each split down and up. Exactly one
     // bar: a 6/8 phrase is new to the player and a two-bar one is not a thing
     // the lesson asks for.
-    if (trimmed.length !== EIGHTHS * SIX_EIGHT_BEATS) return null;
+    const slotsPerBeat =
+      trimmed.length === EIGHTHS * SIX_EIGHT_BEATS ? EIGHTHS
+        : trimmed.length === CLICKS * SIX_EIGHT_BEATS ? CLICKS
+          : null;
+    if (!slotsPerBeat) return null;
     const slots = read(trimmed);
     return travelsWithTheArm(slots)
-      ? { source, slots, slotsPerBeat: EIGHTHS, beatsPerBar: SIX_EIGHT_BEATS }
+      ? { source, slots, slotsPerBeat, beatsPerBar: SIX_EIGHT_BEATS }
       : null;
   }
 

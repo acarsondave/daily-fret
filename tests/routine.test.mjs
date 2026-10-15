@@ -517,13 +517,32 @@ console.log('\nEdge cases\n');
 // and a song already knows its strumming, so the block appears in routines saved
 // long before it existed. These checks are about the wiring rather than the
 // notation - tests/songStrum.test.mjs is where the pattern itself is derived.
-console.log('\nA song task brings its own strum block with it\n');
+console.log('\nThe strum warm-up before a song is the player\'s choice, off unless he turns it on\n');
 {
   const songTask = (songId) => ({ id: `t-${songId}`, title: 'Closer', drill: { kind: 'song', songId } });
   const routineOf = (task) => ({ id: 'r', name: 'R', description: '', tasks: [task] });
+  // The owner asked for the block to go or be optional (2026-10-15): off, a
+  // song task goes straight to the song.
+  const off = buildSegments(routineOf(songTask('get-lucky')));
+  check('by default a song task is the song alone', off.length === 1 && off[0].kind === 'song',
+    off.map((s) => s.kind).join('+'));
+  const offExplicit = buildSegments(routineOf(songTask('stand-by-me')), SONGS, { songStrumWarmup: false });
+  check('turned off, the same', offExplicit.length === 1 && offExplicit[0].songId === 'stand-by-me',
+    offExplicit.map((s) => s.kind).join('+'));
+  const on = buildSegments(routineOf(songTask('stand-by-me')), SONGS, { songStrumWarmup: true });
+  check('turned on, the strum block comes back in front of the song',
+    on.length === 2 && on[0].kind === 'patterns' && on[1].kind === 'song' && on[0].title === 'Stand By Me strum',
+    on.map((s) => s.kind).join('+'));
+}
+
+console.log('\nWith the warm-up on, a song task brings its own strum block with it\n');
+{
+  const songTask = (songId) => ({ id: `t-${songId}`, title: 'Closer', drill: { kind: 'song', songId } });
+  const routineOf = (task) => ({ id: 'r', name: 'R', description: '', tasks: [task] });
+  const WARM = { songStrumWarmup: true };
 
   const lucky = SONGS.find((s) => s.id === 'get-lucky');
-  const segs = buildSegments(routineOf(songTask('get-lucky')));
+  const segs = buildSegments(routineOf(songTask('get-lucky')), SONGS, WARM);
   check('a song with a written strum flattens to two segments', segs.length === 2,
     segs.map((s) => s.kind).join('+'));
   check('the strum block comes first', segs[0]?.kind === 'patterns', segs[0]?.kind);
@@ -545,7 +564,7 @@ console.log('\nA song task brings its own strum block with it\n');
 
   // A chart whose strum is arrow art has nothing the matcher can score, and gets
   // no block rather than a block dealing a bar that does not exist.
-  const plain = buildSegments(routineOf(songTask('wild-thing')));
+  const plain = buildSegments(routineOf(songTask('wild-thing')), SONGS, WARM);
   check('a song with no drillable strum flattens to the song alone',
     plain.length === 1 && plain[0].kind === 'song', plain.map((s) => s.kind).join('+'));
 
@@ -553,14 +572,14 @@ console.log('\nA song task brings its own strum block with it\n');
   // caller passes in, not the shipped one.
   const written = [{ ...SONGS[0], id: 'mine', title: 'Mine', strum: 'DD',
     strumPatterns: [{ pattern: 'D-DU-UDU' }] }];
-  const own = buildSegments(routineOf(songTask('mine')), written);
+  const own = buildSegments(routineOf(songTask('mine')), written, WARM);
   check('a written chart gets a strum block too', own[0]?.kind === 'patterns', own[0]?.kind);
   check('dealing what that chart wrote', own[0]?.patterns?.join(' ') === 'D-DU-UDU');
   // Looked up in the catalogue the caller passed, and nowhere else. The
   // play-along still runs and says for itself that it cannot find the chart;
   // what must not happen is a strum block dealing a phrase from a song this
   // caller never had.
-  const unknown = buildSegments(routineOf(songTask('mine')));
+  const unknown = buildSegments(routineOf(songTask('mine')), SONGS, WARM);
   check('the shipped catalogue gives that chart no strum block',
     unknown.length === 1 && unknown[0].kind === 'song', unknown.map((s) => s.kind).join('+'));
 

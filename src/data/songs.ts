@@ -28,7 +28,7 @@
  * which drew the one stroke in Get Lucky that carries the groove as a slot with
  * nothing in it.
  */
-import { SIXTEENTHS, type SlotResolution } from '../lib/strumPattern';
+import { CLICKS, SIXTEENTHS, type SlotResolution } from '../lib/strumPattern';
 
 export type StrumDir = 'D' | 'U' | 'X' | '-';
 
@@ -134,6 +134,12 @@ export interface Song {
   capo?: number;
   /** Material differences from the linked recording, shown before play. */
   arrangementNote?: string;
+  /**
+   * A lesson for this song, as a YouTube id: a way to learn it, never something
+   * to play along to. A tutorial does not keep time with a bar chart, so it is
+   * only ever offered as a link, and `youtubeId` stays the record.
+   */
+  lessonYoutubeId?: string;
 }
 
 const s = (chord: string, lyric?: string, strum?: string): SongStepDef => ({
@@ -696,24 +702,40 @@ const getLucky: Song = {
   ],
 };
 
-// --- Module 6: two songs in 6/8 ---------------------------------------------
+// --- Module 6 songs: Fade Into You and Stand By Me ---------------------------
 //
-// Both are counted on the eighth-note click, six to a bar, the weight on 1 and
-// a lighter weight on 4, which is what the metronome plays in 6/8. `bpm` is
-// therefore the eighth-note pulse, three times the dotted-quarter figure most
-// sites quote. Both are strummed with Justin's B1-604 pattern.
+// The owner's two Module 6 songs, both from his own Ultimate Guitar sheets.
+// Chords only: no lyric is charted for either, by rule.
 //
-// Sources, checked 2026-10-11 (full notes in docs/STATUS.md):
-//   Fade Into You: UG chords ver 2 (capo 2, G D Am, C on the chorus turn),
-//   Songsterr s12522 (127 bars, same harmony bar for bar), Chordify, Hooktheory
-//   (6/8, 52 dotted-quarter). Capo 2 G/D/Am/C is the record's A/E/Bm/D exactly;
-//   nothing is simplified.
-//   This Year's Love: JustinGuitar BS-309 (6/8, C D G Em A; capo 1 per his
-//   community thread), UG 69812, Songsterr s32940 (112 bars with its repeat),
-//   Hooktheory (6/8, 55). SIMPLIFIED: the record's Bb7 is played as A (no A7 in
-//   the detector set), and its Cadd9/Dsus2 colours are plain C and D.
-//   Section lengths follow Songsterr; the two outros are the least certain bars.
+// Fade Into You is counted on the eighth-note click, six to a bar, the weight on
+// 1 and a lighter weight on 4, which is what the metronome plays in 6/8. `bpm`
+// is therefore the eighth-note pulse, three times the dotted-quarter figure most
+// sites quote.
+//
+//   Fade Into You, checked 2026-10-15 against the owner's own sheet, UG chords
+//   910099 (ver 2, "absolute beginner", torilynn): capo 2, G D Am with C on the
+//   chorus turn, 157 BPM. Same form line for line as this chart; also UG 945178
+//   (ver 3, the top-rated, in A without a capo: A E Bm D, the same harmony),
+//   Songsterr s12522 (127 bars, bar for bar this chart, written in 12/8 at the
+//   same 2.29 s bar) and Hooktheory (6/8, 52 dotted-quarter). Measured on the
+//   record: 127 bars, every 'G D Am' line four 6/8 bars with Am held for two,
+//   the C at bars 52, 68, 100 and 116, first downbeat at 0.51 s. His sheet's
+//   final chorus has a ninth line; that is the outro's first cycle here, then
+//   G D Am into the fade. The lesson linked below agrees on capo, shapes and
+//   form. Capo 2 G/D/Am/C is the record's A/E/Bm/D exactly; nothing simplified.
+//   STRUM CHANGED 2026-10-15 to his sheet's: down 1, down 3, up 4, down 5, up 6
+//   (`D-DUDU`, the sheet counts it "1 & 2 & 3 &"), one slot per eighth-note
+//   click. It used to carry Justin's B1-604 `D--UD-D--UD-`, which stays the
+//   Module 6 "6/8 Strumming" task; the song now follows the sheet he learns from.
+//
+// This Year's Love (David Gray) left Module 6 on 2026-10-15 at the owner's
+// request, replaced by Stand By Me. It stays defined below as a retired chart so
+// a routine or a day that still names it keeps resolving; it is no longer offered.
+//   Sources, checked 2026-10-11: JustinGuitar BS-309 (6/8, C D G Em A; capo 1),
+//   UG 69812, Songsterr s32940 (112 bars with its repeat), Hooktheory (6/8, 55).
+//   SIMPLIFIED: the record's Bb7 is played as A, its Cadd9/Dsus2 as C and D.
 const SIX_EIGHT_STRUM = 'D--UD-D--UD-';
+const FADE_STRUM = 'D-DUDU';
 const fiy = (): SongStepDef[] => [s('G'), s('D'), s('Am'), s('Am')];
 const fiyTurn = (): SongStepDef[] => [s('G'), s('D'), s('Am'), s('C')];
 const times = (n: number, make: () => SongStepDef[]): SongStepDef[] =>
@@ -724,15 +746,19 @@ const fadeIntoYou: Song = {
   title: 'Fade Into You',
   artist: 'Mazzy Star',
   level: 'Beginner',
-  strum: SIX_EIGHT_STRUM,
-  strumPatterns: [{ pattern: SIX_EIGHT_STRUM, beatsPerBar: 6, name: 'Fade Into You' }],
+  strum: FADE_STRUM,
+  strumPatterns: [{ pattern: FADE_STRUM, slotsPerBeat: CLICKS, beatsPerBar: 6, name: 'Fade Into You' }],
   beatsPerBar: 6,
   capo: 2,
-  bpm: 156,
+  // 157, not 156: his sheet, Songsterr and the record all say 157. A bar of the
+  // record measures 2.288 s; at 156 the chart fell a whole bar behind by the end.
+  bpm: 157,
   chords: ['G', 'D', 'Am', 'C'],
   // Album audio from the official Mazzy Star channel; the VEVO video is a
   // shorter edit that will not line up with a full chart. Replaceable in-app.
   youtubeId: 'avv2IIdDnnk',
+  // John McNicholas Guitar, "Easy Capo Version, No Barre Chords".
+  lessonYoutubeId: 'iDdUpxZQhpc',
   sections: [
     { label: 'Intro', steps: times(2, fiy) },
     { label: 'Verse 1', steps: times(8, fiy) },
@@ -775,6 +801,55 @@ const thisYearsLove: Song = {
   ],
 };
 
+// --- Stand By Me (Ben E. King) ------------------------------------------------
+//
+// From the owner's sheet, UG chords 1724608 (ver 7, "absolute beginner", the
+// most-voted version): 4/4, capo 2, so the shapes G Em C D are the record's
+// A F#m D E. One chord a bar round one eight-bar cycle, `G G Em Em C D G G`.
+// STRUM_SBM is the sheet's "whole song" pattern, on eighths: down on 1, a muted
+// down on 2, up on 2+, up on 3+, a muted down on 4.
+//
+// Checked 2026-10-15 against the record and two more sources:
+//   The record: the 1961 Atlantic master as Ben E. King - Topic serves it
+//   ("Provided to YouTube by Rhino Atlantic"), 175 s. Measured by beat tracking
+//   with the bar grid checked against chord chroma: first downbeat at 1.03 s
+//   (no start offset needed), 8 bars of bass intro, then the sheet's form bar
+//   for bar; the cycle stays in phase to the fade.
+//   Songsterr s61064: 88 bars of 4/4, bass alone for bars 1-8, the same cycle.
+//   Hooktheory: A major, I I vi vi IV V I I, 4/4.
+// DIFFERS FROM THE SHEET, FOLLOWING THE RECORD: `bpm` is 119, not the sheet's
+// 120. The record averages 119.0; at 120 the chart is 1.5 s ahead by bar 73.
+// The record fades out inside the last cycle (below -40 dB at bar 85, the video
+// ends in bar 87); the chart keeps the sheet's 88 bars, as Songsterr does.
+// The lesson linked below strums `D XD DU` instead; the sheet's strum is kept.
+const STRUM_SBM = 'D-XU-UX-';
+const sbm = (): SongStepDef[] =>
+  ['G', 'G', 'Em', 'Em', 'C', 'D', 'G', 'G'].map((chord) => s(chord));
+
+const standByMe: Song = {
+  id: 'stand-by-me',
+  title: 'Stand By Me',
+  artist: 'Ben E. King',
+  level: 'Beginner',
+  strum: STRUM_SBM,
+  strumPatterns: [{ pattern: STRUM_SBM, name: 'Stand By Me' }],
+  capo: 2,
+  bpm: 119,
+  chords: ['G', 'Em', 'C', 'D'],
+  youtubeId: 'b-D5yAAXYng',
+  // Easy 2 Play Music, "Stand By Me EASY Guitar Tutorial With Chords".
+  lessonYoutubeId: 'kvAFzZjGlCg',
+  sections: [
+    { label: 'Intro', steps: sbm() },
+    { label: 'Verse 1', steps: times(2, sbm) },
+    { label: 'Chorus', steps: sbm() },
+    { label: 'Verse 2', steps: times(2, sbm) },
+    { label: 'Chorus', steps: sbm() },
+    { label: 'Solo', steps: times(2, sbm) },
+    { label: 'Chorus', steps: times(2, sbm) },
+  ],
+};
+
 export const SONGS: Song[] = [
   wildThing,
   threeLittleBirds,
@@ -785,11 +860,22 @@ export const SONGS: Song[] = [
   fiveOhFive,
   getLucky,
   fadeIntoYou,
-  thisYearsLove,
+  standByMe,
 ];
 
+/**
+ * Charts no longer offered, kept so that nothing which names one breaks.
+ *
+ * A routine task, a Quick path or a past day can still point at a song after it
+ * leaves the catalogue. Looking it up must still find it: the task plays, its
+ * history keeps its name, and nothing reads "That song isn't in the catalog."
+ * They are never listed, picked or suggested.
+ */
+export const RETIRED_SONGS: Song[] = [thisYearsLove];
+
 export function getSong(id: string | undefined): Song | undefined {
-  return id ? SONGS.find((song) => song.id === id) : undefined;
+  if (!id) return undefined;
+  return SONGS.find((song) => song.id === id) ?? RETIRED_SONGS.find((song) => song.id === id);
 }
 
 export function parseStrum(strum: string): StrumDir[] {

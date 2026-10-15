@@ -217,6 +217,14 @@
   box-shadow: var(--focus-ring);
 }
 
+/* --- Song strum warm-up --------------------------------------------------- */
+
+.song-warmup-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 120px));
+  gap: var(--space-1);
+}
+
 /* --- Handedness ---------------------------------------------------------- */
 /* Chosen by looking rather than by reading a label. */
 

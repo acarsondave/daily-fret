@@ -154,9 +154,19 @@ export function taskMinutes(task: Task): number {
  * shipped charts, but a caller that has the real catalogue must pass it, or a
  * chart the player wrote themselves would quietly lose its strum block.
  */
+export interface SegmentOptions {
+  /**
+   * Drill a song's own strum before the song. Off unless the player turns it on
+   * in Settings: the owner asked on 2026-10-15 for a song task to go straight to
+   * the song, since the routine already has its strumming tasks.
+   */
+  songStrumWarmup?: boolean;
+}
+
 export function buildSegments(
   routine: Routine | undefined,
   songs: readonly Song[] = SONGS,
+  options: SegmentOptions = {},
 ): CoachSegment[] {
   if (!routine) return [];
   const learned = routineChords(routine);
@@ -285,7 +295,7 @@ export function buildSegments(
       // still records only that it was played; what gets a score is the strum
       // block, under its own title and under the pattern it dealt.
       const song = findSong(songs, task.drill.songId);
-      const patterns = songStrumPatterns(song);
+      const patterns = options.songStrumWarmup ? songStrumPatterns(song) : [];
       if (song && patterns.length) {
         segments.push({
           kind: 'patterns',

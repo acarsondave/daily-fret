@@ -9,7 +9,7 @@ import {
   SpeakerOffIcon,
   SkipIcon,
 } from '../icons';
-import { useStore, getTodayString, drillLogsOf, type CoachStepResult } from '../../store';
+import { useStore, useUserData, getTodayString, drillLogsOf, type CoachStepResult } from '../../store';
 import { pairKey } from '../../lib/pairs';
 import { chordKey, findKey, patternKey, poolKey, rotationRing, sweepKey, timingKey, pickKey, trainerPool } from '../../lib/drillKeys';
 import { deckOf, deckMeter, patternRuns } from '../../lib/patternDeck';
@@ -138,7 +138,11 @@ export function CoachedSession({ routine: fullRoutine, taskIds, onClose }: Props
   const songs = useSongs();
   // The real catalogue, not the built-in one: a song the player wrote carries
   // its own strumming and has to get the same strum block a shipped chart does.
-  const segments = useMemo(() => buildSegments(routine, songs), [routine, songs]);
+  const songStrumWarmup = useUserData().songStrumWarmup ?? false;
+  const segments = useMemo(
+    () => buildSegments(routine, songs, { songStrumWarmup }),
+    [routine, songs, songStrumWarmup],
+  );
   // Only nudge about the mic if this routine actually listens. Songs used to be
   // in this list, but the play-along has had no mic since the learn pass was
   // retired, so a song-only routine was asking for a permission it never uses.

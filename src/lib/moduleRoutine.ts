@@ -52,9 +52,27 @@ export interface ModulePlan {
   /** Chords the owner named as weak; the history is searched for their worst change. */
   weakChords: string[];
   add: ModuleTask[];
+  /**
+   * Set on a revision: the id of the update whose routine this one corrects.
+   *
+   * A revision is narrow on purpose. The routine it meets has been practised
+   * from, and maybe edited, since its module update was accepted, so re-running
+   * the whole update would undo the player's own changes. A revision swaps only
+   * what it names and leaves the name, the module receipt, the chords and every
+   * other task exactly as they are.
+   */
+  revises?: string;
+  /** Song tasks a revision replaces one for one, in place. `to` is added from `add`. */
+  swapSongs?: { from: string; to: string }[];
 }
 
 const drill = (config: DrillConfig): DrillConfig => config;
+
+const M6_STAND_BY_ME: Task = {
+  id: 'm6-stand-by-me',
+  title: 'Song: Stand By Me',
+  drill: drill({ kind: 'song', songId: 'stand-by-me' }),
+};
 
 export const MODULE_6: ModulePlan = {
   id: 'bg1-m6',
@@ -64,7 +82,8 @@ export const MODULE_6: ModulePlan = {
   lastLesson: 'b1-608',
   dropChords: ['Dm'],
   keepRiffs: [/come as you are/i, /sunshine/i],
-  songs: ['fade-into-you', 'this-years-love'],
+  // Stand By Me replaced This Year's Love on 2026-10-15, at the owner's request.
+  songs: ['fade-into-you', 'stand-by-me'],
   addChords: ['G'],
   weakChords: ['D'],
   // Justin's B1-608 twenty minutes, with his blanks filled from the owner's own
@@ -146,13 +165,32 @@ export const MODULE_6: ModulePlan = {
     {
       slot: 'songs',
       source: 'module',
-      task: {
-        id: 'm6-this-years-love',
-        title: "Song: This Year's Love",
-        drill: drill({ kind: 'song', songId: 'this-years-love' }),
-      },
+      task: M6_STAND_BY_ME,
     },
   ],
+};
+
+/**
+ * Stand By Me for a routine that already took Module 6 with This Year's Love.
+ *
+ * Offered, previewed and undone like any module update, and only to a routine
+ * carrying the first Module 6 receipt. A Module 5 routine gets Stand By Me from
+ * MODULE_6 itself and never sees this.
+ */
+export const MODULE_6_SONGS: ModulePlan = {
+  id: 'bg1-m6-songs',
+  module: 6,
+  name: MODULE_6.name,
+  offeredFrom: MODULE_6.offeredFrom,
+  lastLesson: MODULE_6.lastLesson,
+  dropChords: [],
+  keepRiffs: [],
+  songs: MODULE_6.songs,
+  addChords: [],
+  weakChords: [],
+  add: [{ slot: 'songs', source: 'module', task: M6_STAND_BY_ME }],
+  revises: MODULE_6.id,
+  swapSongs: [{ from: 'this-years-love', to: 'stand-by-me' }],
 };
 
 export interface ModuleChanges {
@@ -219,6 +257,7 @@ export function planModuleUpdate(
   plan: ModulePlan,
   logs: Record<string, DailyLog>,
 ): { routine: Routine; changes: ModuleChanges } {
+  if (plan.revises) return planRevision(routine, plan);
   const changes: ModuleChanges = { removed: [], edited: [], added: [], kept: [] };
   // The store splits added tasks into derived ids. The version, not presence
   // of the unsplit parent ids, is the application receipt. Never rebuild an
@@ -325,6 +364,54 @@ export function planModuleUpdate(
   };
 }
 
+const songOf = (task: Task): string | undefined =>
+  task.drill?.kind === 'song' ? task.drill.songId : undefined;
+
+/**
+ * A revision applied to the routine its update left behind.
+ *
+ * Only routines carrying the revised update's receipt are touched. Each named
+ * song task is replaced where it stands, so the session keeps its order; if the
+ * player removed it already, the new song joins after the last song. A song he
+ * added himself is never doubled. Nothing to change returns the routine itself.
+ */
+function planRevision(routine: Routine, plan: ModulePlan): { routine: Routine; changes: ModuleChanges } {
+  const changes: ModuleChanges = { removed: [], edited: [], added: [], kept: [] };
+  const unchanged = { routine, changes: { ...changes, kept: routine.tasks } };
+  if (routine.module !== plan.revises) return unchanged;
+
+  let tasks = [...routine.tasks];
+  for (const swap of plan.swapSongs ?? []) {
+    const entry = plan.add.find((a) => a.task.drill?.kind === 'song' && a.task.drill.songId === swap.to);
+    const incoming: Task | null = entry ? { ...entry.task, source: entry.source } : null;
+    let needed = !!incoming && !tasks.some((t) => songOf(t) === swap.to);
+    const next: Task[] = [];
+    for (const task of tasks) {
+      if (songOf(task) !== swap.from) {
+        next.push(task);
+        continue;
+      }
+      changes.removed.push({ task, reason: 'song' });
+      if (needed && incoming) {
+        next.push(incoming);
+        changes.added.push({ task: incoming, source: entry!.source });
+        needed = false;
+      }
+    }
+    if (needed && incoming) {
+      const lastSong = next.reduce((at, t, i) => (slotOf(t) === 'songs' ? i : at), -1);
+      next.splice(lastSong + 1 || next.length, 0, incoming);
+      changes.added.push({ task: incoming, source: entry!.source });
+    }
+    tasks = next;
+  }
+
+  if (!changes.added.length && !changes.removed.length) return unchanged;
+  const touched = new Set([...changes.added.map((a) => a.task), ...changes.removed.map((r) => r.task)]);
+  changes.kept = tasks.filter((t) => !touched.has(t));
+  return { routine: { ...routine, tasks }, changes };
+}
+
 /** A lesson code as a number that orders the course: b1-608 is 1608. */
 export function lessonOrder(code: string | null | undefined): number {
   const m = /^b(\d)-(\d{3})$/i.exec(code ?? '');
@@ -358,6 +445,13 @@ export function moduleUpdateDue(acc: AccountLike, plan: ModulePlan, now: number)
   if (record?.outcome === 'accepted') return false;
   if (record?.outcome === 'snoozed' && (record.until ?? 0) > now) return false;
   const routine = updateTarget(acc);
+  if (plan.revises) {
+    // Due exactly when it would change something: a routine already carrying
+    // the new song, or not on the revised update at all, has nothing to see.
+    if (!routine) return false;
+    const { changes } = planRevision(routine, plan);
+    return changes.added.length + changes.removed.length > 0;
+  }
   if (!routine || routine.module === plan.id) return false;
   const reached = lessonOrder(acc.currentLesson) >= lessonOrder(plan.offeredFrom);
   const named = new RegExp(`module\\s*${plan.module - 1}\\b`, 'i').test(routine.name);

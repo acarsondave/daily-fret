@@ -194,6 +194,9 @@ export interface UserData {
   // Mirrors chord diagrams. A left-handed player reading a right-handed chord
   // box has to flip every shape in their head before their hand can use it.
   leftHanded?: boolean;
+  // Drill a song's own strum before the song in a coached session. Absent is
+  // off: the owner asked for a song task to go straight to the song.
+  songStrumWarmup?: boolean;
   // Which fret the capo is on, 0 for none. The detector matches pitch-class
   // templates, so a capo transposes everything it hears and every drill would
   // silently stop counting without this. Absent means none.
@@ -345,6 +348,7 @@ interface AppState {
   setMetronomeAccents: (meter: MeterId, accents: AccentLevel[]) => void;
   setCapoFret: (fret: number) => void;
   setLeftHanded: (left: boolean) => void;
+  setSongStrumWarmup: (on: boolean) => void;
   setSkillClaimed: (skillId: string, claimed: boolean) => void;
   setCurrentLesson: (code: string | null) => void;
   setReminder: (reminder: ReminderSettings | null) => void;
@@ -512,6 +516,7 @@ export const useStore = create<AppState>()(
             capoFret: data.capoFret ?? local?.capoFret,
             claimedSkills: data.claimedSkills ?? local?.claimedSkills ?? [],
             leftHanded: data.leftHanded ?? local?.leftHanded,
+            songStrumWarmup: data.songStrumWarmup ?? local?.songStrumWarmup,
             currentLesson: data.currentLesson ?? local?.currentLesson,
             // Unioned rather than picked, like the note map below and for the
             // same reason: each device appends its own arrivals, so neither
@@ -869,9 +874,12 @@ export const useStore = create<AppState>()(
             if (!target || target.module === plan.id || a.moduleUpdates?.[plan.id]?.outcome === 'accepted') return a;
             const { routine } = planModuleUpdate(target, plan, a.dailyLogs);
             // Reaching the module's last lesson is what accepting says; never
-            // move a player backwards who is already further on.
+            // move a player backwards who is already further on. A revision
+            // corrects a routine and says nothing about where he is.
             const lesson =
-              lessonOrder(a.currentLesson) >= lessonOrder(plan.lastLesson) ? a.currentLesson : plan.lastLesson;
+              plan.revises || lessonOrder(a.currentLesson) >= lessonOrder(plan.lastLesson)
+                ? a.currentLesson
+                : plan.lastLesson;
             return {
               ...a,
               routines: a.routines.map((r) => (r.id === target.id ? routine : r)),
@@ -935,6 +943,10 @@ export const useStore = create<AppState>()(
             ...a,
             metronomeAccents: { ...a.metronomeAccents, [meter]: accents },
           })),
+        ),
+
+        setSongStrumWarmup: (on) => set((state) =>
+          mutate(state, (a) => ({ ...a, songStrumWarmup: on })),
         ),
 
         // Clamped rather than trusted: an out-of-range offset would shift the

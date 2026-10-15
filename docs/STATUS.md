@@ -1,6 +1,6 @@
 # Status
 
-Updated 2026-10-12.
+Updated 2026-10-15.
 
 ## Live
 
@@ -36,6 +36,14 @@ Implementation and measurement boundaries: [MODULE6.md](MODULE6.md).
 - The owner applies the update in-app; no real owner-account write was performed.
 
 ## Shipped
+
+- **2026-10-15, Stand By Me and the owner's sheets:** Stand By Me (capo 2,
+  119 BPM, 88 bars, `D-XU-UX-`) replaces This Year's Love in Module 6, with a
+  narrow in-place swap offered to routines already on Module 6 (preview, archive,
+  Undo). Fade Into You follows his UG sheet: strum `D-DUDU` on the eighth-note
+  click, 157 BPM. Both songs link a lesson. Settings → Practice has **Strum
+  warm-up before songs**, off by default: a coached song task now goes straight
+  to the song. Details in [MODULE6.md](MODULE6.md).
 
 - **Module 6:** G/D Chord Perfect (including standalone single-shape start),
   6/8 meter/accents and pattern practice, coached alternate picking, Fade Into

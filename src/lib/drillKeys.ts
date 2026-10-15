@@ -40,7 +40,7 @@ import { PAIR_PREFIX, parsePairKey } from './pairs';
 import { ASSUMED_WINDOW_SEC, WINDOW_SEP, baseKey, keyWindow, perMinute } from './drillWindow';
 import { patternName } from '../data/strumPatterns';
 import { SIX_EIGHT_MARK, SIXTEENTH_MARK } from './strumPattern';
-import { SONGS } from '../data/songs';
+import { RETIRED_SONGS, SONGS } from '../data/songs';
 import { songPatternName } from './songStrum';
 import { getRung } from './noteFinder';
 
@@ -352,7 +352,7 @@ export function describeDrillKey(key: string): DrillKeyDescription {
     // rung to be named by (src/data/strumPatterns.ts says why), and without the
     // second lookup every run of Get Lucky's strum would appear in Progress as
     // the raw string, which is the pattern and is not its name.
-    const named = patternName(dealt.pattern, []) ?? songPatternName(dealt.pattern, SONGS);
+    const named = patternName(dealt.pattern, []) ?? songPatternName(dealt.pattern, [...SONGS, ...RETIRED_SONGS]);
     return {
       kind: 'pattern',
       label: `${named ?? dealt.pattern} \u00b7 ${dealt.bpm} BPM`,

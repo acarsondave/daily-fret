@@ -135,6 +135,57 @@ console.log('\nA pattern in 6/8\n');
   check('six strokes a bar are expected', summary.expected === 6 * 4, String(summary.expected));
 }
 
+console.log('\nA 6/8 bar strummed on the eighth: the owner\'s Fade Into You sheet\n');
+{
+  // His UG sheet counts a 6/8 bar "1 & 2 & 3 &": the arm swings once per two
+  // eighths, down on the first and up on the second. Six slots, one per click.
+  const sheet = parsePattern(`${SIX_EIGHT_MARK}D-DUDU`);
+  check('six characters after the 6/8 mark are a bar, one slot per click', sheet?.slots.length === 6, String(sheet?.slots.length));
+  check('it is still six beats of 6/8', sheet?.beatsPerBar === 6 && meterOfPattern(sheet) === '6/8');
+  check('a slot is a whole eighth-note click', sheet?.slotsPerBeat === 1 && slotsPerBarOf(sheet) === 6);
+  check('down on 1, 3 and 5; up on 4 and 6; 2 is a rest',
+    sheet && [0, 2, 4].every((i) => sheet.slots[i] === 'D') && sheet.slots[3] === 'U' && sheet.slots[5] === 'U' && sheet.slots[1] === null);
+  check('the arm still decides direction: an up on 1 is refused', parsePattern(`${SIX_EIGHT_MARK}U-DUDU`) === null);
+  check('and a down on 4 is refused', parsePattern(`${SIX_EIGHT_MARK}D-DDDU`) === null);
+  check('other lengths after the mark are still refused', parsePattern(`${SIX_EIGHT_MARK}D-DUD`) === null && parsePattern(`${SIX_EIGHT_MARK}D-DUDUD`) === null);
+  check('writePattern carries the 6/8 mark for it', writePattern('D-DUDU', 1, 6) === `${SIX_EIGHT_MARK}D-DUDU`);
+  check('Justin\'s twelve-slot bar is unchanged', parsePattern(`${SIX_EIGHT_MARK}D--UD-D--UD-`)?.slotsPerBeat === 2);
+  // At the record's 157 eighth-note clicks the closest strokes are a whole click
+  // apart, 382 ms, far above what the analyser needs.
+  check('gradable at the record\'s 157', !strokesTooCloseToHear(sheet, 157), String(closestStrokesMs(sheet, 157)));
+  check('closest strokes are one click apart', Math.round(closestStrokesMs(sheet, 157)) === 382, String(closestStrokesMs(sheet, 157)));
+  const key = patternKey(`${SIX_EIGHT_MARK}D-DUDU`, 157);
+  check('its history key keeps the mark and is not Justin\'s', parsePatternKey(key)?.pattern === `${SIX_EIGHT_MARK}D-DUDU`, key);
+
+  const g = { origin: 1, period: 60 / 157, clicks: 40 };
+  const onsets = [];
+  for (let pass = 0; pass < 4; pass += 1) {
+    sheet.slots.forEach((s, slot) => {
+      if (!s) return;
+      const lag = (s === 'U' ? UP_DETECTION_LAG_MS : DOWN_DETECTION_LAG_MS) / 1000;
+      onsets.push(g.origin + (pass * 6 + slot) * g.period + lag);
+    });
+  }
+  const perfect = summarisePattern(matchPattern({ onsets, grid: g, pattern: sheet, originBeat: 0, passes: 4 }), sheet);
+  check('a perfect take of his strum scores 100', perfect.score === 100, String(perfect.score));
+  check('five strokes a bar are expected', perfect.expected === 5 * 4, String(perfect.expected));
+  // Played as Justin's pattern instead, the stroke on 5 is missing and the
+  // strokes on 2+ and 5+ are half a click from anything this bar asks for. The
+  // microphone cannot hear direction, so the two bars share four onsets; what it
+  // must not do is call the other pattern a perfect take of this one.
+  const justin = parsePattern(`${SIX_EIGHT_MARK}D--UD-D--UD-`);
+  const wrong = [];
+  for (let pass = 0; pass < 4; pass += 1) {
+    justin.slots.forEach((s, slot) => {
+      if (!s) return;
+      const lag = (s === 'U' ? UP_DETECTION_LAG_MS : DOWN_DETECTION_LAG_MS) / 1000;
+      wrong.push(g.origin + ((pass * 12 + slot) / 2) * g.period + lag);
+    });
+  }
+  const other = summarisePattern(matchPattern({ onsets: wrong, grid: g, pattern: sheet, originBeat: 0, passes: 4 }), sheet);
+  check('Justin\'s pattern played against it is not a perfect take', other.score < 100, String(other.score));
+}
+
 // --- scoring, with the answers known ---------------------------------------
 console.log('\nScoring a take whose answer is known\n');
 

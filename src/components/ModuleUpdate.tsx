@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore, drillLogsOf } from '../store';
-import { MODULE_6, moduleUpdateDue, planModuleUpdate, updateTarget, type ModulePlan } from '../lib/moduleRoutine';
+import { MODULE_6, MODULE_6_SONGS, moduleUpdateDue, planModuleUpdate, updateTarget, type ModulePlan } from '../lib/moduleRoutine';
 import type { Task } from '../types';
 import './ModuleUpdate.css';
 
-/** The update on offer. One at a time; the next module is a new entry. */
-const PLANS: ModulePlan[] = [MODULE_6];
+/** The update on offer. One at a time; the next module or revision is a new entry. */
+const PLANS: ModulePlan[] = [MODULE_6, MODULE_6_SONGS];
 const SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
 
 /**

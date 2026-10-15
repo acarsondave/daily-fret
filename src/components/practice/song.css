@@ -37,6 +37,30 @@
   line-height: 1;
   color: var(--text-primary);
 }
+/* The song's lesson, one quiet link: the same pill the Journey uses for a
+   course lesson, so a link out reads the same everywhere in the app. */
+.song-lesson-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  color: var(--text-primary);
+  font-family: var(--font-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color var(--dur-base) ease, background var(--dur-base) ease,
+    color var(--dur-base) ease;
+}
+.song-lesson-link:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: var(--accent-glow);
+}
+
 .song-topline {
   display: flex;
   align-items: center;

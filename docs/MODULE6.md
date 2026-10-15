@@ -75,27 +75,49 @@ the core harmonic cycles.
 
 | Song | Shapes / capo | Recording chart |
 |---|---|---|
-| Fade Into You — Mazzy Star | G, D, Am, C; capo 2 | 6/8; 156 eighth-BPM; 127 bars; album audio `avv2IIdDnnk` |
-| This Year's Love — David Gray | C, D, G, Em, A; capo 1 | 6/8; 165 eighth-BPM; 112 bars; audio `PdR6GEArgsw` |
+| Fade Into You — Mazzy Star | G, D, Am, C; capo 2 | 6/8; 157 eighth-BPM; 127 bars; strum `D-DUDU` (his sheet); album audio `avv2IIdDnnk`; lesson `iDdUpxZQhpc` |
+| Stand By Me — Ben E. King | G, Em, C, D; capo 2 | 4/4; 119 BPM; 88 bars; strum `D-XU-UX-` (his sheet); Atlantic master `b-D5yAAXYng`; lesson `kvAFzZjGlCg` |
+
+**2026-10-15, the owner's sheets.** Both songs now follow the owner's own
+Ultimate Guitar sheets (Fade Into You: UG 910099, capo 2; Stand By Me: UG
+1724608, capo 2). Chords only: no lyric is stored or shown.
+
+**Stand By Me replaced This Year's Love** at the owner's request. Routines that
+already took Module 6 are offered a narrow revision (`bg1-m6-songs`): This Year's
+Love's task is swapped for `Song: Stand By Me` in place, nothing else changes,
+the old routine is archived and Undo restores it exactly. Module 5 routines get
+Stand By Me directly from the Module 6 update. This Year's Love stays as a
+retired chart so anything still naming it keeps resolving; it is not offered.
 
 **Fade Into You:** concert A–E–Bm translates to G–D–Am at capo 2, not Em. The C
-shape replaces the final Am on the third cycle in chorus/solo blocks. The shorter
-VEVO edit `ImKY6TZEyrI` is not the chart's reference recording.
+shape replaces the final Am on the third cycle in chorus/solo blocks (bars 52,
+68, 100, 116, confirmed against the record by chord chroma). Tempo moved from
+156 to 157: a bar of the record measures 2.288 s and 156 fell a bar behind by the
+outro. Strum is the sheet's down 1, down 3, up 4, down 5, up 6, one slot per
+eighth-note click; Justin's B1-604 pattern remains the "6/8 Strumming" task.
+His sheet's ninth final-chorus line is the chart's outro cycle. The shorter VEVO
+edit `ImKY6TZEyrI` is not the chart's reference recording.
 
-**This Year's Love:** the recording's B♭7 would be A7 at capo 1; A is the explicit
-supported-vocabulary simplification. Cadd9/Dsus2 colourings become C/D. The app
-shows that arrangement note before play. Capo 1 is corroborated by the Justin
-community, not asserted as a quotation from his lesson body.
+**Stand By Me:** capo 2 G/Em/C/D is the record's A/F#m/D/E. Measured on the
+master: first downbeat 1.03 s, 8 bars of bass intro, then V V Ch V V Ch Solo
+Solo Ch Ch in eight-bar cycles `G G Em Em C D G G`, in phase to the fade. The
+record averages 119.0 BPM (the sheet says 120, which runs 1.5 s ahead by bar 73).
+It fades inside the last cycle (below −40 dB at bar 85); the chart keeps the
+sheet's and Songsterr's 88 bars. Songsterr s61064 and Hooktheory agree on form
+and harmony. The linked lesson strums `D XD DU`; the sheet's strum is kept.
+
+**Strum warm-up before songs** (Settings → Practice), off by default since
+2026-10-15: a coached song task goes straight to the song unless it is turned on.
 
 Sources checked when authoring:
 - [Justin B1-603, 6/8 time](https://www.justinguitar.com/guitar-lessons/6-8-time-signature-b1-603)
 - [Justin B1-604, 6/8 strumming](https://www.justinguitar.com/guitar-lessons/6-8-strumming-patterns-b1-604)
 - [Justin B1-607, songs for Module 6](https://www.justinguitar.com/guitar-lessons/songs-for-module-6-b1-607)
 - [Fade Into You, Songsterr](https://www.songsterr.com/a/wsa/mazzy-star-fade-into-you-chords-s12522)
-- [Fade Into You, Ultimate Guitar](https://tabs.ultimate-guitar.com/tab/mazzy-star/fade-into-you-chords-1874594)
-- [This Year's Love, Garret's Guitar Lessons](https://www.garretsguitarlessons.com/lessons/this-years-love-david-gray)
-- [This Year's Love, Justin community](https://community.justinguitar.com/t/this-years-love-david-gray-lesson/6307)
-- [This Year's Love tempo](https://getsongbpm.com/song/this-year-s-love/982Y8)
+- [Fade Into You, Ultimate Guitar (the owner's sheet)](https://tabs.ultimate-guitar.com/tab/mazzy-star/fade-into-you-chords-910099)
+- [Stand By Me, Ultimate Guitar (the owner's sheet)](https://tabs.ultimate-guitar.com/tab/ben-e-king/stand-by-me-chords-1724608)
+- [Stand By Me, Songsterr](https://www.songsterr.com/a/wsa/ben-e-king-stand-by-me-tab-s61064)
+- [Stand By Me, Hooktheory](https://www.hooktheory.com/theorytab/view/ben-e-king/stand-by-me)
 
 ## Verification boundaries
 

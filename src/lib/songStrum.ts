@@ -190,7 +190,7 @@ export function songPatternName(pattern: string, songs: readonly Song[]): string
       // changed. The two remain different exercises and different keys; what
       // they share is a name, which is all this function hands out.
       if (
-        writePattern(strum.pattern, strum.slotsPerBeat ?? EIGHTHS) === pattern
+        writePattern(strum.pattern, strum.slotsPerBeat ?? EIGHTHS, strum.beatsPerBar) === pattern
         || strum.pattern === pattern
       ) {
         return strum.name ?? song.title;
