@@ -32,7 +32,8 @@ import './patternBar.css';
  *  - The count sits beyond each pick, the beat number over a down and the
  *    "&" under an up, bright where the pattern sounds and quiet where it does
  *    not, so the row reads the way the player says it: 1 & 2 & 3 & 4 &. The
- *    one the arm is crossing lights up as it goes past.
+ *    one the arm is crossing lights up as it goes past, played counts only;
+ *    the quiet ones never move.
  *  - A strum that was heard is a stroke across the strings, in the accent, drawn
  *    at the position inside its slot where it actually landed. Rushing is the
  *    gap between that stroke and the pick above it, which is a thing to see

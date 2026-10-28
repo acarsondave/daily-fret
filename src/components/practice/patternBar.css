@@ -227,19 +227,16 @@
   color: var(--text-muted);
 }
 
-/* The count the arm is crossing, so the player can say it with the row. A
-   sounded count takes the accent, a lifted one only brightens a little: it is
-   still a slot to keep quiet on. */
-.pb-count.is-now {
-  transform: translate(-50%, -50%) scale(1.18);
+/* The count the arm is crossing, so the player can say it with the row. Only a
+   sounded count moves: a lifted one stays still, since it is a slot to keep
+   quiet on and anything moving there pulls the eye off the next strum. */
+.pb-count.is-ghost {
+  transition: none;
 }
 
 .pb-count.is-sounded.is-now {
   color: var(--accent-primary);
-}
-
-.pb-count.is-ghost.is-now {
-  color: rgb(236 222 205 / 0.5);
+  transform: translate(-50%, -50%) scale(1.18);
 }
 
 /* --- a percussive slap ------------------------------------------------------
