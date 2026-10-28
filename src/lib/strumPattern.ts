@@ -140,6 +140,20 @@ export const SLOTS_PER_BAR = 8;
 export const slotsPerBarOf = (pattern: Pattern): number =>
   pattern.slotsPerBeat * pattern.beatsPerBar;
 
+/**
+ * What the player counts out loud at a slot: "1 & 2 & 3 & 4 &" in eighths,
+ * "1 e & a" in sixteenths, the click number in 6/8 strummed per click. Starts
+ * again on every bar, so a two-bar phrase reads as two bars.
+ */
+export function countAt(slot: number, pattern: Pattern): string {
+  const within = slot % slotsPerBarOf(pattern);
+  const beat = Math.floor(within / pattern.slotsPerBeat) + 1;
+  const sub = within % pattern.slotsPerBeat;
+  if (sub === 0) return String(beat);
+  if (pattern.slotsPerBeat === SIXTEENTHS) return ['', 'e', '&', 'a'][sub];
+  return '&';
+}
+
 /** The time signature a pattern is counted in. */
 export const meterOfPattern = (pattern: Pattern): '4/4' | '6/8' =>
   pattern.beatsPerBar === SIX_EIGHT_BEATS ? '6/8' : '4/4';

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import clsx from 'clsx';
 import { ICON_STROKE } from '../icons/Icon';
-import { armDirectionAt, slotsPerBarOf, type Pattern, type SlotStroke } from '../../lib/strumPattern';
+import { armDirectionAt, countAt, slotsPerBarOf, type Pattern, type SlotStroke } from '../../lib/strumPattern';
 import './patternBar.css';
 
 /**
@@ -29,6 +29,10 @@ import './patternBar.css';
  *  - A bone marker travels the strings in a zigzag, crossing them once a slot,
  *    down then up then down, whether or not anything sounds. That is the arm
  *    the player is supposed to have, and it is the reason the drill exists.
+ *  - The count sits beyond each pick, the beat number over a down and the
+ *    "&" under an up, bright where the pattern sounds and quiet where it does
+ *    not, so the row reads the way the player says it: 1 & 2 & 3 & 4 &. The
+ *    one the arm is crossing lights up as it goes past.
  *  - A strum that was heard is a stroke across the strings, in the accent, drawn
  *    at the position inside its slot where it actually landed. Rushing is the
  *    gap between that stroke and the pick above it, which is a thing to see
@@ -168,6 +172,9 @@ export function PatternBar({
   const laneRef = useRef<HTMLDivElement | null>(null);
   // The lane's width, kept here so the frame loop below never reads geometry.
   const laneWidthRef = useRef(0);
+  // The written count, one element per slot, so the frame loop can light the
+  // one the arm is crossing without asking React to render.
+  const countRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const length = pattern.slots.length;
   const perBar = slotsPerBarOf(pattern);
   const bars = length / perBar;
@@ -206,6 +213,13 @@ export function PatternBar({
   // nothing.
   useEffect(() => {
     if (!sweepAt) return;
+    let lit = -1;
+    const light = (slot: number) => {
+      if (slot === lit) return;
+      countRefs.current[lit]?.classList.remove('is-now');
+      countRefs.current[slot]?.classList.add('is-now');
+      lit = slot;
+    };
     let frame = requestAnimationFrame(function draw() {
       frame = requestAnimationFrame(draw);
       const arm = armRef.current;
@@ -213,9 +227,11 @@ export function PatternBar({
       const at = sweepAt();
       if (at === null || !Number.isFinite(at)) {
         arm.style.opacity = '0';
+        light(-1);
         return;
       }
       const phase = ((at % length) + length) % length;
+      light(Math.floor(phase));
       const inSlot = phase % 1;
       const descending = Math.floor(phase) % 2 === 0;
       const travel = descending ? inSlot * 2 - 1 : 1 - inSlot * 2;
@@ -224,7 +240,10 @@ export function PatternBar({
       arm.style.transform =
         `translate(calc(${across}px - 50%), calc(-50% + ${travel * 46}%))`;
     });
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      light(-1);
+    };
   }, [sweepAt, length]);
 
   return (
@@ -286,6 +305,21 @@ export function PatternBar({
                 style={{ left: centreOf(slot) }}
               >
                 <Pick up={up} filled={!!expected && state !== 'unheard'} />
+              </span>
+              <span
+                ref={(el) => {
+                  countRefs.current[slot] = el;
+                }}
+                className={clsx(
+                  'pb-count',
+                  up ? 'is-up' : 'is-down',
+                  expected ? 'is-sounded' : 'is-ghost',
+                  (state === 'missed' || state === 'unheard') && 'is-missed',
+                )}
+                style={{ left: centreOf(slot) }}
+                aria-hidden="true"
+              >
+                {countAt(slot, pattern)}
               </span>
               {expected === 'X' && (
                 <span

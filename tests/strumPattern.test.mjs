@@ -29,6 +29,7 @@ import {
   slotsPerBarOf,
   writePattern,
   meterOfPattern,
+  countAt,
 } from '../src/lib/strumPattern.ts';
 import { SIX_EIGHT_PATTERNS } from '../src/data/strumPatterns.ts';
 import { patternKey, parsePatternKey } from '../src/lib/drillKeys.ts';
@@ -652,6 +653,20 @@ console.log("\nGet Lucky's phrase, played perfectly, at one cap and then the oth
     now.grid !== null && now.summary.score >= 80, String(now.summary?.score));
   check('and the guard is satisfied there',
     !strokesTooCloseToHear(parsePattern(LUCKY), SIXTEENTH_MAX_BPM));
+}
+
+console.log('\nThe count written over each slot\n');
+{
+  const counts = (source) => {
+    const p = parsePattern(source);
+    return p.slots.map((_, slot) => countAt(slot, p)).join(' ');
+  };
+  check('eighths count 1 & 2 & 3 & 4 &', counts('D-DU-UDU') === '1 & 2 & 3 & 4 &', counts('D-DU-UDU'));
+  check('a two-bar phrase starts the count again on bar two',
+    counts('D-DU-UDUD-DU-UDU') === '1 & 2 & 3 & 4 & 1 & 2 & 3 & 4 &', counts('D-DU-UDUD-DU-UDU'));
+  const lucky = 'D--UX--U-U-UDUDU';
+  check('sixteenths count 1 e & a', counts(`16.${lucky}`).startsWith('1 e & a 2 e & a'), counts(`16.${lucky}`));
+  check('6/8 strummed per click counts the clicks', counts('68.D-DUDU') === '1 2 3 4 5 6', counts('68.D-DUDU'));
 }
 
 console.log(failures ? `\n${failures} failed\n` : '\nall passed\n');

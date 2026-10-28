@@ -20,6 +20,7 @@
      side of the strings: a stem that reaches them turns every slot into a
      lollipop and the notation stops being readable at all. */
   --pb-stem: 17px;
+  --pb-count: 15px;
 }
 
 .pattern-bar.is-card {
@@ -27,11 +28,14 @@
   --pb-lane: 88px;
   --pb-stroke-h: 46%;
   --pb-stem: 12px;
+  --pb-count: 11px;
 }
 
 .pattern-bar.is-deck {
   --pb-pick: 18px;
-  --pb-lane: 64px;
+  /* Tall enough for the count beyond each pick as well as the pick itself. */
+  --pb-lane: 78px;
+  --pb-count: 9px;
   --pb-stroke-h: 50%;
   --pb-stem: 9px;
 }
@@ -43,16 +47,19 @@
 .pattern-bar.is-phrase {
   --pb-pick: 26px;
   --pb-stem: 15px;
+  --pb-count: 13px;
 }
 
 .pattern-bar.is-phrase.is-card {
   --pb-pick: 15px;
   --pb-stem: 10px;
+  --pb-count: 10px;
 }
 
 .pattern-bar.is-phrase.is-deck {
   --pb-pick: 14px;
   --pb-stem: 8px;
+  --pb-count: 8px;
 }
 
 /* The glyph takes its size from the row, so a narrow phone shrinks it without
@@ -183,6 +190,58 @@
   color: var(--text-muted);
 }
 
+/* --- the count -------------------------------------------------------------
+   Written beyond the pick, on the side the stroke is on: the beat number over a
+   down, the "&" under an up. Bright where the pattern sounds, quiet where the
+   pick lifts, the same rule the picks themselves follow. */
+
+.pb-count {
+  position: absolute;
+  font-family: var(--font-primary);
+  font-size: var(--pb-count);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--pb-bone);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  transition:
+    color var(--dur-fast) ease,
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.pb-count.is-down {
+  top: calc(50% - var(--pb-off) - var(--pb-pick) * 0.5 - var(--pb-count) * 0.75);
+}
+
+.pb-count.is-up {
+  top: calc(50% + var(--pb-off) + var(--pb-pick) * 0.5 + var(--pb-count) * 0.75);
+}
+
+.pb-count.is-ghost {
+  color: var(--pb-bone-quiet);
+  font-weight: 500;
+}
+
+.pb-count.is-missed {
+  color: var(--text-muted);
+}
+
+/* The count the arm is crossing, so the player can say it with the row. A
+   sounded count takes the accent, a lifted one only brightens a little: it is
+   still a slot to keep quiet on. */
+.pb-count.is-now {
+  transform: translate(-50%, -50%) scale(1.18);
+}
+
+.pb-count.is-sounded.is-now {
+  color: var(--accent-primary);
+}
+
+.pb-count.is-ghost.is-now {
+  color: rgb(236 222 205 / 0.5);
+}
+
 /* --- a percussive slap ------------------------------------------------------
    A cross on the strings, at the slot the slap lands on. On the strings and not
    on the pick, because that is where the difference is: the arm crosses exactly
@@ -309,26 +368,32 @@
     --pb-pick: 23px;
     --pb-lane: 118px;
     --pb-stem: 13px;
+    --pb-count: 13px;
   }
   .pattern-bar.is-card {
     --pb-pick: 18px;
     --pb-lane: 74px;
+    --pb-count: 10px;
   }
   .pattern-bar.is-deck {
     --pb-pick: 15px;
-    --pb-lane: 54px;
+    --pb-lane: 66px;
+    --pb-count: 9px;
   }
   .pattern-bar.is-phrase {
     --pb-pick: 17px;
     --pb-stem: 11px;
+    --pb-count: 11px;
   }
   .pattern-bar.is-phrase.is-card {
     --pb-pick: 14px;
     --pb-stem: 9px;
+    --pb-count: 9px;
   }
   .pattern-bar.is-phrase.is-deck {
     --pb-pick: 10px;
     --pb-stem: 6px;
+    --pb-count: 7px;
   }
   .pb-arm {
     height: 24px;
